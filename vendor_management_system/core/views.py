@@ -1,4 +1,7 @@
-# Imports
+from django.shortcuts import redirect
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.http import HttpResponse
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
@@ -44,3 +47,54 @@ class QueryParamObtainAuthToken(ObtainAuthToken):
     )
     def post(self, request, *args, **kwargs):
         return super().post(request, *args, **kwargs)
+
+
+@login_required
+def dashboard_redirect(request):
+    """Reindirizza l'utente alla dashboard appropriata in base al ruolo"""
+    user = request.user
+    
+    # Controlla se l'utente ha il campo role (per compatibilità)
+    if hasattr(user, 'role'):
+        if user.role == 'admin' or user.is_superuser:
+            return redirect('/documents/admin/')
+        elif user.role == 'bo_user':
+            return redirect('/documents/backoffice/')
+        elif user.role == 'vendor' and hasattr(user, 'vendor') and user.vendor:
+            return redirect('/documents/portal/')
+    
+    # Fallback per utenti senza ruolo definito
+    if user.is_superuser or user.is_staff:
+        return redirect('/documents/admin/')
+    else:
+        messages.warning(request, "Il tuo account non ha un ruolo assegnato. Contatta l'amministratore.")
+        return HttpResponse("""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Ruolo non assegnato</title>
+            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+        </head>
+        <body class="bg-light">
+            <div class="container mt-5">
+                <div class="row justify-content-center">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header bg-warning text-dark">
+                                <h4>⚠️ Ruolo non assegnato</h4>
+                            </div>
+                            <div class="card-body">
+                                <p>Il tuo account <strong>{}</strong> non ha un ruolo configurato.</p>
+                                <p>Contatta l'amministratore del sistema per assegnare un ruolo.</p>
+                                <div class="mt-3">
+                                    <a href="/admin/logout/" class="btn btn-secondary">Logout</a>
+                                    <a href="/admin/" class="btn btn-primary">Pannello Admin</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </body>
+        </html>
+        """.format(user.email))

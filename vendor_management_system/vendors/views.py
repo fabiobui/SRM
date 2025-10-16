@@ -1,8 +1,12 @@
 # Imports
-from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404, redirect
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.http import HttpResponse
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
-from rest_framework import permissions, response, status, viewsets
+from rest_framework import permissions, response, status, viewsets, status
+from rest_framework.authtoken.views import ObtainAuthToken
 
 from vendor_management_system.core.authentication import (
     QueryParameterTokenAuthentication,
@@ -13,6 +17,70 @@ from vendor_management_system.vendors.serializers import (
     VendorCreateUpdateSerializer,
     VendorSerializer,
 )
+
+from vendor_management_system.core.serializers import QueryParamAuthTokenSerializer
+
+# Custom view to obtain an auth token
+class QueryParamObtainAuthToken(ObtainAuthToken):
+    serializer_class = QueryParamAuthTokenSerializer
+
+    @swagger_auto_schema(
+        operation_id="core--obtain-auth-token",
+        operation_description="Obtain an auth token for a user",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=["email", "password"],
+            properties={
+                "email": openapi.Schema(
+                    type=openapi.TYPE_STRING,
+                    description="Email address of the user",
+                    format="email",
+                ),
+                "password": openapi.Schema(
+                    type=openapi.TYPE_STRING,
+                    description="Password of the user",
+                    format="password",
+                ),
+            },
+        ),
+        responses={
+            status.HTTP_200_OK: openapi.Response(
+                "The auth token",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={"token": openapi.Schema(type=openapi.TYPE_STRING)},
+                ),
+            ),
+            status.HTTP_400_BAD_REQUEST: "Bad request",
+        },
+        tags=["Rest API Authentication"],
+    )
+    def post(self, request, *args, **kwargs):
+        return super().post(request, *args, **kwargs)
+
+
+@login_required
+def dashboard_redirect(request):
+    """Reindirizza l'utente alla dashboard appropriata in base al ruolo"""
+    user = request.user
+    
+    if user.is_admin():
+        return redirect('admin-dashboard')
+    elif user.is_bo_user():
+        return redirect('backoffice-dashboard')
+    elif user.is_vendor_user():
+        return redirect('vendor-portal')
+    else:
+        messages.warning(request, "Il tuo account non ha un ruolo assegnato. Contatta l'amministratore.")
+        return HttpResponse("""
+        <div style="padding: 20px; font-family: Arial;">
+            <h2>⚠️ Ruolo non assegnato</h2>
+            <p>Il tuo account non ha un ruolo configurato.</p>
+            <p>Contatta l'amministratore del sistema.</p>
+            <a href="/admin/logout/">Logout</a>
+        </div>
+        """)
+
 
 
 # Class based ViewSet for Vendor
