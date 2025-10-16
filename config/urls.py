@@ -19,6 +19,7 @@ urlpatterns = [
     path("users/", include("vendor_management_system.users.urls")),
     # Purchase Orders App URL patterns
     path("purchase-orders/", include("vendor_management_system.purchase_orders.urls")),
+    path("documents/", include("vendor_management_system.documents.urls")), # ← NUOVO MODULO
 ]
 
 
