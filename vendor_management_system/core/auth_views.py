@@ -83,9 +83,23 @@ class CustomLoginView(View):
             return redirect('/documents/dashboard/')
 
 
+# In vendor_management_system/core/auth_views.py
+
 class CustomLogoutView(View):
     def get(self, request):
         from django.contrib.auth import logout
+        from django.contrib import messages
+        
+        # Pulisci tutti i messaggi esistenti
+        storage = messages.get_messages(request)
+        for message in storage:
+            pass  # Questo consuma tutti i messaggi
+        storage.used = True
+        
+        # Effettua logout
         logout(request)
+        
+        # Aggiungi solo il messaggio di logout
         messages.success(request, 'Logout effettuato con successo.')
+        
         return redirect('login')

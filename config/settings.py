@@ -173,8 +173,7 @@ TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
         'DIRS': [
-            BASE_DIR / "templates",
-            BASE_DIR / 'vendor_management_system' / 'templates',  # ← AGGIUNGI
+            BASE_DIR / 'vendor_management_system' / 'templates',  # ← IMPORTANTE
         ],
         "APP_DIRS": True,
         "OPTIONS": {
@@ -211,6 +210,10 @@ ADMIN_URL = "admin/"
 ADMINS = [("""Fabio Bui""", "fabio-bui@fulgard.com")]
 MANAGERS = ADMINS
 
+# Nel tuo settings.py, aggiungi questa riga
+LOGIN_URL = '/auth/login/'
+LOGIN_REDIRECT_URL = '/'
+LOGOUT_REDIRECT_URL = '/auth/login/'
 
 # LOGGING
 # ------------------------------------------------------------------------------

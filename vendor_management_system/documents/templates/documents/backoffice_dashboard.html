@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Back Office - Gestione Documenti</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .stats-card {
+            background: #fff;
+            border-radius: 8px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border-left: 4px solid #17a2b8;
+            margin-bottom: 1rem;
+        }
+        .stats-card.warning { border-left-color: #ffc107; }
+        .stats-card.info { border-left-color: #17a2b8; }
+        
+        .stats-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .document-table {
+            background: #fff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .status-badge {
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+        
+        .status-uploaded { background: #fff3cd; color: #856404; }
+        .status-approved { background: #d1ecf1; color: #0c5460; }
+        .status-rejected { background: #f8d7da; color: #721c24; }
+        .status-expired { background: #f5c6cb; color: #721c24; }
+        
+        .action-buttons {
+            display: flex;
+            gap: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-info">
+        <div class="container">
+            <a class="navbar-brand" href="/"><i class="fas fa-clipboard-check"></i> Dashboard Back Office</a>
+            
+            <div class="navbar-nav ms-auto d-flex align-items-center">
+                <!-- Info utente -->
+                <span class="navbar-text me-3">
+                    <i class="fas fa-user"></i> 
+                    {{ user.name|default:user.email }}
+                    <span class="badge bg-light text-dark ms-1">{{ user_role|title }}</span>
+                </span>
+                
+                <!-- Menu -->
+                <a class="nav-link" href="/documents/backoffice/"><i class="fas fa-clipboard-check"></i> Back Office</a>
+                {% if user.is_admin %}
+                    <a class="nav-link" href="/documents/admin/"><i class="fas fa-chart-bar"></i> Admin</a>
+                    <a class="nav-link" href="/admin/"><i class="fas fa-cog"></i> Django Admin</a>
+                {% endif %}
+                <a class="nav-link" href="/documents/portal/"><i class="fas fa-upload"></i> Portale</a>
+                <a class="nav-link" href="/auth/logout/"><i class="fas fa-sign-out-alt"></i> Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid py-4">
+        <div class="row mb-4">
+            <div class="col-12">
+                <h1 class="h3 mb-0">📋 Dashboard Back Office</h1>
+                <p class="text-muted">Gestione e revisione documenti fornitori</p>
+            </div>
+        </div>
+        
+        <!-- Statistics Cards -->
+        <div class="row mb-4">
+            <div class="col-lg-4 col-md-6 mb-3">
+                <div class="stats-card">
+                    <div class="stats-number">{{ total_documents|default:0 }}</div>
+                    <div class="text-muted">Documenti Totali</div>
+                </div>
+            </div>
+            <div class="col-lg-4 col-md-6 mb-3">
+                <div class="stats-card warning">
+                    <div class="stats-number">{{ pending_review|default:0 }}</div>
+                    <div class="text-muted">Da Revisionare</div>
+                </div>
+            </div>
+            <div class="col-lg-4 col-md-6 mb-3">
+                <div class="stats-card info">
+                    <div class="stats-number">{{ vendors_without_docs|length|default:0 }}</div>
+                    <div class="text-muted">Fornitori Senza Documenti</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Documents to Review -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="document-table">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th colspan="6" class="bg-warning text-dark">
+                                        <i class="fas fa-clock"></i> Documenti in Attesa di Revisione
+                                    </th>
+                                </tr>
+                                <tr>
+                                    <th>Fornitore</th>
+                                    <th>Tipo Documento</th>
+                                    <th>Data Caricamento</th>
+                                    <th>Data Scadenza</th>
+                                    <th>File</th>
+                                    <th>Azioni</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for doc in documents_to_review %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ doc.vendor.name }}</strong><br>
+                                        <small class="text-muted">{{ doc.vendor.vendor_code }}</small>
+                                    </td>
+                                    <td>{{ doc.document_type.name }}</td>
+                                    <td>{{ doc.uploaded_at|date:"d/m/Y H:i" }}</td>
+                                    <td>
+                                        {% if doc.expiry_date %}
+                                            {{ doc.expiry_date|date:"d/m/Y" }}
+                                            {% if doc.is_expired %}
+                                                <span class="text-danger">⚠️ Scaduto</span>
+                                            {% elif doc.is_expiring_soon %}
+                                                <span class="text-warning">⏰ In scadenza</span>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="text-muted">Non specificata</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if doc.file %}
+                                            <a href="{{ doc.file.url }}" class="btn btn-sm btn-outline-primary" target="_blank">
+                                                📄 Visualizza
+                                            </a>
+                                        {% else %}
+                                            <span class="text-muted">Nessun file</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="action-buttons">
+                                            <form method="post" action="{% url 'document-review' doc.id %}" style="display: inline;">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="action" value="approve">
+                                                <button type="submit" class="btn btn-sm btn-success" onclick="return confirm('Confermi di voler approvare questo documento?')">
+                                                    ✅ Approva
+                                                </button>
+                                            </form>
+                                            <button class="btn btn-sm btn-danger" onclick="showRejectModal('{{ doc.id }}', '{{ doc.document_type.name }}', '{{ doc.vendor.name }}')">
+                                                ❌ Rifiuta
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted py-4">
+                                        <div class="alert alert-info">
+                                            <i class="fas fa-check-circle"></i>
+                                            <strong>Ottimo lavoro!</strong><br>
+                                            Non ci sono documenti in attesa di revisione.
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Vendors without documents -->
+        {% if vendors_without_docs %}
+        <div class="row">
+            <div class="col-12">
+                <div class="document-table">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th colspan="3" class="bg-info text-white">
+                                        <i class="fas fa-exclamation-triangle"></i> Fornitori Senza Documenti
+                                    </th>
+                                </tr>
+                                <tr>
+                                    <th>Nome Fornitore</th>
+                                    <th>Codice</th>
+                                    <th>Contatti</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for vendor in vendors_without_docs %}
+                                <tr>
+                                    <td><strong>{{ vendor.name }}</strong></td>
+                                    <td>{{ vendor.vendor_code }}</td>
+                                    <td>{{ vendor.contact_details|truncatechars:50 }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Modal per rifiuto documento -->
+    <div class="modal fade" id="rejectModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title">
+                        <i class="fas fa-times-circle"></i> Rifiuta Documento
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Stai per rifiutare il documento <strong id="reject-doc-type"></strong> per il fornitore <strong id="reject-vendor-name"></strong>.</p>
+                    
+                    <form id="rejectForm" method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="reject">
+                        
+                        <div class="mb-3">
+                            <label for="reject-notes" class="form-label">Motivo del rifiuto:</label>
+                            <textarea 
+                                name="notes" 
+                                id="reject-notes" 
+                                class="form-control" 
+                                rows="3" 
+                                placeholder="Specifica il motivo del rifiuto (obbligatorio)"
+                                required
+                            ></textarea>
+                        </div>
+                        
+                        <div class="text-end">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-times"></i> Rifiuta Documento
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+    function showRejectModal(docId, docType, vendorName) {
+        // Imposta le informazioni nel modal
+        document.getElementById('reject-doc-type').textContent = docType;
+        document.getElementById('reject-vendor-name').textContent = vendorName;
+        
+        // Imposta l'action del form
+        document.getElementById('rejectForm').action = `/documents/review/${docId}/`;
+        
+        // Mostra il modal
+        const modal = new bootstrap.Modal(document.getElementById('rejectModal'));
+        modal.show();
+    }
+    </script>
+</body>
+</html>

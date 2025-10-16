@@ -8,13 +8,25 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+    <!-- Sostituisci la navbar nel file vendor_portal.html con questa -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-success">
         <div class="container">
-            <a class="navbar-brand" href="/"><i class="fas fa-building"></i> Sistema Gestione Fornitori</a>
-            <div class="navbar-nav ms-auto">
-                <a class="nav-link" href="/documents/dashboard/"><i class="fas fa-chart-bar"></i> Dashboard</a>
-                <a class="nav-link" href="/admin/"><i class="fas fa-cog"></i> Admin</a>
-                <a class="nav-link" href="/"><i class="fas fa-home"></i> Home</a>
+            <a class="navbar-brand" href="/documents/portal/"><i class="fas fa-building"></i> Portale Fornitore</a>
+            
+            <div class="navbar-nav ms-auto d-flex align-items-center">
+                <!-- Info utente -->
+                <span class="navbar-text me-3">
+                    <i class="fas fa-user"></i> 
+                    {{ user.name|default:user.email }}
+                    <span class="badge bg-light text-dark ms-1">Fornitore</span>
+                </span>
+                
+                <!-- Menu specifico per fornitori -->
+                <a class="nav-link" href="/documents/portal/"><i class="fas fa-home"></i> I Miei Documenti</a>
+                <a class="nav-link" href="/documents/upload/"><i class="fas fa-upload"></i> Carica Documento</a>
+                
+                <!-- Logout -->
+                <a class="nav-link" href="/auth/logout/"><i class="fas fa-sign-out-alt"></i> Logout</a>
             </div>
         </div>
     </nav>
