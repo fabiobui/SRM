@@ -12,7 +12,7 @@ from vendor_management_system.users.managers import UserManager
 # Model for User
 class User(AbstractUser):
     # Fields
-    id = CharField(_("ID of User"), primary_key=True, editable=False, default=uuid.uuid4)
+    id = CharField(_("ID of User"), primary_key=True, editable=False, default=uuid.uuid4, max_length=36)
     name = CharField(_("Name of User"), blank=True, max_length=255)
     first_name = None
     last_name = None

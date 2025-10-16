@@ -1,42 +1,35 @@
 # Imports
+import os
 from pathlib import Path
-
-import environ
 from celery.schedules import crontab
+from urllib.parse import urlparse
+from dotenv import load_dotenv
+from django.utils.translation import gettext_lazy as _
+#from import_export.formats.base_formats import CSV, XLSX
 
+load_dotenv()
 
-# Base directory of the Django project
-BASE_DIR = Path(__file__).resolve(strict=True).parent.parent.parent
+BASE_DIR = Path(__file__).resolve().parent.parent
+SECRET_KEY = os.getenv("SECRET_KEY", "dev-only")
+DEBUG = os.getenv("DEBUG", "False") == "True"
+ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
+
+LANGUAGE_CODE = os.getenv("LANGUAGE_CODE", "it")
+USE_I18N = os.getenv("USE_I18N", "True") == "True"
+TIME_ZONE = os.getenv("TIME_ZONE", "Europe/Rome")
+USE_TZ = os.getenv("USE_TZ", "True") == "True"
+
+LANGUAGES = [
+    ("it", _("Italiano")),
+    ("en", _("English")),
+    ("fr", _("Français")),
+]
+
+LOCALE_PATHS = [BASE_DIR / "locale"]
 
 
 # App directory of the Django project
 APPS_DIR = BASE_DIR / "vendor_management_system"
-
-
-# Initialize the environment variables
-env = environ.Env()
-
-
-# Read the environment variables from the .env file
-READ_DOT_ENV_FILE = env.bool("DJANGO_READ_DOT_ENV_FILE", default=False)
-if READ_DOT_ENV_FILE:
-    env.read_env(str(BASE_DIR / ".env"))
-
-
-# GENERAL
-# ------------------------------------------------------------------------------
-DEBUG = env.bool("DJANGO_DEBUG", False)
-SECRET_KEY = env(
-    "DJANGO_SECRET_KEY",
-    default="WTpCVHvBPyAPv2GawDRIShwJrez1AajjRJv3zihCU2Qe4fni2WWgqBM8Aw63226b",
-)
-ALLOWED_HOSTS = ["localhost", "0.0.0.0", "127.0.0.1"]
-TIME_ZONE = "Asia/Kolkata"
-LANGUAGE_CODE = "en-us"
-SITE_ID = 1
-USE_I18N = True
-USE_TZ = True
-LOCALE_PATHS = [str(BASE_DIR / "locale")]
 
 
 # CACHES
@@ -44,7 +37,7 @@ LOCALE_PATHS = [str(BASE_DIR / "locale")]
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": env("REDIS_URL"),
+        "LOCATION": os.getenv("REDIS_URL"),
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
             "IGNORE_EXCEPTIONS": True,
@@ -55,8 +48,27 @@ CACHES = {
 
 # DATABASES
 # ------------------------------------------------------------------------------
-DATABASES = {"default": env.db("DATABASE_URL")}
-DATABASES["default"]["ATOMIC_REQUESTS"] = True
+DATABASE_URL = os.getenv("DATABASE_URL", "")
+if DATABASE_URL.startswith("sqlite"):
+    DATABASES = {"default": {"ENGINE": "django.db.backends.sqlite3",
+                             "NAME": DATABASE_URL.split("sqlite:///")[1]}}
+else:
+    DATABASES = {"default": {
+        "ENGINE": os.getenv("DB_ENGINE"),
+        "NAME": os.getenv("DB_NAME"),
+        "USER": os.getenv("DB_USER"),
+        "PASSWORD": os.getenv("DB_PASSWORD"),
+        "HOST": os.getenv("DB_HOST"),
+        "PORT": os.getenv("DB_PORT"),
+        "OPTIONS": {
+            "charset": "utf8mb4",
+            "init_command": "SET sql_mode='STRICT_TRANS_TABLES'",
+        },
+        "CONN_MAX_AGE": 60,
+    }}
+
+
+# DATABASES["default"]["ATOMIC_REQUESTS"] = True
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 
@@ -92,6 +104,7 @@ LOCAL_APPS = [
     "vendor_management_system.vendors",
     "vendor_management_system.purchase_orders",
     "vendor_management_system.historical_performances",
+    "vendor_management_system.documents",  # ← NUOVO MODULO
 ]
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
@@ -136,11 +149,16 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
+#IMPORT_EXPORT_FORMATS = [XLSX, CSV]  # ordine = priorità nel menu
 
 # STATIC
 # ------------------------------------------------------------------------------
-STATIC_ROOT = str(BASE_DIR / "staticfiles")
+# Static & Media
 STATIC_URL = "/static/"
+# 1) DOVE METTI I TUOI FILE SORGENTE (versionati in git)
+STATICFILES_DIRS = [BASE_DIR / "static"]
+# 2) DOVE FINISCONO I FILE RACCOLTI (NON versionare)
+STATIC_ROOT = BASE_DIR / "staticfiles"
 
 
 # MEDIA
@@ -187,7 +205,7 @@ X_FRAME_OPTIONS = "DENY"
 # ADMIN
 # ------------------------------------------------------------------------------
 ADMIN_URL = "admin/"
-ADMINS = [("""Rohit Vilas Ingole""", "datarohit-webmaster@outlook.com")]
+ADMINS = [("""Fabio Bui""", "fabio-bui@fulgard.com")]
 MANAGERS = ADMINS
 
 
@@ -216,7 +234,7 @@ LOGGING = {
 # ------------------------------------------------------------------------------
 if USE_TZ:
     CELERY_TIMEZONE = TIME_ZONE
-CELERY_BROKER_URL = env("CELERY_BROKER_URL")
+CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL")
 CELERY_RESULT_BACKEND = CELERY_BROKER_URL
 CELERY_RESULT_EXTENDED = True
 CELERY_RESULT_BACKEND_ALWAYS_RETRY = True
