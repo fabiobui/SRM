@@ -1,12 +1,342 @@
-# Imports
+# Aggiornamenti per vendor_management_system/vendors/admin.py
+
+# Imports (aggiorna le imports esistenti)
 from django.contrib import admin
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
+from django.db.models import Count
 
-from vendor_management_system.vendors.models import Vendor
+from vendor_management_system.vendors.models import Vendor, Address, Category
 
 
-# Register Vendor model in admin
+# Inline per subcategories
+class SubcategoryInline(admin.TabularInline):
+    model = Category
+    fk_name = 'parent'
+    extra = 0
+    fields = ['code', 'name', 'is_active', 'sort_order', 'default_risk_level']
+    readonly_fields = []
+
+
+# Register Category model in admin
+@admin.register(Category)
+class CategoryAdmin(admin.ModelAdmin):
+    list_display = [
+        "code",
+        "name",
+        "parent_category_display",
+        "level_display",
+        "vendor_count_display",
+        "color_display",
+        "requires_certification",
+        "default_risk_level_display",
+        "is_active",
+        "sort_order",
+    ]
+    
+    list_filter = [
+        "is_active",
+        "requires_certification",
+        "default_risk_level",
+        "parent",
+        "created_at",
+    ]
+    
+    search_fields = [
+        "code",
+        "name",
+        "description",
+        "parent__name",
+    ]
+    
+    ordering = ["sort_order", "name"]
+    
+    fieldsets = (
+        (
+            _("Informazioni principali"),
+            {
+                "fields": (
+                    "code",
+                    "name",
+                    "description",
+                    "parent",
+                )
+            },
+        ),
+        (
+            _("Configurazione"),
+            {
+                "fields": (
+                    ("is_active", "sort_order"),
+                    ("requires_certification", "default_risk_level"),
+                    "color_code",
+                )
+            },
+        ),
+        (
+            _("Metadata"),
+            {
+                "fields": (
+                    "created_at",
+                    "updated_at",
+                ),
+                "classes": ("collapse",),
+            },
+        ),
+    )
+    
+    readonly_fields = [
+        "id",
+        "created_at",
+        "updated_at",
+    ]
+    
+    inlines = [SubcategoryInline]
+    
+    # Custom queryset per ottimizzare le query
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        return queryset.select_related('parent').annotate(
+            vendor_count=Count('vendors', distinct=True)
+        )
+    
+    # Custom display methods
+    def parent_category_display(self, obj):
+        if obj.parent:
+            return format_html(
+                '<span style="color: #007cba;">{}</span>',
+                obj.parent.name
+            )
+        else:
+            return format_html(
+                '<span style="color: #6c757d; font-style: italic;">Root</span>'
+            )
+    parent_category_display.short_description = _('Parent Category')
+    
+    def level_display(self, obj):
+        level = obj.level
+        indent = "━" * level if level > 0 else ""
+        return format_html(
+            '<span style="color: #6c757d;">{}{}</span>',
+            indent,
+            f"Level {level}"
+        )
+    level_display.short_description = _('Level')
+    
+    def vendor_count_display(self, obj):
+        count = getattr(obj, 'vendor_count', 0)
+        if count > 0:
+            return format_html(
+                '<span style="color: #28a745; font-weight: bold;">{}</span>',
+                count
+            )
+        else:
+            return format_html(
+                '<span style="color: #6c757d;">0</span>'
+            )
+    vendor_count_display.short_description = _('Vendors')
+    vendor_count_display.admin_order_field = 'vendor_count'
+    
+    def color_display(self, obj):
+        if obj.color_code:
+            return format_html(
+                '<div style="width: 20px; height: 20px; background-color: {}; border: 1px solid #ccc; border-radius: 3px; display: inline-block;"></div> {}',
+                obj.color_code,
+                obj.color_code
+            )
+        else:
+            return format_html(
+                '<span style="color: #6c757d;">Nessun colore</span>'
+            )
+    color_display.short_description = _('Color')
+    
+    def default_risk_level_display(self, obj):
+        colors = {
+            'LOW': '#28a745',    # green
+            'MEDIUM': '#ffc107', # yellow
+            'HIGH': '#dc3545',   # red
+        }
+        color = colors.get(obj.default_risk_level, '#6c757d')
+        return format_html(
+            '<span style="color: {}; font-weight: bold;">{}</span>',
+            color,
+            obj.get_default_risk_level_display()
+        )
+    default_risk_level_display.short_description = _('Default Risk')
+    
+    # Custom actions
+    actions = ['activate_categories', 'deactivate_categories', 'reset_sort_order']
+    
+    def activate_categories(self, request, queryset):
+        updated = queryset.update(is_active=True)
+        self.message_user(
+            request,
+            f'{updated} categoria/e attivata/e.'
+        )
+    activate_categories.short_description = _('Activate selected categories')
+    
+    def deactivate_categories(self, request, queryset):
+        updated = queryset.update(is_active=False)
+        self.message_user(
+            request,
+            f'{updated} categoria/e disattivata/e.'
+        )
+    deactivate_categories.short_description = _('Deactivate selected categories')
+    
+    def reset_sort_order(self, request, queryset):
+        for i, category in enumerate(queryset.order_by('name'), start=1):
+            category.sort_order = i * 10
+            category.save()
+        self.message_user(
+            request,
+            f'Ordine di visualizzazione reimpostato per {queryset.count()} categoria/e.'
+        )
+    reset_sort_order.short_description = _('Reset sort order')
+
+
+# Inline per Address nel Vendor admin
+class AddressInline(admin.StackedInline):
+    model = Address
+    extra = 0
+    max_num = 1  # Un vendor può avere un solo indirizzo principale
+    
+    fieldsets = (
+        (
+            _("Indirizzo"),
+            {
+                "fields": (
+                    "street_address",
+                    "street_address_2",
+                    ("city", "state_province"),
+                    ("postal_code", "country"),
+                )
+            },
+        ),
+        (
+            _("Dettagli aggiuntivi"),
+            {
+                "fields": (
+                    "address_type",
+                    ("latitude", "longitude"),
+                    "is_active",
+                    "notes",
+                ),
+                "classes": ("collapse",),
+            },
+        ),
+    )
+
+
+# Register Address model in admin
+@admin.register(Address)
+class AddressAdmin(admin.ModelAdmin):
+    list_display = [
+        "short_address_display",
+        "city",
+        "postal_code",
+        "country",
+        "address_type",
+        "is_active",
+        "vendors_count",
+        "created_at",
+    ]
+    
+    list_filter = [
+        "address_type",
+        "is_active",
+        "country",
+        "city",
+        "created_at",
+    ]
+    
+    search_fields = [
+        "street_address",
+        "street_address_2",
+        "city",
+        "postal_code",
+        "country",
+        "state_province",
+    ]
+    
+    ordering = ["-created_at"]
+    
+    fieldsets = (
+        (
+            _("Informazioni principali"),
+            {
+                "fields": (
+                    "street_address",
+                    "street_address_2",
+                    ("city", "state_province"),
+                    ("postal_code", "country"),
+                )
+            },
+        ),
+        (
+            _("Classificazione"),
+            {
+                "fields": (
+                    "address_type",
+                    "is_active",
+                )
+            },
+        ),
+        (
+            _("Coordinate geografiche"),
+            {
+                "fields": (
+                    ("latitude", "longitude"),
+                ),
+                "classes": ("collapse",),
+            },
+        ),
+        (
+            _("Note e dettagli"),
+            {
+                "fields": (
+                    "notes",
+                ),
+                "classes": ("collapse",),
+            },
+        ),
+        (
+            _("Metadata"),
+            {
+                "fields": (
+                    "created_at",
+                    "updated_at",
+                ),
+                "classes": ("collapse",),
+            },
+        ),
+    )
+    
+    readonly_fields = [
+        "id",
+        "created_at",
+        "updated_at",
+    ]
+    
+    # Custom display methods
+    def short_address_display(self, obj):
+        return obj.short_address
+    short_address_display.short_description = _('Indirizzo')
+    
+    def vendors_count(self, obj):
+        count = obj.vendors.count()
+        if count > 0:
+            return format_html(
+                '<span style="color: #28a745; font-weight: bold;">{} vendor(s)</span>',
+                count
+            )
+        else:
+            return format_html(
+                '<span style="color: #6c757d;">Nessun vendor</span>'
+            )
+    vendors_count.short_description = _('Vendors collegati')
+
+
+# Aggiorna VendorAdmin esistente
 @admin.register(Vendor)
 class VendorAdmin(admin.ModelAdmin):
     list_display = [
@@ -15,6 +345,7 @@ class VendorAdmin(admin.ModelAdmin):
         "email",
         "phone",
         "category",
+        "address_display",  # Nuovo campo
         "qualification_status_display",
         "risk_level_display",
         "is_qualified_display",
@@ -28,6 +359,8 @@ class VendorAdmin(admin.ModelAdmin):
         "country",
         "qualification_date",
         "next_audit_due",
+        "address__country",  # Filtro per paese dell'indirizzo
+        "address__city",     # Filtro per città dell'indirizzo
     ]
     
     search_fields = [
@@ -37,6 +370,9 @@ class VendorAdmin(admin.ModelAdmin):
         "vat_number",
         "fiscal_code",
         "reference_contact",
+        "address__street_address",
+        "address__city",
+        "address__postal_code",
     ]
     
     ordering = ["name"]
@@ -49,7 +385,6 @@ class VendorAdmin(admin.ModelAdmin):
                     "vendor_code",
                     "name",
                     "contact_details",
-                    "address",
                 )
             },
         ),
@@ -118,7 +453,24 @@ class VendorAdmin(admin.ModelAdmin):
         "vendor_code",
     ]
     
-    # Custom display methods
+    # Aggiungi l'inline per l'indirizzo
+    inlines = [AddressInline]
+    
+    # Custom display methods (mantieni tutte le esistenti e aggiungi questa)
+    def address_display(self, obj):
+        if obj.address:
+            return format_html(
+                '<span title="{}">{}</span>',
+                obj.address.full_address,
+                obj.address.short_address
+            )
+        else:
+            return format_html(
+                '<span style="color: #dc3545;">⚠ Nessun indirizzo</span>'
+            )
+    address_display.short_description = _('Indirizzo')
+    
+    # Mantieni tutti i metodi esistenti (qualification_status_display, risk_level_display, etc.)
     def qualification_status_display(self, obj):
         colors = {
             'PENDING': '#ffc107',  # warning/yellow
@@ -214,3 +566,4 @@ class VendorAdmin(admin.ModelAdmin):
                 obj.qualification_date = timezone.now().date()
                 
         super().save_model(request, obj, form, change)
+

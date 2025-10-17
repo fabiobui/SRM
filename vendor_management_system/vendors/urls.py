@@ -1,7 +1,6 @@
 # Imports
 from django.urls import path
-
-from vendor_management_system.vendors.views import VendorViewSet
+from vendor_management_system.vendors.views import VendorViewSet, AddressViewSet, CategoryViewSet
 
 
 # Define the URL patterns for the vendors app
@@ -37,10 +36,62 @@ urlpatterns = [
         name="vendors--performance",
     ),
     
+    # Address management for vendors (mantieni dal precedente)
+    path(
+        "<vendor_code>/address/",
+        VendorViewSet.as_view({"get": "get_address", "post": "create_address", "put": "update_address", "delete": "delete_address"}),
+        name="vendors--address",
+    ),
+    
     # Alert and monitoring endpoints
     path(
         "alerts/",
         VendorViewSet.as_view({"get": "alerts"}),
         name="vendors--alerts",
+    ),
+    
+    # Address CRUD operations (standalone) (mantieni dal precedente)
+    path(
+        "addresses/",
+        AddressViewSet.as_view({"get": "list", "post": "create"}),
+        name="addresses--list-create",
+    ),
+    path(
+        "addresses/<uuid:address_id>/",
+        AddressViewSet.as_view(
+            {"get": "retrieve", "put": "update", "delete": "destroy"}
+        ),
+        name="addresses--detail",
+    ),
+    
+    # Category CRUD operations (NUOVO)
+    path(
+        "categories/",
+        CategoryViewSet.as_view({"get": "list", "post": "create"}),
+        name="categories--list-create",
+    ),
+    path(
+        "categories/<uuid:category_id>/",
+        CategoryViewSet.as_view(
+            {"get": "retrieve", "put": "update", "delete": "destroy"}
+        ),
+        name="categories--detail",
+    ),
+    
+    # Category management endpoints (NUOVO)
+    path(
+        "categories/tree/",
+        CategoryViewSet.as_view({"get": "tree"}),
+        name="categories--tree",
+    ),
+    path(
+        "categories/stats/",
+        CategoryViewSet.as_view({"get": "stats"}),
+        name="categories--stats",
+    ),
+    path(
+        "categories/<uuid:category_id>/vendors/",
+        CategoryViewSet.as_view({"get": "vendors"}),
+        name="categories--vendors",
     ),
 ]

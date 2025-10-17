@@ -13,7 +13,8 @@ from vendor_management_system.core.authentication import (
     QueryParameterTokenAuthentication,
 )
 
-from vendor_management_system.vendors.models import Vendor
+from vendor_management_system.core.serializers import QueryParamAuthTokenSerializer
+from vendor_management_system.vendors.models import Vendor, Address, Category
 from vendor_management_system.vendors.serializers import (
     VendorCreateUpdateSerializer,
     VendorSerializer,
@@ -21,9 +22,810 @@ from vendor_management_system.vendors.serializers import (
     VendorQualificationSerializer,
     VendorAuditSerializer,
     VendorPerformanceSerializer,
+    AddressSerializer,
+    AddressManagementSerializer,
+    CategorySerializer,
+    CategoryManagementSerializer,
+    CategoryCompactSerializer,
+    CategoryTreeSerializer,
+    CategoryStatsSerializer,
 )
 
-from vendor_management_system.core.serializers import QueryParamAuthTokenSerializer
+# Nuovo ViewSet per Address (AGGIUNGI QUESTA CLASSE)
+class AddressViewSet(viewsets.ViewSet):
+    """ViewSet for managing addresses independently"""
+    permission_classes = [permissions.IsAuthenticated]
+    authentication_classes = [QueryParameterTokenAuthentication]
+
+    @swagger_auto_schema(
+        operation_id="addresses--list",
+        operation_description="List all addresses",
+        manual_parameters=[
+            openapi.Parameter(
+                name="token",
+                format="string",
+                in_=openapi.IN_QUERY,
+                type=openapi.TYPE_STRING,
+                required=True,
+                description="The token to authenticate the user",
+            ),
+            openapi.Parameter(
+                name="country",
+                format="string",
+                in_=openapi.IN_QUERY,
+                type=openapi.TYPE_STRING,
+                required=False,
+                description="Filter by country",
+            ),
+            openapi.Parameter(
+                name="city",
+                format="string",
+                in_=openapi.IN_QUERY,
+                type=openapi.TYPE_STRING,
+                required=False,
+                description="Filter by city",
+            ),
+            openapi.Parameter(
+                name="address_type",
+                format="string",
+                in_=openapi.IN_QUERY,
+                type=openapi.TYPE_STRING,
+                required=False,
+                description="Filter by address type",
+            ),
+        ],
+        responses={
+            status.HTTP_200_OK: openapi.Response(
+                "List of addresses", schema=AddressSerializer(many=True)
+            ),
+        },
+        tags=["Addresses"],
+    )
+    def list(self, request):
+        addresses = Address.objects.filter(is_active=True)
+        
+        # Apply filters
+        country = request.query_params.get('country')
+        if country:
+            addresses = addresses.filter(country__icontains=country)
+            
+        city = request.query_params.get('city')
+        if city:
+            addresses = addresses.filter(city__icontains=city)
+            
+        address_type = request.query_params.get('address_type')
+        if address_type:
+            addresses = addresses.filter(address_type=address_type)
+
+        serializer = AddressSerializer(addresses, many=True)
+        return response.Response(serializer.data, status=status.HTTP_200_OK)
+
+    @swagger_auto_schema(
+        operation_id="addresses--create",
+        operation_description="Create a new address",
+        manual_parameters=[
+            openapi.Parameter(
+                name="token",
+                format="string",
+                in_=openapi.IN_QUERY,
+                type=openapi.TYPE_STRING,
+                required=True,
+                description="The token to authenticate the user",
+            )
+        ],
+        request_body=AddressManagementSerializer,
+        responses={
+            status.HTTP_201_CREATED: openapi.Response(
+                "Created address", schema=AddressSerializer
+            ),
+        },
+        tags=["Addresses"],
+    )
+    def create(self, request):
+        serializer = AddressManagementSerializer(data=request.data)
+        if serializer.is_valid():
+            address = serializer.save()
+            response_serializer = AddressSerializer(address)
+            return response.Response(
+                response_serializer.data, status=status.HTTP_201_CREATED
+            )
+        return response.Response(
+            serializer.errors, status=status.HTTP_400_BAD_REQUEST
+        )
+
+    @swagger_auto_schema(
+        operation_id="addresses--retrieve",
+        operation_description="Retrieve a specific address",
+        manual_parameters=[
+            openapi.Parameter(
+                name="token",
+                format="string",
+                in_=openapi.IN_QUERY,
+                type=openapi.TYPE_STRING,
+                required=True,
+                description="The token to authenticate the user",
+            ),
+        ],
+        responses={
+            status.HTTP_200_OK: openapi.Response(
+                "Address details", schema=AddressSerializer
+            ),
+        },
+        tags=["Addresses"],
+    )
+    def retrieve(self, request, address_id=None):
+        address = get_object_or_404(Address, id=address_id)
+        serializer = AddressSerializer(address)
+        return response.Response(serializer.data, status=status.HTTP_200_OK)
+
+    @swagger_auto_schema(
+        operation_id="addresses--update",
+        operation_description="Update a specific address",
+        manual_parameters=[
+            openapi.Parameter(
+                name="token",
+                format="string",
+                in_=openapi.IN_QUERY,
+                type=openapi.TYPE_STRING,
+                required=True,
+                description="The token to authenticate the user",
+            ),
+        ],
+        request_body=AddressManagementSerializer,
+        responses={
+            status.HTTP_200_OK: openapi.Response(
+                "Updated address", schema=AddressSerializer
+            ),
+        },
+        tags=["Addresses"],
+    )
+    def update(self, request, address_id=None):
+        address = get_object_or_404(Address, id=address_id)
+        serializer = AddressManagementSerializer(
+            address, data=request.data, partial=True
+        )
+        if serializer.is_valid():
+            serializer.save()
+            response_serializer = AddressSerializer(address)
+            return response.Response(
+                response_serializer.data, status=status.HTTP_200_OK
+            )
+        return response.Response(
+            serializer.errors, status=status.HTTP_400_BAD_REQUEST
+        )
+
+    @swagger_auto_schema(
+        operation_id="addresses--destroy",
+        operation_description="Delete a specific address",
+        manual_parameters=[
+            openapi.Parameter(
+                name="token",
+                format="string",
+                in_=openapi.IN_QUERY,
+                type=openapi.TYPE_STRING,
+                required=True,
+                description="The token to authenticate the user",
+            ),
+        ],
+        responses={
+            status.HTTP_204_NO_CONTENT: "Address deleted",
+        },
+        tags=["Addresses"],
+    )
+    def destroy(self, request, address_id=None):
+        address = get_object_or_404(Address, id=address_id)
+        address.delete()
+        return response.Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# AGGIUNTE AL VendorViewSet esistente (aggiungi questi metodi alla classe VendorViewSet)
+
+    # Address management methods for vendor
+    @swagger_auto_schema(
+        methods=['get'],
+        operation_id="vendors--get-address",
+        operation_description="Get vendor address",
+        manual_parameters=[
+            openapi.Parameter(
+                name="token",
+                format="string",
+                in_=openapi.IN_QUERY,
+                type=openapi.TYPE_STRING,
+                required=True,
+                description="The token to authenticate the user",
+            ),
+        ],
+        responses={
+            status.HTTP_200_OK: openapi.Response(
+                "Vendor address", schema=AddressSerializer
+            ),
+        },
+        tags=["Vendor Address"],
+    )
+    @action(detail=True, methods=['get'], url_path='address')
+    def get_address(self, request, vendor_code=None):
+        vendor = get_object_or_404(Vendor, vendor_code=vendor_code)
+        if vendor.address:
+            serializer = AddressSerializer(vendor.address)
+            return response.Response(serializer.data, status=status.HTTP_200_OK)
+        else:
+            return response.Response(
+                {"detail": "Vendor has no address"}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+    @swagger_auto_schema(
+        methods=['post'],
+        operation_id="vendors--create-address",
+        operation_description="Create address for vendor",
+        manual_parameters=[
+            openapi.Parameter(
+                name="token",
+                format="string",
+                in_=openapi.IN_QUERY,
+                type=openapi.TYPE_STRING,
+                required=True,
+                description="The token to authenticate the user",
+            ),
+        ],
+        request_body=AddressManagementSerializer,
+        responses={
+            status.HTTP_201_CREATED: openapi.Response(
+                "Created address", schema=AddressSerializer
+            ),
+        },
+        tags=["Vendor Address"],
+    )
+    @action(detail=True, methods=['post'], url_path='address')
+    def create_address(self, request, vendor_code=None):
+        vendor = get_object_or_404(Vendor, vendor_code=vendor_code)
+        
+        if vendor.address:
+            return response.Response(
+                {"detail": "Vendor already has an address"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        serializer = AddressManagementSerializer(data=request.data)
+        if serializer.is_valid():
+            address = serializer.save()
+            vendor.address = address
+            vendor.save()
+            
+            response_serializer = AddressSerializer(address)
+            return response.Response(
+                response_serializer.data, status=status.HTTP_201_CREATED
+            )
+        return response.Response(
+            serializer.errors, status=status.HTTP_400_BAD_REQUEST
+        )
+
+    @swagger_auto_schema(
+        methods=['put'],
+        operation_id="vendors--update-address",
+        operation_description="Update vendor address",
+        manual_parameters=[
+            openapi.Parameter(
+                name="token",
+                format="string",
+                in_=openapi.IN_QUERY,
+                type=openapi.TYPE_STRING,
+                required=True,
+                description="The token to authenticate the user",
+            ),
+        ],
+        request_body=AddressManagementSerializer,
+        responses={
+            status.HTTP_200_OK: openapi.Response(
+                "Updated address", schema=AddressSerializer
+            ),
+        },
+        tags=["Vendor Address"],
+    )
+    @action(detail=True, methods=['put'], url_path='address')
+    def update_address(self, request, vendor_code=None):
+        vendor = get_object_or_404(Vendor, vendor_code=vendor_code)
+        
+        if not vendor.address:
+            return response.Response(
+                {"detail": "Vendor has no address to update"}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        serializer = AddressManagementSerializer(
+            vendor.address, data=request.data, partial=True
+        )
+        if serializer.is_valid():
+            serializer.save()
+            response_serializer = AddressSerializer(vendor.address)
+            return response.Response(
+                response_serializer.data, status=status.HTTP_200_OK
+            )
+        return response.Response(
+            serializer.errors, status=status.HTTP_400_BAD_REQUEST
+        )
+
+    @swagger_auto_schema(
+        methods=['delete'],
+        operation_id="vendors--delete-address",
+        operation_description="Delete vendor address",
+        manual_parameters=[
+            openapi.Parameter(
+                name="token",
+                format="string",
+                in_=openapi.IN_QUERY,
+                type=openapi.TYPE_STRING,
+                required=True,
+                description="The token to authenticate the user",
+            ),
+        ],
+        responses={
+            status.HTTP_204_NO_CONTENT: "Address deleted",
+        },
+        tags=["Vendor Address"],
+    )
+    @action(detail=True, methods=['delete'], url_path='address')
+    def delete_address(self, request, vendor_code=None):
+        vendor = get_object_or_404(Vendor, vendor_code=vendor_code)
+        
+        if not vendor.address:
+            return response.Response(
+                {"detail": "Vendor has no address to delete"}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        address = vendor.address
+        vendor.address = None
+        vendor.save()
+        address.delete()
+        
+        return response.Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# Nuovo ViewSet per Category (AGGIUNGI QUESTA CLASSE)
+class CategoryViewSet(viewsets.ViewSet):
+    """ViewSet for managing categories"""
+    permission_classes = [permissions.IsAuthenticated]
+    authentication_classes = [QueryParameterTokenAuthentication]
+
+    @swagger_auto_schema(
+        operation_id="categories--list",
+        operation_description="List all categories",
+        manual_parameters=[
+            openapi.Parameter(
+                name="token",
+                format="string",
+                in_=openapi.IN_QUERY,
+                type=openapi.TYPE_STRING,
+                required=True,
+                description="The token to authenticate the user",
+            ),
+            openapi.Parameter(
+                name="is_active",
+                format="boolean",
+                in_=openapi.IN_QUERY,
+                type=openapi.TYPE_BOOLEAN,
+                required=False,
+                description="Filter by active status",
+            ),
+            openapi.Parameter(
+                name="parent",
+                format="uuid",
+                in_=openapi.IN_QUERY,
+                type=openapi.TYPE_STRING,
+                required=False,
+                description="Filter by parent category ID",
+            ),
+            openapi.Parameter(
+                name="requires_certification",
+                format="boolean",
+                in_=openapi.IN_QUERY,
+                type=openapi.TYPE_BOOLEAN,
+                required=False,
+                description="Filter by certification requirement",
+            ),
+        ],
+        responses={
+            status.HTTP_200_OK: openapi.Response(
+                "List of categories", schema=CategorySerializer(many=True)
+            ),
+        },
+        tags=["Categories"],
+    )
+    def list(self, request):
+        categories = Category.objects.all().order_by('sort_order', 'name')
+        
+        # Apply filters
+        is_active = request.query_params.get('is_active')
+        if is_active is not None:
+            categories = categories.filter(is_active=is_active.lower() == 'true')
+            
+        parent = request.query_params.get('parent')
+        if parent:
+            if parent.lower() == 'null':
+                categories = categories.filter(parent__isnull=True)
+            else:
+                categories = categories.filter(parent__id=parent)
+                
+        requires_certification = request.query_params.get('requires_certification')
+        if requires_certification is not None:
+            categories = categories.filter(requires_certification=requires_certification.lower() == 'true')
+
+        serializer = CategorySerializer(categories, many=True)
+        return response.Response(serializer.data, status=status.HTTP_200_OK)
+
+    @swagger_auto_schema(
+        operation_id="categories--create",
+        operation_description="Create a new category",
+        manual_parameters=[
+            openapi.Parameter(
+                name="token",
+                format="string",
+                in_=openapi.IN_QUERY,
+                type=openapi.TYPE_STRING,
+                required=True,
+                description="The token to authenticate the user",
+            )
+        ],
+        request_body=CategoryManagementSerializer,
+        responses={
+            status.HTTP_201_CREATED: openapi.Response(
+                "Created category", schema=CategorySerializer
+            ),
+        },
+        tags=["Categories"],
+    )
+    def create(self, request):
+        serializer = CategoryManagementSerializer(data=request.data)
+        if serializer.is_valid():
+            category = serializer.save()
+            response_serializer = CategorySerializer(category)
+            return response.Response(
+                response_serializer.data, status=status.HTTP_201_CREATED
+            )
+        return response.Response(
+            serializer.errors, status=status.HTTP_400_BAD_REQUEST
+        )
+
+    @swagger_auto_schema(
+        operation_id="categories--retrieve",
+        operation_description="Retrieve a specific category",
+        manual_parameters=[
+            openapi.Parameter(
+                name="token",
+                format="string",
+                in_=openapi.IN_QUERY,
+                type=openapi.TYPE_STRING,
+                required=True,
+                description="The token to authenticate the user",
+            ),
+        ],
+        responses={
+            status.HTTP_200_OK: openapi.Response(
+                "Category details", schema=CategorySerializer
+            ),
+        },
+        tags=["Categories"],
+    )
+    def retrieve(self, request, category_id=None):
+        category = get_object_or_404(Category, id=category_id)
+        serializer = CategorySerializer(category)
+        return response.Response(serializer.data, status=status.HTTP_200_OK)
+
+    @swagger_auto_schema(
+        operation_id="categories--update",
+        operation_description="Update a specific category",
+        manual_parameters=[
+            openapi.Parameter(
+                name="token",
+                format="string",
+                in_=openapi.IN_QUERY,
+                type=openapi.TYPE_STRING,
+                required=True,
+                description="The token to authenticate the user",
+            ),
+        ],
+        request_body=CategoryManagementSerializer,
+        responses={
+            status.HTTP_200_OK: openapi.Response(
+                "Updated category", schema=CategorySerializer
+            ),
+        },
+        tags=["Categories"],
+    )
+    def update(self, request, category_id=None):
+        category = get_object_or_404(Category, id=category_id)
+        serializer = CategoryManagementSerializer(
+            category, data=request.data, partial=True
+        )
+        if serializer.is_valid():
+            serializer.save()
+            response_serializer = CategorySerializer(category)
+            return response.Response(
+                response_serializer.data, status=status.HTTP_200_OK
+            )
+        return response.Response(
+            serializer.errors, status=status.HTTP_400_BAD_REQUEST
+        )
+
+    @swagger_auto_schema(
+        operation_id="categories--destroy",
+        operation_description="Delete a specific category",
+        manual_parameters=[
+            openapi.Parameter(
+                name="token",
+                format="string",
+                in_=openapi.IN_QUERY,
+                type=openapi.TYPE_STRING,
+                required=True,
+                description="The token to authenticate the user",
+            ),
+        ],
+        responses={
+            status.HTTP_204_NO_CONTENT: "Category deleted",
+            status.HTTP_400_BAD_REQUEST: "Cannot delete category with vendors",
+        },
+        tags=["Categories"],
+    )
+    def destroy(self, request, category_id=None):
+        category = get_object_or_404(Category, id=category_id)
+        
+        # Check if category has vendors
+        if category.vendors.exists():
+            return response.Response(
+                {"detail": "Cannot delete category that has vendors assigned. Please reassign vendors first."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Check if category has subcategories
+        if category.subcategories.exists():
+            return response.Response(
+                {"detail": "Cannot delete category that has subcategories. Please delete subcategories first."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        category.delete()
+        return response.Response(status=status.HTTP_204_NO_CONTENT)
+
+    @swagger_auto_schema(
+        operation_id="categories--tree",
+        operation_description="Get category hierarchy tree",
+        manual_parameters=[
+            openapi.Parameter(
+                name="token",
+                format="string",
+                in_=openapi.IN_QUERY,
+                type=openapi.TYPE_STRING,
+                required=True,
+                description="The token to authenticate the user",
+            ),
+        ],
+        responses={
+            status.HTTP_200_OK: openapi.Response(
+                "Category tree", schema=CategoryTreeSerializer(many=True)
+            ),
+        },
+        tags=["Categories"],
+    )
+    @action(detail=False, methods=['get'], url_path='tree')
+    def tree(self, request):
+        # Get only root categories (without parent)
+        root_categories = Category.objects.filter(
+            parent__isnull=True, 
+            is_active=True
+        ).order_by('sort_order', 'name')
+        
+        serializer = CategoryTreeSerializer(root_categories, many=True)
+        return response.Response(serializer.data, status=status.HTTP_200_OK)
+
+    @swagger_auto_schema(
+        operation_id="categories--stats",
+        operation_description="Get category statistics",
+        manual_parameters=[
+            openapi.Parameter(
+                name="token",
+                format="string",
+                in_=openapi.IN_QUERY,
+                type=openapi.TYPE_STRING,
+                required=True,
+                description="The token to authenticate the user",
+            ),
+        ],
+        responses={
+            status.HTTP_200_OK: openapi.Response(
+                "Category statistics", schema=CategoryStatsSerializer(many=True)
+            ),
+        },
+        tags=["Categories"],
+    )
+    @action(detail=False, methods=['get'], url_path='stats')
+    def stats(self, request):
+        categories = Category.objects.filter(is_active=True).order_by('sort_order', 'name')
+        serializer = CategoryStatsSerializer(categories, many=True)
+        return response.Response(serializer.data, status=status.HTTP_200_OK)
+
+    @swagger_auto_schema(
+        operation_id="categories--vendors",
+        operation_description="Get vendors in a specific category",
+        manual_parameters=[
+            openapi.Parameter(
+                name="token",
+                format="string",
+                in_=openapi.IN_QUERY,
+                type=openapi.TYPE_STRING,
+                required=True,
+                description="The token to authenticate the user",
+            ),
+            openapi.Parameter(
+                name="include_subcategories",
+                format="boolean",
+                in_=openapi.IN_QUERY,
+                type=openapi.TYPE_BOOLEAN,
+                required=False,
+                description="Include vendors from subcategories",
+            ),
+        ],
+        responses={
+            status.HTTP_200_OK: openapi.Response(
+                "Vendors in category", schema=VendorListSerializer(many=True)
+            ),
+        },
+        tags=["Categories"],
+    )
+    @action(detail=True, methods=['get'], url_path='vendors')
+    def vendors(self, request, category_id=None):
+        category = get_object_or_404(Category, id=category_id)
+        include_subcategories = request.query_params.get('include_subcategories', 'false').lower() == 'true'
+        
+        if include_subcategories:
+            # Get all descendant categories
+            categories = [category] + category.get_descendants()
+            vendors = Vendor.objects.filter(category__in=categories)
+        else:
+            vendors = category.vendors.all()
+        
+        vendors = vendors.order_by('name')
+        serializer = VendorListSerializer(vendors, many=True)
+        return response.Response(serializer.data, status=status.HTTP_200_OK)
+
+
+# AGGIORNAMENTI AL VendorViewSet esistente
+
+# Aggiorna il metodo list del VendorViewSet per supportare filtro per categoria
+class VendorViewSet(viewsets.ViewSet):
+    # ... (mantieni tutto il resto del ViewSet) ...
+    
+    @swagger_auto_schema(
+        operation_id="vendors--list-vendors",
+        operation_description="List all vendors with basic information",
+        manual_parameters=[
+            openapi.Parameter(
+                name="token",
+                format="string",
+                in_=openapi.IN_QUERY,
+                type=openapi.TYPE_STRING,
+                required=True,
+                description="The token to authenticate the user",
+            ),
+            openapi.Parameter(
+                name="qualification_status",
+                format="string",
+                in_=openapi.IN_QUERY,
+                type=openapi.TYPE_STRING,
+                required=False,
+                description="Filter by qualification status (PENDING, APPROVED, REJECTED)",
+            ),
+            openapi.Parameter(
+                name="risk_level",
+                format="string",
+                in_=openapi.IN_QUERY,
+                type=openapi.TYPE_STRING,
+                required=False,
+                description="Filter by risk level (LOW, MEDIUM, HIGH)",
+            ),
+            openapi.Parameter(
+                name="category",
+                format="uuid",
+                in_=openapi.IN_QUERY,
+                type=openapi.TYPE_STRING,
+                required=False,
+                description="Filter by category ID",
+            ),
+            openapi.Parameter(
+                name="category_code",
+                format="string",
+                in_=openapi.IN_QUERY,
+                type=openapi.TYPE_STRING,
+                required=False,
+                description="Filter by category code",
+            ),
+            openapi.Parameter(
+                name="requires_certification",
+                format="boolean",
+                in_=openapi.IN_QUERY,
+                type=openapi.TYPE_BOOLEAN,
+                required=False,
+                description="Filter by certification requirement",
+            ),
+        ],
+        responses={
+            status.HTTP_200_OK: openapi.Response(
+                "List of all vendors", schema=VendorListSerializer(many=True)
+            ),
+            status.HTTP_401_UNAUTHORIZED: "Unauthorized",
+        },
+        tags=["Vendors"],
+    )
+    def list(self, request):
+        # Get all vendors con select_related per ottimizzare
+        vendors = Vendor.objects.select_related('category', 'address').all()
+        
+        # Apply existing filters
+        qualification_status = request.query_params.get('qualification_status')
+        if qualification_status:
+            vendors = vendors.filter(qualification_status=qualification_status)
+            
+        risk_level = request.query_params.get('risk_level')
+        if risk_level:
+            vendors = vendors.filter(risk_level=risk_level)
+        
+        # New category filters
+        category = request.query_params.get('category')
+        if category:
+            vendors = vendors.filter(category__id=category)
+            
+        category_code = request.query_params.get('category_code')
+        if category_code:
+            vendors = vendors.filter(category__code__iexact=category_code)
+            
+        requires_certification = request.query_params.get('requires_certification')
+        if requires_certification is not None:
+            vendors = vendors.filter(category__requires_certification=requires_certification.lower() == 'true')
+
+        # Serialize the vendors using lightweight serializer
+        serializer = VendorListSerializer(vendors, many=True)
+
+        # Return the response
+        return response.Response(serializer.data, status=status.HTTP_200_OK)
+
+    # Aggiorna il metodo alerts per includere informazioni sulla categoria
+    @action(detail=False, methods=['get'], url_path='alerts')
+    def alerts(self, request):
+        from django.utils import timezone
+        today = timezone.now().date()
+        
+        # Get vendors with overdue audits
+        overdue_audits = Vendor.objects.select_related('category', 'address').filter(
+            next_audit_due__lt=today
+        ).exclude(next_audit_due__isnull=True)
+        
+        # Get vendors with expired qualifications
+        expired_qualifications = Vendor.objects.select_related('category', 'address').filter(
+            qualification_expiry__lt=today,
+            qualification_status='APPROVED'
+        ).exclude(qualification_expiry__isnull=True)
+        
+        # Get high risk vendors
+        high_risk_vendors = Vendor.objects.select_related('category', 'address').filter(risk_level='HIGH')
+        
+        # Get vendors in categories requiring certification but without proper status
+        missing_certification = Vendor.objects.select_related('category', 'address').filter(
+            category__requires_certification=True,
+            qualification_status__in=['PENDING', 'REJECTED']
+        )
+        
+        # Get vendors without category assigned
+        no_category = Vendor.objects.select_related('address').filter(category__isnull=True)
+        
+        data = {
+            'overdue_audits': VendorListSerializer(overdue_audits, many=True).data,
+            'expired_qualifications': VendorListSerializer(expired_qualifications, many=True).data,
+            'high_risk_vendors': VendorListSerializer(high_risk_vendors, many=True).data,
+            'missing_certification': VendorListSerializer(missing_certification, many=True).data,
+            'no_category': VendorListSerializer(no_category, many=True).data,
+        }
+        
+        return response.Response(data, status=status.HTTP_200_OK)
 
 
 # Custom view to obtain an auth token
