@@ -1,0 +1,1401 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>README.md</title>
+<meta http-equiv="Content-type" content="text/html;charset=UTF-8">
+
+<style>
+/* https://github.com/microsoft/vscode/blob/master/extensions/markdown-language-features/media/markdown.css */
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+body {
+	font-family: var(--vscode-markdown-font-family, -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif);
+	font-size: var(--vscode-markdown-font-size, 14px);
+	padding: 0 26px;
+	line-height: var(--vscode-markdown-line-height, 22px);
+	word-wrap: break-word;
+}
+
+#code-csp-warning {
+	position: fixed;
+	top: 0;
+	right: 0;
+	color: white;
+	margin: 16px;
+	text-align: center;
+	font-size: 12px;
+	font-family: sans-serif;
+	background-color:#444444;
+	cursor: pointer;
+	padding: 6px;
+	box-shadow: 1px 1px 1px rgba(0,0,0,.25);
+}
+
+#code-csp-warning:hover {
+	text-decoration: none;
+	background-color:#007acc;
+	box-shadow: 2px 2px 2px rgba(0,0,0,.25);
+}
+
+body.scrollBeyondLastLine {
+	margin-bottom: calc(100vh - 22px);
+}
+
+body.showEditorSelection .code-line {
+	position: relative;
+}
+
+body.showEditorSelection .code-active-line:before,
+body.showEditorSelection .code-line:hover:before {
+	content: "";
+	display: block;
+	position: absolute;
+	top: 0;
+	left: -12px;
+	height: 100%;
+}
+
+body.showEditorSelection li.code-active-line:before,
+body.showEditorSelection li.code-line:hover:before {
+	left: -30px;
+}
+
+.vscode-light.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.15);
+}
+
+.vscode-light.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.40);
+}
+
+.vscode-light.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-dark.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.4);
+}
+
+.vscode-dark.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.60);
+}
+
+.vscode-dark.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-high-contrast.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 160, 0, 0.7);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 160, 0, 1);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+img {
+	max-width: 100%;
+	max-height: 100%;
+}
+
+a {
+	text-decoration: none;
+}
+
+a:hover {
+	text-decoration: underline;
+}
+
+a:focus,
+input:focus,
+select:focus,
+textarea:focus {
+	outline: 1px solid -webkit-focus-ring-color;
+	outline-offset: -1px;
+}
+
+hr {
+	border: 0;
+	height: 2px;
+	border-bottom: 2px solid;
+}
+
+h1 {
+	padding-bottom: 0.3em;
+	line-height: 1.2;
+	border-bottom-width: 1px;
+	border-bottom-style: solid;
+}
+
+h1, h2, h3 {
+	font-weight: normal;
+}
+
+table {
+	border-collapse: collapse;
+}
+
+table > thead > tr > th {
+	text-align: left;
+	border-bottom: 1px solid;
+}
+
+table > thead > tr > th,
+table > thead > tr > td,
+table > tbody > tr > th,
+table > tbody > tr > td {
+	padding: 5px 10px;
+}
+
+table > tbody > tr + tr > td {
+	border-top: 1px solid;
+}
+
+blockquote {
+	margin: 0 7px 0 5px;
+	padding: 0 16px 0 10px;
+	border-left-width: 5px;
+	border-left-style: solid;
+}
+
+code {
+	font-family: Menlo, Monaco, Consolas, "Droid Sans Mono", "Courier New", monospace, "Droid Sans Fallback";
+	font-size: 1em;
+	line-height: 1.357em;
+}
+
+body.wordWrap pre {
+	white-space: pre-wrap;
+}
+
+pre:not(.hljs),
+pre.hljs code > div {
+	padding: 16px;
+	border-radius: 3px;
+	overflow: auto;
+}
+
+pre code {
+	color: var(--vscode-editor-foreground);
+	tab-size: 4;
+}
+
+/** Theming */
+
+.vscode-light pre {
+	background-color: rgba(220, 220, 220, 0.4);
+}
+
+.vscode-dark pre {
+	background-color: rgba(10, 10, 10, 0.4);
+}
+
+.vscode-high-contrast pre {
+	background-color: rgb(0, 0, 0);
+}
+
+.vscode-high-contrast h1 {
+	border-color: rgb(0, 0, 0);
+}
+
+.vscode-light table > thead > tr > th {
+	border-color: rgba(0, 0, 0, 0.69);
+}
+
+.vscode-dark table > thead > tr > th {
+	border-color: rgba(255, 255, 255, 0.69);
+}
+
+.vscode-light h1,
+.vscode-light hr,
+.vscode-light table > tbody > tr + tr > td {
+	border-color: rgba(0, 0, 0, 0.18);
+}
+
+.vscode-dark h1,
+.vscode-dark hr,
+.vscode-dark table > tbody > tr + tr > td {
+	border-color: rgba(255, 255, 255, 0.18);
+}
+
+</style>
+
+<style>
+/* Tomorrow Theme */
+/* http://jmblog.github.com/color-themes-for-google-code-highlightjs */
+/* Original theme - https://github.com/chriskempson/tomorrow-theme */
+
+/* Tomorrow Comment */
+.hljs-comment,
+.hljs-quote {
+	color: #8e908c;
+}
+
+/* Tomorrow Red */
+.hljs-variable,
+.hljs-template-variable,
+.hljs-tag,
+.hljs-name,
+.hljs-selector-id,
+.hljs-selector-class,
+.hljs-regexp,
+.hljs-deletion {
+	color: #c82829;
+}
+
+/* Tomorrow Orange */
+.hljs-number,
+.hljs-built_in,
+.hljs-builtin-name,
+.hljs-literal,
+.hljs-type,
+.hljs-params,
+.hljs-meta,
+.hljs-link {
+	color: #f5871f;
+}
+
+/* Tomorrow Yellow */
+.hljs-attribute {
+	color: #eab700;
+}
+
+/* Tomorrow Green */
+.hljs-string,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-addition {
+	color: #718c00;
+}
+
+/* Tomorrow Blue */
+.hljs-title,
+.hljs-section {
+	color: #4271ae;
+}
+
+/* Tomorrow Purple */
+.hljs-keyword,
+.hljs-selector-tag {
+	color: #8959a8;
+}
+
+.hljs {
+	display: block;
+	overflow-x: auto;
+	color: #4d4d4c;
+	padding: 0.5em;
+}
+
+.hljs-emphasis {
+	font-style: italic;
+}
+
+.hljs-strong {
+	font-weight: bold;
+}
+</style>
+
+<style>
+/*
+ * Markdown PDF CSS
+ */
+
+ body {
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif, "Meiryo";
+	padding: 0 12px;
+}
+
+pre {
+	background-color: #f8f8f8;
+	border: 1px solid #cccccc;
+	border-radius: 3px;
+	overflow-x: auto;
+	white-space: pre-wrap;
+	overflow-wrap: break-word;
+}
+
+pre:not(.hljs) {
+	padding: 23px;
+	line-height: 19px;
+}
+
+blockquote {
+	background: rgba(127, 127, 127, 0.1);
+	border-color: rgba(0, 122, 204, 0.5);
+}
+
+.emoji {
+	height: 1.4em;
+}
+
+code {
+	font-size: 14px;
+	line-height: 19px;
+}
+
+/* for inline code */
+:not(pre):not(.hljs) > code {
+	color: #C9AE75; /* Change the old color so it seems less like an error */
+	font-size: inherit;
+}
+
+/* Page Break : use <div class="page"/> to insert page break
+-------------------------------------------------------- */
+.page {
+	page-break-after: always;
+}
+
+</style>
+
+<script src="https://unpkg.com/mermaid/dist/mermaid.min.js"></script>
+</head>
+<body>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: document.body.classList.contains('vscode-dark') || document.body.classList.contains('vscode-high-contrast')
+          ? 'dark'
+          : 'default'
+    });
+  </script>
+<h1 id="vendor-management-system---architecture-documentation">Vendor Management System - Architecture Documentation</h1>
+<h2 id="1-system-overview">1. System Overview</h2>
+<h3 id="business-purpose-and-scope">Business Purpose and Scope</h3>
+<p>The <strong>Vendor Management System (VMS)</strong> is a comprehensive Django-based application designed to streamline and automate the entire vendor lifecycle management process. The system serves as a centralized platform for managing vendor relationships, purchase orders, performance tracking, and compliance documentation.</p>
+<p><strong>Core Business Objectives:</strong></p>
+<ul>
+<li><strong>Vendor Lifecycle Management</strong>: Complete CRUD operations for vendor information and performance tracking</li>
+<li><strong>Purchase Order Workflow</strong>: Automated status-driven workflow for order processing from creation to delivery</li>
+<li><strong>Performance Analytics</strong>: Real-time and historical tracking of vendor performance metrics</li>
+<li><strong>Compliance Management</strong>: Document tracking with expiry alerts and approval workflows</li>
+<li><strong>Role-Based Access</strong>: Multi-tier user system supporting different organizational roles</li>
+</ul>
+<h3 id="high-level-architecture">High-Level Architecture</h3>
+<pre class="hljs"><code><div>┌─────────────────────────────────────────────────────────────────┐
+│                        Frontend Layer                           │
+│  (Web Interface + API Consumers + Mobile Apps)                 │
+└─────────────────────┬───────────────────────────────────────────┘
+                      │
+┌─────────────────────┴───────────────────────────────────────────┐
+│                     API Gateway Layer                           │
+│   (Django REST Framework + JWT Authentication)                 │
+└─────────────────────┬───────────────────────────────────────────┘
+                      │
+┌─────────────────────┴───────────────────────────────────────────┐
+│                   Business Logic Layer                          │
+│  ┌─────────────┬─────────────┬─────────────┬─────────────────┐  │
+│  │   Vendors   │   Orders    │  Documents  │  Performance    │  │
+│  │ Management  │ Workflow    │ Management  │   Analytics     │  │
+│  └─────────────┴─────────────┴─────────────┴─────────────────┘  │
+└─────────────────────┬───────────────────────────────────────────┘
+                      │
+┌─────────────────────┴───────────────────────────────────────────┐
+│                   Data Access Layer                             │
+│  ┌─────────────┬─────────────┬─────────────┬─────────────────┐  │
+│  │ PostgreSQL  │    Redis    │   Celery    │   File Storage  │  │
+│  │  Database   │   Cache     │    Queue    │    (Media)      │  │
+│  └─────────────┴─────────────┴─────────────┴─────────────────┘  │
+└─────────────────────────────────────────────────────────────────┘
+</div></code></pre>
+<h3 id="technology-stack">Technology Stack</h3>
+<p><strong>Backend Framework:</strong></p>
+<ul>
+<li><strong>Django 4.x</strong>: Main web framework providing ORM, admin interface, and middleware</li>
+<li><strong>Django REST Framework</strong>: RESTful API development with serialization and authentication</li>
+<li><strong>PostgreSQL</strong>: Primary relational database for data persistence</li>
+<li><strong>Redis</strong>: In-memory data structure store for caching and message brokering</li>
+</ul>
+<p><strong>Background Processing:</strong></p>
+<ul>
+<li><strong>Celery</strong>: Distributed task queue for asynchronous processing</li>
+<li><strong>Celery Beat</strong>: Periodic task scheduler for automated operations</li>
+<li><strong>Flower</strong>: Real-time monitoring of Celery workers and tasks</li>
+</ul>
+<p><strong>Security &amp; Authentication:</strong></p>
+<ul>
+<li><strong>Custom JWT Authentication</strong>: Token-based authentication system</li>
+<li><strong>Argon2</strong>: Password hashing algorithm for enhanced security</li>
+<li><strong>Role-Based Access Control</strong>: Multi-tier permission system</li>
+</ul>
+<p><strong>Development &amp; Deployment:</strong></p>
+<ul>
+<li><strong>Docker</strong>: Containerization for consistent deployment</li>
+<li><strong>Docker Compose</strong>: Multi-container application orchestration</li>
+<li><strong>pytest</strong>: Testing framework for unit and integration tests</li>
+</ul>
+<h3 id="key-features-summary">Key Features Summary</h3>
+<ul>
+<li>✅ <strong>Vendor Management</strong>: Complete vendor lifecycle with performance metrics</li>
+<li>✅ <strong>Smart Purchase Orders</strong>: State-driven workflow with automated transitions</li>
+<li>✅ <strong>Real-time Performance Tracking</strong>: Automated metrics calculation and historical data</li>
+<li>✅ <strong>Document Compliance</strong>: Expiry tracking and approval workflows</li>
+<li>✅ <strong>Multi-role Access</strong>: Admin, Back Office, and Vendor user types</li>
+<li>✅ <strong>API-First Design</strong>: RESTful APIs with comprehensive documentation</li>
+<li>✅ <strong>Background Processing</strong>: Automated tasks for performance tracking</li>
+<li>✅ <strong>Audit Trail</strong>: Complete tracking of order status changes and timestamps</li>
+</ul>
+<h2 id="2-business-logic-architecture">2. Business Logic Architecture</h2>
+<h3 id="core-business-processes">Core Business Processes</h3>
+<h4 id="21-vendor-lifecycle-management">2.1 Vendor Lifecycle Management</h4>
+<p><strong>Business Logic:</strong>
+The system manages vendors through a complete lifecycle from registration to performance evaluation. Each vendor is assigned a unique code and tracked across multiple performance dimensions.</p>
+<p><strong>Key Business Rules:</strong></p>
+<ul>
+<li>Vendor codes must be uppercase alphanumeric (validated via regex)</li>
+<li>Performance metrics are automatically calculated based on purchase order data</li>
+<li>Historical performance is captured every 6 hours via automated tasks</li>
+<li>Vendors can be linked to user accounts for self-service portal access</li>
+</ul>
+<p><strong>Performance Metrics:</strong></p>
+<ul>
+<li><strong>On-time Delivery Rate</strong>: Percentage of orders delivered on or before expected date</li>
+<li><strong>Quality Rating Average</strong>: Average rating across all completed orders (1-5 scale)</li>
+<li><strong>Average Response Time</strong>: Time between order issuance and acknowledgment</li>
+<li><strong>Fulfillment Rate</strong>: Percentage of orders successfully completed vs. cancelled</li>
+</ul>
+<h4 id="22-purchase-order-workflow">2.2 Purchase Order Workflow</h4>
+<p><strong>State Machine Logic:</strong>
+Purchase orders follow a strict state machine with automated transitions and business rule enforcement:</p>
+<pre class="hljs"><code><div>PENDING → ISSUED → ACKNOWLEDGED → DELIVERED
+    ↓         ↓         ↓
+  CANCELLED CANCELLED CANCELLED
+</div></code></pre>
+<p><strong>State Transition Rules:</strong></p>
+<ol>
+<li>
+<p><strong>PENDING → ISSUED</strong></p>
+<ul>
+<li>Requires vendor assignment</li>
+<li>Sets <code>issue_date</code> automatically via Django signals</li>
+<li>Only possible from PENDING status</li>
+</ul>
+</li>
+<li>
+<p><strong>ISSUED → ACKNOWLEDGED</strong></p>
+<ul>
+<li>Must be acknowledged by the same vendor that received the order</li>
+<li>Sets <code>acknowledgment_date</code> automatically</li>
+<li>Validates vendor authorization</li>
+</ul>
+</li>
+<li>
+<p><strong>ACKNOWLEDGED → DELIVERED</strong></p>
+<ul>
+<li>Sets <code>actual_delivery_date</code> automatically</li>
+<li>Triggers vendor performance metric recalculation</li>
+<li>Enables quality rating assignment</li>
+</ul>
+</li>
+<li>
+<p><strong>Any State → CANCELLED</strong></p>
+<ul>
+<li>Can be cancelled from any non-terminal state</li>
+<li>Records cancellation timestamp</li>
+<li>Affects vendor fulfillment rate calculation</li>
+</ul>
+</li>
+</ol>
+<p><strong>Business Logic Implementation:</strong></p>
+<ul>
+<li><strong>Django Signals</strong>: Automatic timestamp setting on status changes</li>
+<li><strong>ViewSet Actions</strong>: Custom endpoints for each state transition</li>
+<li><strong>Validation Layer</strong>: Status transition validation in serializers</li>
+<li><strong>Audit Trail</strong>: Complete tracking of status changes with timestamps</li>
+</ul>
+<h4 id="23-performance-analytics-system">2.3 Performance Analytics System</h4>
+<p><strong>Automated Calculation Logic:</strong>
+The system employs Celery background tasks to continuously monitor and calculate vendor performance metrics:</p>
+<p><strong>Celery Task: <code>record_historical_performance</code></strong></p>
+<ul>
+<li><strong>Frequency</strong>: Every 6 hours (configurable via Celery Beat)</li>
+<li><strong>Scope</strong>: All active vendors in the system</li>
+<li><strong>Data Captured</strong>: Snapshot of current performance metrics</li>
+<li><strong>Storage</strong>: Historical performance records for trend analysis</li>
+</ul>
+<p><strong>Real-time Metrics Calculation:</strong>
+Performance metrics are recalculated automatically when purchase orders change status:</p>
+<pre class="hljs"><code><div><span class="hljs-comment"># Triggered on order delivery</span>
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">calculate_on_time_delivery_rate</span><span class="hljs-params">(vendor)</span>:</span>
+    total_delivered = vendor.orders.filter(status=<span class="hljs-string">'DELIVERED'</span>).count()
+    on_time_delivered = vendor.orders.filter(
+        status=<span class="hljs-string">'DELIVERED'</span>,
+        actual_delivery_date__lte=F(<span class="hljs-string">'expected_delivery_date'</span>)
+    ).count()
+    <span class="hljs-keyword">return</span> (on_time_delivered / total_delivered) * <span class="hljs-number">100</span> <span class="hljs-keyword">if</span> total_delivered &gt; <span class="hljs-number">0</span> <span class="hljs-keyword">else</span> <span class="hljs-number">0</span>
+</div></code></pre>
+<h4 id="24-document-management-workflow">2.4 Document Management Workflow</h4>
+<p><strong>Document Lifecycle:</strong></p>
+<ul>
+<li><strong>Document Types</strong>: Configurable document requirements (DURC, ISO certifications, etc.)</li>
+<li><strong>Upload Process</strong>: Vendors upload documents through self-service portal</li>
+<li><strong>Approval Workflow</strong>: Back office users review and approve/reject documents</li>
+<li><strong>Expiry Tracking</strong>: Automated alerts for documents nearing expiration</li>
+<li><strong>Compliance Reporting</strong>: Dashboard views for compliance status across vendors</li>
+</ul>
+<h3 id="application-architecture">Application Architecture</h3>
+<h4 id="25-django-apps-overview-and-responsibilities">2.5 Django Apps Overview and Responsibilities</h4>
+<p><strong>Core App</strong> (<code>vendor_management_system.core</code>)</p>
+<ul>
+<li><strong>Purpose</strong>: Foundation layer providing authentication and common utilities</li>
+<li><strong>Key Components</strong>:
+<ul>
+<li>Custom JWT token authentication system</li>
+<li>Role-based permission classes</li>
+<li>Common decorators and utilities</li>
+<li>API authentication endpoints</li>
+</ul>
+</li>
+</ul>
+<p><strong>Users App</strong> (<code>vendor_management_system.users</code>)</p>
+<ul>
+<li><strong>Purpose</strong>: User management with role-based access control</li>
+<li><strong>Key Components</strong>:
+<ul>
+<li>Custom User model extending AbstractUser</li>
+<li>Three-tier role system: Admin, Back Office, Vendor</li>
+<li>User-Vendor relationship management</li>
+<li>Custom user managers for role-specific operations</li>
+</ul>
+</li>
+</ul>
+<p><strong>Vendors App</strong> (<code>vendor_management_system.vendors</code>)</p>
+<ul>
+<li><strong>Purpose</strong>: Vendor information and performance management</li>
+<li><strong>Key Components</strong>:
+<ul>
+<li>Vendor model with performance metrics</li>
+<li>CRUD operations via ViewSets</li>
+<li>Performance calculation methods</li>
+<li>Vendor dashboard routing</li>
+</ul>
+</li>
+</ul>
+<p><strong>Purchase Orders App</strong> (<code>vendor_management_system.purchase_orders</code>)</p>
+<ul>
+<li><strong>Purpose</strong>: Order lifecycle management with state machine logic</li>
+<li><strong>Key Components</strong>:
+<ul>
+<li>Purchase Order model with status workflow</li>
+<li>State transition actions (issue, acknowledge, deliver, cancel)</li>
+<li>Django signals for automatic timestamp management</li>
+<li>Quality rating system</li>
+</ul>
+</li>
+</ul>
+<p><strong>Historical Performance App</strong> (<code>vendor_management_system.historical_performances</code>)</p>
+<ul>
+<li><strong>Purpose</strong>: Long-term performance analytics and trending</li>
+<li><strong>Key Components</strong>:
+<ul>
+<li>Historical performance data model</li>
+<li>Celery tasks for automated data collection</li>
+<li>Performance trend analysis</li>
+<li>Historical reporting APIs</li>
+</ul>
+</li>
+</ul>
+<p><strong>Documents App</strong> (<code>vendor_management_system.documents</code>)</p>
+<ul>
+<li><strong>Purpose</strong>: Document compliance and lifecycle management</li>
+<li><strong>Key Components</strong>:
+<ul>
+<li>Document type configuration</li>
+<li>Vendor document upload and management</li>
+<li>Approval workflow with status tracking</li>
+<li>Expiry alerts and compliance reporting</li>
+</ul>
+</li>
+</ul>
+<h3 id="data-model-relationships">Data Model Relationships</h3>
+<h4 id="26-entity-relationship-architecture">2.6 Entity Relationship Architecture</h4>
+<p><strong>Core Entities and Relationships:</strong></p>
+<pre class="hljs"><code><div>User (1) ←→ (0..1) Vendor
+  ↓
+  │ (role-based access)
+  ↓
+Vendor (1) ←→ (*) PurchaseOrder
+  ↓                    ↓
+  │ (performance)      │ (history)
+  ↓                    ↓
+HistoricalPerformance  OrderStatusHistory
+  ↑
+  │ (automated capture)
+  ↑
+Vendor (1) ←→ (*) VendorDocument
+              ↓
+              │ (compliance)
+              ↓
+            DocumentType
+</div></code></pre>
+<p><strong>Relationship Details:</strong></p>
+<ol>
+<li>
+<p><strong>User ↔ Vendor</strong> (Optional One-to-One)</p>
+<ul>
+<li>Vendors can have associated user accounts for portal access</li>
+<li>Users with 'vendor' role must have a linked Vendor</li>
+<li>Enables self-service document management and order tracking</li>
+</ul>
+</li>
+<li>
+<p><strong>Vendor ↔ PurchaseOrder</strong> (One-to-Many)</p>
+<ul>
+<li>Each purchase order belongs to exactly one vendor</li>
+<li>Vendors can have multiple orders across different time periods</li>
+<li>Foreign key relationship with CASCADE deletion protection</li>
+</ul>
+</li>
+<li>
+<p><strong>Vendor ↔ HistoricalPerformance</strong> (One-to-Many)</p>
+<ul>
+<li>Automated snapshots of vendor performance metrics</li>
+<li>Time-series data for trend analysis</li>
+<li>Captured every 6 hours via Celery tasks</li>
+</ul>
+</li>
+<li>
+<p><strong>Vendor ↔ VendorDocument</strong> (One-to-Many)</p>
+<ul>
+<li>Vendors maintain multiple compliance documents</li>
+<li>Documents have approval status and expiry tracking</li>
+<li>Linked to DocumentType for requirement validation</li>
+</ul>
+</li>
+</ol>
+<p><strong>Business Rule Constraints:</strong></p>
+<ul>
+<li><strong>Vendor Code Uniqueness</strong>: Primary key with regex validation (uppercase alphanumeric)</li>
+<li><strong>Purchase Order Number</strong>: Unique identifier with similar validation</li>
+<li><strong>Status Transition Logic</strong>: Database-level constraints ensure valid state changes</li>
+<li><strong>Date Consistency</strong>: Check constraints ensure delivery dates are logical</li>
+<li><strong>Performance Bounds</strong>: Validation ensures metrics stay within valid ranges (0-100% for rates, 1-5 for ratings)</li>
+</ul>
+<h3 id="api-design-patterns">API Design Patterns</h3>
+<h4 id="27-restful-architecture-principles">2.7 RESTful Architecture Principles</h4>
+<p><strong>Resource-Based URLs:</strong></p>
+<pre class="hljs"><code><div>/api/vendors/                     # Vendor collection
+/api/vendors/{vendor_code}/       # Individual vendor
+/api/purchase-orders/             # Order collection  
+/api/purchase-orders/{po_number}/ # Individual order
+</div></code></pre>
+<p><strong>State Transition Endpoints:</strong></p>
+<pre class="hljs"><code><div>POST /api/purchase-orders/{po_number}/issue/       # PENDING → ISSUED
+POST /api/purchase-orders/{po_number}/acknowledge/ # ISSUED → ACKNOWLEDGED  
+POST /api/purchase-orders/{po_number}/deliver/     # ACKNOWLEDGED → DELIVERED
+POST /api/purchase-orders/{po_number}/cancel/      # Any → CANCELLED
+</div></code></pre>
+<p><strong>Authentication Flow:</strong></p>
+<ul>
+<li>JWT token-based authentication via query parameter</li>
+<li>Role-based access control enforced at ViewSet level</li>
+<li>Custom permission classes for granular access control</li>
+</ul>
+<p>This architecture provides a robust foundation for vendor management with automated workflows, real-time performance tracking, and comprehensive audit trails.</p>
+<h2 id="3-detailed-data-model-architecture">3. Detailed Data Model Architecture</h2>
+<h3 id="31-core-entity-models">3.1 Core Entity Models</h3>
+<h4 id="user-model-vendormanagementsystemusersmodelsuser">User Model (<code>vendor_management_system.users.models.User</code>)</h4>
+<p><strong>Purpose</strong>: Extended Django User model with role-based access control and vendor association.</p>
+<p><strong>Key Fields:</strong></p>
+<pre class="hljs"><code><div><span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">User</span><span class="hljs-params">(AbstractUser)</span>:</span>
+    id = CharField(primary_key=<span class="hljs-literal">True</span>, default=uuid.uuid4, max_length=<span class="hljs-number">36</span>)
+    name = CharField(max_length=<span class="hljs-number">255</span>)  <span class="hljs-comment"># Replaces first_name/last_name</span>
+    email = EmailField(unique=<span class="hljs-literal">True</span>)   <span class="hljs-comment"># Primary authentication field</span>
+    role = CharField(max_length=<span class="hljs-number">20</span>, choices=ROLE_CHOICES, default=<span class="hljs-string">'bo_user'</span>)
+    vendor = ForeignKey(<span class="hljs-string">"vendors.Vendor"</span>, null=<span class="hljs-literal">True</span>, blank=<span class="hljs-literal">True</span>)
+</div></code></pre>
+<p><strong>Business Logic:</strong></p>
+<ul>
+<li><strong>Role Hierarchy</strong>: Admin &gt; Back Office User &gt; Vendor User</li>
+<li><strong>Automatic Group Assignment</strong>: Users automatically assigned to Django groups on creation</li>
+<li><strong>Vendor Association</strong>: Vendor role users must be linked to a Vendor record</li>
+<li><strong>Permission Methods</strong>: Built-in methods for role-based access control</li>
+</ul>
+<p><strong>Key Methods:</strong></p>
+<ul>
+<li><code>is_admin()</code>: Checks for admin privileges</li>
+<li><code>can_manage_vendors()</code>: Permission to modify vendor data</li>
+<li><code>can_view_all_documents()</code>: Access to cross-vendor document data</li>
+<li><code>assign_to_group()</code>: Automatic group assignment based on role</li>
+</ul>
+<h4 id="vendor-model-vendormanagementsystemvendorsmodelsvendor">Vendor Model (<code>vendor_management_system.vendors.models.Vendor</code>)</h4>
+<p><strong>Purpose</strong>: Central entity representing vendor organizations with performance tracking.</p>
+<p><strong>Key Fields:</strong></p>
+<pre class="hljs"><code><div><span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Vendor</span><span class="hljs-params">(models.Model)</span>:</span>
+    vendor_code = CharField(max_length=<span class="hljs-number">10</span>, primary_key=<span class="hljs-literal">True</span>)  <span class="hljs-comment"># Auto-generated</span>
+    name = CharField(max_length=<span class="hljs-number">255</span>)
+    contact_details = TextField()
+    address = TextField()
+    
+    <span class="hljs-comment"># Performance Metrics (auto-calculated)</span>
+    on_time_delivery_rate = FloatField(<span class="hljs-number">0</span><span class="hljs-number">-100</span>, null=<span class="hljs-literal">True</span>)
+    quality_rating_avg = FloatField(<span class="hljs-number">0</span><span class="hljs-number">-5</span>, null=<span class="hljs-literal">True</span>)  
+    average_response_time = FloatField(min=<span class="hljs-number">0</span>, null=<span class="hljs-literal">True</span>)  <span class="hljs-comment"># Hours</span>
+    fulfillment_rate = FloatField(<span class="hljs-number">0</span><span class="hljs-number">-100</span>, null=<span class="hljs-literal">True</span>)
+</div></code></pre>
+<p><strong>Business Rules:</strong></p>
+<ul>
+<li><strong>Vendor Code Generation</strong>: Automatic UUID-based code generation (10 chars, uppercase)</li>
+<li><strong>Performance Metrics</strong>: Calculated automatically from purchase order data</li>
+<li><strong>Validation</strong>: Regex validation for vendor codes (alphanumeric uppercase only)</li>
+<li><strong>Soft Dependencies</strong>: Can exist without associated purchase orders</li>
+</ul>
+<h4 id="purchase-order-model-vendormanagementsystempurchaseordersmodelspurchaseorder">Purchase Order Model (<code>vendor_management_system.purchase_orders.models.PurchaseOrder</code>)</h4>
+<p><strong>Purpose</strong>: Represents purchase orders with state machine workflow and automatic date tracking.</p>
+<p><strong>Key Fields:</strong></p>
+<pre class="hljs"><code><div><span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">PurchaseOrder</span><span class="hljs-params">(models.Model)</span>:</span>
+    po_number = CharField(max_length=<span class="hljs-number">10</span>, primary_key=<span class="hljs-literal">True</span>)  <span class="hljs-comment"># Auto-generated</span>
+    vendor = ForeignKey(<span class="hljs-string">"vendors.Vendor"</span>, null=<span class="hljs-literal">True</span>)
+    order_date = DateTimeField(default=timezone.now)
+    expected_delivery_date = DateTimeField(null=<span class="hljs-literal">True</span>)  <span class="hljs-comment"># Auto-calculated</span>
+    actual_delivery_date = DateTimeField(null=<span class="hljs-literal">True</span>)    <span class="hljs-comment"># Set on delivery</span>
+    
+    items = JSONField()  <span class="hljs-comment"># Product details and quantities</span>
+    quantity = IntegerField(min=<span class="hljs-number">1</span>)  <span class="hljs-comment"># Total quantity (auto-calculated)</span>
+    
+    <span class="hljs-comment"># Workflow fields</span>
+    status = CharField(choices=STATUS_CHOICES, default=<span class="hljs-string">'PENDING'</span>)
+    issue_date = DateTimeField(null=<span class="hljs-literal">True</span>)           <span class="hljs-comment"># Set via signal</span>
+    acknowledgment_date = DateTimeField(null=<span class="hljs-literal">True</span>)  <span class="hljs-comment"># Set via signal</span>
+    quality_rating = FloatField(choices=[(<span class="hljs-number">1</span>,<span class="hljs-number">1</span>)...(<span class="hljs-number">5</span>,<span class="hljs-number">5</span>)], null=<span class="hljs-literal">True</span>)
+</div></code></pre>
+<p><strong>Status Workflow:</strong></p>
+<pre class="hljs"><code><div>PENDING → ISSUED → ACKNOWLEDGED → DELIVERED
+   ↓        ↓         ↓
+CANCELLED CANCELLED CANCELLED
+</div></code></pre>
+<p><strong>Automatic Calculations:</strong></p>
+<ul>
+<li><strong>PO Number</strong>: UUID-based generation (10 chars, uppercase)</li>
+<li><strong>Expected Delivery</strong>: Default 21 days from order date</li>
+<li><strong>Total Quantity</strong>: Sum of all item quantities in JSON field</li>
+<li><strong>Status Dates</strong>: Automatically set via Django signals on status changes</li>
+</ul>
+<h4 id="historical-performance-model-vendormanagementsystemhistoricalperformancesmodelshistoricalperformance">Historical Performance Model (<code>vendor_management_system.historical_performances.models.HistoricalPerformance</code>)</h4>
+<p><strong>Purpose</strong>: Time-series data capture for vendor performance analytics and trending.</p>
+<p><strong>Key Fields:</strong></p>
+<pre class="hljs"><code><div><span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">HistoricalPerformance</span><span class="hljs-params">(models.Model)</span>:</span>
+    id = CharField(max_length=<span class="hljs-number">10</span>, primary_key=<span class="hljs-literal">True</span>)  <span class="hljs-comment"># Auto-generated</span>
+    vendor = ForeignKey(<span class="hljs-string">"vendors.Vendor"</span>, on_delete=CASCADE)
+    date = DateTimeField(default=timezone.now)
+    
+    <span class="hljs-comment"># Snapshot of vendor metrics at capture time</span>
+    on_time_delivery_rate = FloatField(<span class="hljs-number">0</span><span class="hljs-number">-100</span>, null=<span class="hljs-literal">True</span>)
+    quality_rating_avg = FloatField(<span class="hljs-number">0</span><span class="hljs-number">-5</span>, null=<span class="hljs-literal">True</span>)
+    average_response_time = FloatField(min=<span class="hljs-number">0</span>, null=<span class="hljs-literal">True</span>)
+    fulfillment_rate = FloatField(<span class="hljs-number">0</span><span class="hljs-number">-100</span>, null=<span class="hljs-literal">True</span>)
+</div></code></pre>
+<p><strong>Automation:</strong></p>
+<ul>
+<li><strong>Data Capture</strong>: Celery task runs every 6 hours</li>
+<li><strong>Complete Vendor Sweep</strong>: All vendors captured in single transaction</li>
+<li><strong>Historical Trending</strong>: Enables performance analysis over time</li>
+<li><strong>Data Integrity</strong>: Atomic transactions ensure consistent snapshots</li>
+</ul>
+<h4 id="document-management-models">Document Management Models</h4>
+<p><strong>DocumentType Model</strong> (<code>vendor_management_system.documents.models.DocumentType</code>):</p>
+<pre class="hljs"><code><div><span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">DocumentType</span><span class="hljs-params">(models.Model)</span>:</span>
+    id = CharField(max_length=<span class="hljs-number">10</span>, primary_key=<span class="hljs-literal">True</span>)
+    name = CharField(max_length=<span class="hljs-number">100</span>)  <span class="hljs-comment"># e.g., "DURC", "ISO 9001"</span>
+    description = TextField()
+    is_required = BooleanField(default=<span class="hljs-literal">True</span>)
+    validity_period_days = IntegerField(null=<span class="hljs-literal">True</span>)  <span class="hljs-comment"># Auto-expiry calculation</span>
+</div></code></pre>
+<p><strong>VendorDocument Model</strong> (<code>vendor_management_system.documents.models.VendorDocument</code>):</p>
+<pre class="hljs"><code><div><span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">VendorDocument</span><span class="hljs-params">(models.Model)</span>:</span>
+    id = CharField(max_length=<span class="hljs-number">10</span>, primary_key=<span class="hljs-literal">True</span>)
+    vendor = ForeignKey(<span class="hljs-string">"vendors.Vendor"</span>)
+    document_type = ForeignKey(<span class="hljs-string">"DocumentType"</span>)
+    file = FileField(upload_to=<span class="hljs-string">'vendor_documents/'</span>)
+    
+    <span class="hljs-comment"># Workflow fields</span>
+    status = CharField(choices=STATUS_CHOICES, default=<span class="hljs-string">'PENDING'</span>)
+    uploaded_date = DateTimeField(auto_now_add=<span class="hljs-literal">True</span>)
+    expiry_date = DateTimeField(null=<span class="hljs-literal">True</span>)
+    approved_date = DateTimeField(null=<span class="hljs-literal">True</span>)
+    approved_by = ForeignKey(<span class="hljs-string">"users.User"</span>, null=<span class="hljs-literal">True</span>)
+</div></code></pre>
+<h3 id="32-database-relationships-and-constraints">3.2 Database Relationships and Constraints</h3>
+<h4 id="primary-relationships">Primary Relationships</h4>
+<p><strong>1. User ↔ Vendor (Optional One-to-One)</strong></p>
+<pre class="hljs"><code><div><span class="hljs-comment"># User model</span>
+vendor = ForeignKey(<span class="hljs-string">"vendors.Vendor"</span>, null=<span class="hljs-literal">True</span>, blank=<span class="hljs-literal">True</span>, related_name=<span class="hljs-string">"users"</span>)
+
+<span class="hljs-comment"># Business Logic:</span>
+- Vendor role users MUST have vendor association
+- Multiple users can share the same vendor (team accounts)
+- Non-vendor users have null vendor reference
+</div></code></pre>
+<p><strong>2. Vendor ↔ PurchaseOrder (One-to-Many)</strong></p>
+<pre class="hljs"><code><div><span class="hljs-comment"># PurchaseOrder model  </span>
+vendor = ForeignKey(<span class="hljs-string">"vendors.Vendor"</span>, on_delete=SET_NULL, null=<span class="hljs-literal">True</span>)
+
+<span class="hljs-comment"># Business Logic:</span>
+- SET_NULL on vendor deletion preserves order history
+- Orders can exist without vendor (draft state)
+- Vendor performance calculated <span class="hljs-keyword">from</span> associated orders
+</div></code></pre>
+<p><strong>3. Vendor ↔ HistoricalPerformance (One-to-Many)</strong></p>
+<pre class="hljs"><code><div><span class="hljs-comment"># HistoricalPerformance model</span>
+vendor = ForeignKey(<span class="hljs-string">"vendors.Vendor"</span>, on_delete=CASCADE)
+
+<span class="hljs-comment"># Business Logic:</span>
+- CASCADE deletion removes all historical data
+- Time-series relationship <span class="hljs-keyword">for</span> performance trending
+- Automated data population via Celery tasks
+</div></code></pre>
+<p><strong>4. Vendor ↔ VendorDocument (One-to-Many)</strong></p>
+<pre class="hljs"><code><div><span class="hljs-comment"># VendorDocument model</span>
+vendor = ForeignKey(<span class="hljs-string">"vendors.Vendor"</span>, on_delete=CASCADE)
+document_type = ForeignKey(<span class="hljs-string">"DocumentType"</span>, on_delete=PROTECT)
+
+<span class="hljs-comment"># Business Logic:</span>
+- PROTECT prevents deletion of referenced document types
+- Multiple documents per type allowed (renewals)
+- Compliance tracking per vendor
+</div></code></pre>
+<h4 id="database-constraints-and-validation">Database Constraints and Validation</h4>
+<p><strong>Field-Level Constraints:</strong></p>
+<pre class="hljs"><code><div><span class="hljs-comment">-- Vendor performance metrics bounds</span>
+<span class="hljs-keyword">CHECK</span> (on_time_delivery_rate &gt;= <span class="hljs-number">0</span> <span class="hljs-keyword">AND</span> on_time_delivery_rate &lt;= <span class="hljs-number">100</span>)
+<span class="hljs-keyword">CHECK</span> (quality_rating_avg &gt;= <span class="hljs-number">0</span> <span class="hljs-keyword">AND</span> quality_rating_avg &lt;= <span class="hljs-number">5</span>)
+<span class="hljs-keyword">CHECK</span> (average_response_time &gt;= <span class="hljs-number">0</span>)
+<span class="hljs-keyword">CHECK</span> (fulfillment_rate &gt;= <span class="hljs-number">0</span> <span class="hljs-keyword">AND</span> fulfillment_rate &lt;= <span class="hljs-number">100</span>)
+
+<span class="hljs-comment">-- Purchase order quantity validation  </span>
+<span class="hljs-keyword">CHECK</span> (quantity &gt;= <span class="hljs-number">1</span>)
+
+<span class="hljs-comment">-- Date consistency</span>
+<span class="hljs-keyword">CHECK</span> (actual_delivery_date <span class="hljs-keyword">IS</span> <span class="hljs-literal">NULL</span> <span class="hljs-keyword">OR</span> actual_delivery_date &gt;= order_date)
+<span class="hljs-keyword">CHECK</span> (expected_delivery_date <span class="hljs-keyword">IS</span> <span class="hljs-literal">NULL</span> <span class="hljs-keyword">OR</span> expected_delivery_date &gt;= order_date)
+</div></code></pre>
+<p><strong>Business Rule Constraints:</strong></p>
+<pre class="hljs"><code><div><span class="hljs-comment"># Custom validation in models and serializers</span>
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">clean</span><span class="hljs-params">(self)</span>:</span>
+    <span class="hljs-comment"># Purchase Order validation</span>
+    <span class="hljs-keyword">if</span> self.status == <span class="hljs-string">'DELIVERED'</span> <span class="hljs-keyword">and</span> <span class="hljs-keyword">not</span> self.quality_rating:
+        <span class="hljs-keyword">raise</span> ValidationError(<span class="hljs-string">"Quality rating required for delivered orders"</span>)
+    
+    <span class="hljs-comment"># User-Vendor consistency</span>
+    <span class="hljs-keyword">if</span> self.role == <span class="hljs-string">'vendor'</span> <span class="hljs-keyword">and</span> <span class="hljs-keyword">not</span> self.vendor:
+        <span class="hljs-keyword">raise</span> ValidationError(<span class="hljs-string">"Vendor role requires vendor association"</span>)
+    
+    <span class="hljs-comment"># Document expiry logic</span>
+    <span class="hljs-keyword">if</span> self.expiry_date <span class="hljs-keyword">and</span> self.expiry_date &lt; timezone.now().date():
+        <span class="hljs-keyword">raise</span> ValidationError(<span class="hljs-string">"Document has expired"</span>)
+</div></code></pre>
+<h3 id="33-data-integrity-and-performance">3.3 Data Integrity and Performance</h3>
+<h4 id="indexing-strategy">Indexing Strategy</h4>
+<p><strong>Primary Indices:</strong></p>
+<ul>
+<li><code>vendor_code</code> (Primary Key, unique, B-tree)</li>
+<li><code>po_number</code> (Primary Key, unique, B-tree)</li>
+<li><code>user.email</code> (Unique, B-tree)</li>
+</ul>
+<p><strong>Performance Indices:</strong></p>
+<pre class="hljs"><code><div><span class="hljs-comment">-- Query optimization for common lookups</span>
+<span class="hljs-keyword">CREATE</span> <span class="hljs-keyword">INDEX</span> idx_purchase_orders_status <span class="hljs-keyword">ON</span> purchase_orders(<span class="hljs-keyword">status</span>);
+<span class="hljs-keyword">CREATE</span> <span class="hljs-keyword">INDEX</span> idx_purchase_orders_vendor_date <span class="hljs-keyword">ON</span> purchase_orders(vendor_id, order_date);
+<span class="hljs-keyword">CREATE</span> <span class="hljs-keyword">INDEX</span> idx_historical_performance_vendor_date <span class="hljs-keyword">ON</span> historical_performance(vendor_id, <span class="hljs-built_in">date</span>);
+<span class="hljs-keyword">CREATE</span> <span class="hljs-keyword">INDEX</span> idx_vendor_documents_expiry <span class="hljs-keyword">ON</span> vendor_documents(expiry_date) <span class="hljs-keyword">WHERE</span> expiry_date <span class="hljs-keyword">IS</span> <span class="hljs-keyword">NOT</span> <span class="hljs-literal">NULL</span>;
+</div></code></pre>
+<h4 id="data-consistency-mechanisms">Data Consistency Mechanisms</h4>
+<p><strong>Django Signals for Automatic Data Management:</strong></p>
+<pre class="hljs"><code><div><span class="hljs-meta">@receiver(pre_save, sender=PurchaseOrder)</span>
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">set_status_dates</span><span class="hljs-params">(sender, instance, **kwargs)</span>:</span>
+    <span class="hljs-string">"""Automatically set timestamps on status changes"""</span>
+    <span class="hljs-keyword">try</span>:
+        old_instance = sender.objects.get(pk=instance.pk)
+        <span class="hljs-keyword">if</span> old_instance.status != instance.status:
+            <span class="hljs-keyword">if</span> instance.status == <span class="hljs-string">'ISSUED'</span>:
+                instance.issue_date = timezone.now()
+            <span class="hljs-keyword">elif</span> instance.status == <span class="hljs-string">'ACKNOWLEDGED'</span>:  
+                instance.acknowledgment_date = timezone.now()
+            <span class="hljs-keyword">elif</span> instance.status == <span class="hljs-string">'DELIVERED'</span>:
+                instance.actual_delivery_date = timezone.now()
+    <span class="hljs-keyword">except</span> sender.DoesNotExist:
+        <span class="hljs-keyword">pass</span>  <span class="hljs-comment"># New instance, no action needed</span>
+</div></code></pre>
+<p><strong>Atomic Transactions for Data Consistency:</strong></p>
+<pre class="hljs"><code><div><span class="hljs-meta">@transaction.atomic</span>
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">record_historical_performance</span><span class="hljs-params">()</span>:</span>
+    <span class="hljs-string">"""Ensure all vendor performance records are captured consistently"""</span>
+    vendors = Vendor.objects.all()
+    <span class="hljs-keyword">for</span> vendor <span class="hljs-keyword">in</span> vendors:
+        HistoricalPerformance.objects.create(
+            vendor=vendor,
+            date=timezone.now(),
+            on_time_delivery_rate=vendor.on_time_delivery_rate,
+            <span class="hljs-comment"># ... other metrics</span>
+        )
+</div></code></pre>
+<p>This data model architecture ensures data integrity, supports complex business workflows, and provides the foundation for scalable vendor management operations.</p>
+<h2 id="4-business-workflows-and-state-diagrams">4. Business Workflows and State Diagrams</h2>
+<h3 id="41-purchase-order-lifecycle-workflow">4.1 Purchase Order Lifecycle Workflow</h3>
+<p><strong>Complete Purchase Order State Machine:</strong></p>
+<pre><code class="language-mermaid"><div class="mermaid">stateDiagram-v2
+    [*] --> PENDING : Order Created
+    
+    PENDING --> ISSUED : Issue to Vendor
+    PENDING --> CANCELLED : Cancel Order
+    
+    ISSUED --> ACKNOWLEDGED : Vendor Acknowledges
+    ISSUED --> CANCELLED : Cancel Order
+    
+    ACKNOWLEDGED --> DELIVERED : Mark as Delivered
+    ACKNOWLEDGED --> CANCELLED : Cancel Order
+    
+    DELIVERED --> [*] : Workflow Complete
+    CANCELLED --> [*] : Workflow Complete
+    
+    note right of ISSUED : issue_date auto-set
+    note right of ACKNOWLEDGED : acknowledgment_date auto-set
+    note right of DELIVERED : actual_delivery_date auto-set
+    note right of DELIVERED : quality_rating assignable
+</div></code></pre>
+<p><strong>Workflow Business Rules:</strong></p>
+<ol>
+<li>
+<p><strong>Order Creation (→ PENDING)</strong></p>
+<ul>
+<li>System generates unique PO number</li>
+<li>Expected delivery date set to +21 days</li>
+<li>Order can be created without vendor assignment</li>
+<li>Total quantity calculated from items JSON</li>
+</ul>
+</li>
+<li>
+<p><strong>Issue to Vendor (PENDING → ISSUED)</strong></p>
+<ul>
+<li>Requires vendor assignment</li>
+<li>Sets <code>issue_date</code> automatically via Django signal</li>
+<li>Sends notification to vendor (if configured)</li>
+<li>Only admin/back office users can issue orders</li>
+</ul>
+</li>
+<li>
+<p><strong>Vendor Acknowledgment (ISSUED → ACKNOWLEDGED)</strong></p>
+<ul>
+<li>Must be acknowledged by assigned vendor</li>
+<li>Sets <code>acknowledgment_date</code> automatically</li>
+<li>Vendor users can only acknowledge their own orders</li>
+<li>Response time calculated for vendor metrics</li>
+</ul>
+</li>
+<li>
+<p><strong>Order Delivery (ACKNOWLEDGED → DELIVERED)</strong></p>
+<ul>
+<li>Sets <code>actual_delivery_date</code> automatically</li>
+<li>Enables quality rating assignment (1-5 scale)</li>
+<li>Triggers vendor performance recalculation</li>
+<li>Updates on-time delivery statistics</li>
+</ul>
+</li>
+<li>
+<p><strong>Order Cancellation (Any State → CANCELLED)</strong></p>
+<ul>
+<li>Can be cancelled from any non-terminal state</li>
+<li>Affects vendor fulfillment rate calculation</li>
+<li>Preserves audit trail of cancellation reason</li>
+</ul>
+</li>
+</ol>
+<h3 id="42-document-management-workflow">4.2 Document Management Workflow</h3>
+<p><strong>Document Approval Process:</strong></p>
+<pre><code class="language-mermaid"><div class="mermaid">stateDiagram-v2
+    [*] --> PENDING : Document Uploaded
+    
+    PENDING --> APPROVED : BO User Approves
+    PENDING --> REJECTED : BO User Rejects
+    PENDING --> EXPIRED : Auto-Expiry Check
+    
+    APPROVED --> EXPIRED : Expiry Date Reached
+    APPROVED --> RENEWED : New Version Uploaded
+    
+    REJECTED --> PENDING : Resubmission
+    EXPIRED --> PENDING : Document Renewed
+    
+    RENEWED --> PENDING : Awaiting Approval
+    
+    note right of APPROVED : approved_date set
+    note right of EXPIRED : Automated via Celery
+    note right of RENEWED : Previous version archived
+</div></code></pre>
+<p><strong>Document Workflow Business Rules:</strong></p>
+<ol>
+<li>
+<p><strong>Document Upload (→ PENDING)</strong></p>
+<ul>
+<li>Vendor users upload to their assigned vendor</li>
+<li>Document type must be from approved list</li>
+<li>File validation and virus scanning</li>
+<li>Automatic expiry calculation based on document type</li>
+</ul>
+</li>
+<li>
+<p><strong>Approval Process (PENDING → APPROVED/REJECTED)</strong></p>
+<ul>
+<li>Only admin/back office users can approve</li>
+<li>Approval sets <code>approved_date</code> and <code>approved_by</code></li>
+<li>Rejection requires reason/comments</li>
+<li>Email notifications sent to vendor</li>
+</ul>
+</li>
+<li>
+<p><strong>Expiry Management (APPROVED → EXPIRED)</strong></p>
+<ul>
+<li>Automated expiry checking via Celery tasks</li>
+<li>Warning notifications sent before expiry</li>
+<li>Grace period handling for renewals</li>
+<li>Compliance reporting for expired documents</li>
+</ul>
+</li>
+</ol>
+<h3 id="43-performance-tracking-workflow">4.3 Performance Tracking Workflow</h3>
+<p><strong>Automated Performance Calculation:</strong></p>
+<pre><code class="language-mermaid"><div class="mermaid">sequenceDiagram
+    participant PO as Purchase Order
+    participant Signal as Django Signal
+    participant Vendor as Vendor Model
+    participant Celery as Background Task
+    participant HP as Historical Performance
+    
+    PO->>Signal: Status Change to DELIVERED
+    Signal->>Vendor: Trigger Performance Recalculation
+    Vendor->>Vendor: Update Metrics (On-time, Quality, etc.)
+    
+    Note over Celery: Every 6 Hours
+    Celery->>Vendor: Fetch All Vendors
+    Vendor->>HP: Create Historical Snapshot
+    HP->>HP: Store Performance Data
+</div></code></pre>
+<p><strong>Performance Metrics Calculation:</strong></p>
+<ol>
+<li>
+<p><strong>On-Time Delivery Rate</strong></p>
+<pre class="hljs"><code><div>delivered_orders = vendor.purchase_orders.filter(status=<span class="hljs-string">'DELIVERED'</span>)
+on_time = delivered_orders.filter(
+    actual_delivery_date__lte=F(<span class="hljs-string">'expected_delivery_date'</span>)
+).count()
+rate = (on_time / delivered_orders.count()) * <span class="hljs-number">100</span> <span class="hljs-keyword">if</span> delivered_orders.count() &gt; <span class="hljs-number">0</span> <span class="hljs-keyword">else</span> <span class="hljs-number">0</span>
+</div></code></pre>
+</li>
+<li>
+<p><strong>Quality Rating Average</strong></p>
+<pre class="hljs"><code><div>rated_orders = vendor.purchase_orders.filter(
+    status=<span class="hljs-string">'DELIVERED'</span>, 
+    quality_rating__isnull=<span class="hljs-literal">False</span>
+)
+avg_rating = rated_orders.aggregate(Avg(<span class="hljs-string">'quality_rating'</span>))[<span class="hljs-string">'quality_rating__avg'</span>] <span class="hljs-keyword">or</span> <span class="hljs-number">0</span>
+</div></code></pre>
+</li>
+<li>
+<p><strong>Average Response Time</strong></p>
+<pre class="hljs"><code><div>acknowledged_orders = vendor.purchase_orders.filter(
+    status__in=[<span class="hljs-string">'ACKNOWLEDGED'</span>, <span class="hljs-string">'DELIVERED'</span>],
+    issue_date__isnull=<span class="hljs-literal">False</span>,
+    acknowledgment_date__isnull=<span class="hljs-literal">False</span>
+)
+response_times = [
+    (order.acknowledgment_date - order.issue_date).total_seconds() / <span class="hljs-number">3600</span>
+    <span class="hljs-keyword">for</span> order <span class="hljs-keyword">in</span> acknowledged_orders
+]
+avg_response = sum(response_times) / len(response_times) <span class="hljs-keyword">if</span> response_times <span class="hljs-keyword">else</span> <span class="hljs-number">0</span>
+</div></code></pre>
+</li>
+<li>
+<p><strong>Fulfillment Rate</strong></p>
+<pre class="hljs"><code><div>total_orders = vendor.purchase_orders.exclude(status=<span class="hljs-string">'PENDING'</span>).count()
+delivered_orders = vendor.purchase_orders.filter(status=<span class="hljs-string">'DELIVERED'</span>).count()
+rate = (delivered_orders / total_orders) * <span class="hljs-number">100</span> <span class="hljs-keyword">if</span> total_orders &gt; <span class="hljs-number">0</span> <span class="hljs-keyword">else</span> <span class="hljs-number">0</span>
+</div></code></pre>
+</li>
+</ol>
+<h2 id="5-api-architecture-and-patterns">5. API Architecture and Patterns</h2>
+<h3 id="51-restful-api-design">5.1 RESTful API Design</h3>
+<p><strong>Resource-Based URL Structure:</strong></p>
+<pre class="hljs"><code><div># Vendor Management
+GET    /api/vendors/                 # List all vendors
+POST   /api/vendors/                 # Create new vendor
+GET    /api/vendors/{vendor_code}/   # Retrieve specific vendor
+PUT    /api/vendors/{vendor_code}/   # Update vendor
+DELETE /api/vendors/{vendor_code}/   # Delete vendor
+
+# Purchase Order Management  
+GET    /api/purchase-orders/         # List all orders
+POST   /api/purchase-orders/         # Create new order
+GET    /api/purchase-orders/{po_number}/  # Retrieve specific order
+PUT    /api/purchase-orders/{po_number}/  # Update order
+DELETE /api/purchase-orders/{po_number}/  # Delete order
+
+# Purchase Order Workflow Actions
+POST   /api/purchase-orders/{po_number}/issue/       # Issue order
+POST   /api/purchase-orders/{po_number}/acknowledge/ # Acknowledge order
+POST   /api/purchase-orders/{po_number}/deliver/     # Mark delivered
+POST   /api/purchase-orders/{po_number}/cancel/      # Cancel order
+POST   /api/purchase-orders/{po_number}/rate-quality/ # Rate quality
+
+# User Management
+GET    /api/users/                   # List users (admin only)
+GET    /api/users/{email}/           # Retrieve user details
+
+# Authentication
+POST   /api/obtain-auth-token/       # Get JWT token
+</div></code></pre>
+<h3 id="52-authentication-and-authorization-flow">5.2 Authentication and Authorization Flow</h3>
+<p><strong>JWT Token-Based Authentication:</strong></p>
+<pre><code class="language-mermaid"><div class="mermaid">sequenceDiagram
+    participant Client
+    participant API as API Gateway
+    participant Auth as Auth Service
+    participant DB as Database
+    
+    Client->>API: POST /obtain-auth-token/ {email, password}
+    API->>Auth: Validate Credentials
+    Auth->>DB: Query User Model
+    DB->>Auth: User Data + Role
+    Auth->>API: Generate JWT Token
+    API->>Client: Return Token
+    
+    Note over Client: Store Token for Subsequent Requests
+    
+    Client->>API: API Request + ?token=jwt_token
+    API->>Auth: Validate Token
+    Auth->>API: User Context + Permissions
+    API->>Client: Protected Resource Data
+</div></code></pre>
+<p><strong>Role-Based Access Control:</strong></p>
+<pre class="hljs"><code><div><span class="hljs-comment"># Permission Matrix</span>
+PERMISSIONS = {
+    <span class="hljs-string">'admin'</span>: {
+        <span class="hljs-string">'vendors'</span>: [<span class="hljs-string">'create'</span>, <span class="hljs-string">'read'</span>, <span class="hljs-string">'update'</span>, <span class="hljs-string">'delete'</span>],
+        <span class="hljs-string">'purchase_orders'</span>: [<span class="hljs-string">'create'</span>, <span class="hljs-string">'read'</span>, <span class="hljs-string">'update'</span>, <span class="hljs-string">'delete'</span>, <span class="hljs-string">'issue'</span>, <span class="hljs-string">'cancel'</span>],
+        <span class="hljs-string">'documents'</span>: [<span class="hljs-string">'read'</span>, <span class="hljs-string">'approve'</span>, <span class="hljs-string">'reject'</span>],
+        <span class="hljs-string">'users'</span>: [<span class="hljs-string">'create'</span>, <span class="hljs-string">'read'</span>, <span class="hljs-string">'update'</span>, <span class="hljs-string">'delete'</span>]
+    },
+    <span class="hljs-string">'bo_user'</span>: {
+        <span class="hljs-string">'vendors'</span>: [<span class="hljs-string">'create'</span>, <span class="hljs-string">'read'</span>, <span class="hljs-string">'update'</span>],
+        <span class="hljs-string">'purchase_orders'</span>: [<span class="hljs-string">'create'</span>, <span class="hljs-string">'read'</span>, <span class="hljs-string">'update'</span>, <span class="hljs-string">'issue'</span>],
+        <span class="hljs-string">'documents'</span>: [<span class="hljs-string">'read'</span>, <span class="hljs-string">'approve'</span>, <span class="hljs-string">'reject'</span>],
+        <span class="hljs-string">'users'</span>: [<span class="hljs-string">'read'</span>]
+    },
+    <span class="hljs-string">'vendor'</span>: {
+        <span class="hljs-string">'vendors'</span>: [<span class="hljs-string">'read'</span>],  <span class="hljs-comment"># Own vendor only</span>
+        <span class="hljs-string">'purchase_orders'</span>: [<span class="hljs-string">'read'</span>, <span class="hljs-string">'acknowledge'</span>, <span class="hljs-string">'deliver'</span>],  <span class="hljs-comment"># Own orders only</span>
+        <span class="hljs-string">'documents'</span>: [<span class="hljs-string">'create'</span>, <span class="hljs-string">'read'</span>, <span class="hljs-string">'update'</span>],  <span class="hljs-comment"># Own documents only</span>
+        <span class="hljs-string">'users'</span>: []
+    }
+}
+</div></code></pre>
+<h3 id="53-error-handling-and-response-patterns">5.3 Error Handling and Response Patterns</h3>
+<p><strong>Standardized Error Responses:</strong></p>
+<pre class="hljs"><code><div>{
+  <span class="hljs-attr">"error"</span>: {
+    <span class="hljs-attr">"code"</span>: <span class="hljs-string">"VALIDATION_ERROR"</span>,
+    <span class="hljs-attr">"message"</span>: <span class="hljs-string">"Invalid data provided"</span>,
+    <span class="hljs-attr">"details"</span>: {
+      <span class="hljs-attr">"field_name"</span>: [<span class="hljs-string">"This field is required."</span>],
+      <span class="hljs-attr">"vendor_code"</span>: [<span class="hljs-string">"Vendor with this code already exists."</span>]
+    },
+    <span class="hljs-attr">"timestamp"</span>: <span class="hljs-string">"2025-10-17T10:30:00Z"</span>
+  }
+}
+</div></code></pre>
+<p><strong>HTTP Status Code Usage:</strong></p>
+<ul>
+<li><code>200 OK</code>: Successful GET, PUT operations</li>
+<li><code>201 Created</code>: Successful POST operations</li>
+<li><code>204 No Content</code>: Successful DELETE operations</li>
+<li><code>400 Bad Request</code>: Validation errors, business rule violations</li>
+<li><code>401 Unauthorized</code>: Authentication required or failed</li>
+<li><code>403 Forbidden</code>: Insufficient permissions</li>
+<li><code>404 Not Found</code>: Resource does not exist</li>
+<li><code>409 Conflict</code>: State conflicts (e.g., invalid status transition)</li>
+<li><code>500 Internal Server Error</code>: Unexpected server errors</li>
+</ul>
+<h2 id="6-background-tasks-and-automation">6. Background Tasks and Automation</h2>
+<h3 id="61-celery-configuration">6.1 Celery Configuration</h3>
+<p><strong>Task Queue Architecture:</strong></p>
+<pre class="hljs"><code><div><span class="hljs-comment"># Celery Settings (config/settings.py)</span>
+CELERY_BROKER_URL = os.getenv(<span class="hljs-string">"CELERY_BROKER_URL"</span>, <span class="hljs-string">"redis://localhost:6379/0"</span>)
+CELERY_RESULT_BACKEND = CELERY_BROKER_URL
+CELERY_ACCEPT_CONTENT = [<span class="hljs-string">"json"</span>]
+CELERY_TASK_SERIALIZER = <span class="hljs-string">"json"</span>
+CELERY_RESULT_SERIALIZER = <span class="hljs-string">"json"</span>
+CELERY_TIMEZONE = <span class="hljs-string">"Europe/Rome"</span>
+
+<span class="hljs-comment"># Periodic Task Schedule</span>
+CELERY_BEAT_SCHEDULE = {
+    <span class="hljs-string">'record-historical-performance'</span>: {
+        <span class="hljs-string">'task'</span>: <span class="hljs-string">'vendor_management_system.historical_performances.tasks.record_historical_performance'</span>,
+        <span class="hljs-string">'schedule'</span>: crontab(minute=<span class="hljs-number">0</span>, hour=<span class="hljs-string">'*/6'</span>),  <span class="hljs-comment"># Every 6 hours</span>
+    },
+    <span class="hljs-string">'check-document-expiry'</span>: {
+        <span class="hljs-string">'task'</span>: <span class="hljs-string">'vendor_management_system.documents.tasks.check_expiring_documents'</span>,
+        <span class="hljs-string">'schedule'</span>: crontab(minute=<span class="hljs-number">0</span>, hour=<span class="hljs-number">9</span>),  <span class="hljs-comment"># Daily at 9 AM</span>
+    },
+}
+</div></code></pre>
+<h3 id="62-automated-tasks">6.2 Automated Tasks</h3>
+<p><strong>1. Historical Performance Recording:</strong></p>
+<pre class="hljs"><code><div><span class="hljs-meta">@shared_task</span>
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">record_historical_performance</span><span class="hljs-params">()</span>:</span>
+    <span class="hljs-string">"""Capture performance snapshots for all vendors every 6 hours"""</span>
+    <span class="hljs-keyword">with</span> transaction.atomic():
+        vendors = Vendor.objects.all()
+        <span class="hljs-keyword">for</span> vendor <span class="hljs-keyword">in</span> vendors:
+            HistoricalPerformance.objects.create(
+                vendor=vendor,
+                date=timezone.now(),
+                on_time_delivery_rate=vendor.on_time_delivery_rate,
+                quality_rating_avg=vendor.quality_rating_avg,
+                average_response_time=vendor.average_response_time,
+                fulfillment_rate=vendor.fulfillment_rate,
+            )
+</div></code></pre>
+<p><strong>2. Document Expiry Monitoring:</strong></p>
+<pre class="hljs"><code><div><span class="hljs-meta">@shared_task  </span>
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">check_expiring_documents</span><span class="hljs-params">()</span>:</span>
+    <span class="hljs-string">"""Check for documents expiring within warning period"""</span>
+    warning_date = timezone.now().date() + timedelta(days=<span class="hljs-number">30</span>)
+    expiring_docs = VendorDocument.objects.filter(
+        status=<span class="hljs-string">'APPROVED'</span>,
+        expiry_date__lte=warning_date,
+        expiry_date__gte=timezone.now().date()
+    )
+    
+    <span class="hljs-keyword">for</span> doc <span class="hljs-keyword">in</span> expiring_docs:
+        send_expiry_warning_email.delay(doc.id)
+</div></code></pre>
+<h3 id="63-task-monitoring">6.3 Task Monitoring</h3>
+<p><strong>Flower Dashboard:</strong></p>
+<ul>
+<li>Real-time task monitoring at <code>http://localhost:5555</code></li>
+<li>Task execution statistics and performance metrics</li>
+<li>Worker health monitoring and management</li>
+<li>Failed task investigation and retry management</li>
+</ul>
+<h2 id="7-security-and-data-protection">7. Security and Data Protection</h2>
+<h3 id="71-authentication-security">7.1 Authentication Security</h3>
+<p><strong>Password Security:</strong></p>
+<ul>
+<li><strong>Argon2 Hashing</strong>: Industry-standard password hashing algorithm</li>
+<li><strong>Password Validation</strong>: Complexity requirements and common password checking</li>
+<li><strong>Token Expiration</strong>: JWT tokens with configurable expiration times</li>
+<li><strong>Rate Limiting</strong>: API endpoint protection against brute force attacks</li>
+</ul>
+<p><strong>Session Management:</strong></p>
+<ul>
+<li><strong>Secure Token Storage</strong>: Client-side token management best practices</li>
+<li><strong>Token Refresh</strong>: Automatic token renewal for extended sessions</li>
+<li><strong>Session Invalidation</strong>: Immediate token revocation on security events</li>
+</ul>
+<h3 id="72-authorization-framework">7.2 Authorization Framework</h3>
+<p><strong>Role-Based Access Control (RBAC):</strong></p>
+<pre class="hljs"><code><div><span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">IsVendorUser</span><span class="hljs-params">(BasePermission)</span>:</span>
+    <span class="hljs-string">"""Permission class for vendor users - access only to own data"""</span>
+    <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">has_permission</span><span class="hljs-params">(self, request, view)</span>:</span>
+        <span class="hljs-keyword">return</span> request.user.role == <span class="hljs-string">'vendor'</span> <span class="hljs-keyword">and</span> request.user.vendor <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span>
+    
+    <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">has_object_permission</span><span class="hljs-params">(self, request, view, obj)</span>:</span>
+        <span class="hljs-keyword">if</span> hasattr(obj, <span class="hljs-string">'vendor'</span>):
+            <span class="hljs-keyword">return</span> obj.vendor == request.user.vendor
+        <span class="hljs-keyword">return</span> <span class="hljs-literal">False</span>
+
+<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">IsBackOfficeOrAdmin</span><span class="hljs-params">(BasePermission)</span>:</span>
+    <span class="hljs-string">"""Permission class for back office and admin users"""</span>
+    <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">has_permission</span><span class="hljs-params">(self, request, view)</span>:</span>
+        <span class="hljs-keyword">return</span> request.user.role <span class="hljs-keyword">in</span> [<span class="hljs-string">'admin'</span>, <span class="hljs-string">'bo_user'</span>]
+</div></code></pre>
+<h3 id="73-data-protection-measures">7.3 Data Protection Measures</h3>
+<p><strong>Data Validation:</strong></p>
+<ul>
+<li><strong>Input Sanitization</strong>: XSS prevention through proper serializer validation</li>
+<li><strong>SQL Injection Protection</strong>: Django ORM automatic query parameterization</li>
+<li><strong>File Upload Security</strong>: File type validation and virus scanning</li>
+<li><strong>Field Validation</strong>: Business rule enforcement at model and API levels</li>
+</ul>
+<p><strong>Audit Trail:</strong></p>
+<ul>
+<li><strong>Status Change Tracking</strong>: Automatic timestamp recording for all state transitions</li>
+<li><strong>User Action Logging</strong>: Complete audit trail of user actions and data modifications</li>
+<li><strong>Data Retention</strong>: Configurable retention periods for historical data</li>
+</ul>
+<h2 id="8-deployment-architecture">8. Deployment Architecture</h2>
+<h3 id="81-docker-based-deployment">8.1 Docker-Based Deployment</h3>
+<p><strong>Multi-Container Architecture:</strong></p>
+<pre class="hljs"><code><div><span class="hljs-comment"># docker-compose.yml structure</span>
+<span class="hljs-attr">services:</span>
+  <span class="hljs-attr">web:</span>          <span class="hljs-comment"># Django application server</span>
+  <span class="hljs-attr">postgres:</span>     <span class="hljs-comment"># PostgreSQL database</span>
+  <span class="hljs-attr">redis:</span>        <span class="hljs-comment"># Redis cache and message broker</span>
+  <span class="hljs-attr">celery:</span>       <span class="hljs-comment"># Celery worker processes</span>
+  <span class="hljs-attr">celerybeat:</span>   <span class="hljs-comment"># Celery periodic task scheduler</span>
+  <span class="hljs-attr">flower:</span>       <span class="hljs-comment"># Celery monitoring dashboard</span>
+  <span class="hljs-attr">nginx:</span>        <span class="hljs-comment"># Reverse proxy and static file serving</span>
+</div></code></pre>
+<p><strong>Container Responsibilities:</strong></p>
+<ul>
+<li><strong>Web Container</strong>: Django application with gunicorn WSGI server</li>
+<li><strong>Database Container</strong>: PostgreSQL with persistent volume storage</li>
+<li><strong>Cache Container</strong>: Redis for session storage and Celery message brokering</li>
+<li><strong>Worker Container</strong>: Celery workers for background task processing</li>
+<li><strong>Scheduler Container</strong>: Celery Beat for periodic task automation</li>
+<li><strong>Monitor Container</strong>: Flower dashboard for task monitoring</li>
+</ul>
+<h3 id="82-environment-configuration">8.2 Environment Configuration</h3>
+<p><strong>Environment Variables:</strong></p>
+<pre class="hljs"><code><div><span class="hljs-comment"># Core Django Settings</span>
+DJANGO_SETTINGS_MODULE=config.settings
+DJANGO_SECRET_KEY=your-secret-key
+DJANGO_DEBUG=False
+ALLOWED_HOSTS=your-domain.com,localhost
+
+<span class="hljs-comment"># Database Configuration</span>
+DATABASE_URL=postgres://user:pass@postgres:5432/vendordb
+POSTGRES_HOST=postgres
+POSTGRES_PORT=5432
+POSTGRES_DB=vendordb
+POSTGRES_USER=vendor_user
+POSTGRES_PASSWORD=secure_password
+
+<span class="hljs-comment"># Cache and Message Broker</span>
+REDIS_URL=redis://redis:6379/0
+CELERY_BROKER_URL=redis://redis:6379/0
+
+<span class="hljs-comment"># Celery Monitoring</span>
+CELERY_FLOWER_USER=admin
+CELERY_FLOWER_PASSWORD=secure_password
+</div></code></pre>
+<h3 id="83-scalability-considerations">8.3 Scalability Considerations</h3>
+<p><strong>Horizontal Scaling:</strong></p>
+<ul>
+<li><strong>Load Balancing</strong>: Multiple Django application instances behind nginx</li>
+<li><strong>Database Scaling</strong>: Read replicas for performance analytics queries</li>
+<li><strong>Cache Distribution</strong>: Redis clustering for high-availability caching</li>
+<li><strong>Worker Scaling</strong>: Dynamic Celery worker scaling based on queue depth</li>
+</ul>
+<p><strong>Performance Optimization:</strong></p>
+<ul>
+<li><strong>Database Indexing</strong>: Optimized indices for common query patterns</li>
+<li><strong>Query Optimization</strong>: Select_related and prefetch_related for N+1 prevention</li>
+<li><strong>Caching Strategy</strong>: Redis caching for frequently accessed vendor data</li>
+<li><strong>Static File Optimization</strong>: CDN integration for static asset delivery</li>
+</ul>
+<p><strong>Monitoring and Logging:</strong></p>
+<ul>
+<li><strong>Application Monitoring</strong>: Health checks and performance metrics</li>
+<li><strong>Error Tracking</strong>: Centralized error logging and alerting</li>
+<li><strong>Performance Monitoring</strong>: Database query performance analysis</li>
+<li><strong>Security Monitoring</strong>: Authentication failure detection and alerting</li>
+</ul>
+<p>This comprehensive architecture documentation provides a complete blueprint for understanding, maintaining, and extending the Vendor Management System.</p>
+
+</body>
+</html>
