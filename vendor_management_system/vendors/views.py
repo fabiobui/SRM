@@ -218,170 +218,6 @@ class AddressViewSet(viewsets.ViewSet):
         return response.Response(status=status.HTTP_204_NO_CONTENT)
 
 
-# AGGIUNTE AL VendorViewSet esistente (aggiungi questi metodi alla classe VendorViewSet)
-
-    # Address management methods for vendor
-    @swagger_auto_schema(
-        methods=['get'],
-        operation_id="vendors--get-address",
-        operation_description="Get vendor address",
-        manual_parameters=[
-            openapi.Parameter(
-                name="token",
-                format="string",
-                in_=openapi.IN_QUERY,
-                type=openapi.TYPE_STRING,
-                required=True,
-                description="The token to authenticate the user",
-            ),
-        ],
-        responses={
-            status.HTTP_200_OK: openapi.Response(
-                "Vendor address", schema=AddressSerializer
-            ),
-        },
-        tags=["Vendor Address"],
-    )
-    @action(detail=True, methods=['get'], url_path='address')
-    def get_address(self, request, vendor_code=None):
-        vendor = get_object_or_404(Vendor, vendor_code=vendor_code)
-        if vendor.address:
-            serializer = AddressSerializer(vendor.address)
-            return response.Response(serializer.data, status=status.HTTP_200_OK)
-        else:
-            return response.Response(
-                {"detail": "Vendor has no address"}, 
-                status=status.HTTP_404_NOT_FOUND
-            )
-
-    @swagger_auto_schema(
-        methods=['post'],
-        operation_id="vendors--create-address",
-        operation_description="Create address for vendor",
-        manual_parameters=[
-            openapi.Parameter(
-                name="token",
-                format="string",
-                in_=openapi.IN_QUERY,
-                type=openapi.TYPE_STRING,
-                required=True,
-                description="The token to authenticate the user",
-            ),
-        ],
-        request_body=AddressManagementSerializer,
-        responses={
-            status.HTTP_201_CREATED: openapi.Response(
-                "Created address", schema=AddressSerializer
-            ),
-        },
-        tags=["Vendor Address"],
-    )
-    @action(detail=True, methods=['post'], url_path='address')
-    def create_address(self, request, vendor_code=None):
-        vendor = get_object_or_404(Vendor, vendor_code=vendor_code)
-        
-        if vendor.address:
-            return response.Response(
-                {"detail": "Vendor already has an address"}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        serializer = AddressManagementSerializer(data=request.data)
-        if serializer.is_valid():
-            address = serializer.save()
-            vendor.address = address
-            vendor.save()
-            
-            response_serializer = AddressSerializer(address)
-            return response.Response(
-                response_serializer.data, status=status.HTTP_201_CREATED
-            )
-        return response.Response(
-            serializer.errors, status=status.HTTP_400_BAD_REQUEST
-        )
-
-    @swagger_auto_schema(
-        methods=['put'],
-        operation_id="vendors--update-address",
-        operation_description="Update vendor address",
-        manual_parameters=[
-            openapi.Parameter(
-                name="token",
-                format="string",
-                in_=openapi.IN_QUERY,
-                type=openapi.TYPE_STRING,
-                required=True,
-                description="The token to authenticate the user",
-            ),
-        ],
-        request_body=AddressManagementSerializer,
-        responses={
-            status.HTTP_200_OK: openapi.Response(
-                "Updated address", schema=AddressSerializer
-            ),
-        },
-        tags=["Vendor Address"],
-    )
-    @action(detail=True, methods=['put'], url_path='address')
-    def update_address(self, request, vendor_code=None):
-        vendor = get_object_or_404(Vendor, vendor_code=vendor_code)
-        
-        if not vendor.address:
-            return response.Response(
-                {"detail": "Vendor has no address to update"}, 
-                status=status.HTTP_404_NOT_FOUND
-            )
-        
-        serializer = AddressManagementSerializer(
-            vendor.address, data=request.data, partial=True
-        )
-        if serializer.is_valid():
-            serializer.save()
-            response_serializer = AddressSerializer(vendor.address)
-            return response.Response(
-                response_serializer.data, status=status.HTTP_200_OK
-            )
-        return response.Response(
-            serializer.errors, status=status.HTTP_400_BAD_REQUEST
-        )
-
-    @swagger_auto_schema(
-        methods=['delete'],
-        operation_id="vendors--delete-address",
-        operation_description="Delete vendor address",
-        manual_parameters=[
-            openapi.Parameter(
-                name="token",
-                format="string",
-                in_=openapi.IN_QUERY,
-                type=openapi.TYPE_STRING,
-                required=True,
-                description="The token to authenticate the user",
-            ),
-        ],
-        responses={
-            status.HTTP_204_NO_CONTENT: "Address deleted",
-        },
-        tags=["Vendor Address"],
-    )
-    @action(detail=True, methods=['delete'], url_path='address')
-    def delete_address(self, request, vendor_code=None):
-        vendor = get_object_or_404(Vendor, vendor_code=vendor_code)
-        
-        if not vendor.address:
-            return response.Response(
-                {"detail": "Vendor has no address to delete"}, 
-                status=status.HTTP_404_NOT_FOUND
-            )
-        
-        address = vendor.address
-        vendor.address = None
-        vendor.save()
-        address.delete()
-        
-        return response.Response(status=status.HTTP_204_NO_CONTENT)
-
-
 # Nuovo ViewSet per Category (AGGIUNGI QUESTA CLASSE)
 class CategoryViewSet(viewsets.ViewSet):
     """ViewSet for managing categories"""
@@ -889,7 +725,6 @@ def dashboard_redirect(request):
         </div>
         """)
 
-
 # Class based ViewSet for Vendor
 class VendorViewSet(viewsets.ViewSet):
     # Set the permission and authentication classes
@@ -925,13 +760,30 @@ class VendorViewSet(viewsets.ViewSet):
                 required=False,
                 description="Filter by risk level (LOW, MEDIUM, HIGH)",
             ),
+            # AGGIUNGERE questi parametri mancanti:
             openapi.Parameter(
                 name="category",
+                format="uuid",
+                in_=openapi.IN_QUERY,
+                type=openapi.TYPE_STRING,
+                required=False,
+                description="Filter by category ID",
+            ),
+            openapi.Parameter(
+                name="category_code",
                 format="string",
                 in_=openapi.IN_QUERY,
                 type=openapi.TYPE_STRING,
                 required=False,
-                description="Filter by category",
+                description="Filter by category code",
+            ),
+            openapi.Parameter(
+                name="requires_certification",
+                format="boolean",
+                in_=openapi.IN_QUERY,
+                type=openapi.TYPE_BOOLEAN,
+                required=False,
+                description="Filter by certification requirement",
             ),
         ],
         responses={
@@ -943,10 +795,10 @@ class VendorViewSet(viewsets.ViewSet):
         tags=["Vendors"],
     )
     def list(self, request):
-        # Get all vendors
-        vendors = Vendor.objects.all()
+        # CORREGGERE il metodo list per supportare i nuovi filtri:
+        vendors = Vendor.objects.select_related('category', 'address').all()
         
-        # Apply filters
+        # Apply existing filters
         qualification_status = request.query_params.get('qualification_status')
         if qualification_status:
             vendors = vendors.filter(qualification_status=qualification_status)
@@ -954,16 +806,65 @@ class VendorViewSet(viewsets.ViewSet):
         risk_level = request.query_params.get('risk_level')
         if risk_level:
             vendors = vendors.filter(risk_level=risk_level)
-            
+        
+        # AGGIUNGERE nuovi filtri per categoria:
         category = request.query_params.get('category')
         if category:
-            vendors = vendors.filter(category__icontains=category)
+            vendors = vendors.filter(category__id=category)
+            
+        category_code = request.query_params.get('category_code')
+        if category_code:
+            vendors = vendors.filter(category__code__iexact=category_code)
+            
+        requires_certification = request.query_params.get('requires_certification')
+        if requires_certification is not None:
+            vendors = vendors.filter(category__requires_certification=requires_certification.lower() == 'true')
 
         # Serialize the vendors using lightweight serializer
         serializer = VendorListSerializer(vendors, many=True)
 
         # Return the response
         return response.Response(serializer.data, status=status.HTTP_200_OK)
+
+    # AGGIORNARE il metodo alerts:
+    @action(detail=False, methods=['get'], url_path='alerts')
+    def alerts(self, request):
+        from django.utils import timezone
+        today = timezone.now().date()
+        
+        # Get vendors with overdue audits
+        overdue_audits = Vendor.objects.select_related('category', 'address').filter(
+            next_audit_due__lt=today
+        ).exclude(next_audit_due__isnull=True)
+        
+        # Get vendors with expired qualifications
+        expired_qualifications = Vendor.objects.select_related('category', 'address').filter(
+            qualification_expiry__lt=today,
+            qualification_status='APPROVED'
+        ).exclude(qualification_expiry__isnull=True)
+        
+        # Get high risk vendors
+        high_risk_vendors = Vendor.objects.select_related('category', 'address').filter(risk_level='HIGH')
+        
+        # AGGIUNGERE nuovi alert specifici per categorie:
+        # Get vendors in categories requiring certification but without proper status
+        missing_certification = Vendor.objects.select_related('category', 'address').filter(
+            category__requires_certification=True,
+            qualification_status__in=['PENDING', 'REJECTED']
+        )
+        
+        # Get vendors without category assigned
+        no_category = Vendor.objects.select_related('address').filter(category__isnull=True)
+        
+        data = {
+            'overdue_audits': VendorListSerializer(overdue_audits, many=True).data,
+            'expired_qualifications': VendorListSerializer(expired_qualifications, many=True).data,
+            'high_risk_vendors': VendorListSerializer(high_risk_vendors, many=True).data,
+            'missing_certification': VendorListSerializer(missing_certification, many=True).data,  # NUOVO
+            'no_category': VendorListSerializer(no_category, many=True).data,  # NUOVO
+        }
+        
+        return response.Response(data, status=status.HTTP_200_OK)
 
     # Method to handle new vendor creation
     @swagger_auto_schema(

@@ -390,7 +390,7 @@ class Vendor(models.Model):
     contact_details = models.TextField(
         _("Contact Details of Vendor"), help_text=_("Dettagli di contatto del fornitore"), blank=True
     )
-    address = models.TextField(_("Address of Vendor"), help_text=_("Indirizzo del fornitore"), blank=True)
+    #address = models.TextField(_("Address of Vendor"), help_text=_("Indirizzo del fornitore"), blank=True)
     
     # New General Information Fields
     vat_number = models.CharField(

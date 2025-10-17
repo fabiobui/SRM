@@ -344,8 +344,8 @@ class VendorAdmin(admin.ModelAdmin):
         "name",
         "email",
         "phone",
-        "category",
-        "address_display",  # Nuovo campo
+        "category_display",  # CORREZIONE: era "category" ora è "category_display"
+        "address_display",
         "qualification_status_display",
         "risk_level_display",
         "is_qualified_display",
@@ -453,9 +453,60 @@ class VendorAdmin(admin.ModelAdmin):
         "vendor_code",
     ]
     
+    # AGGIUNGERE queste azioni mancanti:
+    actions = [
+        'mark_as_approved', 
+        'mark_as_pending', 
+        'mark_as_rejected',
+        'update_risk_from_category',  # MANCANTE
+        'assign_category'  # MANCANTE (opzionale)
+    ]
+    
+    # AGGIUNGERE questo metodo mancante:
+    def update_risk_from_category(self, request, queryset):
+        updated = 0
+        for vendor in queryset:
+            if vendor.category:
+                vendor.risk_level = vendor.category.default_risk_level
+                vendor.save()
+                updated += 1
+        self.message_user(
+            request,
+            f'{updated} vendor(s) updated with category default risk level.'
+        )
+    update_risk_from_category.short_description = _('Update risk level from category default')
+
     # Aggiungi l'inline per l'indirizzo
     inlines = [AddressInline]
+
+    # AGGIUNGERE questo metodo mancante:
+    def category_display(self, obj):
+        if obj.category:
+            color_style = ""
+            if obj.category.color_code:
+                color_style = f"border-left: 4px solid {obj.category.color_code}; padding-left: 8px;"
+            
+            certification_badge = ""
+            if obj.category.requires_certification:
+                certification_badge = '<span style="color: #ffc107; font-size: 12px;"> 🏅</span>'
+            
+            category_text = obj.category.full_name if obj.category.parent else obj.category.name
+            
+            return format_html(
+                '<span style="{}" title="{}">{}{}</span>',
+                color_style,
+                f"Codice: {obj.category.code}\nDescrizione: {obj.category.description or 'N/A'}\nRichiede certificazione: {'Sì' if obj.category.requires_certification else 'No'}",
+                category_text,
+                certification_badge
+            )
+        else:
+            return format_html(
+                '<span style="color: #dc3545; font-style: italic;">⚠ Nessuna categoria</span>'
+            )
+    category_display.short_description = _('Category')
+    category_display.admin_order_field = 'category__name'
     
+
     # Custom display methods (mantieni tutte le esistenti e aggiungi questa)
     def address_display(self, obj):
         if obj.address:
@@ -564,6 +615,9 @@ class VendorAdmin(admin.ModelAdmin):
             if obj.qualification_status == 'APPROVED' and not obj.qualification_date:
                 from django.utils import timezone
                 obj.qualification_date = timezone.now().date()
+            
+            # Auto-set risk level from category if not specified
+            if not obj.risk_level and obj.category:
+                obj.risk_level = obj.category.default_risk_level
                 
         super().save_model(request, obj, form, change)
-

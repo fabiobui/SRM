@@ -7,7 +7,6 @@ from rest_framework.serializers import ModelSerializer, ValidationError
 
 from vendor_management_system.vendors.models import Vendor, Address, Category
 
-
 # Serializer per Category
 class CategorySerializer(ModelSerializer):
     full_name = serializers.ReadOnlyField()
@@ -374,67 +373,6 @@ class VendorListSerializer(ModelSerializer):
         ]
 
 
-# Serializers per Vendor management (mantieni quelli esistenti ma aggiungi category support)
-class VendorQualificationSerializer(ModelSerializer):
-    category = CategoryCompactSerializer(read_only=True)
-    
-    class Meta:
-        model = Vendor
-        fields = [
-            "vendor_code",
-            "name",
-            "category",
-            "qualification_status",
-            "qualification_score",
-            "qualification_date",
-            "qualification_expiry",
-            "risk_level",
-            "iso_certifications",
-        ]
-        read_only_fields = ["vendor_code", "name", "category"]
-
-    # ... (mantieni la validazione esistente) ...
-
-
-class VendorAuditSerializer(ModelSerializer):
-    category = CategoryCompactSerializer(read_only=True)
-    
-    class Meta:
-        model = Vendor
-        fields = [
-            "vendor_code",
-            "name",
-            "category",
-            "last_audit_date",
-            "next_audit_due",
-            "review_notes",
-            "qualification_status",
-            "risk_level",
-        ]
-        read_only_fields = ["vendor_code", "name", "category"]
-
-    # ... (mantieni la validazione esistente) ...
-
-
-class VendorPerformanceSerializer(ModelSerializer):
-    category = CategoryCompactSerializer(read_only=True)
-    
-    class Meta:
-        model = Vendor
-        fields = [
-            "vendor_code",
-            "name",
-            "category",
-            "on_time_delivery_rate",
-            "quality_rating_avg",
-            "average_response_time",
-            "fulfillment_rate",
-        ]
-        read_only_fields = ["vendor_code", "name", "category"]
-
-    # ... (mantieni la validazione esistente) ...
-
-
 # Serializer specifico per category tree/hierarchy
 class CategoryTreeSerializer(ModelSerializer):
     """Serializer per visualizzare la struttura gerarchica delle categorie"""
@@ -496,3 +434,192 @@ class CategoryStatsSerializer(ModelSerializer):
     
     def get_high_risk_vendors(self, obj):
         return obj.vendors.filter(risk_level='HIGH').count()
+    
+# CORREZIONI per vendor_management_system/vendors/serializers.py
+
+# AGGIUNGERE le definizioni mancanti di AddressSerializer:
+
+# Serializer per Address (COMPLETO)
+class AddressSerializer(ModelSerializer):
+    full_address = serializers.ReadOnlyField()
+    short_address = serializers.ReadOnlyField()
+    
+    class Meta:
+        model = Address
+        fields = [
+            'id',
+            'street_address',
+            'street_address_2',
+            'city',
+            'state_province',
+            'postal_code',
+            'country',
+            'latitude',
+            'longitude',
+            'address_type',
+            'is_active',
+            'notes',
+            'full_address',
+            'short_address',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at', 'full_address', 'short_address']
+
+    def validate(self, data):
+        # Validazioni personalizzate per l'indirizzo
+        if 'postal_code' in data:
+            postal_code = data['postal_code']
+            country = data.get('country', 'Italia')
+            
+            # Validazione CAP italiano
+            if country == 'Italia':
+                if not postal_code.isdigit() or len(postal_code) != 5:
+                    raise ValidationError({
+                        'postal_code': 'Il CAP italiano deve essere di 5 cifre.'
+                    })
+        
+        return data
+
+
+# Serializer per Address (versione compatta per nested use)
+class AddressCompactSerializer(ModelSerializer):
+    full_address = serializers.ReadOnlyField()
+    
+    class Meta:
+        model = Address
+        fields = [
+            'id',
+            'street_address',
+            'city',
+            'postal_code',
+            'country',
+            'address_type',
+            'full_address',
+        ]
+
+
+# AGGIUNGI le validazioni mancanti nei serializers esistenti:
+
+class VendorQualificationSerializer(ModelSerializer):
+    category = CategoryCompactSerializer(read_only=True)
+    
+    class Meta:
+        model = Vendor
+        fields = [
+            "vendor_code",
+            "name",
+            "category",
+            "qualification_status",
+            "qualification_score",
+            "qualification_date",
+            "qualification_expiry",
+            "risk_level",
+            "iso_certifications",
+        ]
+        read_only_fields = ["vendor_code", "name", "category"]
+
+    def validate(self, data):
+        # Get the list of allowed fields from the Meta class
+        allowed_fields = set(self.Meta.fields) - set(self.Meta.read_only_fields)
+
+        # Get the list of fields provided in the input data
+        received_fields = set(self.initial_data.keys())
+
+        # Calculate the extra fields by subtracting allowed fields from received fields
+        extra_fields = received_fields - allowed_fields
+
+        # If there are extra fields, raise a validation error
+        if extra_fields:
+            raise ValidationError(
+                {field: "This field is not allowed." for field in extra_fields}
+            )
+
+        # Validate qualification dates
+        if 'qualification_date' in data and 'qualification_expiry' in data:
+            if data['qualification_date'] and data['qualification_expiry']:
+                if data['qualification_date'] >= data['qualification_expiry']:
+                    raise ValidationError({
+                        'qualification_expiry': 'Qualification expiry must be after qualification date.'
+                    })
+
+        return data
+
+
+class VendorAuditSerializer(ModelSerializer):
+    category = CategoryCompactSerializer(read_only=True)
+    
+    class Meta:
+        model = Vendor
+        fields = [
+            "vendor_code",
+            "name",
+            "category",
+            "last_audit_date",
+            "next_audit_due",
+            "review_notes",
+            "qualification_status",
+            "risk_level",
+        ]
+        read_only_fields = ["vendor_code", "name", "category"]
+
+    def validate(self, data):
+        # Get the list of allowed fields from the Meta class
+        allowed_fields = set(self.Meta.fields) - set(self.Meta.read_only_fields)
+
+        # Get the list of fields provided in the input data
+        received_fields = set(self.initial_data.keys())
+
+        # Calculate the extra fields by subtracting allowed fields from received fields
+        extra_fields = received_fields - allowed_fields
+
+        # If there are extra fields, raise a validation error
+        if extra_fields:
+            raise ValidationError(
+                {field: "This field is not allowed." for field in extra_fields}
+            )
+
+        # Validate audit dates
+        if 'last_audit_date' in data and 'next_audit_due' in data:
+            if data['last_audit_date'] and data['next_audit_due']:
+                if data['last_audit_date'] >= data['next_audit_due']:
+                    raise ValidationError({
+                        'next_audit_due': 'Next audit due must be after last audit date.'
+                    })
+
+        return data
+
+
+class VendorPerformanceSerializer(ModelSerializer):
+    category = CategoryCompactSerializer(read_only=True)
+    
+    class Meta:
+        model = Vendor
+        fields = [
+            "vendor_code",
+            "name",
+            "category",
+            "on_time_delivery_rate",
+            "quality_rating_avg",
+            "average_response_time",
+            "fulfillment_rate",
+        ]
+        read_only_fields = ["vendor_code", "name", "category"]
+
+    def validate(self, data):
+        # Get the list of allowed fields from the Meta class
+        allowed_fields = set(self.Meta.fields) - set(self.Meta.read_only_fields)
+
+        # Get the list of fields provided in the input data
+        received_fields = set(self.initial_data.keys())
+
+        # Calculate the extra fields by subtracting allowed fields from received fields
+        extra_fields = received_fields - allowed_fields
+
+        # If there are extra fields, raise a validation error
+        if extra_fields:
+            raise ValidationError(
+                {field: "This field is not allowed." for field in extra_fields}
+            )
+
+        return data
