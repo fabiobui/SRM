@@ -1,7 +1,4 @@
 # Imports
-# Aggiornamenti per vendor_management_system/vendors/serializers.py
-
-# Imports (aggiorna le imports esistenti)
 from rest_framework import serializers
 from rest_framework.serializers import ModelSerializer, ValidationError
 
@@ -148,22 +145,119 @@ class CategoryManagementSerializer(ModelSerializer):
         return data
 
 
-# Serializer per Address (mantieni dal precedente)
+# Serializer per Address (COMPLETO)
 class AddressSerializer(ModelSerializer):
-    # ... (identico al precedente) ...
+    full_address = serializers.ReadOnlyField()
+    short_address = serializers.ReadOnlyField()
+    
+    class Meta:
+        model = Address
+        fields = [
+            'id',
+            'street_address',
+            'street_address_2',
+            'city',
+            'state_province',
+            'postal_code',
+            'country',
+            'latitude',
+            'longitude',
+            'address_type',
+            'is_active',
+            'notes',
+            'full_address',
+            'short_address',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at', 'full_address', 'short_address']
+
+    def validate(self, data):
+        # Validazioni personalizzate per l'indirizzo
+        if 'postal_code' in data:
+            postal_code = data['postal_code']
+            country = data.get('country', 'Italia')
+            
+            # Validazione CAP italiano
+            if country == 'Italia':
+                if not postal_code.isdigit() or len(postal_code) != 5:
+                    raise ValidationError({
+                        'postal_code': 'Il CAP italiano deve essere di 5 cifre.'
+                    })
+        
+        return data
 
 
-# Serializer per Address (versione compatta, mantieni dal precedente)
+# Serializer per Address (versione compatta per nested use)
 class AddressCompactSerializer(ModelSerializer):
-    # ... (identico al precedente) ...
+    full_address = serializers.ReadOnlyField()
+    
+    class Meta:
+        model = Address
+        fields = [
+            'id',
+            'street_address',
+            'city',
+            'postal_code',
+            'country',
+            'address_type',
+            'full_address',
+        ]
+
+
+# Serializer per Address Management (per le API di gestione indirizzi)
+class AddressManagementSerializer(ModelSerializer):
+    class Meta:
+        model = Address
+        fields = [
+            'street_address',
+            'street_address_2',
+            'city',
+            'state_province',
+            'postal_code',
+            'country',
+            'latitude',
+            'longitude',
+            'address_type',
+            'is_active',
+            'notes',
+        ]
+
+    def validate(self, data):
+        # Get the list of allowed fields from the Meta class
+        allowed_fields = set(self.Meta.fields)
+
+        # Get the list of fields provided in the input data
+        received_fields = set(self.initial_data.keys())
+
+        # Calculate the extra fields by subtracting allowed fields from received fields
+        extra_fields = received_fields - allowed_fields
+
+        # If there are extra fields, raise a validation error
+        if extra_fields:
+            raise ValidationError(
+                {field: "This field is not allowed." for field in extra_fields}
+            )
+
+        # Validazioni personalizzate per l'indirizzo
+        if 'postal_code' in data:
+            postal_code = data['postal_code']
+            country = data.get('country', 'Italia')
+            
+            # Validazione CAP italiano
+            if country == 'Italia':
+                if not postal_code.isdigit() or len(postal_code) != 5:
+                    raise ValidationError({
+                        'postal_code': 'Il CAP italiano deve essere di 5 cifre.'
+                    })
+        
+        return data
 
 
 # Serializer per Vendor AGGIORNATO (sostituisce quello esistente)
 class VendorSerializer(ModelSerializer):
     is_qualified = serializers.ReadOnlyField()
     audit_overdue = serializers.ReadOnlyField()
-    category_path = serializers.ReadOnlyField()
-    requires_certification = serializers.ReadOnlyField()
     address = AddressSerializer(required=False, allow_null=True)
     category = CategoryCompactSerializer(read_only=True)
     category_id = serializers.UUIDField(write_only=True, required=False, allow_null=True)
@@ -196,7 +290,6 @@ class VendorSerializer(ModelSerializer):
             # Evaluation and operational capacity
             "category",
             "category_id",
-            "category_path",
             "risk_level",
             "country",
             "iso_certifications",
@@ -207,7 +300,6 @@ class VendorSerializer(ModelSerializer):
             # Computed properties
             "is_qualified",
             "audit_overdue",
-            "requires_certification",
         ]
 
     def create(self, validated_data):
@@ -434,73 +526,9 @@ class CategoryStatsSerializer(ModelSerializer):
     
     def get_high_risk_vendors(self, obj):
         return obj.vendors.filter(risk_level='HIGH').count()
-    
-# CORREZIONI per vendor_management_system/vendors/serializers.py
-
-# AGGIUNGERE le definizioni mancanti di AddressSerializer:
-
-# Serializer per Address (COMPLETO)
-class AddressSerializer(ModelSerializer):
-    full_address = serializers.ReadOnlyField()
-    short_address = serializers.ReadOnlyField()
-    
-    class Meta:
-        model = Address
-        fields = [
-            'id',
-            'street_address',
-            'street_address_2',
-            'city',
-            'state_province',
-            'postal_code',
-            'country',
-            'latitude',
-            'longitude',
-            'address_type',
-            'is_active',
-            'notes',
-            'full_address',
-            'short_address',
-            'created_at',
-            'updated_at',
-        ]
-        read_only_fields = ['id', 'created_at', 'updated_at', 'full_address', 'short_address']
-
-    def validate(self, data):
-        # Validazioni personalizzate per l'indirizzo
-        if 'postal_code' in data:
-            postal_code = data['postal_code']
-            country = data.get('country', 'Italia')
-            
-            # Validazione CAP italiano
-            if country == 'Italia':
-                if not postal_code.isdigit() or len(postal_code) != 5:
-                    raise ValidationError({
-                        'postal_code': 'Il CAP italiano deve essere di 5 cifre.'
-                    })
-        
-        return data
 
 
-# Serializer per Address (versione compatta per nested use)
-class AddressCompactSerializer(ModelSerializer):
-    full_address = serializers.ReadOnlyField()
-    
-    class Meta:
-        model = Address
-        fields = [
-            'id',
-            'street_address',
-            'city',
-            'postal_code',
-            'country',
-            'address_type',
-            'full_address',
-        ]
-
-
-# AGGIUNGI le validazioni mancanti nei serializers esistenti:
-
+# Serializer per vendor qualification
 class VendorQualificationSerializer(ModelSerializer):
     category = CategoryCompactSerializer(read_only=True)
     
@@ -546,6 +574,7 @@ class VendorQualificationSerializer(ModelSerializer):
         return data
 
 
+# Serializer per vendor audit
 class VendorAuditSerializer(ModelSerializer):
     category = CategoryCompactSerializer(read_only=True)
     
@@ -590,6 +619,7 @@ class VendorAuditSerializer(ModelSerializer):
         return data
 
 
+# Serializer per vendor performance
 class VendorPerformanceSerializer(ModelSerializer):
     category = CategoryCompactSerializer(read_only=True)
     

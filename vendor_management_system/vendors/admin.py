@@ -194,39 +194,6 @@ class CategoryAdmin(admin.ModelAdmin):
     reset_sort_order.short_description = _('Reset sort order')
 
 
-# Inline per Address nel Vendor admin
-class AddressInline(admin.StackedInline):
-    model = Address
-    extra = 0
-    max_num = 1  # Un vendor può avere un solo indirizzo principale
-    
-    fieldsets = (
-        (
-            _("Indirizzo"),
-            {
-                "fields": (
-                    "street_address",
-                    "street_address_2",
-                    ("city", "state_province"),
-                    ("postal_code", "country"),
-                )
-            },
-        ),
-        (
-            _("Dettagli aggiuntivi"),
-            {
-                "fields": (
-                    "address_type",
-                    ("latitude", "longitude"),
-                    "is_active",
-                    "notes",
-                ),
-                "classes": ("collapse",),
-            },
-        ),
-    )
-
-
 # Register Address model in admin
 @admin.register(Address)
 class AddressAdmin(admin.ModelAdmin):
@@ -336,7 +303,7 @@ class AddressAdmin(admin.ModelAdmin):
     vendors_count.short_description = _('Vendors collegati')
 
 
-# Aggiorna VendorAdmin esistente
+# VendorAdmin CORRETTO (senza AddressInline)
 @admin.register(Vendor)
 class VendorAdmin(admin.ModelAdmin):
     list_display = [
@@ -344,7 +311,7 @@ class VendorAdmin(admin.ModelAdmin):
         "name",
         "email",
         "phone",
-        "category_display",  # CORREZIONE: era "category" ora è "category_display"
+        "category_display",
         "address_display",
         "qualification_status_display",
         "risk_level_display",
@@ -408,6 +375,7 @@ class VendorAdmin(admin.ModelAdmin):
                     "category",
                     "country",
                     "risk_level",
+                    "address",  # Campo address come ForeignKey
                 )
             },
         ),
@@ -453,16 +421,17 @@ class VendorAdmin(admin.ModelAdmin):
         "vendor_code",
     ]
     
-    # AGGIUNGERE queste azioni mancanti:
+    # RIMOSSE le inlines perché Address non ha ForeignKey verso Vendor
+    # inlines = [AddressInline]  # RIMOSSO
+    
     actions = [
         'mark_as_approved', 
         'mark_as_pending', 
         'mark_as_rejected',
-        'update_risk_from_category',  # MANCANTE
-        'assign_category'  # MANCANTE (opzionale)
+        'update_risk_from_category',
+        'assign_category'
     ]
     
-    # AGGIUNGERE questo metodo mancante:
     def update_risk_from_category(self, request, queryset):
         updated = 0
         for vendor in queryset:
@@ -476,10 +445,12 @@ class VendorAdmin(admin.ModelAdmin):
         )
     update_risk_from_category.short_description = _('Update risk level from category default')
 
-    # Aggiungi l'inline per l'indirizzo
-    inlines = [AddressInline]
+    def assign_category(self, request, queryset):
+        # Questa action permetterà di assegnare una categoria ai vendor selezionati
+        # Implementazione da fare se necessaria
+        pass
+    assign_category.short_description = _('Assign category to selected vendors')
 
-    # AGGIUNGERE questo metodo mancante:
     def category_display(self, obj):
         if obj.category:
             color_style = ""
@@ -506,8 +477,6 @@ class VendorAdmin(admin.ModelAdmin):
     category_display.short_description = _('Category')
     category_display.admin_order_field = 'category__name'
     
-
-    # Custom display methods (mantieni tutte le esistenti e aggiungi questa)
     def address_display(self, obj):
         if obj.address:
             return format_html(
@@ -521,7 +490,6 @@ class VendorAdmin(admin.ModelAdmin):
             )
     address_display.short_description = _('Indirizzo')
     
-    # Mantieni tutti i metodi esistenti (qualification_status_display, risk_level_display, etc.)
     def qualification_status_display(self, obj):
         colors = {
             'PENDING': '#ffc107',  # warning/yellow
@@ -582,8 +550,6 @@ class VendorAdmin(admin.ModelAdmin):
     audit_overdue_display.short_description = _('Audit Status')
     
     # Add custom actions
-    actions = ['mark_as_approved', 'mark_as_pending', 'mark_as_rejected']
-    
     def mark_as_approved(self, request, queryset):
         updated = queryset.update(qualification_status='APPROVED')
         self.message_user(

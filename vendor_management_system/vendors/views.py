@@ -31,7 +31,8 @@ from vendor_management_system.vendors.serializers import (
     CategoryStatsSerializer,
 )
 
-# Nuovo ViewSet per Address (AGGIUNGI QUESTA CLASSE)
+
+# ViewSet per Address
 class AddressViewSet(viewsets.ViewSet):
     """ViewSet for managing addresses independently"""
     permission_classes = [permissions.IsAuthenticated]
@@ -218,7 +219,7 @@ class AddressViewSet(viewsets.ViewSet):
         return response.Response(status=status.HTTP_204_NO_CONTENT)
 
 
-# Nuovo ViewSet per Category (AGGIUNGI QUESTA CLASSE)
+# ViewSet per Category
 class CategoryViewSet(viewsets.ViewSet):
     """ViewSet for managing categories"""
     permission_classes = [permissions.IsAuthenticated]
@@ -525,12 +526,12 @@ class CategoryViewSet(viewsets.ViewSet):
         return response.Response(serializer.data, status=status.HTTP_200_OK)
 
 
-# AGGIORNAMENTI AL VendorViewSet esistente
-
-# Aggiorna il metodo list del VendorViewSet per supportare filtro per categoria
+# ViewSet per Vendor
 class VendorViewSet(viewsets.ViewSet):
-    # ... (mantieni tutto il resto del ViewSet) ...
-    
+    """ViewSet for managing vendors"""
+    permission_classes = [permissions.IsAuthenticated]
+    authentication_classes = [QueryParameterTokenAuthentication]
+
     @swagger_auto_schema(
         operation_id="vendors--list-vendors",
         operation_description="List all vendors with basic information",
@@ -624,249 +625,6 @@ class VendorViewSet(viewsets.ViewSet):
         # Return the response
         return response.Response(serializer.data, status=status.HTTP_200_OK)
 
-    # Aggiorna il metodo alerts per includere informazioni sulla categoria
-    @action(detail=False, methods=['get'], url_path='alerts')
-    def alerts(self, request):
-        from django.utils import timezone
-        today = timezone.now().date()
-        
-        # Get vendors with overdue audits
-        overdue_audits = Vendor.objects.select_related('category', 'address').filter(
-            next_audit_due__lt=today
-        ).exclude(next_audit_due__isnull=True)
-        
-        # Get vendors with expired qualifications
-        expired_qualifications = Vendor.objects.select_related('category', 'address').filter(
-            qualification_expiry__lt=today,
-            qualification_status='APPROVED'
-        ).exclude(qualification_expiry__isnull=True)
-        
-        # Get high risk vendors
-        high_risk_vendors = Vendor.objects.select_related('category', 'address').filter(risk_level='HIGH')
-        
-        # Get vendors in categories requiring certification but without proper status
-        missing_certification = Vendor.objects.select_related('category', 'address').filter(
-            category__requires_certification=True,
-            qualification_status__in=['PENDING', 'REJECTED']
-        )
-        
-        # Get vendors without category assigned
-        no_category = Vendor.objects.select_related('address').filter(category__isnull=True)
-        
-        data = {
-            'overdue_audits': VendorListSerializer(overdue_audits, many=True).data,
-            'expired_qualifications': VendorListSerializer(expired_qualifications, many=True).data,
-            'high_risk_vendors': VendorListSerializer(high_risk_vendors, many=True).data,
-            'missing_certification': VendorListSerializer(missing_certification, many=True).data,
-            'no_category': VendorListSerializer(no_category, many=True).data,
-        }
-        
-        return response.Response(data, status=status.HTTP_200_OK)
-
-
-# Custom view to obtain an auth token
-class QueryParamObtainAuthToken(ObtainAuthToken):
-    serializer_class = QueryParamAuthTokenSerializer
-
-    @swagger_auto_schema(
-        operation_id="core--obtain-auth-token",
-        operation_description="Obtain an auth token for a user",
-        request_body=openapi.Schema(
-            type=openapi.TYPE_OBJECT,
-            required=["email", "password"],
-            properties={
-                "email": openapi.Schema(
-                    type=openapi.TYPE_STRING,
-                    description="Email address of the user",
-                    format="email",
-                ),
-                "password": openapi.Schema(
-                    type=openapi.TYPE_STRING,
-                    description="Password of the user",
-                    format="password",
-                ),
-            },
-        ),
-        responses={
-            status.HTTP_200_OK: openapi.Response(
-                "The auth token",
-                schema=openapi.Schema(
-                    type=openapi.TYPE_OBJECT,
-                    properties={"token": openapi.Schema(type=openapi.TYPE_STRING)},
-                ),
-            ),
-            status.HTTP_400_BAD_REQUEST: "Bad request",
-        },
-        tags=["Rest API Authentication"],
-    )
-    def post(self, request, *args, **kwargs):
-        return super().post(request, *args, **kwargs)
-
-
-@login_required
-def dashboard_redirect(request):
-    """Reindirizza l'utente alla dashboard appropriata in base al ruolo"""
-    user = request.user
-    
-    if user.is_admin():
-        return redirect('admin-dashboard')
-    elif user.is_bo_user():
-        return redirect('backoffice-dashboard')
-    elif user.is_vendor_user():
-        return redirect('vendor-portal')
-    else:
-        messages.warning(request, "Il tuo account non ha un ruolo assegnato. Contatta l'amministratore.")
-        return HttpResponse("""
-        <div style="padding: 20px; font-family: Arial;">
-            <h2>⚠️ Ruolo non assegnato</h2>
-            <p>Il tuo account non ha un ruolo configurato.</p>
-            <p>Contatta l'amministratore del sistema.</p>
-            <a href="/admin/logout/">Logout</a>
-        </div>
-        """)
-
-# Class based ViewSet for Vendor
-class VendorViewSet(viewsets.ViewSet):
-    # Set the permission and authentication classes
-    permission_classes = [permissions.IsAuthenticated]
-    authentication_classes = [QueryParameterTokenAuthentication]
-
-    # Method to handle listing all vendors
-    @swagger_auto_schema(
-        operation_id="vendors--list-vendors",
-        operation_description="List all vendors with basic information",
-        manual_parameters=[
-            openapi.Parameter(
-                name="token",
-                format="string",
-                in_=openapi.IN_QUERY,
-                type=openapi.TYPE_STRING,
-                required=True,
-                description="The token to authenticate the user",
-            ),
-            openapi.Parameter(
-                name="qualification_status",
-                format="string",
-                in_=openapi.IN_QUERY,
-                type=openapi.TYPE_STRING,
-                required=False,
-                description="Filter by qualification status (PENDING, APPROVED, REJECTED)",
-            ),
-            openapi.Parameter(
-                name="risk_level",
-                format="string",
-                in_=openapi.IN_QUERY,
-                type=openapi.TYPE_STRING,
-                required=False,
-                description="Filter by risk level (LOW, MEDIUM, HIGH)",
-            ),
-            # AGGIUNGERE questi parametri mancanti:
-            openapi.Parameter(
-                name="category",
-                format="uuid",
-                in_=openapi.IN_QUERY,
-                type=openapi.TYPE_STRING,
-                required=False,
-                description="Filter by category ID",
-            ),
-            openapi.Parameter(
-                name="category_code",
-                format="string",
-                in_=openapi.IN_QUERY,
-                type=openapi.TYPE_STRING,
-                required=False,
-                description="Filter by category code",
-            ),
-            openapi.Parameter(
-                name="requires_certification",
-                format="boolean",
-                in_=openapi.IN_QUERY,
-                type=openapi.TYPE_BOOLEAN,
-                required=False,
-                description="Filter by certification requirement",
-            ),
-        ],
-        responses={
-            status.HTTP_200_OK: openapi.Response(
-                "List of all vendors", schema=VendorListSerializer(many=True)
-            ),
-            status.HTTP_401_UNAUTHORIZED: "Unauthorized",
-        },
-        tags=["Vendors"],
-    )
-    def list(self, request):
-        # CORREGGERE il metodo list per supportare i nuovi filtri:
-        vendors = Vendor.objects.select_related('category', 'address').all()
-        
-        # Apply existing filters
-        qualification_status = request.query_params.get('qualification_status')
-        if qualification_status:
-            vendors = vendors.filter(qualification_status=qualification_status)
-            
-        risk_level = request.query_params.get('risk_level')
-        if risk_level:
-            vendors = vendors.filter(risk_level=risk_level)
-        
-        # AGGIUNGERE nuovi filtri per categoria:
-        category = request.query_params.get('category')
-        if category:
-            vendors = vendors.filter(category__id=category)
-            
-        category_code = request.query_params.get('category_code')
-        if category_code:
-            vendors = vendors.filter(category__code__iexact=category_code)
-            
-        requires_certification = request.query_params.get('requires_certification')
-        if requires_certification is not None:
-            vendors = vendors.filter(category__requires_certification=requires_certification.lower() == 'true')
-
-        # Serialize the vendors using lightweight serializer
-        serializer = VendorListSerializer(vendors, many=True)
-
-        # Return the response
-        return response.Response(serializer.data, status=status.HTTP_200_OK)
-
-    # AGGIORNARE il metodo alerts:
-    @action(detail=False, methods=['get'], url_path='alerts')
-    def alerts(self, request):
-        from django.utils import timezone
-        today = timezone.now().date()
-        
-        # Get vendors with overdue audits
-        overdue_audits = Vendor.objects.select_related('category', 'address').filter(
-            next_audit_due__lt=today
-        ).exclude(next_audit_due__isnull=True)
-        
-        # Get vendors with expired qualifications
-        expired_qualifications = Vendor.objects.select_related('category', 'address').filter(
-            qualification_expiry__lt=today,
-            qualification_status='APPROVED'
-        ).exclude(qualification_expiry__isnull=True)
-        
-        # Get high risk vendors
-        high_risk_vendors = Vendor.objects.select_related('category', 'address').filter(risk_level='HIGH')
-        
-        # AGGIUNGERE nuovi alert specifici per categorie:
-        # Get vendors in categories requiring certification but without proper status
-        missing_certification = Vendor.objects.select_related('category', 'address').filter(
-            category__requires_certification=True,
-            qualification_status__in=['PENDING', 'REJECTED']
-        )
-        
-        # Get vendors without category assigned
-        no_category = Vendor.objects.select_related('address').filter(category__isnull=True)
-        
-        data = {
-            'overdue_audits': VendorListSerializer(overdue_audits, many=True).data,
-            'expired_qualifications': VendorListSerializer(expired_qualifications, many=True).data,
-            'high_risk_vendors': VendorListSerializer(high_risk_vendors, many=True).data,
-            'missing_certification': VendorListSerializer(missing_certification, many=True).data,  # NUOVO
-            'no_category': VendorListSerializer(no_category, many=True).data,  # NUOVO
-        }
-        
-        return response.Response(data, status=status.HTTP_200_OK)
-
-    # Method to handle new vendor creation
     @swagger_auto_schema(
         operation_id="vendors--create-vendor",
         operation_description="Create a new vendor",
@@ -897,7 +655,7 @@ class VendorViewSet(viewsets.ViewSet):
         # If the provided data is valid
         if vendor_create_serializer.is_valid():
             # Create a new Vendor object
-            vendor = Vendor.objects.create(**vendor_create_serializer.validated_data)
+            vendor = vendor_create_serializer.save()
 
             # Serialize the vendor with full details
             vendor_serializer = VendorSerializer(vendor)
@@ -912,7 +670,6 @@ class VendorViewSet(viewsets.ViewSet):
             vendor_create_serializer.errors, status=status.HTTP_400_BAD_REQUEST
         )
 
-    # Method to handle retrieving a single vendor
     @swagger_auto_schema(
         operation_id="vendors--retrieve-vendor",
         operation_description="Retrieve a specific vendor's complete details",
@@ -953,7 +710,6 @@ class VendorViewSet(viewsets.ViewSet):
         # Return the response
         return response.Response(serializer.data, status=status.HTTP_200_OK)
 
-    # Method to handle updating a vendor
     @swagger_auto_schema(
         operation_id="vendors--update-vendor",
         operation_description="Update a specific vendor's basic information",
@@ -1014,7 +770,6 @@ class VendorViewSet(viewsets.ViewSet):
             vendor_update_serializer.errors, status=status.HTTP_400_BAD_REQUEST
         )
 
-    # Method to handle deleting a vendor
     @swagger_auto_schema(
         operation_id="vendors--destroy-vendor",
         operation_description="Delete a specific vendor",
@@ -1313,6 +1068,40 @@ class VendorViewSet(viewsets.ViewSet):
                                 }
                             )
                         ),
+                        "missing_certification": openapi.Schema(
+                            type=openapi.TYPE_ARRAY,
+                            items=openapi.Schema(
+                                type=openapi.TYPE_OBJECT,
+                                properties={
+                                    "vendor_code": openapi.Schema(type=openapi.TYPE_STRING),
+                                    "name": openapi.Schema(type=openapi.TYPE_STRING),
+                                    "email": openapi.Schema(type=openapi.TYPE_STRING),
+                                    "phone": openapi.Schema(type=openapi.TYPE_STRING),
+                                    "category": openapi.Schema(type=openapi.TYPE_STRING),
+                                    "qualification_status": openapi.Schema(type=openapi.TYPE_STRING),
+                                    "risk_level": openapi.Schema(type=openapi.TYPE_STRING),
+                                    "is_qualified": openapi.Schema(type=openapi.TYPE_BOOLEAN),
+                                    "audit_overdue": openapi.Schema(type=openapi.TYPE_BOOLEAN),
+                                }
+                            )
+                        ),
+                        "no_category": openapi.Schema(
+                            type=openapi.TYPE_ARRAY,
+                            items=openapi.Schema(
+                                type=openapi.TYPE_OBJECT,
+                                properties={
+                                    "vendor_code": openapi.Schema(type=openapi.TYPE_STRING),
+                                    "name": openapi.Schema(type=openapi.TYPE_STRING),
+                                    "email": openapi.Schema(type=openapi.TYPE_STRING),
+                                    "phone": openapi.Schema(type=openapi.TYPE_STRING),
+                                    "category": openapi.Schema(type=openapi.TYPE_STRING),
+                                    "qualification_status": openapi.Schema(type=openapi.TYPE_STRING),
+                                    "risk_level": openapi.Schema(type=openapi.TYPE_STRING),
+                                    "is_qualified": openapi.Schema(type=openapi.TYPE_BOOLEAN),
+                                    "audit_overdue": openapi.Schema(type=openapi.TYPE_BOOLEAN),
+                                }
+                            )
+                        ),
                     }
                 )
             ),
@@ -1325,23 +1114,248 @@ class VendorViewSet(viewsets.ViewSet):
         today = timezone.now().date()
         
         # Get vendors with overdue audits
-        overdue_audits = Vendor.objects.filter(
+        overdue_audits = Vendor.objects.select_related('category', 'address').filter(
             next_audit_due__lt=today
         ).exclude(next_audit_due__isnull=True)
         
         # Get vendors with expired qualifications
-        expired_qualifications = Vendor.objects.filter(
+        expired_qualifications = Vendor.objects.select_related('category', 'address').filter(
             qualification_expiry__lt=today,
             qualification_status='APPROVED'
         ).exclude(qualification_expiry__isnull=True)
         
         # Get high risk vendors
-        high_risk_vendors = Vendor.objects.filter(risk_level='HIGH')
+        high_risk_vendors = Vendor.objects.select_related('category', 'address').filter(risk_level='HIGH')
+        
+        # Get vendors in categories requiring certification but without proper status
+        missing_certification = Vendor.objects.select_related('category', 'address').filter(
+            category__requires_certification=True,
+            qualification_status__in=['PENDING', 'REJECTED']
+        )
+        
+        # Get vendors without category assigned
+        no_category = Vendor.objects.select_related('address').filter(category__isnull=True)
         
         data = {
             'overdue_audits': VendorListSerializer(overdue_audits, many=True).data,
             'expired_qualifications': VendorListSerializer(expired_qualifications, many=True).data,
             'high_risk_vendors': VendorListSerializer(high_risk_vendors, many=True).data,
+            'missing_certification': VendorListSerializer(missing_certification, many=True).data,
+            'no_category': VendorListSerializer(no_category, many=True).data,
         }
         
         return response.Response(data, status=status.HTTP_200_OK)
+
+    # Address management for vendors
+    @swagger_auto_schema(
+        methods=['get'],
+        operation_id="vendors--get-address",
+        operation_description="Get vendor address",
+        manual_parameters=[
+            openapi.Parameter(
+                name="token",
+                format="string",
+                in_=openapi.IN_QUERY,
+                type=openapi.TYPE_STRING,
+                required=True,
+                description="The token to authenticate the user",
+            ),
+        ],
+        responses={
+            status.HTTP_200_OK: openapi.Response(
+                "Vendor address", schema=AddressSerializer
+            ),
+            status.HTTP_404_NOT_FOUND: "Address not found",
+        },
+        tags=["Vendor Address"],
+    )
+    @swagger_auto_schema(
+        methods=['post'],
+        operation_id="vendors--create-address",
+        operation_description="Create address for vendor",
+        manual_parameters=[
+            openapi.Parameter(
+                name="token",
+                format="string",
+                in_=openapi.IN_QUERY,
+                type=openapi.TYPE_STRING,
+                required=True,
+                description="The token to authenticate the user",
+            ),
+        ],
+        request_body=AddressManagementSerializer,
+        responses={
+            status.HTTP_201_CREATED: openapi.Response(
+                "Created address", schema=AddressSerializer
+            ),
+        },
+        tags=["Vendor Address"],
+    )
+    @swagger_auto_schema(
+        methods=['put'],
+        operation_id="vendors--update-address",
+        operation_description="Update vendor address",
+        manual_parameters=[
+            openapi.Parameter(
+                name="token",
+                format="string",
+                in_=openapi.IN_QUERY,
+                type=openapi.TYPE_STRING,
+                required=True,
+                description="The token to authenticate the user",
+            ),
+        ],
+        request_body=AddressManagementSerializer,
+        responses={
+            status.HTTP_200_OK: openapi.Response(
+                "Updated address", schema=AddressSerializer
+            ),
+        },
+        tags=["Vendor Address"],
+    )
+    @swagger_auto_schema(
+        methods=['delete'],
+        operation_id="vendors--delete-address",
+        operation_description="Delete vendor address",
+        manual_parameters=[
+            openapi.Parameter(
+                name="token",
+                format="string",
+                in_=openapi.IN_QUERY,
+                type=openapi.TYPE_STRING,
+                required=True,
+                description="The token to authenticate the user",
+            ),
+        ],
+        responses={
+            status.HTTP_204_NO_CONTENT: "Address deleted",
+        },
+        tags=["Vendor Address"],
+    )
+    @action(detail=True, methods=['get', 'post', 'put', 'delete'], url_path='address')
+    def address_management(self, request, vendor_code=None):
+        vendor = get_object_or_404(Vendor, vendor_code=vendor_code)
+        
+        if request.method == 'GET':
+            if vendor.address:
+                serializer = AddressSerializer(vendor.address)
+                return response.Response(serializer.data, status=status.HTTP_200_OK)
+            else:
+                return response.Response(
+                    {"detail": "Vendor has no address"}, 
+                    status=status.HTTP_404_NOT_FOUND
+                )
+        
+        elif request.method == 'POST':
+            if vendor.address:
+                return response.Response(
+                    {"detail": "Vendor already has an address. Use PUT to update."}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            serializer = AddressManagementSerializer(data=request.data)
+            if serializer.is_valid():
+                address = serializer.save()
+                vendor.address = address
+                vendor.save()
+                response_serializer = AddressSerializer(address)
+                return response.Response(
+                    response_serializer.data, status=status.HTTP_201_CREATED
+                )
+            return response.Response(
+                serializer.errors, status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        elif request.method == 'PUT':
+            if not vendor.address:
+                return response.Response(
+                    {"detail": "Vendor has no address. Use POST to create."}, 
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            serializer = AddressManagementSerializer(
+                vendor.address, data=request.data, partial=True
+            )
+            if serializer.is_valid():
+                serializer.save()
+                response_serializer = AddressSerializer(vendor.address)
+                return response.Response(
+                    response_serializer.data, status=status.HTTP_200_OK
+                )
+            return response.Response(
+                serializer.errors, status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        elif request.method == 'DELETE':
+            if vendor.address:
+                vendor.address.delete()
+                vendor.address = None
+                vendor.save()
+                return response.Response(status=status.HTTP_204_NO_CONTENT)
+            else:
+                return response.Response(
+                    {"detail": "Vendor has no address"}, 
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+
+# Custom view to obtain an auth token
+class QueryParamObtainAuthToken(ObtainAuthToken):
+    serializer_class = QueryParamAuthTokenSerializer
+
+    @swagger_auto_schema(
+        operation_id="core--obtain-auth-token",
+        operation_description="Obtain an auth token for a user",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=["email", "password"],
+            properties={
+                "email": openapi.Schema(
+                    type=openapi.TYPE_STRING,
+                    description="Email address of the user",
+                    format="email",
+                ),
+                "password": openapi.Schema(
+                    type=openapi.TYPE_STRING,
+                    description="Password of the user",
+                    format="password",
+                ),
+            },
+        ),
+        responses={
+            status.HTTP_200_OK: openapi.Response(
+                "The auth token",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={"token": openapi.Schema(type=openapi.TYPE_STRING)},
+                ),
+            ),
+            status.HTTP_400_BAD_REQUEST: "Bad request",
+        },
+        tags=["Rest API Authentication"],
+    )
+    def post(self, request, *args, **kwargs):
+        return super().post(request, *args, **kwargs)
+
+
+@login_required
+def dashboard_redirect(request):
+    """Reindirizza l'utente alla dashboard appropriata in base al ruolo"""
+    user = request.user
+    
+    if user.is_admin():
+        return redirect('admin-dashboard')
+    elif user.is_bo_user():
+        return redirect('backoffice-dashboard')
+    elif user.is_vendor_user():
+        return redirect('vendor-portal')
+    else:
+        messages.warning(request, "Il tuo account non ha un ruolo assegnato. Contatta l'amministratore.")
+        return HttpResponse("""
+        <div style="padding: 20px; font-family: Arial;">
+            <h2>⚠️ Ruolo non assegnato</h2>
+            <p>Il tuo account non ha un ruolo configurato.</p>
+            <p>Contatta l'amministratore del sistema.</p>
+            <a href="/admin/logout/">Logout</a>
+        </div>
+        """)
