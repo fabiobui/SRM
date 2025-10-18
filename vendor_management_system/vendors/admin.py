@@ -97,7 +97,7 @@ class CategoryAdmin(admin.ModelAdmin):
     def get_queryset(self, request):
         queryset = super().get_queryset(request)
         return queryset.select_related('parent').annotate(
-            vendor_count=Count('vendors', distinct=True)
+            admin_vendor_count=Count('vendors', distinct=True)
         )
     
     # Custom display methods
@@ -124,7 +124,8 @@ class CategoryAdmin(admin.ModelAdmin):
     level_display.short_description = _('Level')
     
     def vendor_count_display(self, obj):
-        count = getattr(obj, 'vendor_count', 0)
+        # Usa l'annotazione se disponibile, altrimenti la property
+        count = getattr(obj, 'admin_vendor_count', obj.vendor_count)
         if count > 0:
             return format_html(
                 '<span style="color: #28a745; font-weight: bold;">{}</span>',
@@ -135,7 +136,7 @@ class CategoryAdmin(admin.ModelAdmin):
                 '<span style="color: #6c757d;">0</span>'
             )
     vendor_count_display.short_description = _('Vendors')
-    vendor_count_display.admin_order_field = 'vendor_count'
+    vendor_count_display.admin_order_field = 'admin_vendor_count'  # Aggiornato anche questo    
     
     def color_display(self, obj):
         if obj.color_code:
@@ -346,41 +347,34 @@ class VendorAdmin(admin.ModelAdmin):
     
     fieldsets = (
         (
-            _("Basic Information"),
+            _("Generale"),
             {
                 "fields": (
                     "vendor_code",
                     "name",
-                    "contact_details",
+                    "vat_number",
+                    "fiscal_code", 
+                    "category",
+                    "risk_level",
                 )
             },
         ),
         (
-            _("Contact & Legal Information"),
+            _("Contatti"),
             {
                 "fields": (
-                    "vat_number",
-                    "fiscal_code",
+                    "address",  # Campo address come ForeignKey
+                    "country",
+                    "phone",
                     "email",
                     "reference_contact",
-                    "phone",
+                    "contact_details",
                     "website",
                 )
             },
         ),
         (
-            _("Business Classification"),
-            {
-                "fields": (
-                    "category",
-                    "country",
-                    "risk_level",
-                    "address",  # Campo address come ForeignKey
-                )
-            },
-        ),
-        (
-            _("Qualification & Compliance"),
+            _("Qualifica"),
             {
                 "fields": (
                     "qualification_status",
@@ -393,7 +387,7 @@ class VendorAdmin(admin.ModelAdmin):
             },
         ),
         (
-            _("Performance Metrics"),
+            _("Rating"),
             {
                 "fields": (
                     "on_time_delivery_rate",
@@ -405,7 +399,7 @@ class VendorAdmin(admin.ModelAdmin):
             },
         ),
         (
-            _("Audit & Management"),
+            _("Audit"),
             {
                 "fields": (
                     "last_audit_date",
@@ -415,7 +409,7 @@ class VendorAdmin(admin.ModelAdmin):
                 "classes": ("collapse",),
             },
         ),
-    )
+    )    
     
     readonly_fields = [
         "vendor_code",

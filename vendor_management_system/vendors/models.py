@@ -527,6 +527,11 @@ class Vendor(models.Model):
         blank=True, null=True,
         help_text=_("Note di revisione e valutazione")
     )
+    is_active = models.BooleanField(
+        _("Is Active"),
+        default=True,
+        help_text=_("Fornitore attivo")
+    )
 
     # Metadata
     class Meta:
