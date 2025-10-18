@@ -20,20 +20,20 @@ class Category(models.Model):
     
     # Core fields
     code = models.CharField(
-        _("Category Code"),
+        _("Codice Categoria"),
         max_length=20,
         unique=True,
         help_text=_("Codice univoco della categoria (es. 'SERV', 'FORN', 'MANU')")
     )
     
     name = models.CharField(
-        _("Category Name"),
+        _("Nome Categoria"),
         max_length=100,
         help_text=_("Nome della categoria")
     )
     
     description = models.TextField(
-        _("Description"),
+        _("Descrizione"),
         blank=True,
         null=True,
         help_text=_("Descrizione dettagliata della categoria")
@@ -42,7 +42,7 @@ class Category(models.Model):
     # Hierarchical structure (optional)
     parent = models.ForeignKey(
         'self',
-        verbose_name=_("Parent Category"),
+        verbose_name=_("Categoria Padre"),
         null=True,
         blank=True,
         on_delete=models.CASCADE,
@@ -52,20 +52,20 @@ class Category(models.Model):
     
     # Status and classification
     is_active = models.BooleanField(
-        _("Is Active"),
+        _("È Attiva"),
         default=True,
         help_text=_("Categoria attiva e utilizzabile")
     )
     
     sort_order = models.PositiveIntegerField(
-        _("Sort Order"),
+        _("Ordine di Ordinamento"),
         default=100,
         help_text=_("Ordine di visualizzazione")
     )
     
     # Color coding for UI
     color_code = models.CharField(
-        _("Color Code"),
+        _("Codice Colore"),
         max_length=7,
         blank=True,
         null=True,
@@ -74,24 +74,24 @@ class Category(models.Model):
     
     # Metadata
     created_at = models.DateTimeField(
-        _("Created At"),
+        _("Creato il"),
         auto_now_add=True
     )
     
     updated_at = models.DateTimeField(
-        _("Updated At"),
+        _("Aggiornato il"),
         auto_now=True
     )
     
     # Business rules
     requires_certification = models.BooleanField(
-        _("Requires Certification"),
+        _("Richiede Certificazione"),
         default=False,
         help_text=_("Categoria che richiede certificazioni specifiche")
     )
     
     default_risk_level = models.CharField(
-        _("Default Risk Level"),
+        _("Livello di Rischio Predefinito"),
         max_length=20,
         choices=[
             ('LOW', _('Basso')),
@@ -103,8 +103,8 @@ class Category(models.Model):
     )
 
     class Meta:
-        verbose_name = _("Category")
-        verbose_name_plural = _("Categories")
+        verbose_name = _("Categoria")
+        verbose_name_plural = _("Categorie")
         ordering = ['sort_order', 'name']
         indexes = [
             models.Index(fields=['code']),
@@ -210,13 +210,13 @@ class Address(models.Model):
     
     # Address fields
     street_address = models.CharField(
-        _("Street Address"),
+        _("Indirizzo Strada"),
         max_length=255,
         help_text=_("Via, numero civico")
     )
     
     street_address_2 = models.CharField(
-        _("Street Address 2"),
+        _("Indirizzo Strada 2"),
         max_length=255,
         blank=True,
         null=True,
@@ -224,13 +224,13 @@ class Address(models.Model):
     )
     
     city = models.CharField(
-        _("City"),
+        _("Città"),
         max_length=100,
         help_text=_("Città")
     )
     
     state_province = models.CharField(
-        _("State/Province"),
+        _("Stato/Provincia"),
         max_length=100,
         blank=True,
         null=True,
@@ -238,13 +238,13 @@ class Address(models.Model):
     )
     
     postal_code = models.CharField(
-        _("Postal Code"),
+        _("Codice Postale"),
         max_length=20,
         help_text=_("Codice postale/CAP")
     )
     
     country = models.CharField(
-        _("Country"),
+        _("Paese"),
         max_length=100,
         default="Italia",
         help_text=_("Paese")
@@ -252,7 +252,7 @@ class Address(models.Model):
     
     # Geographic coordinates (optional)
     latitude = models.DecimalField(
-        _("Latitude"),
+        _("Latitudine"),
         max_digits=10,
         decimal_places=8,
         null=True,
@@ -261,7 +261,7 @@ class Address(models.Model):
     )
     
     longitude = models.DecimalField(
-        _("Longitude"),
+        _("Longitudine"),
         max_digits=11,
         decimal_places=8,
         null=True,
@@ -271,18 +271,18 @@ class Address(models.Model):
     
     # Metadata fields
     created_at = models.DateTimeField(
-        _("Created At"),
+        _("Creato il"),
         auto_now_add=True
     )
     
     updated_at = models.DateTimeField(
-        _("Updated At"),
+        _("Aggiornato il"),
         auto_now=True
     )
     
     # Additional info
     address_type = models.CharField(
-        _("Address Type"),
+        _("Tipo Indirizzo"),
         max_length=50,
         choices=[
             ('LEGAL', _('Sede legale')),
@@ -296,21 +296,21 @@ class Address(models.Model):
     )
     
     is_active = models.BooleanField(
-        _("Is Active"),
+        _("È Attivo"),
         default=True,
         help_text=_("Indirizzo attivo")
     )
     
     notes = models.TextField(
-        _("Notes"),
+        _("Note"),
         blank=True,
         null=True,
         help_text=_("Note aggiuntive sull'indirizzo")
     )
 
     class Meta:
-        verbose_name = _("Address")
-        verbose_name_plural = _("Addresses")
+        verbose_name = _("Indirizzo")
+        verbose_name_plural = _("Indirizzi")
         ordering = ["-created_at"]
         indexes = [
             models.Index(fields=['city', 'country']),
@@ -360,7 +360,7 @@ class Vendor(models.Model):
     # Foreign Key to Address model
     address = models.ForeignKey(
         Address,
-        verbose_name=_("Address"),
+        verbose_name=_("Indirizzo"),
         null=True,
         blank=True,
         on_delete=models.SET_NULL,
@@ -371,7 +371,7 @@ class Vendor(models.Model):
 
     # Core Fields
     vendor_code = models.CharField(
-        _("Vendor Code"),
+        _("Codice Fornitore"),
         max_length=10,
         unique=True,
         primary_key=True,
@@ -385,22 +385,22 @@ class Vendor(models.Model):
         ],
     )
     name = models.CharField(
-        _("Name of Vendor"), max_length=255, help_text=_("Nome del fornitore"), blank=True
+        _("Nome del Fornitore"), max_length=255, help_text=_("Nome del fornitore"), blank=True
     )
     contact_details = models.TextField(
-        _("Contact Details of Vendor"), help_text=_("Dettagli di contatto del fornitore"), blank=True
+        _("Dettagli di Contatto del Fornitore"), help_text=_("Dettagli di contatto del fornitore"), blank=True
     )
     #address = models.TextField(_("Address of Vendor"), help_text=_("Indirizzo del fornitore"), blank=True)
     
     # New General Information Fields
     vat_number = models.CharField(
-        _("VAT Number"),
+        _("Partita IVA"),
         max_length=20,
         help_text=_("Partita IVA"),
         blank=True, null=True
     )
     fiscal_code = models.CharField(
-        _("Fiscal Code"),
+        _("Codice Fiscale"),
         max_length=16,
         help_text=_("Codice fiscale"),
         blank=True, null=True
@@ -411,44 +411,44 @@ class Vendor(models.Model):
         blank=True, null=True
     )
     reference_contact = models.CharField(
-        _("Reference Contact"),
+        _("Contatto di Riferimento"),
         max_length=100,
         help_text=_("Riferimento principale"),
         blank=True, null=True
     )
     phone = models.CharField(
-        _("Phone"),
+        _("Telefono"),
         max_length=20,
         help_text=_("Telefono di riferimento"),
         blank=True, null=True
     )
     website = models.URLField(
-        _("Website"),
+        _("Sito Web"),
         blank=True, null=True,
         help_text=_("Sito web aziendale")
     )
     
     # Performance Fields (existing)
     on_time_delivery_rate = models.FloatField(
-        _("On-time Delivery Rate"),
+        _("Tasso di Consegna Puntuale"),
         help_text=_("Rating di Consegna Puntuale del Fornitore"),
         validators=[validators.MinValueValidator(0), validators.MaxValueValidator(100)],
         null=True, blank=True,
     )
     quality_rating_avg = models.FloatField(
-        _("Quality Rating Average"),
+        _("Valutazione Media Qualità"),
         help_text=_("Rating Medio di Qualità del Fornitore"),
         validators=[validators.MinValueValidator(0), validators.MaxValueValidator(5)],
         null=True, blank=True,
     )
     average_response_time = models.FloatField(
-        _("Average Response Time"),
+        _("Tempo di Risposta Medio"),
         help_text=_("Tempo di Risposta Medio del Fornitore in Ore"),
         validators=[validators.MinValueValidator(0)],
         null=True,  blank=True,
     )
     fulfillment_rate = models.FloatField(
-        _("Fulfillment Rate"),
+        _("Tasso di Adempimento"),
         help_text=_("Rating di Adempimento del Fornitore"),
         validators=[validators.MinValueValidator(0), validators.MaxValueValidator(100)],
         null=True, blank=True,
@@ -456,7 +456,7 @@ class Vendor(models.Model):
     
     # Qualification/Compliance Fields
     qualification_status = models.CharField(
-        _("Qualification Status"),
+        _("Stato di Qualifica"),
         max_length=20,
         choices=QUALIFICATION_STATUS_CHOICES,
         default='PENDING',
@@ -464,25 +464,25 @@ class Vendor(models.Model):
         blank=True, null=True
     )
     qualification_score = models.FloatField(
-        _("Qualification Score"),
+        _("Punteggio di Qualifica"),
         validators=[validators.MinValueValidator(0), validators.MaxValueValidator(100)],
         null=True, blank=True,
         help_text=_("Punteggio medio di qualifica (0-100)")
     )
     qualification_date = models.DateField(
-        _("Qualification Date"),
+        _("Data di Qualifica"),
         null=True, blank=True,
         help_text=_("Data di qualifica o revisione")
     )
     qualification_expiry = models.DateField(
-        _("Qualification Expiry"),
+        _("Scadenza Qualifica"),
         null=True, blank=True,
         help_text=_("Scadenza della qualifica (es. ogni 12 mesi)")
     )
     
     category = models.ForeignKey(
         Category,
-        verbose_name=_("Category"),
+        verbose_name=_("Categoria"),
         null=True,
         blank=True,
         on_delete=models.SET_NULL,
@@ -491,7 +491,7 @@ class Vendor(models.Model):
     )
 
     risk_level = models.CharField(
-        _("Risk Level"),
+        _("Livello di Rischio"),
         max_length=20,
         choices=RISK_LEVEL_CHOICES,
         default='MEDIUM',
@@ -499,44 +499,44 @@ class Vendor(models.Model):
         blank=True, null=True
     )
     country = models.CharField(
-        _("Country"),
+        _("Paese"),
         max_length=100,
         help_text=_("Paese sede legale"),
         blank=True, null=True,
         default="Italia"
     )
     iso_certifications = models.TextField(
-        _("ISO Certifications"),
+        _("Certificazioni ISO"),
         blank=True, null=True,
         help_text=_("Elenco delle certificazioni ISO possedute")
     )
     
     # Audit and Management Fields
     last_audit_date = models.DateField(
-        _("Last Audit Date"),
+        _("Data Ultimo Audit"),
         null=True, blank=True,
         help_text=_("Ultimo audit condotto")
     )
     next_audit_due = models.DateField(
-        _("Next Audit Due"),
+        _("Prossimo Audit Previsto"),
         null=True, blank=True,
         help_text=_("Prossima data audit prevista")
     )
     review_notes = models.TextField(
-        _("Review Notes"),
+        _("Note di Revisione"),
         blank=True, null=True,
         help_text=_("Note di revisione e valutazione")
     )
     is_active = models.BooleanField(
-        _("Is Active"),
+        _("È Attivo"),
         default=True,
         help_text=_("Fornitore attivo")
     )
 
     # Metadata
     class Meta:
-        verbose_name = _("Vendor")
-        verbose_name_plural = _("Vendors")
+        verbose_name = _("Fornitore")
+        verbose_name_plural = _("Fornitori")
         ordering = ["name"]
 
     # String representation
