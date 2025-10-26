@@ -23,7 +23,11 @@ ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
 
 USE_X_FORWARDED_HOST = True
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-FORCE_SCRIPT_NAME = '/fornitori'
+
+# Configurazione prefisso URL per il deployment
+# In produzione usa /fornitori, in sviluppo usa la root /
+USE_FORNITORI_PREFIX = os.getenv("USE_FORNITORI_PREFIX", "False") == "True"
+FORCE_SCRIPT_NAME = '/fornitori' if USE_FORNITORI_PREFIX else None
 
 LANGUAGE_CODE = os.getenv("LANGUAGE_CODE", "it")
 USE_I18N = os.getenv("USE_I18N", "True") == "True"
@@ -243,7 +247,7 @@ MIDDLEWARE = [
 # STATIC
 # ------------------------------------------------------------------------------
 # Static & Media
-STATIC_URL = "/fornitori/static/"
+STATIC_URL = "/fornitori/static/" if USE_FORNITORI_PREFIX else "/static/"
 # 1) DOVE METTI I TUOI FILE SORGENTE (versionati in git)
 STATICFILES_DIRS = [BASE_DIR / "static"]
 # 2) DOVE FINISCONO I FILE RACCOLTI (NON versionare)
@@ -253,7 +257,7 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 # MEDIA
 # ------------------------------------------------------------------------------
 MEDIA_ROOT = str(BASE_DIR / "media")
-MEDIA_URL = "/fornitori/media/"
+MEDIA_URL = "/fornitori/media/" if USE_FORNITORI_PREFIX else "/media/"
 
 
 # TEMPLATES
@@ -299,10 +303,15 @@ ADMIN_URL = "admin/"
 ADMINS = [("""Fabio Bui""", "fabio-bui@fulgard.com")]
 MANAGERS = ADMINS
 
-# Nel tuo settings.py, aggiungi questa riga
-LOGIN_URL = '/fornitori/auth/login/'
-LOGIN_REDIRECT_URL = '/fornitori'
-LOGOUT_REDIRECT_URL = '/fornitori/auth/login/'
+# URL di autenticazione condizionali
+if USE_FORNITORI_PREFIX:
+    LOGIN_URL = '/fornitori/auth/login/'
+    LOGIN_REDIRECT_URL = '/fornitori'
+    LOGOUT_REDIRECT_URL = '/fornitori/auth/login/'
+else:
+    LOGIN_URL = '/auth/login/'
+    LOGIN_REDIRECT_URL = '/'
+    LOGOUT_REDIRECT_URL = '/auth/login/'
 
 # LOGGING
 # ------------------------------------------------------------------------------

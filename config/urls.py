@@ -8,6 +8,7 @@ from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
 from rest_framework import permissions
 from vendor_management_system.documents.views import HomeRedirectView
+from vendor_management_system.core.temp_views import TempHomeView
 
 # Schema per API documentation
 schema_view = get_schema_view(
@@ -96,7 +97,8 @@ def home_view(request):
 urlpatterns = [
     # Homepage con redirect automatico
     #path('', home_view, name='home'),
-    path('', HomeRedirectView.as_view(), name='home'),  # ← AGGIUNGI
+    #path('', HomeRedirectView.as_view(), name='home'),  # ← Temporaneamente disabilitato
+    path('', TempHomeView.as_view(), name='home'),  # ← Temporaneo per sviluppo
     
     # Admin
     path(settings.ADMIN_URL, admin.site.urls),
