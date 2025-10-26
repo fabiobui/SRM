@@ -14,6 +14,10 @@ SECRET_KEY = os.getenv("SECRET_KEY", "dev-only")
 DEBUG = os.getenv("DEBUG", "False") == "True"
 ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
 
+FORCE_SCRIPT_NAME = '/fornitori'
+USE_X_FORWARDED_HOST = True
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
 LANGUAGE_CODE = os.getenv("LANGUAGE_CODE", "it")
 USE_I18N = os.getenv("USE_I18N", "True") == "True"
 TIME_ZONE = os.getenv("TIME_ZONE", "Europe/Rome")
@@ -26,7 +30,6 @@ LANGUAGES = [
 ]
 
 LOCALE_PATHS = [BASE_DIR / "locale"]
-
 
 # App directory of the Django project
 APPS_DIR = BASE_DIR / "vendor_management_system"
@@ -232,7 +235,7 @@ MIDDLEWARE = [
 # STATIC
 # ------------------------------------------------------------------------------
 # Static & Media
-STATIC_URL = "/static/"
+STATIC_URL = "/fornitori/static/"
 # 1) DOVE METTI I TUOI FILE SORGENTE (versionati in git)
 STATICFILES_DIRS = [BASE_DIR / "static"]
 # 2) DOVE FINISCONO I FILE RACCOLTI (NON versionare)
@@ -242,7 +245,7 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 # MEDIA
 # ------------------------------------------------------------------------------
 MEDIA_ROOT = str(BASE_DIR / "media")
-MEDIA_URL = "/media/"
+MEDIA_URL = "/fornitori/media/"
 
 
 # TEMPLATES
