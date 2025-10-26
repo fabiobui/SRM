@@ -12,11 +12,18 @@ load_dotenv()
 BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.getenv("SECRET_KEY", "dev-only")
 DEBUG = os.getenv("DEBUG", "False") == "True"
-ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
+#ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
+ALLOWED_HOSTS = [
+    'spoctest.fulgard.com',
+    'spoctest.fulgard.com:443',
+    'localhost',
+    '127.0.0.1',
+    '172.17.3.60'
+]
 
-FORCE_SCRIPT_NAME = '/fornitori'
 USE_X_FORWARDED_HOST = True
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+FORCE_SCRIPT_NAME = '/fornitori'
 
 LANGUAGE_CODE = os.getenv("LANGUAGE_CODE", "it")
 USE_I18N = os.getenv("USE_I18N", "True") == "True"
@@ -292,9 +299,9 @@ ADMINS = [("""Fabio Bui""", "fabio-bui@fulgard.com")]
 MANAGERS = ADMINS
 
 # Nel tuo settings.py, aggiungi questa riga
-LOGIN_URL = '/auth/login/'
-LOGIN_REDIRECT_URL = '/'
-LOGOUT_REDIRECT_URL = '/auth/login/'
+LOGIN_URL = '/fornitori/auth/login/'
+LOGIN_REDIRECT_URL = '/fornitori'
+LOGOUT_REDIRECT_URL = '/fornitori/auth/login/'
 
 # LOGGING
 # ------------------------------------------------------------------------------
