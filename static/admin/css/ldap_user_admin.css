@@ -1,0 +1,135 @@
+/**
+ * CSS personalizzato per l'amministrazione utenti LDAP/Locali
+ */
+
+/* Stili per il form di creazione/modifica utenti */
+.field-user_type {
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-radius: 5px;
+    margin-bottom: 15px;
+}
+
+.field-user_type label {
+    font-weight: bold;
+    color: #2c3e50;
+}
+
+/* Messaggio informativo per utenti LDAP */
+#ldap-info-message {
+    background-color: #e7f3ff !important;
+    border: 1px solid #b3d9ff !important;
+    border-radius: 4px !important;
+    padding: 10px !important;
+    margin-top: 10px !important;
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+#ldap-info-message strong {
+    color: #1f2937;
+}
+
+/* Stili per il campo vendor quando è richiesto */
+.field-vendor.required label:after {
+    content: " *";
+    color: #e74c3c;
+    font-weight: bold;
+}
+
+/* Icone per il tipo di utente nella lista */
+.admin-list .field-get_user_type {
+    text-align: center;
+}
+
+.admin-list .ldap-user {
+    color: #3498db;
+    font-weight: bold;
+}
+
+.admin-list .local-user {
+    color: #27ae60;
+    font-weight: bold;
+}
+
+/* Stili migliorati per i fieldsets */
+.module h2 {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 10px 15px;
+    margin: 0;
+    border-radius: 5px 5px 0 0;
+}
+
+.module .form-row {
+    padding: 12px 15px;
+    border-bottom: 1px solid #eee;
+}
+
+.module .form-row:last-child {
+    border-bottom: none;
+}
+
+/* Evidenziazione per utenti LDAP */
+.change-form .field-is_ldap_user input[type="checkbox"]:checked + label {
+    background-color: #e3f2fd;
+    padding: 2px 6px;
+    border-radius: 3px;
+    color: #1976d2;
+    font-weight: bold;
+}
+
+/* Stili per il filtro nella lista utenti */
+#changelist-filter .filter-option[data-filter-field="is_ldap_user"] {
+    background-color: #f0f8ff;
+    border-left: 3px solid #2196f3;
+    padding-left: 10px;
+}
+
+/* Transizioni smooth per i campi che si mostrano/nascondono */
+.form-row {
+    transition: all 0.3s ease;
+}
+
+.form-row[style*="display: none"] {
+    opacity: 0;
+    height: 0;
+    padding: 0;
+    margin: 0;
+    overflow: hidden;
+}
+
+/* Badge per il tipo utente */
+.user-type-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.user-type-badge.ldap {
+    background-color: #e3f2fd;
+    color: #1976d2;
+    border: 1px solid #bbdefb;
+}
+
+.user-type-badge.local {
+    background-color: #e8f5e8;
+    color: #2e7d32;
+    border: 1px solid #c8e6c9;
+}
+
+/* Responsive design per schermi piccoli */
+@media (max-width: 768px) {
+    .field-user_type {
+        padding: 10px;
+        margin-bottom: 10px;
+    }
+    
+    #ldap-info-message {
+        padding: 8px !important;
+        font-size: 12px;
+    }
+}
