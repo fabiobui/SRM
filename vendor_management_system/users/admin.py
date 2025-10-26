@@ -208,10 +208,33 @@ class UserAdmin(auth_admin.UserAdmin):
     # Fieldsets per la creazione di nuovi utenti
     add_fieldsets = (
         (
-            None,
+            _("Informazioni Base"),
             {
                 "classes": ("wide",),
-                "fields": ("email", "name", "user_type", "role", "vendor", "password1", "password2"),
+                "fields": ("email", "name"),
+            },
+        ),
+        (
+            _("Tipo di Autenticazione"),
+            {
+                "classes": ("wide",),
+                "fields": ("user_type",),
+                "description": _("Seleziona 'LDAP' se l'utente si autentica tramite Active Directory")
+            },
+        ),
+        (
+            _("Ruolo e Associazioni"),
+            {
+                "classes": ("wide",),
+                "fields": ("role", "vendor"),
+            },
+        ),
+        (
+            _("Password (Solo per Utenti Locali)"),
+            {
+                "classes": ("wide", "collapse"),
+                "fields": ("password1", "password2"),
+                "description": _("Lascia vuoto per utenti LDAP - la password non è necessaria")
             },
         ),
     )
