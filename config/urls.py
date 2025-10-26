@@ -95,7 +95,7 @@ def home_view(request):
 
 urlpatterns = [
     # Homepage con redirect automatico
-    path('', home_view, name='home'),
+    path('', HomeRedirectView.as_view(), name='home'),
     
     # Admin
     path(settings.ADMIN_URL, admin.site.urls),
