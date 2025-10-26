@@ -113,7 +113,7 @@ INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 # ------------------------------------------------------------------------------
 AUTH_USER_MODEL = "users.User"
 AUTHENTICATION_BACKENDS = [
-    "vendor_management_system.core.ldap_backend.HybridAuthBackend",
+    "vendor_management_system.core.simple_ldap_backend.HybridAuthBackend",
     "django.contrib.auth.backends.ModelBackend",
 ]
 
@@ -121,7 +121,7 @@ AUTHENTICATION_BACKENDS = [
 # ------------------------------------------------------------------------------
 import ldap
 import ssl
-from django_auth_ldap.config import LDAPSearch, GroupOfNamesType
+from django_auth_ldap.config import LDAPSearch, ActiveDirectoryGroupType
 
 # Supporto per più formati di env vars: LDAP_SERVER/LDAP_PORT oppure LDAP_SERVER_URI
 LDAP_SERVER = os.getenv("LDAP_SERVER")
@@ -166,13 +166,13 @@ AUTH_LDAP_USER_ATTR_MAP = {
     "email": "mail",
 }
 
-# Configurazione gruppi LDAP
+# Configurazione gruppi LDAP per Active Directory
 AUTH_LDAP_GROUP_SEARCH = LDAPSearch(
     os.getenv("LDAP_GROUP_BASE_DN", "ou=groups,dc=example,dc=com"),
     ldap.SCOPE_SUBTREE,
-    "(objectClass=groupOfNames)"
+    "(objectClass=group)"
 )
-AUTH_LDAP_GROUP_TYPE = GroupOfNamesType()
+AUTH_LDAP_GROUP_TYPE = ActiveDirectoryGroupType()
 
 # Mappatura gruppi LDAP -> ruoli applicazione
 LDAP_GROUP_ROLE_MAPPING = {
