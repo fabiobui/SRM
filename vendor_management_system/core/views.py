@@ -2,6 +2,7 @@ from django.shortcuts import redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import HttpResponse
+from django.urls import reverse
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
@@ -68,7 +69,9 @@ def dashboard_redirect(request):
         return redirect('/documents/admin/')
     else:
         messages.warning(request, "Il tuo account non ha un ruolo assegnato. Contatta l'amministratore.")
-        return HttpResponse("""
+        logout_url = reverse('admin:logout')
+        admin_url = reverse('admin:index')
+        return HttpResponse(f"""
         <!DOCTYPE html>
         <html>
         <head>
@@ -84,11 +87,11 @@ def dashboard_redirect(request):
                                 <h4>⚠️ Ruolo non assegnato</h4>
                             </div>
                             <div class="card-body">
-                                <p>Il tuo account <strong>{}</strong> non ha un ruolo configurato.</p>
+                                <p>Il tuo account <strong>{user.email}</strong> non ha un ruolo configurato.</p>
                                 <p>Contatta l'amministratore del sistema per assegnare un ruolo.</p>
                                 <div class="mt-3">
-                                    <a href="/admin/logout/" class="btn btn-secondary">Logout</a>
-                                    <a href="/admin/" class="btn btn-primary">Pannello Admin</a>
+                                    <a href="{logout_url}" class="btn btn-secondary">Logout</a>
+                                    <a href="{admin_url}" class="btn btn-primary">Pannello Admin</a>
                                 </div>
                             </div>
                         </div>
@@ -97,4 +100,4 @@ def dashboard_redirect(request):
             </div>
         </body>
         </html>
-        """.format(user.email))
+        """)

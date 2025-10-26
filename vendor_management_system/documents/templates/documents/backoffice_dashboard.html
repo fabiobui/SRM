@@ -52,7 +52,7 @@
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-info">
         <div class="container">
-            <a class="navbar-brand" href="/"><i class="fas fa-clipboard-check"></i> Dashboard Back Office</a>
+            <a class="navbar-brand" href="{% url 'home' %}"><i class="fas fa-clipboard-check"></i> Dashboard Back Office</a>
             
             <div class="navbar-nav ms-auto d-flex align-items-center">
                 <!-- Info utente -->
@@ -63,13 +63,13 @@
                 </span>
                 
                 <!-- Menu -->
-                <a class="nav-link" href="/documents/backoffice/"><i class="fas fa-clipboard-check"></i> Back Office</a>
+                <a class="nav-link" href="{% url 'backoffice-dashboard' %}"><i class="fas fa-clipboard-check"></i> Back Office</a>
                 {% if user.is_admin %}
-                    <a class="nav-link" href="/documents/admin/"><i class="fas fa-chart-bar"></i> Admin</a>
-                    <a class="nav-link" href="/admin/"><i class="fas fa-cog"></i> Django Admin</a>
+                    <a class="nav-link" href="{% url 'admin-dashboard' %}"><i class="fas fa-chart-bar"></i> Admin</a>
+                    <a class="nav-link" href="{% url 'admin:index' %}"><i class="fas fa-cog"></i> Django Admin</a>
                 {% endif %}
-                <a class="nav-link" href="/documents/portal/"><i class="fas fa-upload"></i> Portale</a>
-                <a class="nav-link" href="/auth/logout/"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                <a class="nav-link" href="{% url 'vendor-portal' %}"><i class="fas fa-upload"></i> Portale</a>
+                <a class="nav-link" href="{% url 'logout' %}"><i class="fas fa-sign-out-alt"></i> Logout</a>
             </div>
         </div>
     </nav>

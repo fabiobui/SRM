@@ -3,6 +3,7 @@ from django.shortcuts import get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import HttpResponse
+from django.urls import reverse
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import permissions, response, status, viewsets
@@ -1351,11 +1352,12 @@ def dashboard_redirect(request):
         return redirect('vendor-portal')
     else:
         messages.warning(request, "Il tuo account non ha un ruolo assegnato. Contatta l'amministratore.")
-        return HttpResponse("""
+        logout_url = reverse('admin:logout')
+        return HttpResponse(f"""
         <div style="padding: 20px; font-family: Arial;">
             <h2>⚠️ Ruolo non assegnato</h2>
             <p>Il tuo account non ha un ruolo configurato.</p>
             <p>Contatta l'amministratore del sistema.</p>
-            <a href="/admin/logout/">Logout</a>
+            <a href="{logout_url}">Logout</a>
         </div>
         """)
