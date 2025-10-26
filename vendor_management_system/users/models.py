@@ -1,7 +1,7 @@
 import uuid
 from typing import ClassVar
 from django.contrib.auth.models import AbstractUser, Group
-from django.db.models import CharField, EmailField, ForeignKey, SET_NULL
+from django.db.models import CharField, EmailField, ForeignKey, SET_NULL, BooleanField
 from django.utils.translation import gettext_lazy as _
 from vendor_management_system.users.managers import UserManager
 
@@ -39,6 +39,13 @@ class User(AbstractUser):
         null=True,
         blank=True,
         related_name="users"
+    )
+    
+    # Tracciamento origine utente
+    is_ldap_user = BooleanField(
+        _("Utente LDAP"),
+        default=False,
+        help_text=_("Indica se l'utente è stato creato tramite autenticazione LDAP")
     )
 
     # Username Field

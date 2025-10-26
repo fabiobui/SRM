@@ -113,8 +113,86 @@ INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 # ------------------------------------------------------------------------------
 AUTH_USER_MODEL = "users.User"
 AUTHENTICATION_BACKENDS = [
+    "vendor_management_system.core.ldap_backend.HybridAuthBackend",
     "django.contrib.auth.backends.ModelBackend",
 ]
+
+# LDAP CONFIGURATION
+# ------------------------------------------------------------------------------
+import ldap
+import ssl
+from django_auth_ldap.config import LDAPSearch, GroupOfNamesType
+
+# Supporto per più formati di env vars: LDAP_SERVER/LDAP_PORT oppure LDAP_SERVER_URI
+LDAP_SERVER = os.getenv("LDAP_SERVER")
+LDAP_PORT = os.getenv("LDAP_PORT")
+LDAP_USE_SSL = os.getenv("USE_SSL", os.getenv("LDAP_USE_SSL", "False")) == "True"
+
+# Costruisco l'URI se sono forniti server/porta; altrimenti prendo LDAP_SERVER_URI
+if LDAP_SERVER:
+    scheme = "ldaps" if LDAP_USE_SSL else "ldap"
+    port = LDAP_PORT or ("636" if LDAP_USE_SSL else "389")
+    AUTH_LDAP_SERVER_URI = os.getenv("LDAP_SERVER_URI", f"{scheme}://{LDAP_SERVER}:{port}")
+else:
+    AUTH_LDAP_SERVER_URI = os.getenv("LDAP_SERVER_URI", "ldap://ldap.example.com")
+
+# Bind DN / password (supporta sia LDAP_USER/LDAP_PASSWORD che LDAP_BIND_DN/LDAP_BIND_PASSWORD)
+AUTH_LDAP_BIND_DN = os.getenv("LDAP_BIND_DN", os.getenv("LDAP_USER", "cn=admin,dc=example,dc=com"))
+AUTH_LDAP_BIND_PASSWORD = os.getenv("LDAP_BIND_PASSWORD", os.getenv("LDAP_PASSWORD", ""))
+
+# StartTLS (usa LDAPS se LDAP_USE_SSL=True)
+AUTH_LDAP_START_TLS = os.getenv("LDAP_START_TLS", "False") == "True"
+
+# Se è richiesto disabilitare la validazione del certificato (es. ambiente di test)
+# usare LDAP_TLS_VALIDATE=False nel file .env. In produzione lasciare True.
+if os.getenv("LDAP_TLS_VALIDATE", "True") in ("False", "false", "0"):
+    # Disabilita la validazione del certificato per python-ldap
+    try:
+        ldap.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_NEVER)
+    except Exception:
+        # Non bloccare l'avvio se l'opzione non è supportata dall'ambiente
+        pass
+
+# Ricerca utenti
+AUTH_LDAP_USER_SEARCH = LDAPSearch(
+    os.getenv("LDAP_USER_BASE_DN", "ou=users,dc=example,dc=com"),
+    ldap.SCOPE_SUBTREE,
+    os.getenv("LDAP_USER_FILTER", "(mail=%(user)s)")
+)
+
+# Mappatura attributi utente
+AUTH_LDAP_USER_ATTR_MAP = {
+    "name": "displayName",
+    "email": "mail",
+}
+
+# Configurazione gruppi LDAP
+AUTH_LDAP_GROUP_SEARCH = LDAPSearch(
+    os.getenv("LDAP_GROUP_BASE_DN", "ou=groups,dc=example,dc=com"),
+    ldap.SCOPE_SUBTREE,
+    "(objectClass=groupOfNames)"
+)
+AUTH_LDAP_GROUP_TYPE = GroupOfNamesType()
+
+# Mappatura gruppi LDAP -> ruoli applicazione
+LDAP_GROUP_ROLE_MAPPING = {
+    'vms_administrators': 'admin',
+    'vms_backoffice': 'bo_user',
+    'vms_vendors': 'vendor',
+}
+
+# Opzioni LDAP
+AUTH_LDAP_ALWAYS_UPDATE_USER = True
+AUTH_LDAP_FIND_GROUP_PERMS = True
+AUTH_LDAP_CACHE_TIMEOUT = 3600
+
+# Abilita/disabilita autenticazione LDAP
+LDAP_ENABLED = os.getenv("LDAP_ENABLED", "False") == "True"
+
+# Variabili per il comando di test (replicate dalle configurazioni sopra)
+LDAP_USER_BASE_DN = os.getenv("LDAP_USER_BASE_DN", "ou=users,dc=example,dc=com")
+LDAP_GROUP_BASE_DN = os.getenv("LDAP_GROUP_BASE_DN", "ou=groups,dc=example,dc=com")
+LDAP_TLS_VALIDATE = os.getenv("LDAP_TLS_VALIDATE", "True") != "False"
 
 
 # PASSWORDS

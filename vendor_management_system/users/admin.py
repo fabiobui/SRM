@@ -63,9 +63,10 @@ class UserAdmin(auth_admin.UserAdmin):
         ),
     )
     
-    list_display = ["email", "name", "is_superuser", "get_groups"]
+    list_display = ["email", "name", "role", "is_ldap_user", "is_superuser", "get_groups"]
     search_fields = ["name", "email"]
     ordering = ["id"]
+    list_filter = ["role", "is_ldap_user", "is_active", "is_staff"]
     
     # Metodo per mostrare i gruppi/ruoli nella lista
     def get_groups(self, obj):
