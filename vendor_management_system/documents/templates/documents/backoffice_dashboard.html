@@ -64,9 +64,11 @@
                 
                 <!-- Menu -->
                 <a class="nav-link" href="{% url 'backoffice-dashboard' %}"><i class="fas fa-clipboard-check"></i> Back Office</a>
-                {% if user.is_admin %}
-                    <a class="nav-link" href="{% url 'admin-dashboard' %}"><i class="fas fa-chart-bar"></i> Admin</a>
-                    <a class="nav-link" href="{% url 'admin:index' %}"><i class="fas fa-cog"></i> Django Admin</a>
+                {% if user.is_admin  %}
+                    <a class="nav-link" href="{% url 'admin-dashboard' %}"><i class="fas fa-chart-bar"></i> Admin Dashboard</a>
+                {% endif %}
+                {% if user.is_admin or user.is_staff %}
+                    <a class="nav-link" href="{% url 'admin:index' %}"><i class="fas fa-cog"></i> Admin</a>
                 {% endif %}
                 <a class="nav-link" href="{% url 'vendor-portal' %}"><i class="fas fa-upload"></i> Portale</a>
                 <a class="nav-link" href="{% url 'logout' %}"><i class="fas fa-sign-out-alt"></i> Logout</a>
