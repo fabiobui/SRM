@@ -51,4 +51,4 @@ else:
     # In modalità sviluppo, usa l'applicazione Django standard
     pass
 
-#print("💡 HTTP_HOST:", os.environ.get("HTTP_HOST"))
+print("💡 use prefix:", use_prefix)

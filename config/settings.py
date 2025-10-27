@@ -13,13 +13,6 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.getenv("SECRET_KEY", "dev-only")
 DEBUG = os.getenv("DEBUG", "False") == "True"
 ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
-#ALLOWED_HOSTS = [
-#    'spoctest.fulgard.com',
-#    'spoctest.fulgard.com:443',
-#    'localhost',
-#    '127.0.0.1',
-#    '172.17.3.60'
-#]
 
 USE_X_FORWARDED_HOST = True
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
@@ -231,8 +224,7 @@ AUTH_PASSWORD_VALIDATORS = [
 # ------------------------------------------------------------------------------
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
-    "vendor_management_system.core.middleware.force_prefix.ForcePrefixMiddleware",
-    "corsheaders.middleware.CorsMiddleware",
+    "corsheaders.middleware.CorsMiddleware",  # deve stare subito dopo SecurityMiddleware
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.locale.LocaleMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -241,6 +233,13 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
+
+if USE_FORNITORI_PREFIX:
+    # Inserisci il middleware personalizzato in posizione logica, dopo CommonMiddleware
+    MIDDLEWARE.insert(
+        MIDDLEWARE.index("django.middleware.common.CommonMiddleware") + 1,
+        "vendor_management_system.core.middleware.force_prefix.ForcePrefixMiddleware",
+    )
 
 #IMPORT_EXPORT_FORMATS = [XLSX, CSV]  # ordine = priorità nel menu
 
@@ -373,3 +372,6 @@ REST_FRAMEWORK = {
 # django-cors-headers
 # -------------------------------------------------------------------------------
 CORS_URLS_REGEX = r"^/api/.*$"
+
+print("💡 USE_FORNITORI_PREFIX:", USE_FORNITORI_PREFIX)
+print("💡 FORCE_SCRIPT_NAME:", FORCE_SCRIPT_NAME)
