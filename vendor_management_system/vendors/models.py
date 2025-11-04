@@ -195,6 +195,613 @@ class Category(models.Model):
         return ancestors
 
 
+# Model for Competence
+class Competence(models.Model):
+    """
+    Modello per gestire le competenze/qualifiche dei fornitori
+    """
+    # Primary key
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False
+    )
+    
+    # Core fields
+    code = models.CharField(
+        _("Codice Competenza"),
+        max_length=50,
+        unique=True,
+        help_text=_("Codice univoco della competenza (es. 'RSPP', 'ASPP')")
+    )
+    
+    name = models.CharField(
+        _("Nome Competenza"),
+        max_length=255,
+        help_text=_("Nome della competenza/qualifica")
+    )
+    
+    description = models.TextField(
+        _("Descrizione"),
+        blank=True,
+        null=True,
+        help_text=_("Descrizione dettagliata della competenza")
+    )
+    
+    # Categorization
+    competence_category = models.CharField(
+        _("Categoria Competenza"),
+        max_length=50,
+        choices=[
+            ('SAFETY', _('Sicurezza')),
+            ('QUALITY', _('Qualità')),
+            ('TECHNICAL', _('Tecnico')),
+            ('ENERGY', _('Energia')),
+            ('ENVIRONMENT', _('Ambiente')),
+            ('AUDIT', _('Audit/Certificazioni')),
+            ('OTHER', _('Altro')),
+        ],
+        default='TECHNICAL',
+        help_text=_("Categoria della competenza")
+    )
+    
+    # Requirements
+    requires_certification = models.BooleanField(
+        _("Richiede Certificazione"),
+        default=True,
+        help_text=_("Indica se la competenza richiede una certificazione formale")
+    )
+    
+    requires_renewal = models.BooleanField(
+        _("Richiede Rinnovo"),
+        default=False,
+        help_text=_("Indica se la competenza ha una scadenza e necessita rinnovo")
+    )
+    
+    renewal_period_months = models.PositiveIntegerField(
+        _("Periodo Rinnovo (mesi)"),
+        null=True,
+        blank=True,
+        help_text=_("Numero di mesi prima della scadenza (es. 12, 24, 36)")
+    )
+    
+    # Business rules
+    is_mandatory = models.BooleanField(
+        _("È Obbligatoria"),
+        default=False,
+        help_text=_("Competenza obbligatoria per alcune categorie di fornitori")
+    )
+    
+    is_active = models.BooleanField(
+        _("È Attiva"),
+        default=True,
+        help_text=_("Competenza attiva e utilizzabile")
+    )
+    
+    sort_order = models.PositiveIntegerField(
+        _("Ordine di Ordinamento"),
+        default=100,
+        help_text=_("Ordine di visualizzazione")
+    )
+    
+    # Metadata
+    created_at = models.DateTimeField(
+        _("Creato il"),
+        auto_now_add=True
+    )
+    
+    updated_at = models.DateTimeField(
+        _("Aggiornato il"),
+        auto_now=True
+    )
+    
+    # Related categories
+    applicable_categories = models.ManyToManyField(
+        Category,
+        verbose_name=_("Categorie Applicabili"),
+        blank=True,
+        related_name="required_competences",
+        help_text=_("Categorie per cui questa competenza è rilevante")
+    )
+
+    class Meta:
+        verbose_name = _("Competenza")
+        verbose_name_plural = _("Competenze")
+        ordering = ['competence_category', 'sort_order', 'name']
+        indexes = [
+            models.Index(fields=['code']),
+            models.Index(fields=['competence_category', 'is_active']),
+        ]
+
+    def __str__(self):
+        return f"{self.code} - {self.name}"
+
+
+# Model for VendorCompetence (through table)
+class VendorCompetence(models.Model):
+    """
+    Modello per associare competenze ai fornitori con informazioni aggiuntive
+    """
+    # Primary key
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False
+    )
+    
+    # Relations
+    vendor = models.ForeignKey(
+        'Vendor',
+        verbose_name=_("Fornitore"),
+        on_delete=models.CASCADE,
+        related_name="vendor_competences"
+    )
+    
+    competence = models.ForeignKey(
+        Competence,
+        verbose_name=_("Competenza"),
+        on_delete=models.CASCADE,
+        related_name="vendor_assignments"
+    )
+    
+    # Status
+    has_competence = models.BooleanField(
+        _("Possiede Competenza"),
+        default=True,
+        help_text=_("Il fornitore possiede questa competenza")
+    )
+    
+    # Certification details
+    certification_number = models.CharField(
+        _("Numero Certificazione"),
+        max_length=100,
+        blank=True,
+        null=True,
+        help_text=_("Numero del certificato/attestato")
+    )
+    
+    certification_body = models.CharField(
+        _("Ente Certificatore"),
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text=_("Ente che ha rilasciato la certificazione")
+    )
+    
+    issue_date = models.DateField(
+        _("Data Rilascio"),
+        null=True,
+        blank=True,
+        help_text=_("Data di rilascio della certificazione")
+    )
+    
+    expiry_date = models.DateField(
+        _("Data Scadenza"),
+        null=True,
+        blank=True,
+        help_text=_("Data di scadenza della certificazione")
+    )
+    
+    # Verification
+    verified = models.BooleanField(
+        _("Verificata"),
+        default=False,
+        help_text=_("Competenza verificata dall'azienda")
+    )
+    
+    verified_by = models.CharField(
+        _("Verificata da"),
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text=_("Persona che ha verificato la competenza")
+    )
+    
+    verified_date = models.DateField(
+        _("Data Verifica"),
+        null=True,
+        blank=True,
+        help_text=_("Data di verifica")
+    )
+    
+    # Documentation
+    document_file = models.FileField(
+        _("File Documento"),
+        upload_to='vendor_competences/%Y/%m/',
+        blank=True,
+        null=True,
+        help_text=_("File del certificato/attestato")
+    )
+    
+    notes = models.TextField(
+        _("Note"),
+        blank=True,
+        null=True,
+        help_text=_("Note aggiuntive sulla competenza")
+    )
+    
+    # Metadata
+    created_at = models.DateTimeField(
+        _("Creato il"),
+        auto_now_add=True
+    )
+    
+    updated_at = models.DateTimeField(
+        _("Aggiornato il"),
+        auto_now=True
+    )
+
+    class Meta:
+        verbose_name = _("Competenza Fornitore")
+        verbose_name_plural = _("Competenze Fornitori")
+        unique_together = [['vendor', 'competence']]
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['vendor', 'competence']),
+            models.Index(fields=['expiry_date']),
+            models.Index(fields=['verified']),
+        ]
+
+    def __str__(self):
+        return f"{self.vendor.name} - {self.competence.name}"
+    
+    @property
+    def is_expired(self):
+        """Verifica se la certificazione è scaduta"""
+        if self.expiry_date:
+            return self.expiry_date < timezone.now().date()
+        return False
+    
+    @property
+    def days_to_expiry(self):
+        """Ritorna i giorni rimanenti alla scadenza"""
+        if self.expiry_date:
+            delta = self.expiry_date - timezone.now().date()
+            return delta.days
+        return None
+    
+    @property
+    def expiry_status(self):
+        """Ritorna lo stato della scadenza"""
+        if not self.expiry_date:
+            return 'NO_EXPIRY'
+        
+        days = self.days_to_expiry
+        if days < 0:
+            return 'EXPIRED'
+        elif days <= 30:
+            return 'EXPIRING_SOON'
+        elif days <= 90:
+            return 'EXPIRING'
+        return 'VALID'
+
+
+# Model for DocumentType
+class DocumentType(models.Model):
+    """
+    Modello per gestire i tipi di documenti richiesti ai fornitori
+    """
+    # Primary key
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False
+    )
+    
+    # Core fields
+    code = models.CharField(
+        _("Codice Documento"),
+        max_length=50,
+        unique=True,
+        help_text=_("Codice univoco del tipo di documento (es. 'DURC', 'VISURA')")
+    )
+    
+    name = models.CharField(
+        _("Nome Documento"),
+        max_length=255,
+        help_text=_("Nome del tipo di documento")
+    )
+    
+    description = models.TextField(
+        _("Descrizione"),
+        blank=True,
+        null=True,
+        help_text=_("Descrizione dettagliata del documento")
+    )
+    
+    # Categorization
+    document_category = models.CharField(
+        _("Categoria Documento"),
+        max_length=50,
+        choices=[
+            ('LEGAL', _('Legale/Amministrativo')),
+            ('FINANCIAL', _('Finanziario')),
+            ('SAFETY', _('Sicurezza')),
+            ('QUALITY', _('Qualità')),
+            ('TECHNICAL', _('Tecnico')),
+            ('INSURANCE', _('Assicurativo')),
+            ('CERTIFICATION', _('Certificazioni')),
+            ('OTHER', _('Altro')),
+        ],
+        default='LEGAL',
+        help_text=_("Categoria del documento")
+    )
+    
+    # Requirements
+    is_mandatory = models.BooleanField(
+        _("È Obbligatorio"),
+        default=True,
+        help_text=_("Documento obbligatorio per la qualifica")
+    )
+    
+    requires_renewal = models.BooleanField(
+        _("Richiede Rinnovo"),
+        default=True,
+        help_text=_("Documento con scadenza che necessita rinnovo")
+    )
+    
+    default_validity_days = models.PositiveIntegerField(
+        _("Validità Predefinita (giorni)"),
+        null=True,
+        blank=True,
+        help_text=_("Numero di giorni di validità standard (es. 120 per DURC)")
+    )
+    
+    # Business rules
+    is_active = models.BooleanField(
+        _("È Attivo"),
+        default=True,
+        help_text=_("Tipo di documento attivo e utilizzabile")
+    )
+    
+    sort_order = models.PositiveIntegerField(
+        _("Ordine di Ordinamento"),
+        default=100,
+        help_text=_("Ordine di visualizzazione")
+    )
+    
+    # Alert settings
+    alert_days_before_expiry = models.PositiveIntegerField(
+        _("Giorni Preavviso Scadenza"),
+        default=30,
+        help_text=_("Giorni prima della scadenza per inviare alert")
+    )
+    
+    # Metadata
+    created_at = models.DateTimeField(
+        _("Creato il"),
+        auto_now_add=True
+    )
+    
+    updated_at = models.DateTimeField(
+        _("Aggiornato il"),
+        auto_now=True
+    )
+    
+    # Related categories
+    applicable_categories = models.ManyToManyField(
+        Category,
+        verbose_name=_("Categorie Applicabili"),
+        blank=True,
+        related_name="required_documents",
+        help_text=_("Categorie per cui questo documento è richiesto")
+    )
+    
+    # Template and instructions
+    template_file = models.FileField(
+        _("File Template"),
+        upload_to='document_templates/',
+        blank=True,
+        null=True,
+        help_text=_("Template o modello del documento")
+    )
+    
+    instructions = models.TextField(
+        _("Istruzioni"),
+        blank=True,
+        null=True,
+        help_text=_("Istruzioni per il fornitore su come compilare/ottenere il documento")
+    )
+
+    class Meta:
+        verbose_name = _("Tipo Documento")
+        verbose_name_plural = _("Tipi Documento")
+        ordering = ['document_category', 'sort_order', 'name']
+        indexes = [
+            models.Index(fields=['code']),
+            models.Index(fields=['document_category', 'is_active']),
+            models.Index(fields=['is_mandatory']),
+        ]
+
+    def __str__(self):
+        return f"{self.code} - {self.name}"
+
+
+# Model for VendorDocument
+class VendorDocument(models.Model):
+    """
+    Modello per associare documenti specifici ai fornitori
+    """
+    # Primary key
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False
+    )
+    
+    # Relations
+    vendor = models.ForeignKey(
+        'Vendor',
+        verbose_name=_("Fornitore"),
+        on_delete=models.CASCADE,
+        related_name="vendor_documents"
+    )
+    
+    document_type = models.ForeignKey(
+        DocumentType,
+        verbose_name=_("Tipo Documento"),
+        on_delete=models.CASCADE,
+        related_name="vendor_submissions"
+    )
+    
+    # Document details
+    document_number = models.CharField(
+        _("Numero Documento"),
+        max_length=100,
+        blank=True,
+        null=True,
+        help_text=_("Numero o riferimento del documento")
+    )
+    
+    issue_date = models.DateField(
+        _("Data Emissione"),
+        null=True,
+        blank=True,
+        help_text=_("Data di emissione del documento")
+    )
+    
+    expiry_date = models.DateField(
+        _("Data Scadenza"),
+        null=True,
+        blank=True,
+        help_text=_("Data di scadenza del documento")
+    )
+    
+    # Status
+    status = models.CharField(
+        _("Stato"),
+        max_length=20,
+        choices=[
+            ('PENDING', _('In attesa')),
+            ('SUBMITTED', _('Inviato')),
+            ('UNDER_REVIEW', _('In revisione')),
+            ('APPROVED', _('Approvato')),
+            ('REJECTED', _('Respinto')),
+            ('EXPIRED', _('Scaduto')),
+        ],
+        default='PENDING',
+        help_text=_("Stato del documento")
+    )
+    
+    # Verification
+    verified = models.BooleanField(
+        _("Verificato"),
+        default=False,
+        help_text=_("Documento verificato dall'azienda")
+    )
+    
+    verified_by = models.CharField(
+        _("Verificato da"),
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text=_("Persona che ha verificato il documento")
+    )
+    
+    verified_date = models.DateField(
+        _("Data Verifica"),
+        null=True,
+        blank=True,
+        help_text=_("Data di verifica")
+    )
+    
+    # File storage
+    document_file = models.FileField(
+        _("File Documento"),
+        upload_to='vendor_documents/%Y/%m/',
+        blank=True,
+        null=True,
+        help_text=_("File del documento caricato")
+    )
+    
+    # Additional info
+    notes = models.TextField(
+        _("Note"),
+        blank=True,
+        null=True,
+        help_text=_("Note aggiuntive sul documento")
+    )
+    
+    rejection_reason = models.TextField(
+        _("Motivo Rifiuto"),
+        blank=True,
+        null=True,
+        help_text=_("Motivo del rifiuto (se applicabile)")
+    )
+    
+    # Metadata
+    created_at = models.DateTimeField(
+        _("Creato il"),
+        auto_now_add=True
+    )
+    
+    updated_at = models.DateTimeField(
+        _("Aggiornato il"),
+        auto_now=True
+    )
+    
+    # Upload tracking
+    uploaded_by = models.CharField(
+        _("Caricato da"),
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text=_("Utente che ha caricato il documento")
+    )
+
+    class Meta:
+        verbose_name = _("Documento Fornitore")
+        verbose_name_plural = _("Documenti Fornitori")
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['vendor', 'document_type']),
+            models.Index(fields=['status']),
+            models.Index(fields=['expiry_date']),
+            models.Index(fields=['verified']),
+        ]
+
+    def __str__(self):
+        return f"{self.vendor.name} - {self.document_type.name}"
+    
+    @property
+    def is_expired(self):
+        """Verifica se il documento è scaduto"""
+        if self.expiry_date:
+            return self.expiry_date < timezone.now().date()
+        return False
+    
+    @property
+    def days_to_expiry(self):
+        """Ritorna i giorni rimanenti alla scadenza"""
+        if self.expiry_date:
+            delta = self.expiry_date - timezone.now().date()
+            return delta.days
+        return None
+    
+    @property
+    def expiry_status(self):
+        """Ritorna lo stato della scadenza"""
+        if not self.expiry_date:
+            return 'NO_EXPIRY'
+        
+        days = self.days_to_expiry
+        if days < 0:
+            return 'EXPIRED'
+        elif days <= self.document_type.alert_days_before_expiry:
+            return 'EXPIRING_SOON'
+        return 'VALID'
+    
+    @property
+    def is_valid(self):
+        """Verifica se il documento è valido (approvato e non scaduto)"""
+        return self.status == 'APPROVED' and not self.is_expired and self.verified
+    
+    def save(self, *args, **kwargs):
+        """Override save per aggiornare automaticamente lo stato se scaduto"""
+        if self.is_expired and self.status not in ['EXPIRED', 'REJECTED']:
+            self.status = 'EXPIRED'
+        super().save(*args, **kwargs)
+
 
 # Model for Address
 class Address(models.Model):
@@ -489,6 +1096,16 @@ class Vendor(models.Model):
         related_name="vendors",
         help_text=_("Categoria merceologica del fornitore")
     )
+    
+    # Competences relationship
+    competences = models.ManyToManyField(
+        Competence,
+        verbose_name=_("Competenze"),
+        through='VendorCompetence',
+        blank=True,
+        related_name="vendors_with_competence",
+        help_text=_("Competenze possedute dal fornitore")
+    )
 
     risk_level = models.CharField(
         _("Livello di Rischio"),
@@ -569,3 +1186,103 @@ class Vendor(models.Model):
         if self.next_audit_due:
             return self.next_audit_due < timezone.now().date()
         return False
+    
+    @property
+    def active_competences(self):
+        """Ritorna le competenze attive del fornitore"""
+        return self.vendor_competences.filter(
+            has_competence=True,
+            competence__is_active=True
+        )
+    
+    @property
+    def expired_competences(self):
+        """Ritorna le competenze scadute"""
+        return self.vendor_competences.filter(
+            has_competence=True,
+            expiry_date__lt=timezone.now().date()
+        )
+    
+    @property
+    def expiring_competences(self):
+        """Ritorna le competenze in scadenza nei prossimi 90 giorni"""
+        from datetime import timedelta
+        expiry_threshold = timezone.now().date() + timedelta(days=90)
+        return self.vendor_competences.filter(
+            has_competence=True,
+            expiry_date__lte=expiry_threshold,
+            expiry_date__gte=timezone.now().date()
+        )
+    
+    @property
+    def missing_mandatory_competences(self):
+        """Ritorna le competenze obbligatorie mancanti per la categoria del fornitore"""
+        if not self.category:
+            return Competence.objects.none()
+        
+        # Competenze obbligatorie per la categoria
+        required = self.category.required_competences.filter(is_mandatory=True, is_active=True)
+        
+        # Competenze già possedute
+        possessed_ids = self.vendor_competences.filter(
+            has_competence=True
+        ).values_list('competence_id', flat=True)
+        
+        # Ritorna quelle mancanti
+        return required.exclude(id__in=possessed_ids)
+    
+    @property
+    def valid_documents(self):
+        """Ritorna i documenti validi del fornitore"""
+        return self.vendor_documents.filter(
+            status='APPROVED',
+            verified=True
+        ).exclude(
+            expiry_date__lt=timezone.now().date()
+        )
+    
+    @property
+    def expired_documents(self):
+        """Ritorna i documenti scaduti"""
+        return self.vendor_documents.filter(
+            expiry_date__lt=timezone.now().date()
+        )
+    
+    @property
+    def expiring_documents(self):
+        """Ritorna i documenti in scadenza (entro i giorni di preavviso)"""
+        from datetime import timedelta
+        documents_expiring = []
+        for doc in self.vendor_documents.filter(
+            status='APPROVED',
+            expiry_date__isnull=False
+        ):
+            if doc.expiry_date >= timezone.now().date():
+                days_to_expiry = (doc.expiry_date - timezone.now().date()).days
+                if days_to_expiry <= doc.document_type.alert_days_before_expiry:
+                    documents_expiring.append(doc)
+        return documents_expiring
+    
+    @property
+    def missing_mandatory_documents(self):
+        """Ritorna i documenti obbligatori mancanti per la categoria del fornitore"""
+        if not self.category:
+            return DocumentType.objects.none()
+        
+        # Documenti obbligatori per la categoria
+        required = self.category.required_documents.filter(is_mandatory=True, is_active=True)
+        
+        # Documenti già caricati e validi
+        submitted_ids = self.vendor_documents.filter(
+            status__in=['APPROVED', 'SUBMITTED', 'UNDER_REVIEW']
+        ).values_list('document_type_id', flat=True)
+        
+        # Ritorna quelli mancanti
+        return required.exclude(id__in=submitted_ids)
+    
+    @property
+    def is_documentation_complete(self):
+        """Verifica se tutta la documentazione obbligatoria è presente e valida"""
+        missing = self.missing_mandatory_documents
+        expired = self.expired_documents.filter(document_type__is_mandatory=True)
+        return not missing.exists() and not expired.exists()

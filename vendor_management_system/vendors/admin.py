@@ -6,7 +6,10 @@ from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from django.db.models import Count
 
-from vendor_management_system.vendors.models import Vendor, Address, Category
+from vendor_management_system.vendors.models import (
+    Vendor, Address, Category, Competence, VendorCompetence,
+    DocumentType, VendorDocument
+)
 
 
 # Inline per subcategories
@@ -15,6 +18,39 @@ class SubcategoryInline(admin.TabularInline):
     fk_name = 'parent'
     extra = 0
     fields = ['code', 'name', 'is_active', 'sort_order', 'default_risk_level']
+    readonly_fields = []
+
+
+# Inline per VendorCompetence
+class VendorCompetenceInline(admin.TabularInline):
+    model = VendorCompetence
+    extra = 0
+    fields = [
+        'competence',
+        'has_competence',
+        'certification_number',
+        'issue_date',
+        'expiry_date',
+        'verified',
+        'document_file'
+    ]
+    autocomplete_fields = ['competence']
+    readonly_fields = []
+
+
+# Inline per VendorDocument
+class VendorDocumentInline(admin.TabularInline):
+    model = VendorDocument
+    extra = 0
+    fields = [
+        'document_type',
+        'status',
+        'issue_date',
+        'expiry_date',
+        'verified',
+        'document_file'
+    ]
+    autocomplete_fields = ['document_type']
     readonly_fields = []
 
 
@@ -415,8 +451,8 @@ class VendorAdmin(admin.ModelAdmin):
         "vendor_code",
     ]
     
-    # RIMOSSE le inlines perché Address non ha ForeignKey verso Vendor
-    # inlines = [AddressInline]  # RIMOSSO
+    # Inlines per gestire competenze e documenti direttamente dal fornitore
+    inlines = [VendorCompetenceInline, VendorDocumentInline]
     
     actions = [
         'mark_as_approved', 
@@ -581,3 +617,516 @@ class VendorAdmin(admin.ModelAdmin):
                 obj.risk_level = obj.category.default_risk_level
                 
         super().save_model(request, obj, form, change)
+
+
+# Register Competence model
+@admin.register(Competence)
+class CompetenceAdmin(admin.ModelAdmin):
+    list_display = [
+        'code',
+        'name',
+        'competence_category',
+        'requires_certification',
+        'requires_renewal',
+        'renewal_period_display',
+        'is_mandatory',
+        'is_active',
+        'vendors_count',
+    ]
+    
+    list_filter = [
+        'competence_category',
+        'requires_certification',
+        'requires_renewal',
+        'is_mandatory',
+        'is_active',
+        'created_at',
+    ]
+    
+    search_fields = [
+        'code',
+        'name',
+        'description',
+    ]
+    
+    ordering = ['competence_category', 'sort_order', 'name']
+    
+    # Per autocomplete
+    autocomplete_fields = []
+    
+    fieldsets = (
+        (
+            _("Informazioni principali"),
+            {
+                'fields': (
+                    'code',
+                    'name',
+                    'description',
+                    'competence_category',
+                )
+            },
+        ),
+        (
+            _("Requisiti"),
+            {
+                'fields': (
+                    'requires_certification',
+                    'requires_renewal',
+                    'renewal_period_months',
+                    'is_mandatory',
+                )
+            },
+        ),
+        (
+            _("Categorie applicabili"),
+            {
+                'fields': (
+                    'applicable_categories',
+                ),
+            },
+        ),
+        (
+            _("Configurazione"),
+            {
+                'fields': (
+                    'is_active',
+                    'sort_order',
+                )
+            },
+        ),
+        (
+            _("Metadata"),
+            {
+                'fields': (
+                    'created_at',
+                    'updated_at',
+                ),
+                'classes': ('collapse',),
+            },
+        ),
+    )
+    
+    readonly_fields = ['created_at', 'updated_at']
+    filter_horizontal = ['applicable_categories']
+    
+    def renewal_period_display(self, obj):
+        if obj.renewal_period_months:
+            return format_html(
+                '<span>{} mesi</span>',
+                obj.renewal_period_months
+            )
+        return format_html('<span style="color: #6c757d;">N/A</span>')
+    renewal_period_display.short_description = _('Periodo rinnovo')
+    
+    def vendors_count(self, obj):
+        count = obj.vendor_assignments.filter(has_competence=True).count()
+        if count > 0:
+            return format_html(
+                '<span style="color: #28a745; font-weight: bold;">{}</span>',
+                count
+            )
+        return format_html('<span style="color: #6c757d;">0</span>')
+    vendors_count.short_description = _('Fornitori')
+    
+    actions = ['activate_competences', 'deactivate_competences']
+    
+    def activate_competences(self, request, queryset):
+        updated = queryset.update(is_active=True)
+        self.message_user(request, f'{updated} competenza/e attivata/e.')
+    activate_competences.short_description = _('Attiva competenze selezionate')
+    
+    def deactivate_competences(self, request, queryset):
+        updated = queryset.update(is_active=False)
+        self.message_user(request, f'{updated} competenza/e disattivata/e.')
+    deactivate_competences.short_description = _('Disattiva competenze selezionate')
+
+
+# Register VendorCompetence
+@admin.register(VendorCompetence)
+class VendorCompetenceAdmin(admin.ModelAdmin):
+    list_display = [
+        'vendor',
+        'competence',
+        'has_competence',
+        'certification_number',
+        'expiry_date',
+        'expiry_status_display',
+        'verified',
+        'created_at',
+    ]
+    
+    list_filter = [
+        'has_competence',
+        'verified',
+        'competence__competence_category',
+        'expiry_date',
+        'created_at',
+    ]
+    
+    search_fields = [
+        'vendor__name',
+        'competence__name',
+        'competence__code',
+        'certification_number',
+        'certification_body',
+    ]
+    
+    autocomplete_fields = ['vendor', 'competence']
+    
+    fieldsets = (
+        (
+            _("Relazione"),
+            {
+                'fields': (
+                    'vendor',
+                    'competence',
+                    'has_competence',
+                )
+            },
+        ),
+        (
+            _("Certificazione"),
+            {
+                'fields': (
+                    'certification_number',
+                    'certification_body',
+                    'issue_date',
+                    'expiry_date',
+                )
+            },
+        ),
+        (
+            _("Verifica"),
+            {
+                'fields': (
+                    'verified',
+                    'verified_by',
+                    'verified_date',
+                )
+            },
+        ),
+        (
+            _("Documentazione"),
+            {
+                'fields': (
+                    'document_file',
+                    'notes',
+                )
+            },
+        ),
+    )
+    
+    readonly_fields = ['created_at', 'updated_at']
+    
+    def expiry_status_display(self, obj):
+        status = obj.expiry_status
+        colors = {
+            'VALID': '#28a745',
+            'EXPIRING': '#ffc107',
+            'EXPIRING_SOON': '#ff6600',
+            'EXPIRED': '#dc3545',
+            'NO_EXPIRY': '#6c757d',
+        }
+        labels = {
+            'VALID': '✓ Valida',
+            'EXPIRING': '⚠ In scadenza',
+            'EXPIRING_SOON': '⚠⚠ Scade presto',
+            'EXPIRED': '✗ Scaduta',
+            'NO_EXPIRY': '∞ Nessuna scadenza',
+        }
+        
+        color = colors.get(status, '#6c757d')
+        label = labels.get(status, status)
+        
+        return format_html(
+            '<span style="color: {}; font-weight: bold;">{}</span>',
+            color,
+            label
+        )
+    expiry_status_display.short_description = _('Stato scadenza')
+
+
+# Register DocumentType
+@admin.register(DocumentType)
+class DocumentTypeAdmin(admin.ModelAdmin):
+    list_display = [
+        'code',
+        'name',
+        'document_category',
+        'is_mandatory',
+        'requires_renewal',
+        'default_validity_display',
+        'alert_days_before_expiry',
+        'is_active',
+        'submissions_count',
+    ]
+    
+    list_filter = [
+        'document_category',
+        'is_mandatory',
+        'requires_renewal',
+        'is_active',
+        'created_at',
+    ]
+    
+    search_fields = [
+        'code',
+        'name',
+        'description',
+    ]
+    
+    ordering = ['document_category', 'sort_order', 'name']
+    
+    # Per autocomplete
+    autocomplete_fields = []
+    
+    fieldsets = (
+        (
+            _("Informazioni principali"),
+            {
+                'fields': (
+                    'code',
+                    'name',
+                    'description',
+                    'document_category',
+                )
+            },
+        ),
+        (
+            _("Requisiti"),
+            {
+                'fields': (
+                    'is_mandatory',
+                    'requires_renewal',
+                    'default_validity_days',
+                    'alert_days_before_expiry',
+                )
+            },
+        ),
+        (
+            _("Categorie applicabili"),
+            {
+                'fields': (
+                    'applicable_categories',
+                ),
+            },
+        ),
+        (
+            _("Template e istruzioni"),
+            {
+                'fields': (
+                    'template_file',
+                    'instructions',
+                ),
+                'classes': ('collapse',),
+            },
+        ),
+        (
+            _("Configurazione"),
+            {
+                'fields': (
+                    'is_active',
+                    'sort_order',
+                )
+            },
+        ),
+        (
+            _("Metadata"),
+            {
+                'fields': (
+                    'created_at',
+                    'updated_at',
+                ),
+                'classes': ('collapse',),
+            },
+        ),
+    )
+    
+    readonly_fields = ['created_at', 'updated_at']
+    filter_horizontal = ['applicable_categories']
+    
+    def default_validity_display(self, obj):
+        if obj.default_validity_days:
+            return format_html(
+                '<span>{} giorni</span>',
+                obj.default_validity_days
+            )
+        return format_html('<span style="color: #6c757d;">N/A</span>')
+    default_validity_display.short_description = _('Validità predefinita')
+    
+    def submissions_count(self, obj):
+        count = obj.vendor_submissions.count()
+        if count > 0:
+            return format_html(
+                '<span style="color: #28a745; font-weight: bold;">{}</span>',
+                count
+            )
+        return format_html('<span style="color: #6c757d;">0</span>')
+    submissions_count.short_description = _('Documenti caricati')
+    
+    actions = ['activate_documents', 'deactivate_documents']
+    
+    def activate_documents(self, request, queryset):
+        updated = queryset.update(is_active=True)
+        self.message_user(request, f'{updated} tipo/i documento attivato/i.')
+    activate_documents.short_description = _('Attiva tipi documento selezionati')
+    
+    def deactivate_documents(self, request, queryset):
+        updated = queryset.update(is_active=False)
+        self.message_user(request, f'{updated} tipo/i documento disattivato/i.')
+    deactivate_documents.short_description = _('Disattiva tipi documento selezionati')
+
+
+# Register VendorDocument
+@admin.register(VendorDocument)
+class VendorDocumentAdmin(admin.ModelAdmin):
+    list_display = [
+        'vendor',
+        'document_type',
+        'document_number',
+        'status_display',
+        'issue_date',
+        'expiry_date',
+        'expiry_status_display',
+        'verified',
+        'created_at',
+    ]
+    
+    list_filter = [
+        'status',
+        'verified',
+        'document_type__document_category',
+        'expiry_date',
+        'created_at',
+    ]
+    
+    search_fields = [
+        'vendor__name',
+        'document_type__name',
+        'document_type__code',
+        'document_number',
+        'verified_by',
+        'uploaded_by',
+    ]
+    
+    autocomplete_fields = ['vendor', 'document_type']
+    
+    fieldsets = (
+        (
+            _("Relazione"),
+            {
+                'fields': (
+                    'vendor',
+                    'document_type',
+                )
+            },
+        ),
+        (
+            _("Dettagli documento"),
+            {
+                'fields': (
+                    'document_number',
+                    'issue_date',
+                    'expiry_date',
+                    'status',
+                )
+            },
+        ),
+        (
+            _("Verifica"),
+            {
+                'fields': (
+                    'verified',
+                    'verified_by',
+                    'verified_date',
+                )
+            },
+        ),
+        (
+            _("File e note"),
+            {
+                'fields': (
+                    'document_file',
+                    'notes',
+                    'rejection_reason',
+                )
+            },
+        ),
+        (
+            _("Tracking"),
+            {
+                'fields': (
+                    'uploaded_by',
+                ),
+                'classes': ('collapse',),
+            },
+        ),
+    )
+    
+    readonly_fields = ['created_at', 'updated_at']
+    
+    def status_display(self, obj):
+        colors = {
+            'PENDING': '#6c757d',
+            'SUBMITTED': '#17a2b8',
+            'UNDER_REVIEW': '#ffc107',
+            'APPROVED': '#28a745',
+            'REJECTED': '#dc3545',
+            'EXPIRED': '#dc3545',
+        }
+        color = colors.get(obj.status, '#6c757d')
+        
+        return format_html(
+            '<span style="color: {}; font-weight: bold;">{}</span>',
+            color,
+            obj.get_status_display()
+        )
+    status_display.short_description = _('Stato')
+    
+    def expiry_status_display(self, obj):
+        status = obj.expiry_status
+        colors = {
+            'VALID': '#28a745',
+            'EXPIRING_SOON': '#ffc107',
+            'EXPIRED': '#dc3545',
+            'NO_EXPIRY': '#6c757d',
+        }
+        labels = {
+            'VALID': '✓ Valido',
+            'EXPIRING_SOON': '⚠ In scadenza',
+            'EXPIRED': '✗ Scaduto',
+            'NO_EXPIRY': '∞ Nessuna scadenza',
+        }
+        
+        color = colors.get(status, '#6c757d')
+        label = labels.get(status, status)
+        
+        return format_html(
+            '<span style="color: {}; font-weight: bold;">{}</span>',
+            color,
+            label
+        )
+    expiry_status_display.short_description = _('Stato scadenza')
+    
+    actions = ['approve_documents', 'reject_documents', 'mark_as_verified']
+    
+    def approve_documents(self, request, queryset):
+        updated = queryset.update(status='APPROVED')
+        self.message_user(request, f'{updated} documento/i approvato/i.')
+    approve_documents.short_description = _('Approva documenti selezionati')
+    
+    def reject_documents(self, request, queryset):
+        updated = queryset.update(status='REJECTED')
+        self.message_user(request, f'{updated} documento/i respinto/i.')
+    reject_documents.short_description = _('Respingi documenti selezionati')
+    
+    def mark_as_verified(self, request, queryset):
+        from django.utils import timezone
+        updated = 0
+        for doc in queryset:
+            doc.verified = True
+            doc.verified_date = timezone.now().date()
+            doc.save()
+            updated += 1
+        self.message_user(request, f'{updated} documento/i verificato/i.')
+    mark_as_verified.short_description = _('Marca come verificato')
