@@ -5,6 +5,8 @@ from django.core import validators
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
+from django.conf import settings
+
 
 # Nuovo Model per Category
 class Category(models.Model):
@@ -843,6 +845,13 @@ class Address(models.Model):
         null=True,
         help_text=_("Provincia/Stato")
     )
+    region = models.CharField(
+        _("Regione"),
+        max_length=100,
+        blank=True,
+        null=True,
+        help_text=_("Regione")
+    )
     
     postal_code = models.CharField(
         _("Codice Postale"),
@@ -907,13 +916,6 @@ class Address(models.Model):
         default=True,
         help_text=_("Indirizzo attivo")
     )
-    
-    notes = models.TextField(
-        _("Note"),
-        blank=True,
-        null=True,
-        help_text=_("Note aggiuntive sull'indirizzo")
-    )
 
     class Meta:
         verbose_name = _("Indirizzo")
@@ -948,6 +950,174 @@ class Address(models.Model):
         """Ritorna una versione abbreviata dell'indirizzo"""
         return f"{self.street_address}, {self.city}"
 
+class QualificationType(models.Model):
+    """
+    Tabella dei titoli di studio o tipi di qualifica
+    """
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False
+    )
+
+    code = models.CharField(
+        _("Codice Titolo"),
+        max_length=50,
+        unique=True,
+        help_text=_("Codice univoco del titolo di studio o qualifica (es. 'DIP', 'LAU', 'MAS')")
+    )
+
+    name = models.CharField(
+        _("Nome Titolo"),
+        max_length=255,
+        help_text=_("Nome completo del titolo di studio (es. 'Diploma tecnico', 'Laurea triennale')")
+    )
+
+    description = models.TextField(
+        _("Descrizione"),
+        blank=True,
+        null=True,
+        help_text=_("Descrizione aggiuntiva del titolo di studio")
+    )
+
+    level = models.CharField(
+        _("Livello EQF"),
+        max_length=20,
+        blank=True,
+        null=True,
+        help_text=_("Livello di qualifica secondo il Quadro Europeo delle Qualifiche (EQF)")
+    )
+
+    is_active = models.BooleanField(
+        _("È Attivo"),
+        default=True,
+        help_text=_("Titolo di studio attivo e selezionabile")
+    )
+
+    sort_order = models.PositiveIntegerField(
+        _("Ordine di Ordinamento"),
+        default=100
+    )
+
+    class Meta:
+        verbose_name = _("Tipo di Qualifica / Titolo di Studio")
+        verbose_name_plural = _("Tipi di Qualifica / Titoli di Studio")
+        ordering = ['sort_order', 'name']
+
+    def __str__(self):
+        return self.name
+
+class ServiceType(models.Model):
+    """
+    Tabella unica per Tipologie e Servizi Specifici
+    (relazione gerarchica self-referenziata)
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    code = models.CharField(
+        _("Codice Servizio"),
+        max_length=50,
+        unique=True,
+        help_text=_("Codice univoco del servizio o tipologia (es. 'CONSULENZA', 'CONS_SIC')")
+    )
+
+    name = models.CharField(
+        _("Nome Servizio"),
+        max_length=255,
+        help_text=_("Nome della tipologia o del servizio specifico")
+    )
+
+    description = models.TextField(
+        _("Descrizione"),
+        blank=True,
+        null=True,
+        help_text=_("Descrizione dettagliata del servizio")
+    )
+
+    parent = models.ForeignKey(
+        'self',
+        verbose_name=_("Tipologia Padre"),
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="subservices",
+        help_text=_("Tipologia padre (lascia vuoto se è una categoria principale)")
+    )
+
+    is_active = models.BooleanField(
+        _("È Attivo"),
+        default=True,
+        help_text=_("Indica se il servizio è attivo")
+    )
+
+    sort_order = models.PositiveIntegerField(
+        _("Ordine di Ordinamento"),
+        default=100
+    )
+
+    class Meta:
+        verbose_name = _("Tipo/Servizio")
+        verbose_name_plural = _("Tipologie e Servizi")
+        ordering = ["sort_order", "name"]
+
+    def __str__(self):
+        if self.parent:
+            return f"{self.parent.name} > {self.name}"
+        return self.name
+
+    @property
+        # utile per distinguere le tipologie principali
+    def is_category(self):
+        return self.parent is None
+
+class EvaluationCriterion(models.Model):
+    """
+    Singolo criterio di valutazione appartenente a una categoria
+    """
+    EVALUATION_CATEGORY_CHOICES = [
+        ('COMM', 'Valutazione Commerciale'),
+        ('CONS', 'Valutazione del Servizio (Consulting)'),
+        ('FCB', 'Valutazione del Servizio (FCB)'),
+        ('MED', 'Valutazione del Servizio (MED)'),
+        ('PROD_NONTEC', 'Valutazione Prodotto non tecnologico'),
+        ('PROD_TEC', 'Valutazione Prodotto tecnologico'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    category = models.CharField(
+        _("Categoria di Valutazione"),
+        max_length=20,
+        choices=EVALUATION_CATEGORY_CHOICES
+    )
+    code = models.CharField(
+        _("Codice Criterio"),
+        max_length=50,
+        unique=True,
+        help_text=_("Codice univoco del criterio (es. COMM_01, FCB_03, PROD_TEC_02)")
+    )
+    name = models.CharField(
+        _("Nome del Criterio"),
+        max_length=255,
+        help_text=_("Nome del criterio di valutazione (es. 'Efficienza del servizio')")
+    )
+    description = models.TextField(
+        _("Descrizione"),
+        blank=True,
+        null=True,
+        help_text=_("Descrizione dettagliata del criterio")
+    )
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name = _("Criterio di Valutazione")
+        verbose_name_plural = _("Criteri di Valutazione")
+        ordering = ["category", "code"]
+
+    def __str__(self):
+        return f"{self.get_category_display()} - {self.name}"
+
+
+
 
 # Modifica al Model Vendor esistente
 class Vendor(models.Model):
@@ -964,6 +1134,60 @@ class Vendor(models.Model):
         ('MEDIUM', _('Medio')),
         ('HIGH', _('Alto')),
     ]
+    VENDOR_TYPE_CHOICES = [
+        ('Società', _('Società')),
+        ('Professionista', _('Professionista')),
+        ('Dipendente', _('Dipendente')),
+        ('Dipendente + Libero professionista', _('Dipendente + Libero professionista')),
+        ('Disoccupato', _('Disoccupato')),
+        ('Libero Professionista', _('Libero Professionista')),
+        ('Presso Studio', _('Presso Studio')),
+        ('Prestazione Occasionale', _('Prestazione Occasionale')),
+        ('Società/professionista', _('Società/professionista')),
+        ('Internazionale', _('Internazionale')),
+    ]
+
+    SERVICE_TYPE_CHOICES = [
+        ('ALTRO', 'Altro'),
+        ('ANALISI_LABORATORIO', 'Analisi di laboratorio'),
+        ('COMMERCIALE', 'Commerciale'),
+        ('CONSULENZA', 'Consulenza'),
+        ('FORNITURA', 'Fornitura'),
+        ('INDAGINI_STRUMENTALI', 'Indagini strumentali'),
+    ]
+
+    CLUSTER_COST_CHOICES = [
+        ('01', 'GenSpDirPre'),
+        ('02', 'GenSpDirPre; Antincendio; Attrezzature'),
+        ('03', 'GenSpDirPre; Segnaletica Stradale'),
+        ('04', 'Antincendio'),
+        ('05', 'Primo Soccorso'),
+        ('06', 'Primo Soccorso BLSD'),
+        ('08', 'Attrezzature'),
+        ('09', 'Elearning'),
+        ('11', 'Manageriale'),
+        ('12', 'Attestati'),
+        ('19', 'Tutti'),
+        ('20', 'Ambientale'),
+    ]
+
+    CONTRACTUAL_STATUS_CHOICES = [
+        ('00', 'Da verificare'),
+        ('02', 'Fare RAI'),
+        ('03', 'RAI Effettuata'),
+        ('04', 'Contrattualizzato'),
+        ('05', 'Da contrattualizzare ad esigenza'),
+        ('06', 'Contratto Scaduto'),
+        ('99', 'Non Usare'),
+    ]
+
+    VENDOR_FINAL_EVALUATION_CHOICES = [
+        ('DA VALUTARE', _('Da Valutare')),
+        ('NEGATIVO', _('Negativo')),
+        ('POSITIVO', _('Positivo')),
+        ('MOLTO POSITIVO', _('Molto Positivo')),
+    ]
+
     # Foreign Key to Address model
     address = models.ForeignKey(
         Address,
@@ -1034,7 +1258,129 @@ class Vendor(models.Model):
         blank=True, null=True,
         help_text=_("Sito web aziendale")
     )
-    
+    vendor_typye = models.CharField(
+        _("Tipo di Fornitore"),
+        max_length=50,
+        choices=VENDOR_TYPE_CHOICES,
+        default='Società',
+        help_text=_("Tipo di fornitore"),
+        blank=True, null=True
+    )
+    user_account = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name=_("Utente di aggiornamento"),
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="vendors",
+        help_text=_("Utente di aggiornamento associato al fornitore")
+    )
+    qualification_type = models.ForeignKey(
+        QualificationType,
+        verbose_name=_("Titolo di Studio / Tipo di Qualifica"),
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="vendors",
+        help_text=_("Titolo di studio o qualifica del fornitore")
+    )
+    service_type = models.ForeignKey(
+        ServiceType,
+        verbose_name=_("Servizio / Tipologia Servizio"),
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="vendors",
+        help_text=_("Servizio specifico o tipologia principale del fornitore")
+    )
+    cluster_cost = models.CharField(
+        _("Cluster Costo"),
+        max_length=50,
+        choices=CLUSTER_COST_CHOICES,
+        default='01',
+        help_text=_("Raggruppamento di costo per tipologia di servizio")
+    )
+    begin_experience_date = models.DateField(
+        _("Data Inizio Esperienza"),
+        null=True, blank=True,
+        help_text=_("Data di inizio dell'esperienza")
+    )
+    vendor_task_description = models.TextField(
+        _("Descrizione Attività Fornitore"),
+        blank=True, null=True,
+        help_text=_("Descrizione delle attività svolte dal fornitore")
+    )
+    mobile_device = models.BooleanField(
+        _("Dispositivo Mobile"),
+        default=False,
+        help_text=_("Indica se il fornitore utilizza dispositivi mobili per le operazioni")
+    )
+    ambulatory_service = models.TextField(
+        _("Servizio Ambulatoriale"),
+        blank=True, null=True,
+        help_text=_("Descrizione dei servizi ambulatoriali offerti dal fornitore")
+    )
+    laboratory_service = models.BooleanField(
+        _("Servizio di Laboratorio"),
+        default=False,
+        help_text=_("Indica se il fornitore offre servizi di laboratorio")
+    )
+    licensed_physician_year = models.IntegerField(
+        _("Anno di Licenza del Medico"),
+        null=True, blank=True,
+        help_text=_("Anno di licenza del medico associato al fornitore")
+    )
+    other_medical_service = models.TextField(
+        _("Altri Servizi Medici"),
+        blank=True, null=True,
+        help_text=_("Descrizione di altri servizi medici offerti dal fornitore")
+    )
+    doctor_registration = models.TextField(
+        _("Titolo Iscrizione Albo Medici"),
+        blank=True, null=True,
+        help_text=_("Descrizione del titolo di iscrizione all'albo dei medici")
+    )
+    doctor_cv = models.BooleanField(
+        _("CV del Medico Disponibile"),
+        default=False,
+        help_text=_("Indica se il curriculum vitae del medico è disponibile")
+    )
+    doctor_cv2 = models.BooleanField(
+        _("CV2 del Medico Disponibile"),
+        default=False,
+        help_text=_("Indica se il secondo curriculum vitae del medico è disponibile")
+    )
+
+    # Contractual Fields
+    contractual_status = models.CharField(
+        _("Stato Contrattuale"),
+        max_length=2,
+        choices=CONTRACTUAL_STATUS_CHOICES,
+        default='00',
+        help_text=_("Indica lo stato contrattuale del fornitore")
+    )
+    contractual_start_date = models.DateField(
+        _("Data Inizio Contratto"),
+        null=True, blank=True,
+        help_text=_("Data di inizio del contratto con il fornitore")
+    )
+    contractual_end_date = models.DateField(
+        _("Data Fine Contratto"),
+        null=True, blank=True,
+        help_text=_("Data di fine del contratto con il fornitore")
+    )
+    contractual_terms = models.TextField(
+        _("Termini Contrattuali"),
+        blank=True, null=True,
+        help_text=_("Termini e condizioni del contratto con il fornitore")
+    )
+    reference_person = models.CharField(
+        _("Persona di Riferimento"),
+        max_length=100,
+        help_text=_("Persona di riferimento"),
+        blank=True, null=True
+    )
+
     # Performance Fields (existing)
     on_time_delivery_rate = models.FloatField(
         _("Tasso di Consegna Puntuale"),
@@ -1086,7 +1432,15 @@ class Vendor(models.Model):
         null=True, blank=True,
         help_text=_("Scadenza della qualifica (es. ogni 12 mesi)")
     )
-    
+    vendor_final_evaluation = models.CharField(
+        _("Valutazione Finale del Fornitore"),
+        max_length=20,
+        choices=VENDOR_FINAL_EVALUATION_CHOICES,
+        default='DA VALUTARE',
+        help_text=_("Valutazione finale complessiva del fornitore"),
+        blank=True, null=True
+    )
+
     category = models.ForeignKey(
         Category,
         verbose_name=_("Categoria"),
@@ -1150,7 +1504,6 @@ class Vendor(models.Model):
         help_text=_("Fornitore attivo")
     )
 
-    # Metadata
     class Meta:
         verbose_name = _("Fornitore")
         verbose_name_plural = _("Fornitori")
@@ -1286,3 +1639,52 @@ class Vendor(models.Model):
         missing = self.missing_mandatory_documents
         expired = self.expired_documents.filter(document_type__is_mandatory=True)
         return not missing.exists() and not expired.exists()
+    
+
+class VendorEvaluation(models.Model):
+    """
+    Punteggio assegnato a un fornitore per un determinato criterio
+    """
+    EVALUATION_SCALE = [
+        (1, "Scarso"),
+        (2, "Insufficiente"),
+        (3, "Non sufficiente"),
+        (4, "Al limite della sufficienza"),
+        (5, "Sufficiente"),
+        (6, "Buono"),
+        (7, "Ottimo"),
+        (8, "Eccellente"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    vendor = models.ForeignKey(
+        "Vendor",
+        verbose_name=_("Fornitore"),
+        on_delete=models.CASCADE,
+        related_name="evaluations"
+    )
+    criterion = models.ForeignKey(
+        EvaluationCriterion,
+        verbose_name=_("Criterio di Valutazione"),
+        on_delete=models.CASCADE,
+        related_name="vendor_scores"
+    )
+    score = models.PositiveSmallIntegerField(
+        _("Punteggio"),
+        choices=EVALUATION_SCALE,
+        help_text=_("Valutazione da 1 (Scarso) a 8 (Eccellente)")
+    )
+    notes = models.TextField(
+        _("Note"),
+        blank=True,
+        null=True
+    )
+    evaluated_at = models.DateField(_("Data Valutazione"), auto_now_add=True)
+
+    class Meta:
+        verbose_name = _("Valutazione Fornitore")
+        verbose_name_plural = _("Valutazioni Fornitori")
+        unique_together = ("vendor", "criterion")
+
+    def __str__(self):
+        return f"{self.vendor.name} - {self.criterion.name}: {self.get_score_display()}"

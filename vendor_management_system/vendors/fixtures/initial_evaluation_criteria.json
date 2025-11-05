@@ -1,0 +1,28 @@
+[
+  { "model": "vendors.evaluationcriterion", "fields": { "category": "COMM", "code": "COMM_01", "name": "Chiarezza nella gestione dell'offerta e dell'ordine", "is_active": true } },
+  { "model": "vendors.evaluationcriterion", "fields": { "category": "COMM", "code": "COMM_02", "name": "Tempi di consegna", "is_active": true } },
+  { "model": "vendors.evaluationcriterion", "fields": { "category": "COMM", "code": "COMM_03", "name": "Competitività economica", "is_active": true } },
+
+  { "model": "vendors.evaluationcriterion", "fields": { "category": "CONS", "code": "CONS_01", "name": "Rispetto degli accordi contrattuali", "is_active": true } },
+  { "model": "vendors.evaluationcriterion", "fields": { "category": "CONS", "code": "CONS_02", "name": "Efficienza del servizio", "is_active": true } },
+  { "model": "vendors.evaluationcriterion", "fields": { "category": "CONS", "code": "CONS_03", "name": "Efficacia del servizio", "is_active": true } },
+  { "model": "vendors.evaluationcriterion", "fields": { "category": "CONS", "code": "CONS_04", "name": "Livello riscontro cliente", "is_active": true } },
+
+  { "model": "vendors.evaluationcriterion", "fields": { "category": "FCB", "code": "FCB_01", "name": "Rispetto degli accordi contrattuali", "is_active": true } },
+  { "model": "vendors.evaluationcriterion", "fields": { "category": "FCB", "code": "FCB_02", "name": "Efficienza del servizio", "is_active": true } },
+  { "model": "vendors.evaluationcriterion", "fields": { "category": "FCB", "code": "FCB_03", "name": "Efficacia del servizio", "is_active": true } },
+  { "model": "vendors.evaluationcriterion", "fields": { "category": "FCB", "code": "FCB_04", "name": "Livello riscontro cliente", "is_active": true } },
+
+  { "model": "vendors.evaluationcriterion", "fields": { "category": "MED", "code": "MED_01", "name": "Rispetto degli accordi contrattuali", "is_active": true } },
+  { "model": "vendors.evaluationcriterion", "fields": { "category": "MED", "code": "MED_02", "name": "Efficienza del servizio", "is_active": true } },
+  { "model": "vendors.evaluationcriterion", "fields": { "category": "MED", "code": "MED_03", "name": "Efficacia del servizio", "is_active": true } },
+  { "model": "vendors.evaluationcriterion", "fields": { "category": "MED", "code": "MED_04", "name": "Livello riscontro cliente", "is_active": true } },
+
+  { "model": "vendors.evaluationcriterion", "fields": { "category": "PROD_NONTEC", "code": "PROD_NONTEC_01", "name": "Adeguatezza degli imballi", "is_active": true } },
+  { "model": "vendors.evaluationcriterion", "fields": { "category": "PROD_NONTEC", "code": "PROD_NONTEC_02", "name": "Stato del prodotto", "is_active": true } },
+
+  { "model": "vendors.evaluationcriterion", "fields": { "category": "PROD_TEC", "code": "PROD_TEC_01", "name": "Funzionamento del prodotto tecnologico", "is_active": true } },
+  { "model": "vendors.evaluationcriterion", "fields": { "category": "PROD_TEC", "code": "PROD_TEC_02", "name": "Adeguatezza degli imballi", "is_active": true } },
+  { "model": "vendors.evaluationcriterion", "fields": { "category": "PROD_TEC", "code": "PROD_TEC_03", "name": "Stato del prodotto", "is_active": true } },
+  { "model": "vendors.evaluationcriterion", "fields": { "category": "PROD_TEC", "code": "PROD_TEC_04", "name": "Assistenza fornita sugli strumenti", "is_active": true } }
+]
