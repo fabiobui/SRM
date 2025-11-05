@@ -383,7 +383,7 @@ class VendorAdmin(admin.ModelAdmin):
         'vendor_code', 'is_qualified', 'audit_overdue', 'is_documentation_complete',
         'active_competences', 'expired_competences', 'expiring_competences',
         'missing_mandatory_competences', 'valid_documents', 'expired_documents',
-        'expiring_documents', 'missing_mandatory_documents'
+        'expiring_documents', 'missing_mandatory_documents', 'address_province', 'address_region', 'address_country'
     ]
     autocomplete_fields = ['address', 'category', 'qualification_type', 'service_type', 'user_account']
     inlines = [VendorCompetenceInline, VendorDocumentInline, VendorEvaluationInline]
@@ -393,7 +393,7 @@ class VendorAdmin(admin.ModelAdmin):
             'fields': ('vendor_code', 'name', 'vendor_typye', 'vat_number', 'fiscal_code', 'category', 'risk_level', 'vendor_final_evaluation', 'is_active'), 
         }),
         (_('Contatti'), {
-            'fields': ('email', 'phone', 'reference_contact', 'website', 'address', 'country')
+            'fields': ('email', 'phone', 'reference_contact', 'website', 'address', 'address_province', 'address_region', 'address_country')
         }),
         (_('Stato Contrattuale'), {
             'fields': ('contractual_status', 'contractual_start_date', 'contractual_end_date', 
@@ -420,6 +420,27 @@ class VendorAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
+    
+    def address_province(self, obj):
+        """Display province from related address"""
+        if obj.address and obj.address.state_province:
+            return obj.address.state_province
+        return '-'
+    address_province.short_description = _('Provincia')
+    
+    def address_region(self, obj):
+        """Display region from related address"""
+        if obj.address and obj.address.region:
+            return obj.address.region
+        return '-'
+    address_region.short_description = _('Regione')
+    
+    def address_country(self, obj):
+        """Display country from related address"""
+        if obj.address and obj.address.country:
+            return obj.address.country
+        return '-'
+    address_country.short_description = _('Nazione')
     
     def is_qualified_display(self, obj):
         if obj.is_qualified:
