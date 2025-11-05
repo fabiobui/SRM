@@ -1000,8 +1000,8 @@ class QualificationType(models.Model):
     )
 
     class Meta:
-        verbose_name = _("Tipo di Qualifica / Titolo di Studio")
-        verbose_name_plural = _("Tipi di Qualifica / Titoli di Studio")
+        verbose_name = _("Titolo")
+        verbose_name_plural = _("Titoli")
         ordering = ['sort_order', 'name']
 
     def __str__(self):

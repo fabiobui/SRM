@@ -191,6 +191,67 @@ TEMPLATES = [
     },
 ]
 
+# Jazzmin configuration (controls admin look & icons)
+JAZZMIN_SETTINGS = {
+    "site_title": "VMS Admin",
+    "site_header": "Vendor Management",
+    "site_brand": "VMS",
+    "welcome_sign": "Benvenuto nell'area amministrativa",
+    "navigation_expanded": True,
+
+    # Defaults to avoid the circle bullet icons
+    "default_icon_parents": "fas fa-folder-open",
+    "default_icon_children": "fas fa-file-alt",
+
+    # Map icons (adjust to your real app/model names; use lowercase app_label.model)
+    "icons": {
+        # Django/auth
+        "auth": "fas fa-users-cog",
+        "auth.user": "fas fa-user",
+        "auth.group": "fas fa-user-shield",
+        "authtoken.tokenproxy": "fas fa-key",
+
+        # Your apps
+        "users.user": "fas fa-users",
+        "core": "fas fa-cogs",
+        "vendors": "fas fa-store",
+        "purchase_orders.purchaseorder": "fas fa-shopping-cart",
+        "historical_performances.historicalperformance": "fas fa-chart-line",
+        "documents.document": "fas fa-folder-open",
+
+        #celery beat
+        "django_celery_beat.clockedschedule": "fas fa-clock",
+        "django_celery_beat.crontabschedule": "fas fa-stopwatch",
+        "django_celery_beat.intervalschedule": "fas fa-tachometer-alt",
+        "django_celery_beat.periodictask": "fas fa-tasks",
+        "django_celery_beat.solarschedule": "fas fa-sun",
+
+        # Vendors models (include several likely names; unknown ones are ignored)
+        "vendors.vendor": "fas fa-truck",
+        "vendors.category": "fas fa-tags",
+        "vendors.address": "fas fa-map-marker-alt",
+        "vendors.document": "fas fa-file-alt",
+        "vendors.documenttype": "fas fa-file-signature",
+        "vendors.qualificationtype": "fas fa-graduation-cap",
+        "vendors.skill": "fas fa-tools",
+        "vendors.competence": "fas fa-toolbox",
+        "vendors.vendorcompetence": "fas fa-toolbox",
+        "vendors.evaluationcriterion": "fas fa-star-half-alt",
+        "vendors.evaluation": "fas fa-star",
+        "vendors.assessment": "fas fa-clipboard-check",
+        "vendors.typology": "fas fa-shapes",
+        "vendors.servicetype": "fas fa-concierge-bell",
+        "vendors.typologyservice": "fas fa-layer-group",
+        "vendors.vendorevaluation": "fas fa-star",
+
+        # If some are in the 'documents' app
+        "documents.document": "fas fa-file-alt",
+        "documents.documenttype": "fas fa-file-signature",
+        "documents.category": "fas fa-folder-tree",
+    },
+}
+
+
 
 # FIXTURES
 # ------------------------------------------------------------------------------
