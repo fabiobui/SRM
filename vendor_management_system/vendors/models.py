@@ -434,8 +434,8 @@ class VendorCompetence(models.Model):
     )
 
     class Meta:
-        verbose_name = _("Competenza Fornitore")
-        verbose_name_plural = _("Competenze Fornitori")
+        verbose_name = _("Competenza")
+        verbose_name_plural = _("Competenze")
         unique_together = [['vendor', 'competence']]
         ordering = ['-created_at']
         indexes = [
@@ -752,8 +752,8 @@ class VendorDocument(models.Model):
     )
 
     class Meta:
-        verbose_name = _("Documento Fornitore")
-        verbose_name_plural = _("Documenti Fornitori")
+        verbose_name = _("Documento")
+        verbose_name_plural = _("Documenti")
         ordering = ['-created_at']
         indexes = [
             models.Index(fields=['vendor', 'document_type']),
@@ -1682,8 +1682,8 @@ class VendorEvaluation(models.Model):
     evaluated_at = models.DateField(_("Data Valutazione"), auto_now_add=True)
 
     class Meta:
-        verbose_name = _("Valutazione Fornitore")
-        verbose_name_plural = _("Valutazioni Fornitori")
+        verbose_name = _("Valutazione")
+        verbose_name_plural = _("Valutazioni")
         unique_together = ("vendor", "criterion")
 
     def __str__(self):
