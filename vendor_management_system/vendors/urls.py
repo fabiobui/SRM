@@ -1,10 +1,24 @@
 # Imports
 from django.urls import path
-from vendor_management_system.vendors.views import VendorViewSet, AddressViewSet, CategoryViewSet
+from vendor_management_system.vendors.views import (
+    VendorViewSet, 
+    AddressViewSet, 
+    CategoryViewSet,
+    vendor_dashboard_view,
+    dashboard_stats_api,
+    dashboard_vendors_list_api,
+    export_vendors_excel
+)
 
 
 # Define the URL patterns for the vendors app
 urlpatterns = [
+    # Dashboard views
+    path(
+        "dashboard/",
+        vendor_dashboard_view,
+        name="vendor-dashboard",
+    ),
     # Main vendor CRUD operations
     path(
         "",
@@ -48,6 +62,23 @@ urlpatterns = [
         "alerts/",
         VendorViewSet.as_view({"get": "alerts"}),
         name="vendors--alerts",
+    ),
+    
+    # Dashboard API endpoints
+    path(
+        "dashboard-stats/",
+        dashboard_stats_api,
+        name="dashboard-stats-api",
+    ),
+    path(
+        "dashboard-vendors/",
+        dashboard_vendors_list_api,
+        name="dashboard-vendors-api",
+    ),
+    path(
+        "export-excel/",
+        export_vendors_excel,
+        name="export-vendors-excel",
     ),
     
     # Address CRUD operations (standalone) (mantieni dal precedente)

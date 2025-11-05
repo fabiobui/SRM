@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Fornitori - Analisi e Classificazione</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+    <style>
+        .stats-card {
+            background: #fff;
+            border-radius: 8px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border-left: 4px solid #007bff;
+            margin-bottom: 1rem;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .stats-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+        .stats-card.warning { border-left-color: #ffc107; }
+        .stats-card.danger { border-left-color: #dc3545; }
+        .stats-card.success { border-left-color: #28a745; }
+        .stats-card.info { border-left-color: #17a2b8; }
+        
+        .stats-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .chart-container {
+            background: #fff;
+            border-radius: 8px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 1rem;
+            position: relative;
+            height: 350px;
+        }
+        
+        .vendor-table {
+            background: #fff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .filter-chip {
+            display: inline-block;
+            padding: 0.4rem 0.8rem;
+            margin: 0.2rem;
+            background: #e9ecef;
+            border-radius: 20px;
+            font-size: 0.9rem;
+        }
+        
+        .filter-chip .remove {
+            cursor: pointer;
+            margin-left: 0.5rem;
+            color: #dc3545;
+        }
+        
+        .status-badge {
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+        
+        .status-approved { background: #d4edda; color: #155724; }
+        .status-pending { background: #fff3cd; color: #856404; }
+        .status-rejected { background: #f8d7da; color: #721c24; }
+        
+        .risk-low { background: #d4edda; color: #155724; }
+        .risk-medium { background: #fff3cd; color: #856404; }
+        .risk-high { background: #f8d7da; color: #721c24; }
+        
+        .export-btn {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        
+        .chart-clickable {
+            cursor: pointer;
+        }
+        
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255,255,255,0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            display: none;
+        }
+        
+        .loading-overlay.show {
+            display: flex;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/"><i class="fas fa-building"></i> Sistema Gestione Fornitori</a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="/admin/"><i class="fas fa-cog"></i> Admin</a>
+                <a class="nav-link" href="/"><i class="fas fa-home"></i> Home</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid py-4">
+        <div class="row mb-4">
+            <div class="col-12">
+                <h1 class="h3 mb-0">📊 Dashboard Fornitori - Analisi e Classificazione</h1>
+                <p class="text-muted">Esplora i fornitori per dimensioni e caratteristiche</p>
+            </div>
+        </div>
+        
+        <!-- Summary Statistics Cards -->
+        <div class="row mb-4">
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="stats-card" onclick="clearAllFilters()">
+                    <div class="stats-number" id="total-vendors">{{ total_vendors }}</div>
+                    <div class="text-muted">Fornitori Totali</div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="stats-card success">
+                    <div class="stats-number" id="active-vendors">{{ active_vendors }}</div>
+                    <div class="text-muted">Attivi</div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="stats-card warning">
+                    <div class="stats-number" id="pending-qualification">{{ pending_qualification }}</div>
+                    <div class="text-muted">In Qualifica</div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="stats-card danger">
+                    <div class="stats-number" id="high-risk-vendors">{{ high_risk_vendors }}</div>
+                    <div class="text-muted">Alto Rischio</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Active Filters Display -->
+        <div class="row mb-3" id="active-filters-row" style="display: none;">
+            <div class="col-12">
+                <div class="alert alert-info">
+                    <strong>Filtri Attivi:</strong>
+                    <div id="active-filters-container"></div>
+                    <button class="btn btn-sm btn-outline-danger mt-2" onclick="clearAllFilters()">
+                        <i class="fas fa-times"></i> Cancella tutti i filtri
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Charts Row 1: Category and Qualification Status -->
+        <div class="row mb-4">
+            <div class="col-lg-6 mb-3">
+                <div class="chart-container">
+                    <h5 class="mb-3">Fornitori per Categoria</h5>
+                    <div class="loading-overlay" id="loading-category">
+                        <div class="spinner-border text-primary" role="status"></div>
+                    </div>
+                    <canvas id="categoryChart" class="chart-clickable"></canvas>
+                </div>
+            </div>
+            <div class="col-lg-6 mb-3">
+                <div class="chart-container">
+                    <h5 class="mb-3">Stato Qualifica</h5>
+                    <div class="loading-overlay" id="loading-qualification">
+                        <div class="spinner-border text-primary" role="status"></div>
+                    </div>
+                    <canvas id="qualificationChart" class="chart-clickable"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Charts Row 2: Risk Level and Country -->
+        <div class="row mb-4">
+            <div class="col-lg-6 mb-3">
+                <div class="chart-container">
+                    <h5 class="mb-3">Livello di Rischio</h5>
+                    <div class="loading-overlay" id="loading-risk">
+                        <div class="spinner-border text-primary" role="status"></div>
+                    </div>
+                    <canvas id="riskChart" class="chart-clickable"></canvas>
+                </div>
+            </div>
+            <div class="col-lg-6 mb-3">
+                <div class="chart-container">
+                    <h5 class="mb-3">Distribuzione Geografica (Top 10 Paesi)</h5>
+                    <div class="loading-overlay" id="loading-country">
+                        <div class="spinner-border text-primary" role="status"></div>
+                    </div>
+                    <canvas id="countryChart" class="chart-clickable"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Charts Row 3: Performance Metrics -->
+        <div class="row mb-4">
+            <div class="col-lg-6 mb-3">
+                <div class="chart-container">
+                    <h5 class="mb-3">Qualità Media (Rating)</h5>
+                    <div class="loading-overlay" id="loading-quality">
+                        <div class="spinner-border text-primary" role="status"></div>
+                    </div>
+                    <canvas id="qualityChart" class="chart-clickable"></canvas>
+                </div>
+            </div>
+            <div class="col-lg-6 mb-3">
+                <div class="chart-container">
+                    <h5 class="mb-3">Tasso di Adempimento</h5>
+                    <div class="loading-overlay" id="loading-fulfillment">
+                        <div class="spinner-border text-primary" role="status"></div>
+                    </div>
+                    <canvas id="fulfillmentChart" class="chart-clickable"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Vendors Table -->
+        <div class="row">
+            <div class="col-12">
+                <div class="vendor-table">
+                    <div class="p-3 bg-light border-bottom">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">Elenco Fornitori <span class="badge bg-primary" id="filtered-count">{{ total_vendors }}</span></h5>
+                            <div>
+                                <input type="text" class="form-control form-control-sm d-inline-block" id="search-input" 
+                                       placeholder="🔍 Cerca fornitore..." style="width: 300px;">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th>Codice</th>
+                                    <th>Nome</th>
+                                    <th>Categoria</th>
+                                    <th>Stato Qualifica</th>
+                                    <th>Rischio</th>
+                                    <th>Paese</th>
+                                    <th>Performance</th>
+                                    <th>Azioni</th>
+                                </tr>
+                            </thead>
+                            <tbody id="vendors-table-body">
+                                <tr>
+                                    <td colspan="8" class="text-center py-4">
+                                        <div class="spinner-border text-primary" role="status">
+                                            <span class="visually-hidden">Caricamento...</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="p-3 bg-light border-top">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted">Mostrando <span id="showing-count">0</span> fornitori</small>
+                            <div id="pagination-container"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Export Button -->
+    <button class="btn btn-success btn-lg export-btn" onclick="exportToExcel()" title="Esporta in Excel">
+        <i class="fas fa-file-excel"></i> Esporta Excel
+    </button>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+    // Global variables
+    let allVendors = [];
+    let filteredVendors = [];
+    let activeFilters = {};
+    let charts = {};
+    
+    // Get CSRF token from Django template
+    const csrftoken = '{{ csrf_token }}';
+    
+    // Load data directly from Django template (no AJAX needed!)
+    const chartData = {{ chart_data_json|safe }};
+    const vendorsData = {{ vendors_data_json|safe }};
+    
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        // Load data già presenti nel template
+        allVendors = vendorsData;
+        filteredVendors = [...allVendors];
+        
+        // Create charts con i dati già disponibili
+        createCategoryChart(chartData.by_category);
+        createQualificationChart(chartData.by_qualification);
+        createRiskChart(chartData.by_risk);
+        createCountryChart(chartData.by_country);
+        createQualityChart(chartData.by_quality);
+        createFulfillmentChart(chartData.by_fulfillment);
+        
+        // Render tabella
+        renderVendorsTable();
+        
+        // Setup search
+        document.getElementById('search-input').addEventListener('input', function(e) {
+            filterVendors();
+        });
+    });
+    
+    // Create Category Chart
+    function createCategoryChart(data) {
+        const ctx = document.getElementById('categoryChart').getContext('2d');
+        const labels = data.map(item => item.category || 'Non Classificato');
+        const values = data.map(item => item.count);
+        
+        charts.category = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: values,
+                    backgroundColor: [
+                        '#007bff', '#28a745', '#ffc107', '#dc3545', '#17a2b8',
+                        '#6f42c1', '#fd7e14', '#20c997', '#e83e8c', '#6c757d'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                onClick: (e, activeElements) => {
+                    if (activeElements.length > 0) {
+                        const index = activeElements[0].index;
+                        const category = labels[index];
+                        applyFilter('category', category);
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return context.label + ': ' + context.parsed + ' fornitori';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    // Create Qualification Chart
+    function createQualificationChart(data) {
+        const ctx = document.getElementById('qualificationChart').getContext('2d');
+        const labels = data.map(item => {
+            const statusMap = {
+                'APPROVED': 'Approvato',
+                'PENDING': 'In attesa',
+                'REJECTED': 'Respinto'
+            };
+            return statusMap[item.status] || item.status;
+        });
+        const values = data.map(item => item.count);
+        
+        charts.qualification = new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: values,
+                    backgroundColor: ['#28a745', '#ffc107', '#dc3545']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                onClick: (e, activeElements) => {
+                    if (activeElements.length > 0) {
+                        const index = activeElements[0].index;
+                        const statusMap = {
+                            'Approvato': 'APPROVED',
+                            'In attesa': 'PENDING',
+                            'Respinto': 'REJECTED'
+                        };
+                        const status = statusMap[labels[index]];
+                        applyFilter('qualification_status', status);
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+    }
+    
+    // Create Risk Chart
+    function createRiskChart(data) {
+        const ctx = document.getElementById('riskChart').getContext('2d');
+        const labels = data.map(item => {
+            const riskMap = {
+                'LOW': 'Basso',
+                'MEDIUM': 'Medio',
+                'HIGH': 'Alto'
+            };
+            return riskMap[item.risk] || item.risk;
+        });
+        const values = data.map(item => item.count);
+        
+        charts.risk = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Numero Fornitori',
+                    data: values,
+                    backgroundColor: ['#28a745', '#ffc107', '#dc3545']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                onClick: (e, activeElements) => {
+                    if (activeElements.length > 0) {
+                        const index = activeElements[0].index;
+                        const riskMap = {
+                            'Basso': 'LOW',
+                            'Medio': 'MEDIUM',
+                            'Alto': 'HIGH'
+                        };
+                        const risk = riskMap[labels[index]];
+                        applyFilter('risk_level', risk);
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+    }
+    
+    // Create Country Chart
+    function createCountryChart(data) {
+        const ctx = document.getElementById('countryChart').getContext('2d');
+        const topCountries = data.slice(0, 10);
+        const labels = topCountries.map(item => item.country || 'Non Specificato');
+        const values = topCountries.map(item => item.count);
+        
+        charts.country = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Numero Fornitori',
+                    data: values,
+                    backgroundColor: '#17a2b8'
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                onClick: (e, activeElements) => {
+                    if (activeElements.length > 0) {
+                        const index = activeElements[0].index;
+                        const country = labels[index];
+                        applyFilter('country', country);
+                    }
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+    }
+    
+    // Create Quality Chart
+    function createQualityChart(data) {
+        const ctx = document.getElementById('qualityChart').getContext('2d');
+        
+        charts.quality = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: data.map(item => item.range),
+                datasets: [{
+                    label: 'Numero Fornitori',
+                    data: data.map(item => item.count),
+                    backgroundColor: '#6f42c1'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+    }
+    
+    // Create Fulfillment Chart
+    function createFulfillmentChart(data) {
+        const ctx = document.getElementById('fulfillmentChart').getContext('2d');
+        
+        charts.fulfillment = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: data.map(item => item.range),
+                datasets: [{
+                    label: 'Numero Fornitori',
+                    data: data.map(item => item.count),
+                    backgroundColor: '#fd7e14'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+    }
+    
+    // Apply filter
+    function applyFilter(dimension, value) {
+        activeFilters[dimension] = value;
+        updateActiveFiltersDisplay();
+        filterVendors();
+    }
+    
+    // Clear all filters
+    function clearAllFilters() {
+        activeFilters = {};
+        document.getElementById('search-input').value = '';
+        updateActiveFiltersDisplay();
+        filterVendors();
+    }
+    
+    // Remove specific filter
+    function removeFilter(dimension) {
+        delete activeFilters[dimension];
+        updateActiveFiltersDisplay();
+        filterVendors();
+    }
+    
+    // Update active filters display
+    function updateActiveFiltersDisplay() {
+        const container = document.getElementById('active-filters-container');
+        const row = document.getElementById('active-filters-row');
+        
+        if (Object.keys(activeFilters).length === 0) {
+            row.style.display = 'none';
+            return;
+        }
+        
+        row.style.display = 'block';
+        container.innerHTML = '';
+        
+        const filterLabels = {
+            'category': 'Categoria',
+            'qualification_status': 'Qualifica',
+            'risk_level': 'Rischio',
+            'country': 'Paese'
+        };
+        
+        for (const [key, value] of Object.entries(activeFilters)) {
+            const chip = document.createElement('span');
+            chip.className = 'filter-chip';
+            chip.innerHTML = `${filterLabels[key]}: <strong>${value}</strong> 
+                              <span class="remove" onclick="removeFilter('${key}')">✕</span>`;
+            container.appendChild(chip);
+        }
+    }
+    
+    // Filter vendors based on active filters and search
+    function filterVendors() {
+        const searchTerm = document.getElementById('search-input').value.toLowerCase();
+        
+        filteredVendors = allVendors.filter(vendor => {
+            // Apply dimension filters
+            for (const [key, value] of Object.entries(activeFilters)) {
+                let vendorValue;
+                
+                if (key === 'category') {
+                    vendorValue = vendor.category ? vendor.category.name : 'Non Classificato';
+                } else if (key === 'qualification_status') {
+                    vendorValue = vendor.qualification_status;
+                } else if (key === 'risk_level') {
+                    vendorValue = vendor.risk_level;
+                } else if (key === 'country') {
+                    vendorValue = vendor.country || 'Non Specificato';
+                }
+                
+                if (vendorValue !== value) {
+                    return false;
+                }
+            }
+            
+            // Apply search filter
+            if (searchTerm) {
+                const searchableText = [
+                    vendor.vendor_code,
+                    vendor.name,
+                    vendor.email,
+                    vendor.category ? vendor.category.name : ''
+                ].join(' ').toLowerCase();
+                
+                if (!searchableText.includes(searchTerm)) {
+                    return false;
+                }
+            }
+            
+            return true;
+        });
+        
+        renderVendorsTable();
+    }
+    
+    // Render vendors table
+    function renderVendorsTable() {
+        const tbody = document.getElementById('vendors-table-body');
+        document.getElementById('filtered-count').textContent = filteredVendors.length;
+        document.getElementById('showing-count').textContent = filteredVendors.length;
+        
+        if (filteredVendors.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="8" class="text-center py-4">
+                        <div class="text-muted">
+                            <i class="fas fa-search fa-2x mb-2"></i>
+                            <p>Nessun fornitore trovato con i filtri selezionati</p>
+                        </div>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        
+        tbody.innerHTML = filteredVendors.map(vendor => {
+            const qualificationBadge = {
+                'APPROVED': '<span class="status-badge status-approved">Approvato</span>',
+                'PENDING': '<span class="status-badge status-pending">In attesa</span>',
+                'REJECTED': '<span class="status-badge status-rejected">Respinto</span>'
+            }[vendor.qualification_status] || '';
+            
+            const riskBadge = {
+                'LOW': '<span class="status-badge risk-low">Basso</span>',
+                'MEDIUM': '<span class="status-badge risk-medium">Medio</span>',
+                'HIGH': '<span class="status-badge risk-high">Alto</span>'
+            }[vendor.risk_level] || '';
+            
+            const performance = vendor.quality_rating_avg ? 
+                `⭐ ${parseFloat(vendor.quality_rating_avg).toFixed(1)}/5` : 
+                '<span class="text-muted">N/A</span>';
+            
+            return `
+                <tr>
+                    <td><code>${vendor.vendor_code}</code></td>
+                    <td>
+                        <strong>${vendor.name || 'N/A'}</strong><br>
+                        <small class="text-muted">${vendor.email || ''}</small>
+                    </td>
+                    <td>${vendor.category ? vendor.category.name : '<span class="text-muted">Non Classificato</span>'}</td>
+                    <td>${qualificationBadge}</td>
+                    <td>${riskBadge}</td>
+                    <td>${vendor.country || '<span class="text-muted">N/A</span>'}</td>
+                    <td>${performance}</td>
+                    <td>
+                        <a href="/vendors/${vendor.vendor_code}/" class="btn btn-sm btn-outline-primary" target="_blank">
+                            <i class="fas fa-eye"></i>
+                        </a>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    }
+    
+    // Export to Excel
+    async function exportToExcel() {
+        const filterParams = new URLSearchParams(activeFilters).toString();
+        const searchTerm = document.getElementById('search-input').value;
+        
+        let url = '/vendors/export-excel/';
+        const params = [];
+        
+        if (filterParams) params.push(filterParams);
+        if (searchTerm) params.push(`search=${encodeURIComponent(searchTerm)}`);
+        
+        if (params.length > 0) {
+            url += '?' + params.join('&');
+        }
+        
+        window.location.href = url;
+    }
+    </script>
+</body>
+</html>
