@@ -419,13 +419,6 @@ class VendorAdmin(admin.ModelAdmin):
                       'qualification_expiry', 'last_audit_date', 'next_audit_due', 
                       'audit_overdue', 'review_notes')
         }),
-        (_('Stato Documentazione e Competenze'), {
-            'fields': ('is_qualified', 'is_documentation_complete',
-                      'active_competences', 'expired_competences', 'expiring_competences',
-                      'missing_mandatory_competences', 'valid_documents', 'expired_documents',
-                      'expiring_documents', 'missing_mandatory_documents'),
-            'classes': ('collapse',)
-        }),
         (_('Account Utente'), {
             'fields': ('user_account',),
             'classes': ('collapse',)
