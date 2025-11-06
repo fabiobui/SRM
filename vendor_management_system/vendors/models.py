@@ -856,6 +856,8 @@ class Address(models.Model):
     postal_code = models.CharField(
         _("Codice Postale"),
         max_length=20,
+        blank=True,
+        null=True,
         help_text=_("Codice postale/CAP")
     )
     
@@ -1188,6 +1190,32 @@ class Vendor(models.Model):
         ('MOLTO POSITIVO', _('Molto Positivo')),
     ]
 
+    VENDOR_MEDICAL_SERVICE_CHOICES = [
+        ('ALTRI_PROF', 'Altri Professionisti'),
+        ('ALTRO', 'ALTRO'),
+        ('AMBULANZE', 'Ambulanze'),
+        ('CENTRO_MEDICO', 'Centro medico/Poliambulatorio'),
+        ('DOCENTE', 'Docente'),
+        ('FORN_SANITARIE', 'Forniture sanitarie/Elettromedicali'),
+        ('INFERMIERE', 'Infermiere'),
+        ('LABORATORIO', 'Laboratorio'),
+        ('MEDICINA_LAVORO', 'Medicina del Lavoro'),
+        ('MEDICO_COMPETENTE', 'Medico Competente'),
+        ('MEDICO_GENERICO', 'Medico Generico'),
+        ('MEDICO_SPECIALISTA', 'Medico Specialista'),
+        ('RIFIUTI', 'Rifiuti'),
+        ('SOCIETA_SANITARIA', 'Società Infermieri-Medici-Assistenti sociali'),
+    ]
+
+    old_code = models.CharField(
+        _("Vecchio Codice Fornitore"),
+        max_length=10,
+        unique=True,
+        blank=True,
+        null=True,
+        help_text=_("Vecchio codice univoco del fornitore, se applicabile")
+    )
+
     # Foreign Key to Address model
     address = models.ForeignKey(
         Address,
@@ -1249,7 +1277,7 @@ class Vendor(models.Model):
     )
     phone = models.CharField(
         _("Telefono"),
-        max_length=20,
+        max_length=100,
         help_text=_("Telefono di riferimento"),
         blank=True, null=True
     )
@@ -1258,7 +1286,7 @@ class Vendor(models.Model):
         blank=True, null=True,
         help_text=_("Sito web aziendale")
     )
-    vendor_typye = models.CharField(
+    vendor_type = models.CharField(
         _("Tipo di Fornitore"),
         max_length=50,
         choices=VENDOR_TYPE_CHOICES,
@@ -1293,6 +1321,17 @@ class Vendor(models.Model):
         related_name="vendors",
         help_text=_("Servizio specifico o tipologia principale del fornitore")
     )
+    service_additional = models.CharField(
+        _("Servizio Aggiuntivo"),
+        max_length=255,
+        blank=True, null=True,
+        help_text=_("Descrizione di servizi aggiuntivi offerti dal fornitore")
+    )
+    service_note = models.TextField(
+        _("Note sul Servizio"),
+        blank=True, null=True,
+        help_text=_("Note aggiuntive sul servizio offerto dal fornitore")
+    )
     cluster_cost = models.CharField(
         _("Cluster Costo"),
         max_length=50,
@@ -1325,10 +1364,30 @@ class Vendor(models.Model):
         default=False,
         help_text=_("Indica se il fornitore offre servizi di laboratorio")
     )
+    laboratory_independent = models.BooleanField(
+        _("Laboratorio Indipendente"),
+        default=False,
+        null=True,
+        help_text=_("Indica se il laboratorio è indipendente")
+    )
     licensed_physician_year = models.IntegerField(
-        _("Anno di Licenza del Medico"),
+        _("Medico autorizzato dall'anno"),
         null=True, blank=True,
-        help_text=_("Anno di licenza del medico associato al fornitore")
+        help_text=_("Medico autorizzato dall'anno")
+    )
+    vendor_medical_service = models.CharField(
+        _("Servizio Sanitario/Professionale"),
+        max_length=50,
+        choices=VENDOR_MEDICAL_SERVICE_CHOICES,
+        default='ALTRO',
+        blank=True,
+        null=True,
+        help_text=_("Tipologia di servizio medico o sanitario fornito")
+    )
+    date_of_establishment = models.DateField(
+        _("Data di Specializzazione/Fondazione"),
+        null=True, blank=True,
+        help_text=_("Data di Specializzazione o Fondazione")
     )
     other_medical_service = models.TextField(
         _("Altri Servizi Medici"),
@@ -1378,6 +1437,12 @@ class Vendor(models.Model):
         _("Persona di Riferimento"),
         max_length=100,
         help_text=_("Persona di riferimento"),
+        blank=True, null=True
+    )
+    vendor_management_update = models.CharField(
+        _("Gestione aggiornamenti"),
+        max_length=100,
+        help_text=_("Gestione aggiornamenti del fornitore"),
         blank=True, null=True
     )
 
@@ -1450,7 +1515,12 @@ class Vendor(models.Model):
         related_name="vendors",
         help_text=_("Categoria merceologica del fornitore")
     )
-    
+    competences_zone = models.CharField(
+        _("Zona Competenze"),
+        max_length=255,
+        blank=True, null=True,
+        help_text=_("Zona geografica delle competenze del fornitore")
+    )
     # Competences relationship
     competences = models.ManyToManyField(
         Competence,
@@ -1469,19 +1539,6 @@ class Vendor(models.Model):
         help_text=_("Valutazione del rischio fornitore"),
         blank=True, null=True
     )
-    country = models.CharField(
-        _("Paese"),
-        max_length=100,
-        help_text=_("Paese sede legale"),
-        blank=True, null=True,
-        default="Italia"
-    )
-    iso_certifications = models.TextField(
-        _("Certificazioni ISO"),
-        blank=True, null=True,
-        help_text=_("Elenco delle certificazioni ISO possedute")
-    )
-    
     # Audit and Management Fields
     last_audit_date = models.DateField(
         _("Data Ultimo Audit"),
@@ -1502,6 +1559,16 @@ class Vendor(models.Model):
         _("È Attivo"),
         default=True,
         help_text=_("Fornitore attivo")
+    )
+    is_ico_consultant = models.BooleanField(
+        _("È Consulente ICO"),
+        default=False,
+        help_text=_("Indica se il fornitore è un consulente ICO")
+    )
+    albo_zucchetti = models.CharField(
+        _("Inserito in Albo Zucchetti"),
+        max_length=20,
+        blank=True, null=True
     )
 
     class Meta:

@@ -376,44 +376,55 @@ class VendorAdmin(admin.ModelAdmin):
     ]
     list_filter = [
         'qualification_status', 'risk_level', 'is_active', 'category',
-        'vendor_typye', 'contractual_status', 'vendor_final_evaluation'
+        'vendor_type', 'contractual_status', 'vendor_final_evaluation'
     ]
     search_fields = ['vendor_code', 'name', 'vat_number', 'fiscal_code', 'email']
     readonly_fields = [
         'vendor_code', 'is_qualified', 'audit_overdue', 'is_documentation_complete',
         'active_competences', 'expired_competences', 'expiring_competences',
         'missing_mandatory_competences', 'valid_documents', 'expired_documents',
-        'expiring_documents', 'missing_mandatory_documents', 'address_province', 'address_region', 'address_country'
+        'expiring_documents', 'missing_mandatory_documents'
     ]
     autocomplete_fields = ['address', 'category', 'qualification_type', 'service_type', 'user_account']
     inlines = [VendorCompetenceInline, VendorDocumentInline, VendorEvaluationInline]
     
     fieldsets = (
         (_('Informazioni Base'), {
-            'fields': ('vendor_code', 'name', 'vendor_typye', 'vat_number', 'fiscal_code', 'category', 'risk_level', 'vendor_final_evaluation', 'is_active'), 
+            'fields': ('vendor_code', 'name', 'vendor_type', 'vat_number', 'fiscal_code', 
+                      'category', 'risk_level', 'vendor_final_evaluation', 'is_active')
         }),
         (_('Contatti'), {
-            'fields': ('email', 'phone', 'reference_contact', 'website', 'address', 'address_province', 'address_region', 'address_country')
+            'fields': ('email', 'phone', 'reference_contact', 'website', 'address')
         }),
         (_('Stato Contrattuale'), {
             'fields': ('contractual_status', 'contractual_start_date', 'contractual_end_date', 
                       'contractual_terms', 'reference_person')
         }),
         (_('Servizi'), {
-            'fields': ('qualification_type', 'service_type', 'cluster_cost', 'begin_experience_date', 'vendor_task_description')
+            'fields': ('qualification_type', 'service_type', 'cluster_cost', 
+                      'begin_experience_date', 'vendor_task_description')
         }),
         (_('Servizi Medici'), {
-            'fields': ('mobile_device', 'ambulatory_service', 'laboratory_service', 'licensed_physician_year', 
-                      'other_medical_service', 'doctor_registration', 'doctor_cv', 'doctor_cv2'),
+            'fields': ('mobile_device', 'ambulatory_service', 'laboratory_service', 
+                      'licensed_physician_year', 'other_medical_service', 
+                      'doctor_registration', 'doctor_cv', 'doctor_cv2'),
             'classes': ('collapse',)
         }),
         (_('Performance'), {
-            'fields': ('on_time_delivery_rate', 'quality_rating_avg', 'average_response_time', 
-                      'fulfillment_rate')
+            'fields': ('on_time_delivery_rate', 'quality_rating_avg', 
+                      'average_response_time', 'fulfillment_rate')
         }),
         (_('Qualifica e Audit'), {
             'fields': ('qualification_status', 'qualification_score', 'qualification_date', 
-                      'qualification_expiry', 'last_audit_date', 'next_audit_due', 'review_notes')
+                      'qualification_expiry', 'last_audit_date', 'next_audit_due', 
+                      'audit_overdue', 'review_notes')
+        }),
+        (_('Stato Documentazione e Competenze'), {
+            'fields': ('is_qualified', 'is_documentation_complete',
+                      'active_competences', 'expired_competences', 'expiring_competences',
+                      'missing_mandatory_competences', 'valid_documents', 'expired_documents',
+                      'expiring_documents', 'missing_mandatory_documents'),
+            'classes': ('collapse',)
         }),
         (_('Account Utente'), {
             'fields': ('user_account',),
@@ -421,48 +432,32 @@ class VendorAdmin(admin.ModelAdmin):
         }),
     )
     
-    def address_province(self, obj):
-        """Display province from related address"""
-        if obj.address and obj.address.state_province:
-            return obj.address.state_province
-        return '-'
-    address_province.short_description = _('Provincia')
-    
-    def address_region(self, obj):
-        """Display region from related address"""
-        if obj.address and obj.address.region:
-            return obj.address.region
-        return '-'
-    address_region.short_description = _('Regione')
-    
-    def address_country(self, obj):
-        """Display country from related address"""
-        if obj.address and obj.address.country:
-            return obj.address.country
-        return '-'
-    address_country.short_description = _('Nazione')
-    
     def is_qualified_display(self, obj):
         if obj.is_qualified:
-            return format_html('<span style="color: green;">✓</span>')
-        return format_html('<span style="color: red;">✗</span>')
+            return format_html('<span style="color: green; font-weight: bold;">✓ Qualificato</span>')
+        return format_html('<span style="color: red; font-weight: bold;">✗ Non Qualificato</span>')
     is_qualified_display.short_description = _('Qualificato')
     
     actions = ['approve_vendors', 'reject_vendors', 'mark_for_audit']
     
     def approve_vendors(self, request, queryset):
         updated = queryset.update(qualification_status='APPROVED')
-        self.message_user(request, f'{updated} fornitori approvati.')
+        self.message_user(request, f'{updated} fornitori approvati.', 'success')
     approve_vendors.short_description = _('Approva fornitori selezionati')
     
     def reject_vendors(self, request, queryset):
         updated = queryset.update(qualification_status='REJECTED')
-        self.message_user(request, f'{updated} fornitori respinti.')
+        self.message_user(request, f'{updated} fornitori respinti.', 'warning')
     reject_vendors.short_description = _('Respingi fornitori selezionati')
     
     def mark_for_audit(self, request, queryset):
         from datetime import timedelta
         next_audit = timezone.now().date() + timedelta(days=30)
         updated = queryset.update(next_audit_due=next_audit)
-        self.message_user(request, f'{updated} fornitori marcati per audit.')
+        self.message_user(request, f'{updated} fornitori marcati per audit tra 30 giorni.', 'info')
     mark_for_audit.short_description = _('Programma audit (30 giorni)')
+    
+    class Media:
+        css = {
+            'all': ('admin/css/vendor_admin.css',)
+        }
