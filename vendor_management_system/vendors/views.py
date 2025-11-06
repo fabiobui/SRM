@@ -1511,9 +1511,13 @@ def vendor_dashboard_view(request):
             'category': {'name': vendor.category.name if vendor.category else None},
             'service_type': {'name': vendor.service_type.name if vendor.service_type else None},
             'address': {
+                'street_address': vendor.address.street_address if vendor.address else None,
+                'city': vendor.address.city if vendor.address else None,
+                'state_province': vendor.address.state_province if vendor.address else None,  # AGGIUNGI QUESTA RIGA
                 'region': vendor.address.region if vendor.address else None,
-                'city': vendor.address.city if vendor.address else None
-            },
+                'postal_code': vendor.address.postal_code if vendor.address else None,
+                'country': vendor.address.country if vendor.address else 'Italia',
+            } if vendor.address else None,
             # Aggiungi le competenze come lista di nomi
             'competences': [comp.name for comp in vendor.competences.all()]
         }
