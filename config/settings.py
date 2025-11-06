@@ -203,6 +203,15 @@ JAZZMIN_SETTINGS = {
     "default_icon_parents": "fas fa-folder-open",
     "default_icon_children": "fas fa-file-alt",
 
+    # Custom links nel menu principale (sinistro)
+    "custom_links": {
+        "vendors": [{
+            "name": "Dashboard",
+            "url": "/vendors/dashboard/",
+            "icon": "fas fa-tachometer-alt",
+        }]
+    },
+
     # Map icons (adjust to your real app/model names; use lowercase app_label.model)
     "icons": {
         # Django/auth

@@ -194,7 +194,7 @@
             </div>
         </div>
         
-        <!-- Charts Row 2: Risk Level and Country -->
+        <!-- Charts Row 2: Risk Level and Service Type -->
         <div class="row mb-4">
             <div class="col-lg-6 mb-3">
                 <div class="chart-container">
@@ -207,11 +207,11 @@
             </div>
             <div class="col-lg-6 mb-3">
                 <div class="chart-container">
-                    <h5 class="mb-3">Distribuzione Geografica (Top 10 Paesi)</h5>
-                    <div class="loading-overlay" id="loading-country">
+                    <h5 class="mb-3">Tipo di Servizio</h5>
+                    <div class="loading-overlay" id="loading-service">
                         <div class="spinner-border text-primary" role="status"></div>
                     </div>
-                    <canvas id="countryChart" class="chart-clickable"></canvas>
+                    <canvas id="serviceChart" class="chart-clickable"></canvas>
                 </div>
             </div>
         </div>
@@ -260,7 +260,7 @@
                                     <th>Categoria</th>
                                     <th>Stato Qualifica</th>
                                     <th>Rischio</th>
-                                    <th>Paese</th>
+                                    <th>Tipo Servizio</th>
                                     <th>Performance</th>
                                     <th>Azioni</th>
                                 </tr>
@@ -317,7 +317,7 @@
         createCategoryChart(chartData.by_category);
         createQualificationChart(chartData.by_qualification);
         createRiskChart(chartData.by_risk);
-        createCountryChart(chartData.by_country);
+        createServiceTypeChart(chartData.by_service_type || []);
         createQualityChart(chartData.by_quality);
         createFulfillmentChart(chartData.by_fulfillment);
         
@@ -475,14 +475,13 @@
         });
     }
     
-    // Create Country Chart
-    function createCountryChart(data) {
-        const ctx = document.getElementById('countryChart').getContext('2d');
-        const topCountries = data.slice(0, 10);
-        const labels = topCountries.map(item => item.country || 'Non Specificato');
-        const values = topCountries.map(item => item.count);
+    // Create Service Type Chart (sostituisce Country Chart)
+    function createServiceTypeChart(data) {
+        const ctx = document.getElementById('serviceChart').getContext('2d');
+        const labels = data.map(item => item.service_type || 'Non Specificato');
+        const values = data.map(item => item.count);
         
-        charts.country = new Chart(ctx, {
+        charts.serviceType = new Chart(ctx, {
             type: 'bar',
             data: {
                 labels: labels,
@@ -499,8 +498,8 @@
                 onClick: (e, activeElements) => {
                     if (activeElements.length > 0) {
                         const index = activeElements[0].index;
-                        const country = labels[index];
-                        applyFilter('country', country);
+                        const serviceType = labels[index];
+                        applyFilter('service_type', serviceType);
                     }
                 },
                 scales: {
@@ -627,7 +626,7 @@
             'category': 'Categoria',
             'qualification_status': 'Qualifica',
             'risk_level': 'Rischio',
-            'country': 'Paese'
+            'service_type': 'Tipo Servizio'
         };
         
         for (const [key, value] of Object.entries(activeFilters)) {
@@ -649,13 +648,17 @@
                 let vendorValue;
                 
                 if (key === 'category') {
-                    vendorValue = vendor.category ? vendor.category.name : 'Non Classificato';
+                    vendorValue = vendor.category ? 
+                        (vendor.category.name || vendor.category) : 
+                        'Non Classificato';
                 } else if (key === 'qualification_status') {
                     vendorValue = vendor.qualification_status;
                 } else if (key === 'risk_level') {
                     vendorValue = vendor.risk_level;
-                } else if (key === 'country') {
-                    vendorValue = vendor.country || 'Non Specificato';
+                } else if (key === 'service_type') {
+                    vendorValue = vendor.service_type ? 
+                        (vendor.service_type.name || vendor.service_type) : 
+                        'Non Specificato';
                 }
                 
                 if (vendorValue !== value) {
@@ -669,7 +672,9 @@
                     vendor.vendor_code,
                     vendor.name,
                     vendor.email,
-                    vendor.category ? vendor.category.name : ''
+                    vendor.category ? (vendor.category.name || vendor.category) : '',
+                    vendor.vat_number || '',
+                    vendor.fiscal_code || ''
                 ].join(' ').toLowerCase();
                 
                 if (!searchableText.includes(searchTerm)) {
@@ -707,33 +712,48 @@
             const qualificationBadge = {
                 'APPROVED': '<span class="status-badge status-approved">Approvato</span>',
                 'PENDING': '<span class="status-badge status-pending">In attesa</span>',
-                'REJECTED': '<span class="status-badge status-rejected">Respinto</span>'
+                'REJECTED': '<span class="status-badge status-rejected">Respinto</span>',
+                'NOT_STARTED': '<span class="status-badge status-pending">Non Iniziato</span>',
+                'IN_PROGRESS': '<span class="status-badge status-pending">In Corso</span>'
             }[vendor.qualification_status] || '';
             
             const riskBadge = {
                 'LOW': '<span class="status-badge risk-low">Basso</span>',
                 'MEDIUM': '<span class="status-badge risk-medium">Medio</span>',
-                'HIGH': '<span class="status-badge risk-high">Alto</span>'
+                'HIGH': '<span class="status-badge risk-high">Alto</span>',
+                'CRITICAL': '<span class="status-badge risk-high">Critico</span>'
             }[vendor.risk_level] || '';
             
-            const performance = vendor.quality_rating_avg ? 
-                `⭐ ${parseFloat(vendor.quality_rating_avg).toFixed(1)}/5` : 
+            const qualityRating = vendor.quality_rating_avg || vendor.quality_rating || 0;
+            const performance = qualityRating > 0 ? 
+                `⭐ ${parseFloat(qualityRating).toFixed(1)}/5` : 
+                '<span class="text-muted">N/A</span>';
+            
+            const vendorName = vendor.name || 'N/A';
+            const vendorEmail = vendor.email || '';
+            
+            const categoryName = vendor.category ? 
+                (vendor.category.name || vendor.category) : 
+                '<span class="text-muted">Non Classificato</span>';
+            
+            const serviceTypeName = vendor.service_type ? 
+                (vendor.service_type.name || vendor.service_type) : 
                 '<span class="text-muted">N/A</span>';
             
             return `
                 <tr>
                     <td><code>${vendor.vendor_code}</code></td>
                     <td>
-                        <strong>${vendor.name || 'N/A'}</strong><br>
-                        <small class="text-muted">${vendor.email || ''}</small>
+                        <strong>${vendorName}</strong><br>
+                        <small class="text-muted">${vendorEmail}</small>
                     </td>
-                    <td>${vendor.category ? vendor.category.name : '<span class="text-muted">Non Classificato</span>'}</td>
+                    <td>${categoryName}</td>
                     <td>${qualificationBadge}</td>
                     <td>${riskBadge}</td>
-                    <td>${vendor.country || '<span class="text-muted">N/A</span>'}</td>
+                    <td>${serviceTypeName}</td>
                     <td>${performance}</td>
                     <td>
-                        <a href="/vendors/${vendor.vendor_code}/" class="btn btn-sm btn-outline-primary" target="_blank">
+                        <a href="/admin/vendors/vendor/${vendor.vendor_code}/change/" class="btn btn-sm btn-outline-primary" target="_blank">
                             <i class="fas fa-eye"></i>
                         </a>
                     </td>

@@ -1,10 +1,12 @@
 # Imports
+import json
 from django.shortcuts import get_object_or_404, redirect, render
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib import messages
 from django.http import HttpResponse, JsonResponse
-from django.db.models import Count, Avg, Q, Case, When
+from django.db.models import Count, Avg, Q, Case, When, F
+from django.core.serializers.json import DjangoJSONEncoder
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import permissions, response, status, viewsets
@@ -1365,119 +1367,96 @@ def dashboard_redirect(request):
 
 @login_required
 def vendor_dashboard_view(request):
-    """Vista per la dashboard dei fornitori con statistiche aggregate"""
-    from django.db.models import Count, Q
-    from vendor_management_system.vendors.serializers import VendorListSerializer
-    import json
+    """
+    Dashboard view che mostra statistiche e grafici sui fornitori
+    """
+    vendors = Vendor.objects.select_related('category', 'service_type').all()
     
-    # Calcola statistiche di base
-    total_vendors = Vendor.objects.count()
-    active_vendors = Vendor.objects.filter(is_active=True).count()
-    pending_qualification = Vendor.objects.filter(qualification_status='PENDING').count()
-    high_risk_vendors = Vendor.objects.filter(risk_level='HIGH').count()
+    # Summary statistics
+    total_vendors = vendors.count()
+    active_vendors = vendors.filter(is_active=True).count()
+    pending_qualification = vendors.filter(
+        qualification_status__in=['PENDING', 'IN_PROGRESS', 'NOT_STARTED']
+    ).count()
+    high_risk_vendors = vendors.filter(risk_level__in=['HIGH', 'CRITICAL']).count()
     
-    # Prepara i dati per i grafici (stesso codice di dashboard_stats_api)
-    # Statistiche per categoria
-    by_category = list(
-        Vendor.objects.values('category__name')
-        .annotate(count=Count('vendor_code'))
-        .order_by('-count')
-    )
-    for item in by_category:
-        if not item['category__name']:
-            item['category'] = 'Non Classificato'
-        else:
-            item['category'] = item['category__name']
-        item.pop('category__name', None)
+    # Chart data aggregations
+    chart_data = {
+        'by_category': list(
+            vendors.values('category__name')
+            .annotate(count=Count('vendor_code'), category=F('category__name'))
+            .order_by('-count')
+        ),
+        'by_qualification': list(
+            vendors.values('qualification_status')
+            .annotate(count=Count('vendor_code'), status=F('qualification_status'))
+            .order_by('-count')
+        ),
+        'by_risk': list(
+            vendors.values('risk_level')
+            .annotate(count=Count('vendor_code'), risk=F('risk_level'))
+            .order_by('-count')
+        ),
+        'by_service_type': list(
+            vendors.values('service_type__name')
+            .annotate(count=Count('vendor_code'), service_type=F('service_type__name'))
+            .order_by('-count')
+        ),
+        'by_quality': [],
+        'by_fulfillment': [],
+    }
     
-    # Statistiche per stato qualifica
-    by_qualification = list(
-        Vendor.objects.values('qualification_status')
-        .annotate(count=Count('vendor_code'))
-        .order_by('qualification_status')
-    )
-    for item in by_qualification:
-        item['status'] = item.pop('qualification_status')
-    
-    # Statistiche per livello di rischio
-    by_risk = list(
-        Vendor.objects.values('risk_level')
-        .annotate(count=Count('vendor_code'))
-        .order_by('risk_level')
-    )
-    for item in by_risk:
-        item['risk'] = item.pop('risk_level')
-    
-    # Statistiche per paese (top 10)
-    by_country_query = Vendor.objects.values('country').annotate(count=Count('vendor_code')).order_by('-count')
-    by_country = []
-    for item in by_country_query[:10]:
-        by_country.append({
-            'country': item['country'] if item['country'] else 'Non Specificato',
-            'count': item['count']
-        })
-    
-    # Statistiche per qualità media (rating)
+    # Quality rating distribution
     quality_ranges = [
-        {'range': '0-1', 'min': 0, 'max': 1},
-        {'range': '1-2', 'min': 1, 'max': 2},
-        {'range': '2-3', 'min': 2, 'max': 3},
-        {'range': '3-4', 'min': 3, 'max': 4},
-        {'range': '4-5', 'min': 4, 'max': 5},
-        {'range': 'N/A', 'min': None, 'max': None},
+        ('0-1', 0, 1),
+        ('1-2', 1, 2),
+        ('2-3', 2, 3),
+        ('3-4', 3, 4),
+        ('4-5', 4, 5),
     ]
+    for range_label, min_val, max_val in quality_ranges:
+        count = vendors.filter(
+            quality_rating_avg__gte=min_val,
+            quality_rating_avg__lt=max_val
+        ).count()
+        chart_data['by_quality'].append({'range': range_label, 'count': count})
     
-    by_quality = []
-    for r in quality_ranges:
-        if r['min'] is None:
-            count = Vendor.objects.filter(quality_rating_avg__isnull=True).count()
-        else:
-            count = Vendor.objects.filter(
-                quality_rating_avg__gte=r['min'],
-                quality_rating_avg__lt=r['max']
-            ).count()
-        by_quality.append({'range': r['range'], 'count': count})
-    
-    # Statistiche per tasso di adempimento
+    # Fulfillment rate distribution
     fulfillment_ranges = [
-        {'range': '0-20%', 'min': 0, 'max': 20},
-        {'range': '20-40%', 'min': 20, 'max': 40},
-        {'range': '40-60%', 'min': 40, 'max': 60},
-        {'range': '60-80%', 'min': 60, 'max': 80},
-        {'range': '80-100%', 'min': 80, 'max': 100},
-        {'range': 'N/A', 'min': None, 'max': None},
+        ('0-20%', 0, 20),
+        ('20-40%', 20, 40),
+        ('40-60%', 40, 60),
+        ('60-80%', 60, 80),
+        ('80-100%', 80, 100),
     ]
+    for range_label, min_val, max_val in fulfillment_ranges:
+        count = vendors.filter(
+            fulfillment_rate__gte=min_val,
+            fulfillment_rate__lt=max_val
+        ).count()
+        chart_data['by_fulfillment'].append({'range': range_label, 'count': count})
     
-    by_fulfillment = []
-    for r in fulfillment_ranges:
-        if r['min'] is None:
-            count = Vendor.objects.filter(fulfillment_rate__isnull=True).count()
-        else:
-            count = Vendor.objects.filter(
-                fulfillment_rate__gte=r['min'],
-                fulfillment_rate__lt=r['max']
-            ).count()
-        by_fulfillment.append({'range': r['range'], 'count': count})
+    # Vendors data for table
+    vendors_data = list(vendors.values(
+        'vendor_code', 'name', 'email',
+        'qualification_status', 'risk_level',
+        'quality_rating_avg', 'fulfillment_rate',
+        'vat_number', 'fiscal_code',
+        'category__name', 'service_type__name'
+    ))
     
-    # Prepara lista vendors
-    vendors = Vendor.objects.select_related('category', 'address').all()
-    vendors_data = VendorListSerializer(vendors, many=True).data
+    # Rename nested fields for JavaScript
+    for vendor in vendors_data:
+        vendor['category'] = {'name': vendor.pop('category__name', None)}
+        vendor['service_type'] = {'name': vendor.pop('service_type__name', None)}
     
     context = {
         'total_vendors': total_vendors,
         'active_vendors': active_vendors,
         'pending_qualification': pending_qualification,
         'high_risk_vendors': high_risk_vendors,
-        # Converti i dati in JSON per JavaScript
-        'chart_data_json': json.dumps({
-            'by_category': by_category,
-            'by_qualification': by_qualification,
-            'by_risk': by_risk,
-            'by_country': by_country,
-            'by_quality': by_quality,
-            'by_fulfillment': by_fulfillment,
-        }),
-        'vendors_data_json': json.dumps(list(vendors_data)),
+        'chart_data_json': json.dumps(chart_data, cls=DjangoJSONEncoder),
+        'vendors_data_json': json.dumps(vendors_data, cls=DjangoJSONEncoder),
     }
     
     return render(request, 'vendors/vendor_dashboard.html', context)
@@ -1488,188 +1467,96 @@ from django.db.models import Count, Avg, Q, Case, When, IntegerField
 
 
 @csrf_exempt
-def dashboard_vendors_list_api(request):
-    """API endpoint per ottenere la lista semplificata dei fornitori per la dashboard"""
-    from vendor_management_system.vendors.serializers import VendorListSerializer
+def dashboard_stats_api(request):
+    """
+    API endpoint per statistiche dashboard
+    """
+    vendors = Vendor.objects.all()
     
-    print(f"[dashboard_vendors] User: {request.user}, Auth: {request.user.is_authenticated}")
-    print(f"[dashboard_vendors] Session: {request.session.session_key}")
-    print(f"[dashboard_vendors] Cookies: {list(request.COOKIES.keys())}")
+    stats = {
+        'total': vendors.count(),
+        'active': vendors.filter(is_active=True).count(),
+        'pending_qualification': vendors.filter(
+            qualification_status__in=['PENDING', 'IN_PROGRESS', 'NOT_STARTED']
+        ).count(),
+        'high_risk': vendors.filter(risk_level__in=['HIGH', 'CRITICAL']).count(),
+    }
     
-    # L'utente deve essere autenticato - ma controlliamo manualmente
-    # perché @login_required causa redirect invece di 401
-    if not request.user.is_authenticated:
-        return JsonResponse({'error': 'Not authenticated'}, status=401)
-    
-    vendors = Vendor.objects.select_related('category', 'address').all()
-    serializer = VendorListSerializer(vendors, many=True)
-    return JsonResponse(serializer.data, safe=False)
+    return JsonResponse(stats)
 
 
 @csrf_exempt
-def dashboard_stats_api(request):
-    """API endpoint per fornire statistiche aggregate per i grafici della dashboard"""
+def dashboard_vendors_list_api(request):
+    """
+    API endpoint per lista fornitori con filtri
+    """
+    vendors = Vendor.objects.select_related('category', 'service_type').all()
     
-    # Debug
-    print(f"[dashboard_stats] User: {request.user}, Auth: {request.user.is_authenticated}")
-    print(f"[dashboard_stats] Session: {request.session.session_key}")
-    print(f"[dashboard_stats] Cookies: {list(request.COOKIES.keys())}")
+    # Apply filters from query params
+    category = request.GET.get('category')
+    qualification_status = request.GET.get('qualification_status')
+    risk_level = request.GET.get('risk_level')
+    service_type = request.GET.get('service_type')
+    search = request.GET.get('search', '')
     
-    # Controllo manuale autenticazione
-    if not request.user.is_authenticated:
-        return JsonResponse({'error': 'Not authenticated'}, status=401)
-    
-    # Statistiche per categoria
-    by_category = list(
-        Vendor.objects.values('category__name')
-        .annotate(
-            count=Count('vendor_code'),
-            category=Case(
-                When(category__isnull=True, then='Non Classificato'),
-                default='category__name'
-            )
+    if category:
+        vendors = vendors.filter(category__name=category)
+    if qualification_status:
+        vendors = vendors.filter(qualification_status=qualification_status)
+    if risk_level:
+        vendors = vendors.filter(risk_level=risk_level)
+    if service_type:
+        vendors = vendors.filter(service_type__name=service_type)
+    if search:
+        vendors = vendors.filter(
+            Q(vendor_code__icontains=search) |
+            Q(name__icontains=search) |
+            Q(email__icontains=search) |
+            Q(vat_number__icontains=search) |
+            Q(fiscal_code__icontains=search)
         )
-        .values('category', 'count')
-        .order_by('-count')
-    )
     
-    # Fix per categoria None
-    for item in by_category:
-        if not item['category']:
-            item['category'] = 'Non Classificato'
+    vendors_data = list(vendors.values(
+        'vendor_code', 'name', 'email',
+        'qualification_status', 'risk_level',
+        'quality_rating_avg', 'fulfillment_rate',
+        'category__name', 'service_type__name'
+    ))
     
-    # Statistiche per stato qualifica
-    by_qualification = list(
-        Vendor.objects.values('qualification_status')
-        .annotate(count=Count('vendor_code'))
-        .order_by('qualification_status')
-    )
+    # Rename nested fields
+    for vendor in vendors_data:
+        vendor['category'] = {'name': vendor.pop('category__name', None)}
+        vendor['service_type'] = {'name': vendor.pop('service_type__name', None)}
     
-    for item in by_qualification:
-        item['status'] = item.pop('qualification_status')
-    
-    # Statistiche per livello di rischio
-    by_risk = list(
-        Vendor.objects.values('risk_level')
-        .annotate(count=Count('vendor_code'))
-        .order_by('risk_level')
-    )
-    
-    for item in by_risk:
-        item['risk'] = item.pop('risk_level')
-    
-    # Statistiche per paese (top 10)
-    by_country_query = Vendor.objects.values('country').annotate(count=Count('vendor_code')).order_by('-count')
-    by_country = []
-    
-    for item in by_country_query[:10]:
-        by_country.append({
-            'country': item['country'] if item['country'] else 'Non Specificato',
-            'count': item['count']
-        })
-    
-    # Statistiche per qualità media (rating)
-    quality_ranges = [
-        {'range': '0-1', 'min': 0, 'max': 1},
-        {'range': '1-2', 'min': 1, 'max': 2},
-        {'range': '2-3', 'min': 2, 'max': 3},
-        {'range': '3-4', 'min': 3, 'max': 4},
-        {'range': '4-5', 'min': 4, 'max': 5},
-        {'range': 'N/A', 'min': None, 'max': None},
-    ]
-    
-    by_quality = []
-    for r in quality_ranges:
-        if r['min'] is None:
-            count = Vendor.objects.filter(quality_rating_avg__isnull=True).count()
-        else:
-            count = Vendor.objects.filter(
-                quality_rating_avg__gte=r['min'],
-                quality_rating_avg__lt=r['max']
-            ).count()
-        
-        by_quality.append({
-            'range': r['range'],
-            'count': count
-        })
-    
-    # Statistiche per tasso di adempimento
-    fulfillment_ranges = [
-        {'range': '0-20%', 'min': 0, 'max': 20},
-        {'range': '20-40%', 'min': 20, 'max': 40},
-        {'range': '40-60%', 'min': 40, 'max': 60},
-        {'range': '60-80%', 'min': 60, 'max': 80},
-        {'range': '80-100%', 'min': 80, 'max': 100},
-        {'range': 'N/A', 'min': None, 'max': None},
-    ]
-    
-    by_fulfillment = []
-    for r in fulfillment_ranges:
-        if r['min'] is None:
-            count = Vendor.objects.filter(fulfillment_rate__isnull=True).count()
-        else:
-            count = Vendor.objects.filter(
-                fulfillment_rate__gte=r['min'],
-                fulfillment_rate__lt=r['max']
-            ).count()
-        
-        by_fulfillment.append({
-            'range': r['range'],
-            'count': count
-        })
-    
-    return JsonResponse({
-        'by_category': by_category,
-        'by_qualification': by_qualification,
-        'by_risk': by_risk,
-        'by_country': by_country,
-        'by_quality': by_quality,
-        'by_fulfillment': by_fulfillment,
-    })
+    return JsonResponse({'vendors': vendors_data})
 
 
 @csrf_exempt
 def export_vendors_excel(request):
-    """Esporta i fornitori filtrati in formato Excel"""
+    """
+    Export vendors to Excel with applied filters
+    """
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill
+    from django.http import HttpResponse
     
-    # Controllo manuale autenticazione
-    if not request.user.is_authenticated:
-        return HttpResponse('Not authenticated', status=401)
+    vendors = Vendor.objects.select_related('category', 'service_type').all()
     
-    import io
-    from openpyxl import Workbook
-    from openpyxl.styles import Font, Alignment, PatternFill
-    from openpyxl.utils import get_column_letter
-    from datetime import datetime
-    
-    # Recupera i parametri di filtro
+    # Apply filters
     category = request.GET.get('category')
     qualification_status = request.GET.get('qualification_status')
     risk_level = request.GET.get('risk_level')
-    country = request.GET.get('country')
-    search = request.GET.get('search')
-    
-    # Costruisci la query
-    vendors = Vendor.objects.select_related('category', 'address').all()
+    service_type = request.GET.get('service_type')
+    search = request.GET.get('search', '')
     
     if category:
-        if category == 'Non Classificato':
-            vendors = vendors.filter(category__isnull=True)
-        else:
-            vendors = vendors.filter(category__name=category)
-    
+        vendors = vendors.filter(category__name=category)
     if qualification_status:
         vendors = vendors.filter(qualification_status=qualification_status)
-    
     if risk_level:
         vendors = vendors.filter(risk_level=risk_level)
-    
-    if country:
-        if country == 'Non Specificato':
-            vendors = vendors.filter(Q(country__isnull=True) | Q(country=''))
-        else:
-            vendors = vendors.filter(country=country)
-    
+    if service_type:
+        vendors = vendors.filter(service_type__name=service_type)
     if search:
         vendors = vendors.filter(
             Q(vendor_code__icontains=search) |
@@ -1677,126 +1564,53 @@ def export_vendors_excel(request):
             Q(email__icontains=search)
         )
     
-    # Crea il workbook
-    wb = Workbook()
+    # Create workbook
+    wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "Fornitori"
     
-    # Definisci gli headers
-    headers = [
-        'Codice Fornitore',
-        'Nome',
-        'Email',
-        'Telefono',
-        'Categoria',
-        'Stato Qualifica',
-        'Livello Rischio',
-        'Paese',
-        'Città',
-        'Indirizzo',
-        'Partita IVA',
-        'Codice Fiscale',
-        'Rating Qualità',
-        'Tasso Consegna Puntuale',
-        'Tasso Adempimento',
-        'Tempo Risposta Medio',
-        'Data Qualifica',
-        'Scadenza Qualifica',
-        'Ultimo Audit',
-        'Prossimo Audit',
-        'Attivo',
-        'Note Revisione'
-    ]
-    
-    # Stili per l'header
+    # Header style
     header_fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
-    header_font = Font(bold=True, color="FFFFFF", size=11)
-    header_alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    header_font = Font(bold=True, color="FFFFFF")
     
-    # Scrivi gli headers
-    for col_num, header in enumerate(headers, 1):
-        cell = ws.cell(row=1, column=col_num)
-        cell.value = header
+    # Headers
+    headers = ['Codice', 'Nome', 'Email', 'Categoria', 'Stato Qualifica', 
+               'Rischio', 'Tipo Servizio', 'Rating Qualità', 'Tasso Adempimento']
+    for col, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=header)
         cell.fill = header_fill
         cell.font = header_font
-        cell.alignment = header_alignment
     
-    # Scrivi i dati
-    for row_num, vendor in enumerate(vendors, 2):
-        ws.cell(row=row_num, column=1, value=vendor.vendor_code)
-        ws.cell(row=row_num, column=2, value=vendor.name or '')
-        ws.cell(row=row_num, column=3, value=vendor.email or '')
-        ws.cell(row=row_num, column=4, value=vendor.phone or '')
-        ws.cell(row=row_num, column=5, value=vendor.category.name if vendor.category else 'Non Classificato')
-        
-        # Stato qualifica con traduzione
-        status_map = {
-            'APPROVED': 'Approvato',
-            'PENDING': 'In attesa',
-            'REJECTED': 'Respinto'
-        }
-        ws.cell(row=row_num, column=6, value=status_map.get(vendor.qualification_status, vendor.qualification_status or ''))
-        
-        # Livello rischio con traduzione
-        risk_map = {
-            'LOW': 'Basso',
-            'MEDIUM': 'Medio',
-            'HIGH': 'Alto'
-        }
-        ws.cell(row=row_num, column=7, value=risk_map.get(vendor.risk_level, vendor.risk_level or ''))
-        
-        ws.cell(row=row_num, column=8, value=vendor.country or '')
-        
-        # Indirizzo
-        if vendor.address:
-            ws.cell(row=row_num, column=9, value=vendor.address.city or '')
-            ws.cell(row=row_num, column=10, value=vendor.address.full_address or '')
-        else:
-            ws.cell(row=row_num, column=9, value='')
-            ws.cell(row=row_num, column=10, value='')
-        
-        ws.cell(row=row_num, column=11, value=vendor.vat_number or '')
-        ws.cell(row=row_num, column=12, value=vendor.fiscal_code or '')
-        ws.cell(row=row_num, column=13, value=vendor.quality_rating_avg if vendor.quality_rating_avg else '')
-        ws.cell(row=row_num, column=14, value=vendor.on_time_delivery_rate if vendor.on_time_delivery_rate else '')
-        ws.cell(row=row_num, column=15, value=vendor.fulfillment_rate if vendor.fulfillment_rate else '')
-        ws.cell(row=row_num, column=16, value=vendor.average_response_time if vendor.average_response_time else '')
-        ws.cell(row=row_num, column=17, value=vendor.qualification_date.strftime('%d/%m/%Y') if vendor.qualification_date else '')
-        ws.cell(row=row_num, column=18, value=vendor.qualification_expiry.strftime('%d/%m/%Y') if vendor.qualification_expiry else '')
-        ws.cell(row=row_num, column=19, value=vendor.last_audit_date.strftime('%d/%m/%Y') if vendor.last_audit_date else '')
-        ws.cell(row=row_num, column=20, value=vendor.next_audit_due.strftime('%d/%m/%Y') if vendor.next_audit_due else '')
-        ws.cell(row=row_num, column=21, value='Sì' if vendor.is_active else 'No')
-        ws.cell(row=row_num, column=22, value=vendor.review_notes or '')
+    # Data rows
+    for row, vendor in enumerate(vendors, 2):
+        ws.cell(row=row, column=1, value=vendor.vendor_code)
+        ws.cell(row=row, column=2, value=vendor.name)
+        ws.cell(row=row, column=3, value=vendor.email)
+        ws.cell(row=row, column=4, value=vendor.category.name if vendor.category else '')
+        ws.cell(row=row, column=5, value=vendor.qualification_status)
+        ws.cell(row=row, column=6, value=vendor.risk_level)
+        ws.cell(row=row, column=7, value=vendor.service_type.name if vendor.service_type else '')
+        ws.cell(row=row, column=8, value=vendor.quality_rating_avg or 0)
+        ws.cell(row=row, column=9, value=vendor.fulfillment_rate or 0)
     
-    # Autosize columns
-    for col_num in range(1, len(headers) + 1):
-        column_letter = get_column_letter(col_num)
+    # Auto-adjust column widths
+    for column in ws.columns:
         max_length = 0
-        for cell in ws[column_letter]:
+        column_letter = column[0].column_letter
+        for cell in column:
             try:
                 if len(str(cell.value)) > max_length:
-                    max_length = len(str(cell.value))
+                    max_length = len(cell.value)
             except:
                 pass
         adjusted_width = min(max_length + 2, 50)
         ws.column_dimensions[column_letter].width = adjusted_width
     
-    # Freeze header row
-    ws.freeze_panes = 'A2'
-    
-    # Salva in memoria
-    output = io.BytesIO()
-    wb.save(output)
-    output.seek(0)
-    
-    # Crea la response
+    # Prepare response
     response = HttpResponse(
-        output.read(),
         content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
+    response['Content-Disposition'] = 'attachment; filename=fornitori_export.xlsx'
     
-    # Nome file con timestamp
-    filename = f'fornitori_export_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
-    response['Content-Disposition'] = f'attachment; filename="{filename}"'
-    
+    wb.save(response)
     return response
