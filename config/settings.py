@@ -214,6 +214,8 @@ JAZZMIN_SETTINGS = {
         }]
     },
 
+    "order_with_respect_to": ["vendors", "auth", "historical_performances", "purchase_orders"],
+
     # Map icons (adjust to your real app/model names; use lowercase app_label.model)
     "icons": {
         # Django/auth
