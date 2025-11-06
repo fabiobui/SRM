@@ -473,7 +473,3 @@ class VendorAdmin(admin.ModelAdmin):
         self.message_user(request, f'{updated} fornitori marcati per audit tra 30 giorni.', 'info')
     mark_for_audit.short_description = _('Programma audit (30 giorni)')
     
-    class Media:
-        css = {
-            'all': ('admin/css/vendor_admin.css',)
-        }
