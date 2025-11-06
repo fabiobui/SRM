@@ -351,6 +351,29 @@ class VendorEvaluationInline(admin.TabularInline):
     fields = ['criterion', 'score', 'notes', 'evaluated_at']
     readonly_fields = ['evaluated_at']
     autocomplete_fields = ['criterion']
+    
+    def formfield_for_dbfield(self, db_field, request, **kwargs):
+        if db_field.name == 'notes':
+            kwargs['widget'] = admin.widgets.AdminTextareaWidget(attrs={'rows': 2, 'cols': 40, 'style': 'width: 300px;'})
+        return super().formfield_for_dbfield(db_field, request, **kwargs)
+    
+    def expiry_status_display(self, obj):
+        if obj.pk:
+            status = obj.expiry_status
+            colors = {
+                'EXPIRED': 'red',
+                'EXPIRING_SOON': 'orange',
+                'EXPIRING': 'yellow',
+                'VALID': 'green',
+                'NO_EXPIRY': 'gray'
+            }
+            return format_html(
+                '<span style="color: {}; font-weight: bold;">{}</span>',
+                colors.get(status, 'black'),
+                status
+            )
+        return '-'
+    expiry_status_display.short_description = _('Stato Scadenza')
 
 
 # VendorEvaluation Admin
