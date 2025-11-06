@@ -1407,6 +1407,7 @@ def vendor_dashboard_view(request):
         ),
         'by_quality': [],
         'by_fulfillment': [],
+        'by_competencies': [],
     }
     
     # Add count for vendors without address or region
@@ -1420,6 +1421,62 @@ def vendor_dashboard_view(request):
             'region': 'Non specificato',
             'count': vendors_no_region
         })
+    
+    # Competencies aggregation - usando approccio Python invece di query DB
+    competencies_map = {
+        'RSPP': 'RSPP',
+        'ASPP': 'ASPP',
+        'Merci Pericolose': 'Merci Pericolose',
+        'TLS/ASL tecnico laser': 'TLS/ASL tecnico laser',
+        'Ergonomo europeo': 'Ergonomo europeo',
+        'Igienista industriale': 'Igienista industriale',
+        'ATEX': 'ATEX',
+        'Resp. Amianto': 'Resp. Amianto',
+        'Tecnico 818': 'Tecnico 818',
+        'Progettista antincendio': 'Progettista antincendio',
+        'Direzione Lavori': 'Direzione Lavori',
+        'Coord. Sicurezza Cantieri': 'Coord. Sicurezza Cantieri',
+        'Functional Safety Expert': 'Functional Safety Expert',
+        'HAZOP SIL Chairman': 'HAZOP SIL Chairman',
+        'HAZOP SIL Scribe': 'HAZOP SIL Scribe',
+        'QRA/FERA': 'QRA/FERA',
+        'RAM Analysis': 'RAM Analysis',
+        'Tecnico acustica': 'Tecnico acustica',
+        'Energy manager': 'Energy manager',
+        'Esperto Gestione Energia (EGE)': 'Esperto Gestione Energia (EGE)',
+        'Mobility Manager': 'Mobility Manager',
+        'AUDITOR 14001': 'AUDITOR 14001',
+        'AUDITOR 45001': 'AUDITOR 45001',
+        'AUDITOR 9001': 'AUDITOR 9001',
+        'AUDITOR 50001': 'AUDITOR 50001',
+        'AUDITOR SGS PIR': 'AUDITOR SGS PIR',
+        'Formatore Sicurezza': 'Formatore Sicurezza',
+        'Verifica ITP': 'Verifica ITP',
+        'Altro': 'Altro',
+    }
+    
+    # Count vendors with each competency usando Python
+    competency_counts = {}
+    for vendor in vendors:
+        if vendor.competences:
+            competences_str = str(vendor.competences).lower()
+            for key, label in competencies_map.items():
+                if key.lower() in competences_str or label.lower() in competences_str:
+                    competency_counts[label] = competency_counts.get(label, 0) + 1
+    
+    # Convert to list format
+    for label, count in competency_counts.items():
+        chart_data['by_competencies'].append({
+            'competency': label,
+            'count': count
+        })
+    
+    # Sort by count descending and take top 10
+    chart_data['by_competencies'] = sorted(
+        chart_data['by_competencies'], 
+        key=lambda x: x['count'], 
+        reverse=True
+    )[:10]
     
     # Quality rating distribution
     quality_ranges = [
@@ -1458,7 +1515,8 @@ def vendor_dashboard_view(request):
         'quality_rating_avg', 'fulfillment_rate',
         'vat_number', 'fiscal_code',
         'category__name', 'service_type__name',
-        'address__region', 'address__city'
+        'address__region', 'address__city',
+        'competences'
     ))
     
     # Rename nested fields for JavaScript

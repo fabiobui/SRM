@@ -238,6 +238,19 @@
             </div>
         </div>
         
+        <!-- Charts Row 4: Competencies -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="chart-container" style="height: 450px;">
+                    <h5 class="mb-3">Top 10 Competenze più diffuse</h5>
+                    <div class="loading-overlay" id="loading-competencies">
+                        <div class="spinner-border text-primary" role="status"></div>
+                    </div>
+                    <canvas id="competenciesChart" class="chart-clickable"></canvas>
+                </div>
+            </div>
+        </div>
+        
         <!-- Vendors Table -->
         <div class="row">
             <div class="col-12">
@@ -320,6 +333,7 @@
         createServiceTypeChart(chartData.by_service_type || []);
         createQualityChart(chartData.by_quality);
         createFulfillmentChart(chartData.by_fulfillment);
+        createCompetenciesChart(chartData.by_competencies || []);
         
         // Render tabella
         renderVendorsTable();
@@ -575,6 +589,57 @@
         });
     }
     
+    // Create Competencies Chart
+    function createCompetenciesChart(data) {
+        const ctx = document.getElementById('competenciesChart').getContext('2d');
+        const labels = data.map(item => item.competency || 'N/A');
+        const values = data.map(item => item.count);
+        
+        charts.competencies = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Numero Fornitori',
+                    data: values,
+                    backgroundColor: '#28a745'
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                onClick: (e, activeElements) => {
+                    if (activeElements.length > 0) {
+                        const index = activeElements[0].index;
+                        const competency = labels[index];
+                        applyFilter('competency', competency);
+                    }
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return 'Fornitori con questa competenza: ' + context.parsed.x;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
     // Apply filter
     function applyFilter(dimension, value) {
         activeFilters[dimension] = value;
@@ -614,7 +679,8 @@
             'category': 'Categoria',
             'qualification_status': 'Qualifica',
             'region': 'Regione',
-            'service_type': 'Tipo Servizio'
+            'service_type': 'Tipo Servizio',
+            'competency': 'Competenza'
         };
         
         for (const [key, value] of Object.entries(activeFilters)) {
@@ -649,9 +715,18 @@
                     vendorValue = vendor.service_type ? 
                         (vendor.service_type.name || vendor.service_type) : 
                         'Non Specificato';
+                } else if (key === 'competency') {
+                    // Check if vendor has this competency
+                    const hasCompetency = vendor.competencies && 
+                        (vendor.competencies.includes(value) || 
+                         JSON.stringify(vendor.competencies).toLowerCase().includes(value.toLowerCase()));
+                    if (!hasCompetency) {
+                        return false;
+                    }
+                    continue; // Skip the vendorValue check below
                 }
                 
-                if (vendorValue !== value) {
+                if (key !== 'competency' && vendorValue !== value) {
                     return false;
                 }
             }
@@ -666,7 +741,8 @@
                     vendor.address ? vendor.address.region : '',
                     vendor.address ? vendor.address.city : '',
                     vendor.vat_number || '',
-                    vendor.fiscal_code || ''
+                    vendor.fiscal_code || '',
+                    vendor.competencies ? JSON.stringify(vendor.competencies) : ''
                 ].join(' ').toLowerCase();
                 
                 if (!searchableText.includes(searchTerm)) {
