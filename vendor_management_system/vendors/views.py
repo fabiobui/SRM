@@ -1370,7 +1370,7 @@ def vendor_dashboard_view(request):
     """
     Dashboard view che mostra statistiche e grafici sui fornitori
     """
-    vendors = Vendor.objects.select_related('category', 'service_type', 'address').prefetch_related('competences').all()
+    vendors = Vendor.objects.select_related('category', 'service_type', 'service_type__parent', 'address').prefetch_related('competences').all()
     
     # Summary statistics
     total_vendors = vendors.count()
@@ -1382,14 +1382,16 @@ def vendor_dashboard_view(request):
     
     # Chart data aggregations
     chart_data = {
-        'by_category': list(
-            vendors.values('category__name')
-            .annotate(count=Count('vendor_code'), category=F('category__name'))
+        'by_vendor_type': list(
+            vendors.values('vendor_type')
+            .annotate(count=Count('vendor_code'), type=F('vendor_type'))
             .order_by('-count')
         ),
-        'by_qualification': list(
-            vendors.values('qualification_status')
-            .annotate(count=Count('vendor_code'), status=F('qualification_status'))
+        'by_service_type_parent': list(
+            vendors.exclude(service_type__isnull=True)
+            .exclude(service_type__parent__isnull=True)
+            .values('service_type__parent__name')
+            .annotate(count=Count('vendor_code'), service_type_parent=F('service_type__parent__name'))
             .order_by('-count')
         ),
         'by_region': list(
@@ -1410,6 +1412,16 @@ def vendor_dashboard_view(request):
         'by_competencies': [],
     }
     
+    # Add count for vendors without service_type parent
+    vendors_no_parent = vendors.filter(
+        Q(service_type__isnull=True) | Q(service_type__parent__isnull=True)
+    ).count()
+    if vendors_no_parent > 0:
+        chart_data['by_service_type_parent'].append({
+            'service_type_parent': 'Non specificato',
+            'count': vendors_no_parent
+        })
+    
     # Add count for vendors without address or region
     vendors_no_region = vendors.filter(
         Q(address__isnull=True) | 
@@ -1422,11 +1434,10 @@ def vendor_dashboard_view(request):
             'count': vendors_no_region
         })
     
-    # Competencies aggregation usando vendors_with_competence
+    # Competencies aggregation
     try:
         from vendor_management_system.vendors.models import Competence
         
-        # Conta i vendor per ogni competenza usando il campo corretto
         competencies_data = (
             Competence.objects
             .annotate(vendor_count=Count('vendors_with_competence'))
@@ -1435,29 +1446,14 @@ def vendor_dashboard_view(request):
             .order_by('-vendor_count')[:10]
         )
         
-        print(f"\n=== DEBUG COMPETENCES AGGREGATION ===")
-        print(f"Total vendors: {total_vendors}")
-        print(f"Total competences in DB: {Competence.objects.count()}")
-        print(f"Competences with vendors: {Competence.objects.annotate(vc=Count('vendors_with_competence')).filter(vc__gt=0).count()}")
-        
-        # Mostra le competenze con vendor
-        for comp_data in competencies_data:
-            print(f"  - {comp_data['name']}: {comp_data['vendor_count']} vendors")
-        
-        # Converti in formato per il grafico
         for comp_data in competencies_data:
             chart_data['by_competencies'].append({
                 'competency': comp_data['name'],
                 'count': comp_data['vendor_count']
             })
         
-        print(f"\nChart data: {len(chart_data['by_competencies'])} competencies")
-        print("=== END DEBUG ===\n")
-        
     except Exception as e:
-        print(f"ERROR in competencies aggregation: {e}")
-        import traceback
-        traceback.print_exc()
+        pass
     
     # Se non ci sono competenze, mostra placeholder
     if not chart_data['by_competencies']:
@@ -1495,7 +1491,7 @@ def vendor_dashboard_view(request):
         ).count()
         chart_data['by_fulfillment'].append({'range': range_label, 'count': count})
     
-    # Vendors data for table - INCLUDI LE COMPETENZE
+    # Vendors data for table
     vendors_data = []
     for vendor in vendors:
         vendor_dict = {
@@ -1508,17 +1504,20 @@ def vendor_dashboard_view(request):
             'fulfillment_rate': vendor.fulfillment_rate,
             'vat_number': vendor.vat_number,
             'fiscal_code': vendor.fiscal_code,
+            'vendor_type': vendor.vendor_type,
             'category': {'name': vendor.category.name if vendor.category else None},
-            'service_type': {'name': vendor.service_type.name if vendor.service_type else None},
+            'service_type': {
+                'name': vendor.service_type.name if vendor.service_type else None,
+                'parent': vendor.service_type.parent.name if vendor.service_type and vendor.service_type.parent else None
+            },
             'address': {
                 'street_address': vendor.address.street_address if vendor.address else None,
                 'city': vendor.address.city if vendor.address else None,
-                'state_province': vendor.address.state_province if vendor.address else None,  # AGGIUNGI QUESTA RIGA
+                'state_province': vendor.address.state_province if vendor.address else None,
                 'region': vendor.address.region if vendor.address else None,
                 'postal_code': vendor.address.postal_code if vendor.address else None,
                 'country': vendor.address.country if vendor.address else 'Italia',
             } if vendor.address else None,
-            # Aggiungi le competenze come lista di nomi
             'competences': [comp.name for comp in vendor.competences.all()]
         }
         vendors_data.append(vendor_dict)

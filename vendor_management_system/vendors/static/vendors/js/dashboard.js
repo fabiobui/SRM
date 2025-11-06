@@ -4,8 +4,8 @@ let filteredVendors = [];
 let activeFilters = {
     regions: [],
     provinces: [],
-    categories: [],
-    qualification_statuses: [],
+    vendor_types: [],
+    service_type_parents: [],
     competencies: []
 };
 let charts = {};
@@ -48,12 +48,8 @@ function initDashboard(chartDataJson, vendorsDataJson) {
     allVendors = vendorsDataJson;
     filteredVendors = [...allVendors];
     
-    console.log('Initializing dashboard...');
-    console.log('Total vendors:', allVendors.length);
-    console.log('Chart data:', chartDataJson);
-    
-    createCategoryChart(chartDataJson.by_category);
-    createQualificationChart(chartDataJson.by_qualification);
+    createVendorTypeChart(chartDataJson.by_vendor_type);
+    createServiceTypeParentChart(chartDataJson.by_service_type_parent);
     createRegionChart(chartDataJson.by_region);
     createProvinceChart(chartDataJson.by_province || []);
     createQualityChart(chartDataJson.by_quality);
@@ -66,15 +62,22 @@ function initDashboard(chartDataJson, vendorsDataJson) {
 }
 
 // Create charts
-function createCategoryChart(data) {
-    const ctx = document.getElementById('categoryChart').getContext('2d');
-    charts.category = new Chart(ctx, {
+function createVendorTypeChart(data) {
+    const ctx = document.getElementById('vendorTypeChart').getContext('2d');
+    const vendorTypeMap = {
+        'SUPPLIER': 'Fornitore',
+        'CONTRACTOR': 'Appaltatore',
+        'CONSULTANT': 'Consulente',
+        'SERVICE_PROVIDER': 'Fornitore di Servizi'
+    };
+    
+    charts.vendorType = new Chart(ctx, {
         type: 'doughnut',
         data: {
-            labels: data.map(item => item.category || 'Non Classificato'),
+            labels: data.map(item => vendorTypeMap[item.type] || item.type || 'Non Specificato'),
             datasets: [{
                 data: data.map(item => item.count),
-                backgroundColor: ['#007bff', '#28a745', '#ffc107', '#dc3545', '#17a2b8', '#6f42c1', '#fd7e14', '#20c997', '#e83e8c', '#6c757d']
+                backgroundColor: ['#007bff', '#28a745', '#ffc107', '#dc3545', '#17a2b8', '#6f42c1']
             }]
         },
         options: {
@@ -82,7 +85,14 @@ function createCategoryChart(data) {
             maintainAspectRatio: false,
             onClick: (e, activeElements) => {
                 if (activeElements.length > 0) {
-                    toggleFilter('categories', charts.category.data.labels[activeElements[0].index]);
+                    const label = charts.vendorType.data.labels[activeElements[0].index];
+                    const reverseMap = {
+                        'Fornitore': 'SUPPLIER',
+                        'Appaltatore': 'CONTRACTOR',
+                        'Consulente': 'CONSULTANT',
+                        'Fornitore di Servizi': 'SERVICE_PROVIDER'
+                    };
+                    toggleFilter('vendor_types', reverseMap[label] || label);
                 }
             },
             plugins: { legend: { position: 'bottom' } }
@@ -90,22 +100,23 @@ function createCategoryChart(data) {
     });
 }
 
-function createQualificationChart(data) {
-    const ctx = document.getElementById('qualificationChart').getContext('2d');
-    const statusMap = { 'APPROVED': 'Approvato', 'PENDING': 'In attesa', 'REJECTED': 'Respinto' };
-    charts.qualification = new Chart(ctx, {
+function createServiceTypeParentChart(data) {
+    const ctx = document.getElementById('serviceTypeChart').getContext('2d');
+    charts.serviceTypeParent = new Chart(ctx, {
         type: 'pie',
         data: {
-            labels: data.map(item => statusMap[item.status] || item.status),
-            datasets: [{ data: data.map(item => item.count), backgroundColor: ['#28a745', '#ffc107', '#dc3545'] }]
+            labels: data.map(item => item.service_type_parent || 'Non Specificato'),
+            datasets: [{
+                data: data.map(item => item.count),
+                backgroundColor: ['#28a745', '#ffc107', '#dc3545', '#17a2b8', '#6f42c1', '#fd7e14', '#20c997']
+            }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
             onClick: (e, activeElements) => {
                 if (activeElements.length > 0) {
-                    const reverseMap = { 'Approvato': 'APPROVED', 'In attesa': 'PENDING', 'Respinto': 'REJECTED' };
-                    toggleFilter('qualification_statuses', reverseMap[charts.qualification.data.labels[activeElements[0].index]]);
+                    toggleFilter('service_type_parents', charts.serviceTypeParent.data.labels[activeElements[0].index]);
                 }
             },
             plugins: { legend: { position: 'bottom' } }
@@ -139,63 +150,27 @@ function createRegionChart(data) {
 function createProvinceChart(data) {
     const ctx = document.getElementById('provinceChart').getContext('2d');
     
-    console.log('=== PROVINCE CHART DEBUG ===');
-    console.log('Data received:', data);
-    
     // Se non ci sono dati dal backend, calcoliamo manualmente
     if (!data || data.length === 0) {
-        console.log('No province data from backend, calculating from vendors...');
-        
-        // Mostra i primi 10 address per capire la struttura
-        console.log('=== Checking first 10 vendors addresses ===');
-        allVendors.slice(0, 10).forEach((vendor, i) => {
-            console.log(`Vendor ${i} (${vendor.vendor_code}):`, {
-                has_address: !!vendor.address,
-                address: vendor.address,
-                state_province: vendor.address?.state_province,
-                region: vendor.address?.region
-            });
-        });
-        
         const provinceCount = {};
-        let vendorsWithProvince = 0;
-        let vendorsWithoutProvince = 0;
         
-        allVendors.forEach((vendor, index) => {
-            if (vendor.address) {
-                const province = vendor.address.state_province;
-                
-                if (province && province.trim() !== '' && province !== 'Non Specificato') {
-                    provinceCount[province.trim()] = (provinceCount[province.trim()] || 0) + 1;
-                    vendorsWithProvince++;
-                } else {
-                    vendorsWithoutProvince++;
-                    if (vendorsWithoutProvince <= 5) {
-                        console.log(`Vendor ${index} has no province:`, vendor.address);
-                    }
+        allVendors.forEach((vendor) => {
+            if (vendor.address && vendor.address.state_province) {
+                const province = vendor.address.state_province.trim();
+                if (province && province !== 'Non Specificato' && province !== '') {
+                    provinceCount[province] = (provinceCount[province] || 0) + 1;
                 }
-            } else {
-                vendorsWithoutProvince++;
             }
         });
         
-        console.log(`Vendors WITH province: ${vendorsWithProvince}`);
-        console.log(`Vendors WITHOUT province: ${vendorsWithoutProvince}`);
-        console.log('Province counts:', provinceCount);
-        console.log('Unique provinces found:', Object.keys(provinceCount).length);
-        
-        // Converti in array e ordina per count
         data = Object.entries(provinceCount)
             .map(([province, count]) => ({ province, count }))
             .sort((a, b) => b.count - a.count);
-        
-        console.log('Top 10 provinces:', data.slice(0, 10));
     }
     
     allProvinces = data;
     
     if (data.length === 0) {
-        console.warn('⚠️ NO PROVINCE DATA - Creating empty chart');
         charts.province = new Chart(ctx, {
             type: 'bar',
             data: {
@@ -215,8 +190,6 @@ function createProvinceChart(data) {
     
     const labels = data.map(item => item.province);
     const values = data.map(item => item.count);
-    
-    console.log(`✓ Creating chart with ${labels.length} provinces`);
     
     charts.province = new Chart(ctx, {
         type: 'bar',
@@ -250,8 +223,6 @@ function createProvinceChart(data) {
             }
         }
     });
-    
-    console.log('✓ Province chart created successfully');
 }
 
 function createQualityChart(data) {
@@ -313,12 +284,8 @@ function createCompetenciesChart(data) {
 
 // Update Province Chart
 function updateProvinceChart() {
-    console.log('=== UPDATE PROVINCE CHART ===');
-    console.log('Active region filters:', activeFilters.regions);
-    
     if (activeFilters.regions.length === 0) {
         // Mostra TUTTE le province
-        console.log('Showing all provinces');
         const labels = allProvinces.map(item => item.province || 'Non Specificato');
         const values = allProvinces.map(item => item.count);
         
@@ -330,12 +297,10 @@ function updateProvinceChart() {
         document.getElementById('province-region-badge').style.display = 'none';
     } else {
         // Filtra province per le regioni selezionate
-        console.log('Filtering provinces by selected regions');
         const filteredData = {};
         
         allVendors.forEach(v => {
             if (v.address && v.address.state_province && v.address.region) {
-                // Verifica se la regione del vendor è tra quelle selezionate
                 if (activeFilters.regions.includes(v.address.region)) {
                     const province = v.address.state_province;
                     filteredData[province] = (filteredData[province] || 0) + 1;
@@ -343,12 +308,8 @@ function updateProvinceChart() {
             }
         });
         
-        console.log('Filtered province data:', filteredData);
-        
         const labels = Object.keys(filteredData).sort((a, b) => filteredData[b] - filteredData[a]);
         const values = labels.map(label => filteredData[label]);
-        
-        console.log('Filtered provinces:', labels.length);
         
         charts.province.data.labels = labels;
         charts.province.data.datasets[0].data = values;
@@ -362,7 +323,6 @@ function updateProvinceChart() {
     }
     
     charts.province.update();
-    console.log('Province chart updated');
 }
 
 // Filter functions
@@ -384,7 +344,7 @@ function toggleFilter(dimension, value) {
 }
 
 function clearAllFilters() {
-    activeFilters = { regions: [], provinces: [], categories: [], qualification_statuses: [], competencies: [] };
+    activeFilters = { regions: [], provinces: [], vendor_types: [], service_type_parents: [], competencies: [] };
     document.getElementById('search-input').value = '';
     updateProvinceChart();
     updateActiveFiltersDisplay();
@@ -416,8 +376,11 @@ function updateActiveFiltersDisplay() {
     
     container.innerHTML = '';
     const filterLabels = {
-        'categories': 'Categoria', 'qualification_statuses': 'Qualifica',
-        'regions': 'Regione', 'provinces': 'Provincia', 'competencies': 'Competenza'
+        'vendor_types': 'Tipo Fornitore',
+        'service_type_parents': 'Tipo Servizio',
+        'regions': 'Regione',
+        'provinces': 'Provincia',
+        'competencies': 'Competenza'
     };
     
     Object.entries(activeFilters).forEach(([key, values]) => {
@@ -434,12 +397,14 @@ function filterVendors() {
     const searchTerm = document.getElementById('search-input').value.toLowerCase();
     
     filteredVendors = allVendors.filter(vendor => {
-        if (activeFilters.categories.length > 0) {
-            const vendorCategory = vendor.category ? (vendor.category.name || vendor.category) : 'Non Classificato';
-            if (!activeFilters.categories.includes(vendorCategory)) return false;
+        if (activeFilters.vendor_types.length > 0) {
+            if (!activeFilters.vendor_types.includes(vendor.vendor_type)) return false;
         }
         
-        if (activeFilters.qualification_statuses.length > 0 && !activeFilters.qualification_statuses.includes(vendor.qualification_status)) return false;
+        if (activeFilters.service_type_parents.length > 0) {
+            const vendorServiceTypeParent = vendor.service_type?.parent || 'Non Specificato';
+            if (!activeFilters.service_type_parents.includes(vendorServiceTypeParent)) return false;
+        }
         
         if (activeFilters.regions.length > 0) {
             const vendorRegion = vendor.address?.region || 'Non Specificato';
@@ -459,6 +424,7 @@ function filterVendors() {
         if (searchTerm) {
             const searchableText = [
                 vendor.vendor_code, vendor.name, vendor.email,
+                vendor.vendor_type, vendor.service_type?.parent,
                 vendor.category?.name || vendor.category, vendor.address?.region,
                 vendor.address?.city, vendor.address?.state_province,
                 vendor.vat_number, vendor.fiscal_code,
@@ -483,6 +449,13 @@ function renderVendorsTable() {
         return;
     }
     
+    const vendorTypeMap = {
+        'SUPPLIER': 'Fornitore',
+        'CONTRACTOR': 'Appaltatore',
+        'CONSULTANT': 'Consulente',
+        'SERVICE_PROVIDER': 'Fornitore di Servizi'
+    };
+    
     tbody.innerHTML = filteredVendors.map(vendor => {
         const badges = {
             'APPROVED': 'status-approved">Approvato', 'PENDING': 'status-pending">In attesa',
@@ -492,14 +465,15 @@ function renderVendorsTable() {
         const badge = vendor.qualification_status ? `<span class="status-badge ${badges[vendor.qualification_status] || ''}"></span>` : '';
         const rating = vendor.quality_rating_avg || vendor.quality_rating || 0;
         const performance = rating > 0 ? `⭐ ${parseFloat(rating).toFixed(1)}/5` : '<span class="text-muted">N/A</span>';
+        const vendorTypeLabel = vendorTypeMap[vendor.vendor_type] || vendor.vendor_type || '<span class="text-muted">Non Specificato</span>';
         
         return `<tr>
             <td><code>${vendor.vendor_code}</code></td>
             <td><strong>${vendor.name || 'N/A'}</strong><br><small class="text-muted">${vendor.email || ''}</small></td>
-            <td>${vendor.category?.name || vendor.category || '<span class="text-muted">Non Classificato</span>'}</td>
-            <td>${vendor.address?.region || '<span class="text-muted">N/A</span>'}</td>
+            <td>${vendorTypeLabel}</td>
+            <td>${vendor.service_type?.parent || '<span class="text-muted">N/A</span>'}</td>
             <td>${badge}</td>
-            <td>${vendor.service_type?.name || vendor.service_type || '<span class="text-muted">N/A</span>'}</td>
+            <td>${vendor.address?.region || '<span class="text-muted">N/A</span>'}</td>
             <td>${performance}</td>
             <td><a href="/admin/vendors/vendor/${vendor.vendor_code}/change/" class="btn btn-sm btn-outline-primary" target="_blank"><i class="fas fa-eye"></i></a></td>
         </tr>`;
