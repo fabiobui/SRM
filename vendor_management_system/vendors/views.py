@@ -1370,7 +1370,7 @@ def vendor_dashboard_view(request):
     """
     Dashboard view che mostra statistiche e grafici sui fornitori
     """
-    vendors = Vendor.objects.select_related('category', 'service_type', 'address').all()
+    vendors = Vendor.objects.select_related('category', 'service_type', 'address').prefetch_related('competences').all()
     
     # Summary statistics
     total_vendors = vendors.count()
@@ -1422,77 +1422,47 @@ def vendor_dashboard_view(request):
             'count': vendors_no_region
         })
     
-    # Competencies aggregation - usando approccio Python invece di query DB
-    competencies_list = [
-        'RSPP',
-        'ASPP',
-        'Merci Pericolose',
-        'TLS/ASL tecnico laser',
-        'Ergonomo europeo',
-        'Igienista industriale',
-        'ATEX',
-        'Resp. Amianto',
-        'Tecnico 818',
-        'Progettista antincendio',
-        'Direzione Lavori',
-        'Coord. Sicurezza Cantieri',
-        'Functional Safety Expert',
-        'HAZOP SIL Chairman',
-        'HAZOP SIL Scribe',
-        'QRA/FERA',
-        'RAM Analysis',
-        'Tecnico acustica',
-        'Energy manager',
-        'Esperto Gestione Energia (EGE)',
-        'Mobility Manager',
-        'AUDITOR 14001',
-        'AUDITOR 45001',
-        'AUDITOR 9001',
-        'AUDITOR 50001',
-        'AUDITOR SGS PIR',
-        'Formatore Sicurezza',
-        'Verifica ITP',
-        'Altro',
-    ]
-    
-    # Count vendors with each competency usando Python
-    competency_counts = {}
-    vendors_with_competences = 0
-    
-    for vendor in vendors:
-        if vendor.competences:
-            vendors_with_competences += 1
-            # Convert to string and lowercase for comparison
-            competences_str = str(vendor.competences).lower()
-            
-            # Check each competency
-            for competency in competencies_list:
-                if competency.lower() in competences_str:
-                    competency_counts[competency] = competency_counts.get(competency, 0) + 1
-    
-    # Debug: print to console
-    print(f"DEBUG: Total vendors: {total_vendors}")
-    print(f"DEBUG: Vendors with competences: {vendors_with_competences}")
-    print(f"DEBUG: Competency counts: {competency_counts}")
-    
-    # Convert to list format
-    if competency_counts:
-        for label, count in competency_counts.items():
+    # Competencies aggregation usando vendors_with_competence
+    try:
+        from vendor_management_system.vendors.models import Competence
+        
+        # Conta i vendor per ogni competenza usando il campo corretto
+        competencies_data = (
+            Competence.objects
+            .annotate(vendor_count=Count('vendors_with_competence'))
+            .filter(vendor_count__gt=0)
+            .values('name', 'vendor_count')
+            .order_by('-vendor_count')[:10]
+        )
+        
+        print(f"\n=== DEBUG COMPETENCES AGGREGATION ===")
+        print(f"Total vendors: {total_vendors}")
+        print(f"Total competences in DB: {Competence.objects.count()}")
+        print(f"Competences with vendors: {Competence.objects.annotate(vc=Count('vendors_with_competence')).filter(vc__gt=0).count()}")
+        
+        # Mostra le competenze con vendor
+        for comp_data in competencies_data:
+            print(f"  - {comp_data['name']}: {comp_data['vendor_count']} vendors")
+        
+        # Converti in formato per il grafico
+        for comp_data in competencies_data:
             chart_data['by_competencies'].append({
-                'competency': label,
-                'count': count
+                'competency': comp_data['name'],
+                'count': comp_data['vendor_count']
             })
         
-        # Sort by count descending and take top 10
-        chart_data['by_competencies'] = sorted(
-            chart_data['by_competencies'], 
-            key=lambda x: x['count'], 
-            reverse=True
-        )[:10]
-    else:
-        # Se non ci sono competenze, aggiungi dati di esempio per evitare grafico vuoto
+        print(f"\nChart data: {len(chart_data['by_competencies'])} competencies")
+        print("=== END DEBUG ===\n")
+        
+    except Exception as e:
+        print(f"ERROR in competencies aggregation: {e}")
+        import traceback
+        traceback.print_exc()
+    
+    # Se non ci sono competenze, mostra placeholder
+    if not chart_data['by_competencies']:
         chart_data['by_competencies'] = [
-            {'competency': 'Nessuna competenza registrata', 'count': 0}
+            {'competency': 'Nessuna competenza assegnata', 'count': 0}
         ]
     
     # Quality rating distribution
@@ -1525,25 +1495,29 @@ def vendor_dashboard_view(request):
         ).count()
         chart_data['by_fulfillment'].append({'range': range_label, 'count': count})
     
-    # Vendors data for table
-    vendors_data = list(vendors.values(
-        'vendor_code', 'name', 'email',
-        'qualification_status', 'risk_level',
-        'quality_rating_avg', 'fulfillment_rate',
-        'vat_number', 'fiscal_code',
-        'category__name', 'service_type__name',
-        'address__region', 'address__city',
-        'competences'
-    ))
-    
-    # Rename nested fields for JavaScript
-    for vendor in vendors_data:
-        vendor['category'] = {'name': vendor.pop('category__name', None)}
-        vendor['service_type'] = {'name': vendor.pop('service_type__name', None)}
-        vendor['address'] = {
-            'region': vendor.pop('address__region', None),
-            'city': vendor.pop('address__city', None)
+    # Vendors data for table - INCLUDI LE COMPETENZE
+    vendors_data = []
+    for vendor in vendors:
+        vendor_dict = {
+            'vendor_code': vendor.vendor_code,
+            'name': vendor.name,
+            'email': vendor.email,
+            'qualification_status': vendor.qualification_status,
+            'risk_level': vendor.risk_level,
+            'quality_rating_avg': vendor.quality_rating_avg,
+            'fulfillment_rate': vendor.fulfillment_rate,
+            'vat_number': vendor.vat_number,
+            'fiscal_code': vendor.fiscal_code,
+            'category': {'name': vendor.category.name if vendor.category else None},
+            'service_type': {'name': vendor.service_type.name if vendor.service_type else None},
+            'address': {
+                'region': vendor.address.region if vendor.address else None,
+                'city': vendor.address.city if vendor.address else None
+            },
+            # Aggiungi le competenze come lista di nomi
+            'competences': [comp.name for comp in vendor.competences.all()]
         }
+        vendors_data.append(vendor_dict)
     
     context = {
         'total_vendors': total_vendors,

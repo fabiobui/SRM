@@ -198,6 +198,8 @@ JAZZMIN_SETTINGS = {
     "site_brand": "VMS",
     "welcome_sign": "Benvenuto nell'area amministrativa",
     "navigation_expanded": True,
+    # Copyright on the footer
+    "copyright": "Fabio Bui - Fulgard",
 
     # Defaults to avoid the circle bullet icons
     "default_icon_parents": "fas fa-folder-open",

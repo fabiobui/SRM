@@ -705,29 +705,39 @@
                     vendorValue = vendor.category ? 
                         (vendor.category.name || vendor.category) : 
                         'Non Classificato';
+                    if (vendorValue !== value) {
+                        return false;
+                    }
                 } else if (key === 'qualification_status') {
                     vendorValue = vendor.qualification_status;
+                    if (vendorValue !== value) {
+                        return false;
+                    }
                 } else if (key === 'region') {
                     vendorValue = vendor.address && vendor.address.region ? 
                         vendor.address.region : 
                         'Non Specificato';
+                    if (vendorValue !== value) {
+                        return false;
+                    }
                 } else if (key === 'service_type') {
                     vendorValue = vendor.service_type ? 
                         (vendor.service_type.name || vendor.service_type) : 
                         'Non Specificato';
+                    if (vendorValue !== value) {
+                        return false;
+                    }
                 } else if (key === 'competency') {
-                    // Check if vendor has this competency
-                    const hasCompetency = vendor.competencies && 
-                        (vendor.competencies.includes(value) || 
-                         JSON.stringify(vendor.competencies).toLowerCase().includes(value.toLowerCase()));
+                    // Check if vendor has this competency in the array
+                    const hasCompetency = vendor.competences && 
+                        Array.isArray(vendor.competences) &&
+                        vendor.competences.includes(value);
+                    
+                    console.log(`Checking vendor ${vendor.vendor_code} for competency "${value}":`, hasCompetency, vendor.competences);
+                    
                     if (!hasCompetency) {
                         return false;
                     }
-                    continue; // Skip the vendorValue check below
-                }
-                
-                if (key !== 'competency' && vendorValue !== value) {
-                    return false;
                 }
             }
             
@@ -742,7 +752,7 @@
                     vendor.address ? vendor.address.city : '',
                     vendor.vat_number || '',
                     vendor.fiscal_code || '',
-                    vendor.competencies ? JSON.stringify(vendor.competencies) : ''
+                    vendor.competences ? vendor.competences.join(' ') : ''
                 ].join(' ').toLowerCase();
                 
                 if (!searchableText.includes(searchTerm)) {
