@@ -1370,7 +1370,7 @@ def vendor_dashboard_view(request):
     """
     Dashboard view che mostra statistiche e grafici sui fornitori
     """
-    vendors = Vendor.objects.select_related('category', 'service_type').all()
+    vendors = Vendor.objects.select_related('category', 'service_type', 'address').all()
     
     # Summary statistics
     total_vendors = vendors.count()
@@ -1392,9 +1392,12 @@ def vendor_dashboard_view(request):
             .annotate(count=Count('vendor_code'), status=F('qualification_status'))
             .order_by('-count')
         ),
-        'by_risk': list(
-            vendors.values('risk_level')
-            .annotate(count=Count('vendor_code'), risk=F('risk_level'))
+        'by_region': list(
+            vendors.exclude(address__isnull=True)
+            .exclude(address__region__isnull=True)
+            .exclude(address__region='')
+            .values('address__region')
+            .annotate(count=Count('vendor_code'), region=F('address__region'))
             .order_by('-count')
         ),
         'by_service_type': list(
@@ -1405,6 +1408,18 @@ def vendor_dashboard_view(request):
         'by_quality': [],
         'by_fulfillment': [],
     }
+    
+    # Add count for vendors without address or region
+    vendors_no_region = vendors.filter(
+        Q(address__isnull=True) | 
+        Q(address__region__isnull=True) | 
+        Q(address__region='')
+    ).count()
+    if vendors_no_region > 0:
+        chart_data['by_region'].append({
+            'region': 'Non specificato',
+            'count': vendors_no_region
+        })
     
     # Quality rating distribution
     quality_ranges = [
@@ -1442,13 +1457,18 @@ def vendor_dashboard_view(request):
         'qualification_status', 'risk_level',
         'quality_rating_avg', 'fulfillment_rate',
         'vat_number', 'fiscal_code',
-        'category__name', 'service_type__name'
+        'category__name', 'service_type__name',
+        'address__region', 'address__city'
     ))
     
     # Rename nested fields for JavaScript
     for vendor in vendors_data:
         vendor['category'] = {'name': vendor.pop('category__name', None)}
         vendor['service_type'] = {'name': vendor.pop('service_type__name', None)}
+        vendor['address'] = {
+            'region': vendor.pop('address__region', None),
+            'city': vendor.pop('address__city', None)
+        }
     
     context = {
         'total_vendors': total_vendors,

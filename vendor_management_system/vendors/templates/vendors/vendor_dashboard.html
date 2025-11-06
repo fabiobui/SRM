@@ -194,15 +194,15 @@
             </div>
         </div>
         
-        <!-- Charts Row 2: Risk Level and Service Type -->
+        <!-- Charts Row 2: Region and Service Type -->
         <div class="row mb-4">
             <div class="col-lg-6 mb-3">
                 <div class="chart-container">
-                    <h5 class="mb-3">Livello di Rischio</h5>
-                    <div class="loading-overlay" id="loading-risk">
+                    <h5 class="mb-3">Fornitori per Regione</h5>
+                    <div class="loading-overlay" id="loading-region">
                         <div class="spinner-border text-primary" role="status"></div>
                     </div>
-                    <canvas id="riskChart" class="chart-clickable"></canvas>
+                    <canvas id="regionChart" class="chart-clickable"></canvas>
                 </div>
             </div>
             <div class="col-lg-6 mb-3">
@@ -258,8 +258,8 @@
                                     <th>Codice</th>
                                     <th>Nome</th>
                                     <th>Categoria</th>
+                                    <th>Regione</th>
                                     <th>Stato Qualifica</th>
-                                    <th>Rischio</th>
                                     <th>Tipo Servizio</th>
                                     <th>Performance</th>
                                     <th>Azioni</th>
@@ -316,7 +316,7 @@
         // Create charts con i dati già disponibili
         createCategoryChart(chartData.by_category);
         createQualificationChart(chartData.by_qualification);
-        createRiskChart(chartData.by_risk);
+        createRegionChart(chartData.by_region);
         createServiceTypeChart(chartData.by_service_type || []);
         createQualityChart(chartData.by_quality);
         createFulfillmentChart(chartData.by_fulfillment);
@@ -420,27 +420,20 @@
         });
     }
     
-    // Create Risk Chart
-    function createRiskChart(data) {
-        const ctx = document.getElementById('riskChart').getContext('2d');
-        const labels = data.map(item => {
-            const riskMap = {
-                'LOW': 'Basso',
-                'MEDIUM': 'Medio',
-                'HIGH': 'Alto'
-            };
-            return riskMap[item.risk] || item.risk;
-        });
+    // Create Region Chart (replaces Risk Chart)
+    function createRegionChart(data) {
+        const ctx = document.getElementById('regionChart').getContext('2d');
+        const labels = data.map(item => item.region || 'Non Specificato');
         const values = data.map(item => item.count);
         
-        charts.risk = new Chart(ctx, {
+        charts.region = new Chart(ctx, {
             type: 'bar',
             data: {
                 labels: labels,
                 datasets: [{
                     label: 'Numero Fornitori',
                     data: values,
-                    backgroundColor: ['#28a745', '#ffc107', '#dc3545']
+                    backgroundColor: '#17a2b8'
                 }]
             },
             options: {
@@ -449,13 +442,8 @@
                 onClick: (e, activeElements) => {
                     if (activeElements.length > 0) {
                         const index = activeElements[0].index;
-                        const riskMap = {
-                            'Basso': 'LOW',
-                            'Medio': 'MEDIUM',
-                            'Alto': 'HIGH'
-                        };
-                        const risk = riskMap[labels[index]];
-                        applyFilter('risk_level', risk);
+                        const region = labels[index];
+                        applyFilter('region', region);
                     }
                 },
                 scales: {
@@ -625,7 +613,7 @@
         const filterLabels = {
             'category': 'Categoria',
             'qualification_status': 'Qualifica',
-            'risk_level': 'Rischio',
+            'region': 'Regione',
             'service_type': 'Tipo Servizio'
         };
         
@@ -653,8 +641,10 @@
                         'Non Classificato';
                 } else if (key === 'qualification_status') {
                     vendorValue = vendor.qualification_status;
-                } else if (key === 'risk_level') {
-                    vendorValue = vendor.risk_level;
+                } else if (key === 'region') {
+                    vendorValue = vendor.address && vendor.address.region ? 
+                        vendor.address.region : 
+                        'Non Specificato';
                 } else if (key === 'service_type') {
                     vendorValue = vendor.service_type ? 
                         (vendor.service_type.name || vendor.service_type) : 
@@ -673,6 +663,8 @@
                     vendor.name,
                     vendor.email,
                     vendor.category ? (vendor.category.name || vendor.category) : '',
+                    vendor.address ? vendor.address.region : '',
+                    vendor.address ? vendor.address.city : '',
                     vendor.vat_number || '',
                     vendor.fiscal_code || ''
                 ].join(' ').toLowerCase();
@@ -717,13 +709,6 @@
                 'IN_PROGRESS': '<span class="status-badge status-pending">In Corso</span>'
             }[vendor.qualification_status] || '';
             
-            const riskBadge = {
-                'LOW': '<span class="status-badge risk-low">Basso</span>',
-                'MEDIUM': '<span class="status-badge risk-medium">Medio</span>',
-                'HIGH': '<span class="status-badge risk-high">Alto</span>',
-                'CRITICAL': '<span class="status-badge risk-high">Critico</span>'
-            }[vendor.risk_level] || '';
-            
             const qualityRating = vendor.quality_rating_avg || vendor.quality_rating || 0;
             const performance = qualityRating > 0 ? 
                 `⭐ ${parseFloat(qualityRating).toFixed(1)}/5` : 
@@ -740,6 +725,10 @@
                 (vendor.service_type.name || vendor.service_type) : 
                 '<span class="text-muted">N/A</span>';
             
+            const regionName = vendor.address && vendor.address.region ? 
+                vendor.address.region : 
+                '<span class="text-muted">N/A</span>';
+            
             return `
                 <tr>
                     <td><code>${vendor.vendor_code}</code></td>
@@ -748,8 +737,8 @@
                         <small class="text-muted">${vendorEmail}</small>
                     </td>
                     <td>${categoryName}</td>
+                    <td>${regionName}</td>
                     <td>${qualificationBadge}</td>
-                    <td>${riskBadge}</td>
                     <td>${serviceTypeName}</td>
                     <td>${performance}</td>
                     <td>
