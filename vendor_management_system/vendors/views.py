@@ -1423,60 +1423,77 @@ def vendor_dashboard_view(request):
         })
     
     # Competencies aggregation - usando approccio Python invece di query DB
-    competencies_map = {
-        'RSPP': 'RSPP',
-        'ASPP': 'ASPP',
-        'Merci Pericolose': 'Merci Pericolose',
-        'TLS/ASL tecnico laser': 'TLS/ASL tecnico laser',
-        'Ergonomo europeo': 'Ergonomo europeo',
-        'Igienista industriale': 'Igienista industriale',
-        'ATEX': 'ATEX',
-        'Resp. Amianto': 'Resp. Amianto',
-        'Tecnico 818': 'Tecnico 818',
-        'Progettista antincendio': 'Progettista antincendio',
-        'Direzione Lavori': 'Direzione Lavori',
-        'Coord. Sicurezza Cantieri': 'Coord. Sicurezza Cantieri',
-        'Functional Safety Expert': 'Functional Safety Expert',
-        'HAZOP SIL Chairman': 'HAZOP SIL Chairman',
-        'HAZOP SIL Scribe': 'HAZOP SIL Scribe',
-        'QRA/FERA': 'QRA/FERA',
-        'RAM Analysis': 'RAM Analysis',
-        'Tecnico acustica': 'Tecnico acustica',
-        'Energy manager': 'Energy manager',
-        'Esperto Gestione Energia (EGE)': 'Esperto Gestione Energia (EGE)',
-        'Mobility Manager': 'Mobility Manager',
-        'AUDITOR 14001': 'AUDITOR 14001',
-        'AUDITOR 45001': 'AUDITOR 45001',
-        'AUDITOR 9001': 'AUDITOR 9001',
-        'AUDITOR 50001': 'AUDITOR 50001',
-        'AUDITOR SGS PIR': 'AUDITOR SGS PIR',
-        'Formatore Sicurezza': 'Formatore Sicurezza',
-        'Verifica ITP': 'Verifica ITP',
-        'Altro': 'Altro',
-    }
+    competencies_list = [
+        'RSPP',
+        'ASPP',
+        'Merci Pericolose',
+        'TLS/ASL tecnico laser',
+        'Ergonomo europeo',
+        'Igienista industriale',
+        'ATEX',
+        'Resp. Amianto',
+        'Tecnico 818',
+        'Progettista antincendio',
+        'Direzione Lavori',
+        'Coord. Sicurezza Cantieri',
+        'Functional Safety Expert',
+        'HAZOP SIL Chairman',
+        'HAZOP SIL Scribe',
+        'QRA/FERA',
+        'RAM Analysis',
+        'Tecnico acustica',
+        'Energy manager',
+        'Esperto Gestione Energia (EGE)',
+        'Mobility Manager',
+        'AUDITOR 14001',
+        'AUDITOR 45001',
+        'AUDITOR 9001',
+        'AUDITOR 50001',
+        'AUDITOR SGS PIR',
+        'Formatore Sicurezza',
+        'Verifica ITP',
+        'Altro',
+    ]
     
     # Count vendors with each competency usando Python
     competency_counts = {}
+    vendors_with_competences = 0
+    
     for vendor in vendors:
         if vendor.competences:
+            vendors_with_competences += 1
+            # Convert to string and lowercase for comparison
             competences_str = str(vendor.competences).lower()
-            for key, label in competencies_map.items():
-                if key.lower() in competences_str or label.lower() in competences_str:
-                    competency_counts[label] = competency_counts.get(label, 0) + 1
+            
+            # Check each competency
+            for competency in competencies_list:
+                if competency.lower() in competences_str:
+                    competency_counts[competency] = competency_counts.get(competency, 0) + 1
+    
+    # Debug: print to console
+    print(f"DEBUG: Total vendors: {total_vendors}")
+    print(f"DEBUG: Vendors with competences: {vendors_with_competences}")
+    print(f"DEBUG: Competency counts: {competency_counts}")
     
     # Convert to list format
-    for label, count in competency_counts.items():
-        chart_data['by_competencies'].append({
-            'competency': label,
-            'count': count
-        })
-    
-    # Sort by count descending and take top 10
-    chart_data['by_competencies'] = sorted(
-        chart_data['by_competencies'], 
-        key=lambda x: x['count'], 
-        reverse=True
-    )[:10]
+    if competency_counts:
+        for label, count in competency_counts.items():
+            chart_data['by_competencies'].append({
+                'competency': label,
+                'count': count
+            })
+        
+        # Sort by count descending and take top 10
+        chart_data['by_competencies'] = sorted(
+            chart_data['by_competencies'], 
+            key=lambda x: x['count'], 
+            reverse=True
+        )[:10]
+    else:
+        # Se non ci sono competenze, aggiungi dati di esempio per evitare grafico vuoto
+        chart_data['by_competencies'] = [
+            {'competency': 'Nessuna competenza registrata', 'count': 0}
+        ]
     
     # Quality rating distribution
     quality_ranges = [
