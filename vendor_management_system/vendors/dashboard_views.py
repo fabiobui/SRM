@@ -20,6 +20,9 @@ def vendor_dashboard_view(request):
     # Summary statistics
     total_vendors = vendors.count()
     active_vendors = vendors.filter(is_active=True).count()
+    positive_vendors = vendors.filter(
+        vendor_final_evaluation__in=['POSITIVO', 'MOLTO POSITIVO', 'Positivo', 'Molto Positivo']
+    ).count()
     pending_qualification = vendors.filter(
         qualification_status__in=['PENDING', 'IN_PROGRESS', 'NOT_STARTED']
     ).count()
@@ -138,6 +141,8 @@ def vendor_dashboard_view(request):
             'fiscal_code': vendor.fiscal_code,
             'vendor_type': vendor.vendor_type,
             'is_ico_consultant': vendor.is_ico_consultant,
+            'is_active': vendor.is_active,
+            'vendor_final_evaluation': vendor.vendor_final_evaluation,
             'category': {'name': vendor.category.name if vendor.category else None},
             'service_type': {
                 'name': vendor.service_type.name if vendor.service_type else None,
@@ -158,6 +163,7 @@ def vendor_dashboard_view(request):
     context = {
         'total_vendors': total_vendors,
         'active_vendors': active_vendors,
+        'positive_vendors': positive_vendors,
         'pending_qualification': pending_qualification,
         'high_risk_vendors': high_risk_vendors,
         'chart_data_json': json.dumps(chart_data, cls=DjangoJSONEncoder),

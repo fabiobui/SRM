@@ -58,6 +58,7 @@ function initDashboard(chartDataJson, vendorsDataJson) {
     createCompetenciesChart(chartDataJson.by_competencies || []);
     
     renderVendorsTable();
+    updateStatistics();
     
     document.getElementById('search-input').addEventListener('input', filterVendors);
 }
@@ -70,6 +71,24 @@ function updateAllCharts() {
     updateRegionChart();
     updateProvinceChart();
     updateCompetenciesChart();
+}
+
+// Funzione per aggiornare le statistiche in alto
+function updateStatistics() {
+    const totalVendors = allVendors.length;
+    const activeVendors = allVendors.filter(v => v.is_active === true).length;
+    const selectedVendors = filteredVendors.length;
+    
+    // Filtra i fornitori positivi TRA QUELLI SELEZIONATI
+    const positiveVendors = filteredVendors.filter(v => {
+        const evaluation = v.vendor_final_evaluation;
+        return evaluation && (evaluation === 'Positivo' || evaluation === 'Molto Positivo');
+    }).length;
+    
+    document.getElementById('total-vendors').textContent = totalVendors;
+    document.getElementById('active-vendors').textContent = activeVendors;
+    document.getElementById('selected-vendors').textContent = selectedVendors;
+    document.getElementById('positive-vendors').textContent = positiveVendors;
 }
 
 // Funzione per ricalcolare i dati del grafico Tipo Fornitore
@@ -664,6 +683,7 @@ function clearAllFilters() {
     updateActiveFiltersDisplay();
     filterVendors();
     updateAllCharts();
+    updateStatistics();
 }
 
 function removeFilter(dimension, value) {
@@ -763,6 +783,7 @@ function filterVendors() {
     });
     
     renderVendorsTable();
+    updateStatistics();
     
     // Aggiorna i grafici solo se c'è un termine di ricerca
     if (searchTerm) {
