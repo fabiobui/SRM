@@ -78,7 +78,7 @@ def vendor_dashboard_view(request):
             .annotate(vendor_count=Count('vendors_with_competence'))
             .filter(vendor_count__gt=0)
             .values('name', 'vendor_count')
-            .order_by('-vendor_count')[:10]
+            .order_by('-vendor_count')
         )
         
         for comp_data in competencies_data:
@@ -133,6 +133,7 @@ def vendor_dashboard_view(request):
             'vendor_code': vendor.vendor_code,
             'name': vendor.name,
             'email': vendor.email,
+            'phone': vendor.phone if hasattr(vendor, 'phone') else None,
             'qualification_status': vendor.qualification_status,
             'risk_level': vendor.risk_level,
             'quality_rating_avg': vendor.quality_rating_avg,
@@ -281,8 +282,7 @@ def export_vendors_excel(request):
     header_font = Font(bold=True, color="FFFFFF")
     
     # Headers
-    headers = ['Codice', 'Nome', 'Email', 'Categoria', 'Stato Qualifica', 
-               'Rischio', 'Tipo Servizio', 'Rating Qualità', 'Tasso Adempimento']
+    headers = ['Nome', 'Tipo', 'Email', 'Telefono', 'Regione', 'Provincia', 'Valutazione Complessiva']
     for col, header in enumerate(headers, 1):
         cell = ws.cell(row=1, column=col, value=header)
         cell.fill = header_fill
@@ -290,15 +290,13 @@ def export_vendors_excel(request):
     
     # Data rows
     for row, vendor in enumerate(vendors, 2):
-        ws.cell(row=row, column=1, value=vendor.vendor_code)
-        ws.cell(row=row, column=2, value=vendor.name)
+        ws.cell(row=row, column=1, value=vendor.name)
+        ws.cell(row=row, column=2, value=vendor.vendor_type)
         ws.cell(row=row, column=3, value=vendor.email)
-        ws.cell(row=row, column=4, value=vendor.category.name if vendor.category else '')
-        ws.cell(row=row, column=5, value=vendor.qualification_status)
-        ws.cell(row=row, column=6, value=vendor.risk_level)
-        ws.cell(row=row, column=7, value=vendor.service_type.name if vendor.service_type else '')
-        ws.cell(row=row, column=8, value=vendor.quality_rating_avg or 0)
-        ws.cell(row=row, column=9, value=vendor.fulfillment_rate or 0)
+        ws.cell(row=row, column=4, value=vendor.phone if hasattr(vendor, 'phone') else '')
+        ws.cell(row=row, column=5, value=vendor.address.region if vendor.address else '')
+        ws.cell(row=row, column=6, value=vendor.address.state_province if vendor.address else '')
+        ws.cell(row=row, column=7, value=vendor.vendor_final_evaluation or 'DA VALUTARE')
     
     # Auto-adjust column widths
     for column in ws.columns:

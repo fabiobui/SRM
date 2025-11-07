@@ -318,10 +318,9 @@ function updateCompetenciesChart() {
         }
     });
     
-    // Ordina per conteggio e prendi le top 10
+    // Ordina per conteggio e mostra TUTTE le competenze
     const sortedCompetencies = Object.entries(competencyCounts)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 10);
+        .sort((a, b) => b[1] - a[1]);
     
     const labels = sortedCompetencies.map(([comp]) => comp);
     const data = sortedCompetencies.map(([, count]) => count);
@@ -549,7 +548,6 @@ function createCompetenciesChart(data) {
             datasets: [{ label: 'Numero Fornitori', data: data.map(item => item.count), backgroundColor: '#28a745' }]
         },
         options: {
-            indexAxis: 'y',
             responsive: true,
             maintainAspectRatio: false,
             onClick: (e, activeElements) => {
@@ -557,7 +555,15 @@ function createCompetenciesChart(data) {
                     toggleFilter('competencies', charts.competencies.data.labels[activeElements[0].index]);
                 }
             },
-            scales: { x: { beginAtZero: true, ticks: { stepSize: 1 } } },
+            scales: { 
+                y: { beginAtZero: true, ticks: { stepSize: 1 } },
+                x: { 
+                    ticks: {
+                        maxRotation: 90,
+                        minRotation: 45
+                    }
+                }
+            },
             plugins: { 
                 legend: { display: false },
                 tooltip: {
@@ -809,24 +815,28 @@ function renderVendorsTable() {
     };
     
     tbody.innerHTML = filteredVendors.map(vendor => {
-        const badges = {
-            'APPROVED': 'status-approved">Approvato', 'PENDING': 'status-pending">In attesa',
-            'REJECTED': 'status-rejected">Respinto', 'NOT_STARTED': 'status-pending">Non Iniziato',
-            'IN_PROGRESS': 'status-pending">In Corso'
-        };
-        const badge = vendor.qualification_status ? `<span class="status-badge ${badges[vendor.qualification_status] || ''}"></span>` : '';
-        const rating = vendor.quality_rating_avg || vendor.quality_rating || 0;
-        const performance = rating > 0 ? `⭐ ${parseFloat(rating).toFixed(1)}/5` : '<span class="text-muted">N/A</span>';
-        const vendorTypeLabel = vendorTypeMap[vendor.vendor_type] || vendor.vendor_type || '<span class="text-muted">Non Specificato</span>';
+        const region = vendor.address?.region || '<span class="text-muted">N/A</span>';
+        const province = vendor.address?.state_province || '<span class="text-muted">N/A</span>';
+        const phone = vendor.phone || '<span class="text-muted">N/A</span>';
+        const evaluation = vendor.vendor_final_evaluation || 'DA VALUTARE';
+        
+        // Map evaluation to badge class
+        let evaluationBadge = 'bg-secondary';
+        if (evaluation === 'MOLTO POSITIVO') evaluationBadge = 'bg-success';
+        else if (evaluation === 'POSITIVO') evaluationBadge = 'bg-info';
+        else if (evaluation === 'NEGATIVO') evaluationBadge = 'bg-danger';
+        else if (evaluation === 'DA VALUTARE') evaluationBadge = 'bg-warning';
+        
+        const vendorTypeLabel = vendor.vendor_type || '<span class="text-muted">N/A</span>';
         
         return `<tr>
-            <td><code>${vendor.vendor_code}</code></td>
-            <td><strong>${vendor.name || 'N/A'}</strong><br><small class="text-muted">${vendor.email || ''}</small></td>
+            <td><strong>${vendor.name || 'N/A'}</strong></td>
             <td>${vendorTypeLabel}</td>
-            <td>${vendor.service_type?.parent || '<span class="text-muted">N/A</span>'}</td>
-            <td>${badge}</td>
-            <td>${vendor.address?.region || '<span class="text-muted">N/A</span>'}</td>
-            <td>${performance}</td>
+            <td><small>${vendor.email || '<span class="text-muted">N/A</span>'}</small></td>
+            <td>${phone}</td>
+            <td>${region}</td>
+            <td>${province}</td>
+            <td><span class="badge ${evaluationBadge}">${evaluation}</span></td>
             <td><a href="/admin/vendors/vendor/${vendor.vendor_code}/change/" class="btn btn-sm btn-outline-primary" target="_blank"><i class="fas fa-eye"></i></a></td>
         </tr>`;
     }).join('');
