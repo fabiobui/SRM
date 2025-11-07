@@ -32,13 +32,10 @@ def vendor_dashboard_view(request):
             .annotate(count=Count('vendor_code'), type=F('vendor_type'))
             .order_by('-count')
         ),
-        'by_service_type_parent': list(
-            vendors.exclude(service_type__isnull=True)
-            .exclude(service_type__parent__isnull=True)
-            .values('service_type__parent__name')
-            .annotate(count=Count('vendor_code'), service_type_parent=F('service_type__parent__name'))
-            .order_by('-count')
-        ),
+        'by_ico_consultant': [
+            {'is_ico': True, 'count': vendors.filter(is_ico_consultant=True).count()},
+            {'is_ico': False, 'count': vendors.filter(is_ico_consultant=False).count()}
+        ],
         'by_region': list(
             vendors.exclude(address__isnull=True)
             .exclude(address__region__isnull=True)
@@ -56,16 +53,6 @@ def vendor_dashboard_view(request):
         'by_fulfillment': [],
         'by_competencies': [],
     }
-    
-    # Add count for vendors without service_type parent
-    vendors_no_parent = vendors.filter(
-        Q(service_type__isnull=True) | Q(service_type__parent__isnull=True)
-    ).count()
-    if vendors_no_parent > 0:
-        chart_data['by_service_type_parent'].append({
-            'service_type_parent': 'Non specificato',
-            'count': vendors_no_parent
-        })
     
     # Add count for vendors without address or region
     vendors_no_region = vendors.filter(
@@ -150,6 +137,7 @@ def vendor_dashboard_view(request):
             'vat_number': vendor.vat_number,
             'fiscal_code': vendor.fiscal_code,
             'vendor_type': vendor.vendor_type,
+            'is_ico_consultant': vendor.is_ico_consultant,
             'category': {'name': vendor.category.name if vendor.category else None},
             'service_type': {
                 'name': vendor.service_type.name if vendor.service_type else None,

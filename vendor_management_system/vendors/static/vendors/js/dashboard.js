@@ -5,7 +5,7 @@ let activeFilters = {
     regions: [],
     provinces: [],
     vendor_types: [],
-    service_type_parents: [],
+    ico_consultant: null, // null, true, or false
     competencies: []
 };
 let charts = {};
@@ -49,7 +49,7 @@ function initDashboard(chartDataJson, vendorsDataJson) {
     filteredVendors = [...allVendors];
     
     createVendorTypeChart(chartDataJson.by_vendor_type);
-    createServiceTypeParentChart(chartDataJson.by_service_type_parent);
+    createIcoConsultantChart(chartDataJson.by_ico_consultant);
     createRegionChart(chartDataJson.by_region);
     createProvinceChart(chartDataJson.by_province || []);
     createQualityChart(chartDataJson.by_quality);
@@ -100,15 +100,19 @@ function createVendorTypeChart(data) {
     });
 }
 
-function createServiceTypeParentChart(data) {
+function createIcoConsultantChart(data) {
     const ctx = document.getElementById('serviceTypeChart').getContext('2d');
-    charts.serviceTypeParent = new Chart(ctx, {
+    
+    charts.icoConsultant = new Chart(ctx, {
         type: 'pie',
         data: {
-            labels: data.map(item => item.service_type_parent || 'Non Specificato'),
+            labels: ['Consulenti ICO', 'Altri Fornitori'],
             datasets: [{
-                data: data.map(item => item.count),
-                backgroundColor: ['#28a745', '#ffc107', '#dc3545', '#17a2b8', '#6f42c1', '#fd7e14', '#20c997']
+                data: [
+                    data.find(d => d.is_ico === true)?.count || 0,
+                    data.find(d => d.is_ico === false)?.count || 0
+                ],
+                backgroundColor: ['#28a745', '#6c757d']
             }]
         },
         options: {
@@ -116,10 +120,25 @@ function createServiceTypeParentChart(data) {
             maintainAspectRatio: false,
             onClick: (e, activeElements) => {
                 if (activeElements.length > 0) {
-                    toggleFilter('service_type_parents', charts.serviceTypeParent.data.labels[activeElements[0].index]);
+                    const index = activeElements[0].index;
+                    const isIco = index === 0; // 0 = Consulenti ICO, 1 = Altri Fornitori
+                    toggleIcoFilter(isIco);
                 }
             },
-            plugins: { legend: { position: 'bottom' } }
+            plugins: { 
+                legend: { position: 'bottom' },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label || '';
+                            const value = context.parsed || 0;
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                            return `${label}: ${value} (${percentage}%)`;
+                        }
+                    }
+                }
+            }
         }
     });
 }
@@ -343,22 +362,57 @@ function toggleFilter(dimension, value) {
     filterVendors();
 }
 
+function toggleIcoFilter(isIco) {
+    if (activeFilters.ico_consultant === isIco) {
+        activeFilters.ico_consultant = null; // Deseleziona
+    } else {
+        activeFilters.ico_consultant = isIco;
+    }
+    
+    // Aggiorna il colore del grafico per evidenziare la selezione
+    if (charts.icoConsultant) {
+        charts.icoConsultant.data.datasets[0].backgroundColor = [
+            activeFilters.ico_consultant === true ? '#20c997' : '#28a745',
+            activeFilters.ico_consultant === false ? '#20c997' : '#6c757d'
+        ];
+        charts.icoConsultant.update();
+    }
+    
+    updateActiveFiltersDisplay();
+    filterVendors();
+}
+
 function clearAllFilters() {
-    activeFilters = { regions: [], provinces: [], vendor_types: [], service_type_parents: [], competencies: [] };
+    activeFilters = { regions: [], provinces: [], vendor_types: [], ico_consultant: null, competencies: [] };
     document.getElementById('search-input').value = '';
+    
+    // Reset grafico ICO Consultant
+    if (charts.icoConsultant) {
+        charts.icoConsultant.data.datasets[0].backgroundColor = ['#28a745', '#6c757d'];
+        charts.icoConsultant.update();
+    }
+    
     updateProvinceChart();
     updateActiveFiltersDisplay();
     filterVendors();
 }
 
 function removeFilter(dimension, value) {
-    const index = activeFilters[dimension].indexOf(value);
-    if (index > -1) activeFilters[dimension].splice(index, 1);
-    
-    if (dimension === 'regions') {
-        const provincesToRemove = Object.keys(provinceRegionMap).filter(p => provinceRegionMap[p] === value);
-        activeFilters.provinces = activeFilters.provinces.filter(p => !provincesToRemove.includes(p));
-        updateProvinceChart();
+    if (dimension === 'ico_consultant') {
+        activeFilters.ico_consultant = null;
+        if (charts.icoConsultant) {
+            charts.icoConsultant.data.datasets[0].backgroundColor = ['#28a745', '#6c757d'];
+            charts.icoConsultant.update();
+        }
+    } else {
+        const index = activeFilters[dimension].indexOf(value);
+        if (index > -1) activeFilters[dimension].splice(index, 1);
+        
+        if (dimension === 'regions') {
+            const provincesToRemove = Object.keys(provinceRegionMap).filter(p => provinceRegionMap[p] === value);
+            activeFilters.provinces = activeFilters.provinces.filter(p => !provincesToRemove.includes(p));
+            updateProvinceChart();
+        }
     }
     
     if (dimension === 'provinces') updateProvinceChart();
@@ -369,7 +423,9 @@ function removeFilter(dimension, value) {
 function updateActiveFiltersDisplay() {
     const container = document.getElementById('active-filters-container');
     const row = document.getElementById('active-filters-row');
-    const hasFilters = Object.values(activeFilters).some(arr => arr.length > 0);
+    const hasFilters = Object.values(activeFilters).some(val => 
+        (Array.isArray(val) && val.length > 0) || (val !== null && val !== undefined && !Array.isArray(val))
+    );
     
     row.style.display = hasFilters ? 'block' : 'none';
     if (!hasFilters) return;
@@ -377,19 +433,26 @@ function updateActiveFiltersDisplay() {
     container.innerHTML = '';
     const filterLabels = {
         'vendor_types': 'Tipo Fornitore',
-        'service_type_parents': 'Tipo Servizio',
         'regions': 'Regione',
         'provinces': 'Provincia',
         'competencies': 'Competenza'
     };
     
     Object.entries(activeFilters).forEach(([key, values]) => {
-        values.forEach(value => {
+        if (key === 'ico_consultant' && values !== null) {
             const chip = document.createElement('span');
             chip.className = 'filter-chip';
-            chip.innerHTML = `${filterLabels[key]}: <strong>${value}</strong> <span class="remove" onclick="removeFilter('${key}', '${value.replace(/'/g, "\\'")}')">✕</span>`;
+            const label = values ? 'Consulenti ICO' : 'Altri Fornitori';
+            chip.innerHTML = `Tipo: <strong>${label}</strong> <span class="remove" onclick="removeFilter('ico_consultant', null)">✕</span>`;
             container.appendChild(chip);
-        });
+        } else if (Array.isArray(values)) {
+            values.forEach(value => {
+                const chip = document.createElement('span');
+                chip.className = 'filter-chip';
+                chip.innerHTML = `${filterLabels[key]}: <strong>${value}</strong> <span class="remove" onclick="removeFilter('${key}', '${value.replace(/'/g, "\\'")}')">✕</span>`;
+                container.appendChild(chip);
+            });
+        }
     });
 }
 
@@ -401,9 +464,8 @@ function filterVendors() {
             if (!activeFilters.vendor_types.includes(vendor.vendor_type)) return false;
         }
         
-        if (activeFilters.service_type_parents.length > 0) {
-            const vendorServiceTypeParent = vendor.service_type?.parent || 'Non Specificato';
-            if (!activeFilters.service_type_parents.includes(vendorServiceTypeParent)) return false;
+        if (activeFilters.ico_consultant !== null) {
+            if (vendor.is_ico_consultant !== activeFilters.ico_consultant) return false;
         }
         
         if (activeFilters.regions.length > 0) {
