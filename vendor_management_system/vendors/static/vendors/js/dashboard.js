@@ -6,7 +6,8 @@ let activeFilters = {
     provinces: [],
     vendor_types: [],
     ico_consultant: null, // null, true, or false
-    competencies: []
+    competencies: [],
+    documents: []
 };
 let charts = {};
 let allProvinces = [];
@@ -56,6 +57,7 @@ function initDashboard(chartDataJson, vendorsDataJson) {
     createRegionChart(chartDataJson.by_region);
     createProvinceChart(chartDataJson.by_province || []);
     createCompetenciesChart(chartDataJson.by_competencies || []);
+    createDocumentsChart(chartDataJson.by_documents || []);
     
     renderVendorsTable();
     updateStatistics();
@@ -71,6 +73,7 @@ function updateAllCharts() {
     updateRegionChart();
     updateProvinceChart();
     updateCompetenciesChart();
+    updateDocumentsChart();
 }
 
 // Funzione per aggiornare le statistiche in alto
@@ -115,6 +118,11 @@ function updateVendorTypeChart() {
         if (activeFilters.competencies.length > 0) {
             const hasCompetency = activeFilters.competencies.some(comp => vendor.competences?.includes(comp));
             if (!hasCompetency) return false;
+        }
+        
+        if (activeFilters.documents.length > 0) {
+            const hasDocument = activeFilters.documents.some(doc => vendor.documents?.includes(doc));
+            if (!hasDocument) return false;
         }
         
         const searchTerm = document.getElementById('search-input').value.toLowerCase();
@@ -184,6 +192,11 @@ function updateIcoConsultantChart() {
             if (!hasCompetency) return false;
         }
         
+        if (activeFilters.documents.length > 0) {
+            const hasDocument = activeFilters.documents.some(doc => vendor.documents?.includes(doc));
+            if (!hasDocument) return false;
+        }
+        
         const searchTerm = document.getElementById('search-input').value.toLowerCase();
         if (searchTerm) {
             const searchableText = [
@@ -232,6 +245,11 @@ function updateRegionChart() {
         if (activeFilters.competencies.length > 0) {
             const hasCompetency = activeFilters.competencies.some(comp => vendor.competences?.includes(comp));
             if (!hasCompetency) return false;
+        }
+        
+        if (activeFilters.documents.length > 0) {
+            const hasDocument = activeFilters.documents.some(doc => vendor.documents?.includes(doc));
+            if (!hasDocument) return false;
         }
         
         const searchTerm = document.getElementById('search-input').value.toLowerCase();
@@ -294,6 +312,11 @@ function updateCompetenciesChart() {
             if (!activeFilters.provinces.includes(vendorProvince)) return false;
         }
         
+        if (activeFilters.documents.length > 0) {
+            const hasDocument = activeFilters.documents.some(doc => vendor.documents?.includes(doc));
+            if (!hasDocument) return false;
+        }
+        
         const searchTerm = document.getElementById('search-input').value.toLowerCase();
         if (searchTerm) {
             const searchableText = [
@@ -334,6 +357,82 @@ function updateCompetenciesChart() {
     charts.competencies.data.datasets[0].data = data;
     charts.competencies.data.datasets[0].backgroundColor = backgroundColors;
     charts.competencies.update();
+}
+
+// Funzione per ricalcolare i dati del grafico Documenti
+function updateDocumentsChart() {
+    const documentCounts = {};
+    
+    // Filtra i vendor escludendo il filtro documenti per calcolare il grafico
+    const vendorsWithoutDocumentFilter = allVendors.filter(vendor => {
+        // Applica tutti i filtri ECCETTO documenti
+        if (activeFilters.vendor_types.length > 0) {
+            if (!activeFilters.vendor_types.includes(vendor.vendor_type)) return false;
+        }
+        
+        if (activeFilters.ico_consultant !== null) {
+            if (vendor.is_ico_consultant !== activeFilters.ico_consultant) return false;
+        }
+        
+        if (activeFilters.regions.length > 0) {
+            const vendorRegion = vendor.address?.region || 'Non Specificato';
+            if (!activeFilters.regions.includes(vendorRegion)) return false;
+        }
+        
+        if (activeFilters.provinces.length > 0) {
+            const vendorProvince = vendor.address?.state_province || 'Non Specificato';
+            if (!activeFilters.provinces.includes(vendorProvince)) return false;
+        }
+        
+        if (activeFilters.competencies.length > 0) {
+            if (!vendor.competences || !Array.isArray(vendor.competences)) return false;
+            const hasMatchingCompetency = vendor.competences.some(comp => 
+                activeFilters.competencies.includes(comp)
+            );
+            if (!hasMatchingCompetency) return false;
+        }
+        
+        const searchTerm = document.getElementById('search-input').value.toLowerCase();
+        if (searchTerm) {
+            const searchableText = [
+                vendor.vendor_code, vendor.name, vendor.email,
+                vendor.vendor_type, vendor.service_type?.parent,
+                vendor.category?.name || vendor.category, vendor.address?.region,
+                vendor.address?.city, vendor.address?.state_province,
+                vendor.vat_number, vendor.fiscal_code,
+                vendor.competences?.join(' '),
+                vendor.documents?.join(' ')
+            ].join(' ').toLowerCase();
+            if (!searchableText.includes(searchTerm)) return false;
+        }
+        
+        return true;
+    });
+    
+    vendorsWithoutDocumentFilter.forEach(v => {
+        if (v.documents && Array.isArray(v.documents)) {
+            v.documents.forEach(doc => {
+                documentCounts[doc] = (documentCounts[doc] || 0) + 1;
+            });
+        }
+    });
+    
+    // Ordina per conteggio e mostra TUTTI i documenti
+    const sortedDocuments = Object.entries(documentCounts)
+        .sort((a, b) => b[1] - a[1]);
+    
+    const labels = sortedDocuments.map(([doc]) => doc);
+    const data = sortedDocuments.map(([, count]) => count);
+    
+    // Evidenzia le selezioni attive
+    const backgroundColors = labels.map(label => 
+        activeFilters.documents.includes(label) ? '#20c997' : '#ffc107'
+    );
+    
+    charts.documents.data.labels = labels;
+    charts.documents.data.datasets[0].data = data;
+    charts.documents.data.datasets[0].backgroundColor = backgroundColors;
+    charts.documents.update();
 }
 
 // Create charts
@@ -578,6 +677,45 @@ function createCompetenciesChart(data) {
     });
 }
 
+function createDocumentsChart(data) {
+    const ctx = document.getElementById('documentsChart').getContext('2d');
+    charts.documents = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: data.map(item => item.document || 'N/A'),
+            datasets: [{ label: 'Numero Fornitori', data: data.map(item => item.count), backgroundColor: '#ffc107' }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            onClick: (e, activeElements) => {
+                if (activeElements.length > 0) {
+                    toggleFilter('documents', charts.documents.data.labels[activeElements[0].index]);
+                }
+            },
+            scales: { 
+                y: { beginAtZero: true, ticks: { stepSize: 1 } },
+                x: { 
+                    ticks: {
+                        maxRotation: 90,
+                        minRotation: 45
+                    }
+                }
+            },
+            plugins: { 
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        afterLabel: function() {
+                            return 'Clicca per filtrare';
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
 // Update Province Chart
 function updateProvinceChart() {
     // Filtra i vendor escludendo il filtro province per calcolare il grafico
@@ -599,6 +737,11 @@ function updateProvinceChart() {
         if (activeFilters.competencies.length > 0) {
             const hasCompetency = activeFilters.competencies.some(comp => vendor.competences?.includes(comp));
             if (!hasCompetency) return false;
+        }
+        
+        if (activeFilters.documents.length > 0) {
+            const hasDocument = activeFilters.documents.some(doc => vendor.documents?.includes(doc));
+            if (!hasDocument) return false;
         }
         
         const searchTerm = document.getElementById('search-input').value.toLowerCase();
@@ -683,7 +826,7 @@ function toggleIcoFilter(isIco) {
 }
 
 function clearAllFilters() {
-    activeFilters = { regions: [], provinces: [], vendor_types: [], ico_consultant: null, competencies: [] };
+    activeFilters = { regions: [], provinces: [], vendor_types: [], ico_consultant: null, competencies: [], documents: [] };
     document.getElementById('search-input').value = '';
     
     updateActiveFiltersDisplay();
@@ -725,7 +868,8 @@ function updateActiveFiltersDisplay() {
         'vendor_types': 'Tipo Fornitore',
         'regions': 'Regione',
         'provinces': 'Provincia',
-        'competencies': 'Competenza'
+        'competencies': 'Competenza',
+        'documents': 'Documento'
     };
     
     Object.entries(activeFilters).forEach(([key, values]) => {
@@ -771,6 +915,11 @@ function filterVendors() {
         if (activeFilters.competencies.length > 0) {
             const hasCompetency = activeFilters.competencies.some(comp => vendor.competences?.includes(comp));
             if (!hasCompetency) return false;
+        }
+        
+        if (activeFilters.documents.length > 0) {
+            const hasDocument = activeFilters.documents.some(doc => vendor.documents?.includes(doc));
+            if (!hasDocument) return false;
         }
         
         if (searchTerm) {

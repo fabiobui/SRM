@@ -15,7 +15,7 @@ def vendor_dashboard_view(request):
     """
     Dashboard view che mostra statistiche e grafici sui fornitori
     """
-    vendors = Vendor.objects.select_related('category', 'service_type', 'service_type__parent', 'address').prefetch_related('competences').all()
+    vendors = Vendor.objects.select_related('category', 'service_type', 'service_type__parent', 'address').prefetch_related('competences', 'vendor_documents__document_type').all()
     
     # Summary statistics
     total_vendors = vendors.count()
@@ -55,6 +55,7 @@ def vendor_dashboard_view(request):
         'by_quality': [],
         'by_fulfillment': [],
         'by_competencies': [],
+        'by_documents': [],
     }
     
     # Add count for vendors without address or region
@@ -94,6 +95,33 @@ def vendor_dashboard_view(request):
     if not chart_data['by_competencies']:
         chart_data['by_competencies'] = [
             {'competency': 'Nessuna competenza assegnata', 'count': 0}
+        ]
+    
+    # Documents aggregation
+    try:
+        from vendor_management_system.vendors.models import DocumentType
+        
+        documents_data = (
+            DocumentType.objects
+            .annotate(vendor_count=Count('vendor_submissions__vendor', distinct=True))
+            .filter(vendor_count__gt=0)
+            .values('name', 'vendor_count')
+            .order_by('-vendor_count')
+        )
+        
+        for doc_data in documents_data:
+            chart_data['by_documents'].append({
+                'document': doc_data['name'],
+                'count': doc_data['vendor_count']
+            })
+        
+    except Exception as e:
+        pass
+    
+    # Se non ci sono documenti, mostra placeholder
+    if not chart_data['by_documents']:
+        chart_data['by_documents'] = [
+            {'document': 'Nessun documento assegnato', 'count': 0}
         ]
     
     # Quality rating distribution
@@ -157,7 +185,8 @@ def vendor_dashboard_view(request):
                 'postal_code': vendor.address.postal_code if vendor.address else None,
                 'country': vendor.address.country if vendor.address else 'Italia',
             } if vendor.address else None,
-            'competences': [comp.name for comp in vendor.competences.all()]
+            'competences': [comp.name for comp in vendor.competences.all()],
+            'documents': [doc.document_type.name for doc in vendor.vendor_documents.all() if doc.document_type]
         }
         vendors_data.append(vendor_dict)
     
