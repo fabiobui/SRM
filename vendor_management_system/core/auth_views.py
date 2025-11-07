@@ -64,14 +64,14 @@ class CustomLoginView(View):
         
         # Verifica se è superuser
         if user.is_superuser:
-            return redirect('/documents/dashboard/')
+            return redirect('/admin/')
         
         # Ottieni i nomi dei gruppi dell'utente
         user_groups = user.groups.values_list('name', flat=True)
         
         # Reindirizzamento basato sui ruoli
         if 'Admin' in user_groups or 'Revisore' in user_groups:
-            return redirect('/documents/dashboard/')
+            return redirect('/vendors/dashboard/')
         elif 'Fornitore' in user_groups:
             return redirect('/documents/portal/')
         else:
@@ -80,7 +80,7 @@ class CustomLoginView(View):
                 self.request if hasattr(self, 'request') else None,
                 'Nessun ruolo assegnato. Contatta l\'amministratore.'
             )
-            return redirect('/documents/dashboard/')
+            return redirect('/vendors/dashboard/')
 
 
 # In vendor_management_system/core/auth_views.py
