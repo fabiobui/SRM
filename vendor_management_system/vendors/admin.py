@@ -424,7 +424,7 @@ class VendorAdmin(admin.ModelAdmin):
                       'contractual_terms', 'reference_person')
         }),
         (_('Servizi'), {
-            'fields': ('qualification_type', 'service_type', 'cluster_cost', 
+            'fields': ('qualification_type', 'service_type', 'cluster_corso', 
                       'begin_experience_date', 'vendor_task_description')
         }),
         (_('Servizi Medici'), {

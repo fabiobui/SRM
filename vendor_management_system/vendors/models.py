@@ -1158,7 +1158,7 @@ class Vendor(models.Model):
         ('INDAGINI_STRUMENTALI', 'Indagini strumentali'),
     ]
 
-    CLUSTER_COST_CHOICES = [
+    CLUSTER_CORSO_CHOICES = [
         ('01', 'GenSpDirPre'),
         ('02', 'GenSpDirPre; Antincendio; Attrezzature'),
         ('03', 'GenSpDirPre; Segnaletica Stradale'),
@@ -1332,12 +1332,12 @@ class Vendor(models.Model):
         blank=True, null=True,
         help_text=_("Note aggiuntive sul servizio offerto dal fornitore")
     )
-    cluster_cost = models.CharField(
-        _("Cluster Costo"),
+    cluster_corso = models.CharField(
+        _("Cluster Corso"),
         max_length=50,
-        choices=CLUSTER_COST_CHOICES,
-        default='01',
-        help_text=_("Raggruppamento di costo per tipologia di servizio")
+        choices=CLUSTER_CORSO_CHOICES,
+        blank=True, null=True,
+        help_text=_("Raggruppamento di corso per tipologia di servizio")
     )
     begin_experience_date = models.DateField(
         _("Data Inizio Esperienza"),
