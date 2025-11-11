@@ -413,41 +413,60 @@ class VendorAdmin(admin.ModelAdmin):
     
     fieldsets = (
         (_('Informazioni Base'), {
-            'fields': ('vendor_code', 'name', 'vendor_type', 'vat_number', 'fiscal_code', 
-                      'category', 'risk_level', 'vendor_final_evaluation', 'is_active')
+            'fields': (
+                'vendor_code', 'old_code', 'name', 'vendor_type',
+                'vat_number', 'fiscal_code', 'category', 'risk_level',
+                'vendor_final_evaluation', 'is_active'
+            )
         }),
         (_('Contatti'), {
-            'fields': ('email', 'phone', 'reference_contact', 'website', 'address')
+            'fields': ('email', 'phone', 'reference_contact', 'website', 'address', 'contact_details')
         }),
         (_('Stato Contrattuale'), {
-            'fields': ('contractual_status', 'contractual_start_date', 'contractual_end_date', 
-                      'contractual_terms', 'reference_person')
+            'fields': (
+                'contractual_status', 'contractual_start_date', 'contractual_end_date',
+                'contractual_terms', 'reference_person'
+            )
         }),
         (_('Servizi'), {
-            'fields': ('qualification_type', 'service_type', 'cluster_corso', 
-                      'begin_experience_date', 'vendor_task_description')
+            'fields': (
+                'qualification_type', 'service_type', 'cluster_corso',
+                'begin_experience_date', 'vendor_task_description',
+                'service_additional', 'service_note', 'competences_zone'
+            )
         }),
         (_('Servizi Medici'), {
-            'fields': ('mobile_device', 'ambulatory_service', 'laboratory_service', 
-                      'licensed_physician_year', 'other_medical_service', 
-                      'doctor_registration', 'doctor_cv', 'doctor_cv2'),
+            'fields': (
+                'vendor_medical_service', 'mobile_device', 'ambulatory_service',
+                'laboratory_service', 'laboratory_independent',
+                'licensed_physician_year', 'date_of_establishment',
+                'other_medical_service', 'doctor_registration',
+                'doctor_cv', 'doctor_cv2'
+            ),
             'classes': ('collapse',)
         }),
         (_('Performance'), {
-            'fields': ('on_time_delivery_rate', 'quality_rating_avg', 
-                      'average_response_time', 'fulfillment_rate')
+            'fields': (
+                'on_time_delivery_rate', 'quality_rating_avg',
+                'average_response_time', 'fulfillment_rate'
+            )
         }),
         (_('Qualifica e Audit'), {
-            'fields': ('qualification_status', 'qualification_score', 'qualification_date', 
-                      'qualification_expiry', 'last_audit_date', 'next_audit_due', 
-                      'audit_overdue', 'review_notes')
+            'fields': (
+                'qualification_status', 'qualification_score', 'qualification_date',
+                'qualification_expiry', 'last_audit_date', 'next_audit_due',
+                'is_qualified', 'audit_overdue', 'review_notes'
+            )
+        }),
+        (_('Gestione/Altro'), {
+            'fields': ('vendor_management_update', 'is_ico_consultant', 'albo_zucchetti')
         }),
         (_('Account Utente'), {
             'fields': ('user_account',),
             'classes': ('collapse',)
         }),
     )
-    
+        
     def is_qualified_display(self, obj):
         if obj.is_qualified:
             return format_html('<span style="color: green; font-weight: bold;">✓ Qualificato</span>')

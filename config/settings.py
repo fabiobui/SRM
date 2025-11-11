@@ -198,14 +198,11 @@ JAZZMIN_SETTINGS = {
     "site_brand": "VMS",
     "welcome_sign": "Benvenuto nell'area amministrativa",
     "navigation_expanded": True,
-    # Copyright on the footer
     "copyright": "Fabio Bui - Fulgard",
 
-    # Defaults to avoid the circle bullet icons
     "default_icon_parents": "fas fa-folder-open",
     "default_icon_children": "fas fa-file-alt",
 
-    # Custom links nel menu principale (sinistro)
     "custom_links": {
         "vendors": [{
             "name": "Dashboard",
@@ -214,32 +211,29 @@ JAZZMIN_SETTINGS = {
         }]
     },
 
-    "order_with_respect_to": ["vendors", "auth", "historical_performances", "purchase_orders"],
+    "order_with_respect_to": [
+        "vendors", "vendors.vendor", "vendors.category", "vendors.address",
+        "vendors.servicetype", "vendors.evaluationcriterion",
+        "vendors.vendorevaluation", "historical_performances",
+         "vendors.document", "documenttype", "auth", "users",
+    ],
 
-    # Map icons (adjust to your real app/model names; use lowercase app_label.model)
     "icons": {
-        # Django/auth
         "auth": "fas fa-users-cog",
         "auth.user": "fas fa-user",
         "auth.group": "fas fa-user-shield",
         "authtoken.tokenproxy": "fas fa-key",
-
-        # Your apps
         "users.user": "fas fa-users",
         "core": "fas fa-cogs",
         "vendors": "fas fa-store",
         "purchase_orders.purchaseorder": "fas fa-shopping-cart",
         "historical_performances.historicalperformance": "fas fa-chart-line",
         "documents.document": "fas fa-folder-open",
-
-        #celery beat
         "django_celery_beat.clockedschedule": "fas fa-clock",
         "django_celery_beat.crontabschedule": "fas fa-stopwatch",
         "django_celery_beat.intervalschedule": "fas fa-tachometer-alt",
         "django_celery_beat.periodictask": "fas fa-tasks",
         "django_celery_beat.solarschedule": "fas fa-sun",
-
-        # Vendors models (include several likely names; unknown ones are ignored)
         "vendors.vendor": "fas fa-truck",
         "vendors.category": "fas fa-tags",
         "vendors.address": "fas fa-map-marker-alt",
@@ -248,7 +242,7 @@ JAZZMIN_SETTINGS = {
         "vendors.qualificationtype": "fas fa-graduation-cap",
         "vendors.skill": "fas fa-tools",
         "vendors.competence": "fas fa-toolbox",
-        "vendors.vendorcompetence": "fas fa-toolbox",
+        "vendors.vendorcompetence": "fas fa-handshake",
         "vendors.evaluationcriterion": "fas fa-star-half-alt",
         "vendors.evaluation": "fas fa-star",
         "vendors.assessment": "fas fa-clipboard-check",
@@ -256,8 +250,6 @@ JAZZMIN_SETTINGS = {
         "vendors.servicetype": "fas fa-concierge-bell",
         "vendors.typologyservice": "fas fa-layer-group",
         "vendors.vendorevaluation": "fas fa-star",
-
-        # If some are in the 'documents' app
         "documents.document": "fas fa-file-alt",
         "documents.documenttype": "fas fa-file-signature",
         "documents.category": "fas fa-folder-tree",

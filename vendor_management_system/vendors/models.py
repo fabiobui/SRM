@@ -307,8 +307,8 @@ class Competence(models.Model):
     )
 
     class Meta:
-        verbose_name = _("Competenza")
-        verbose_name_plural = _("Competenze")
+        verbose_name = _("Competenza a catalogo")
+        verbose_name_plural = _("Catalogo Competenze")
         ordering = ['competence_category', 'sort_order', 'name']
         indexes = [
             models.Index(fields=['code']),
@@ -434,8 +434,8 @@ class VendorCompetence(models.Model):
     )
 
     class Meta:
-        verbose_name = _("Competenza")
-        verbose_name_plural = _("Competenze")
+        verbose_name = _("Competenza assegnata")
+        verbose_name_plural = _("Competenze assegnate")
         unique_together = [['vendor', 'competence']]
         ordering = ['-created_at']
         indexes = [
@@ -752,8 +752,8 @@ class VendorDocument(models.Model):
     )
 
     class Meta:
-        verbose_name = _("Documento")
-        verbose_name_plural = _("Documenti")
+        verbose_name = _("Documento associato")
+        verbose_name_plural = _("Documenti associati")
         ordering = ['-created_at']
         indexes = [
             models.Index(fields=['vendor', 'document_type']),
