@@ -368,10 +368,15 @@ ADMIN_URL = "admin/"
 ADMINS = [("""Fabio Bui""", "fabio-bui@fulgard.com")]
 MANAGERS = ADMINS
 
-# Nel tuo settings.py, aggiungi questa riga
-LOGIN_URL = '/auth/login/'
-LOGIN_REDIRECT_URL = '/'
-LOGOUT_REDIRECT_URL = '/auth/login/'
+# URL di autenticazione condizionali
+if USE_FORNITORI_PREFIX:
+    LOGIN_URL = '/fornitori/auth/login/'
+    LOGIN_REDIRECT_URL = '/fornitori'
+    LOGOUT_REDIRECT_URL = '/fornitori/auth/login/'
+else:
+    LOGIN_URL = '/auth/login/'
+    LOGIN_REDIRECT_URL = '/'
+    LOGOUT_REDIRECT_URL = '/auth/login/'
 
 # LOGGING
 # ------------------------------------------------------------------------------
