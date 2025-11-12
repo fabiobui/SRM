@@ -41,5 +41,5 @@ class PrefixMiddleware:
             environ['PATH_INFO'] = path_info[len('/fornitori'):]
         return self.app(environ, start_response)
 
-application = PrefixMiddleware(application)
+#application = PrefixMiddleware(application) # <-- DISABILITATO PER ORA
 
