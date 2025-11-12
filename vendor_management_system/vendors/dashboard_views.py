@@ -55,7 +55,7 @@ def vendor_dashboard_view(request):
         'by_quality': [],
         'by_fulfillment': [],
         'by_competencies': [],
-        'by_documents': [],
+        'by_certifications': [],
     }
     
     # Add count for vendors without address or region
@@ -97,31 +97,36 @@ def vendor_dashboard_view(request):
             {'competency': 'Nessuna competenza assegnata', 'count': 0}
         ]
     
-    # Documents aggregation
+    # Certifications aggregation (filtra per has_certification=True)
     try:
-        from vendor_management_system.vendors.models import DocumentType
+        from vendor_management_system.vendors.models import Competence, VendorCompetence
         
-        documents_data = (
-            DocumentType.objects
-            .annotate(vendor_count=Count('vendor_submissions__vendor', distinct=True))
+        certifications_data = (
+            Competence.objects
+            .annotate(
+                vendor_count=Count(
+                    'vendor_assignments',
+                    filter=Q(vendor_assignments__has_certification=True)
+                )
+            )
             .filter(vendor_count__gt=0)
             .values('name', 'vendor_count')
             .order_by('-vendor_count')
         )
         
-        for doc_data in documents_data:
-            chart_data['by_documents'].append({
-                'document': doc_data['name'],
-                'count': doc_data['vendor_count']
+        for cert_data in certifications_data:
+            chart_data['by_certifications'].append({
+                'certification': cert_data['name'],
+                'count': cert_data['vendor_count']
             })
         
     except Exception as e:
         pass
     
-    # Se non ci sono documenti, mostra placeholder
-    if not chart_data['by_documents']:
-        chart_data['by_documents'] = [
-            {'document': 'Nessun documento assegnato', 'count': 0}
+    # Se non ci sono certificazioni, mostra placeholder
+    if not chart_data['by_certifications']:
+        chart_data['by_certifications'] = [
+            {'certification': 'Nessuna certificazione assegnata', 'count': 0}
         ]
     
     # Quality rating distribution
@@ -186,7 +191,10 @@ def vendor_dashboard_view(request):
                 'country': vendor.address.country if vendor.address else 'Italia',
             } if vendor.address else None,
             'competences': [comp.name for comp in vendor.competences.all()],
-            'documents': [doc.document_type.name for doc in vendor.vendor_documents.all() if doc.document_type]
+            'certifications': [
+                vc.competence.name 
+                for vc in vendor.vendor_competences.filter(has_certification=True)
+            ]
         }
         vendors_data.append(vendor_dict)
     

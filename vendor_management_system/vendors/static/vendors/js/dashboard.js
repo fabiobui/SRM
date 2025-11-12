@@ -7,7 +7,7 @@ let activeFilters = {
     vendor_types: [],
     ico_consultant: null, // null, true, or false
     competencies: [],
-    documents: []
+    certifications: []
 };
 let charts = {};
 let allProvinces = [];
@@ -57,7 +57,7 @@ function initDashboard(chartDataJson, vendorsDataJson) {
     createRegionChart(chartDataJson.by_region);
     createProvinceChart(chartDataJson.by_province || []);
     createCompetenciesChart(chartDataJson.by_competencies || []);
-    createDocumentsChart(chartDataJson.by_documents || []);
+    createCertificationsChart(chartDataJson.by_certifications || []);
     
     renderVendorsTable();
     updateStatistics();
@@ -73,7 +73,7 @@ function updateAllCharts() {
     updateRegionChart();
     updateProvinceChart();
     updateCompetenciesChart();
-    updateDocumentsChart();
+    updateCertificationsChart();
 }
 
 // Funzione per aggiornare le statistiche in alto
@@ -120,9 +120,9 @@ function updateVendorTypeChart() {
             if (!hasCompetency) return false;
         }
         
-        if (activeFilters.documents.length > 0) {
-            const hasDocument = activeFilters.documents.some(doc => vendor.documents?.includes(doc));
-            if (!hasDocument) return false;
+        if (activeFilters.certifications.length > 0) {
+            const hasCertification = activeFilters.certifications.some(cert => vendor.certifications?.includes(cert));
+            if (!hasCertification) return false;
         }
         
         const searchTerm = document.getElementById('search-input').value.toLowerCase();
@@ -192,9 +192,9 @@ function updateIcoConsultantChart() {
             if (!hasCompetency) return false;
         }
         
-        if (activeFilters.documents.length > 0) {
-            const hasDocument = activeFilters.documents.some(doc => vendor.documents?.includes(doc));
-            if (!hasDocument) return false;
+        if (activeFilters.certifications.length > 0) {
+            const hasCertification = activeFilters.certifications.some(cert => vendor.certifications?.includes(cert));
+            if (!hasCertification) return false;
         }
         
         const searchTerm = document.getElementById('search-input').value.toLowerCase();
@@ -247,9 +247,9 @@ function updateRegionChart() {
             if (!hasCompetency) return false;
         }
         
-        if (activeFilters.documents.length > 0) {
-            const hasDocument = activeFilters.documents.some(doc => vendor.documents?.includes(doc));
-            if (!hasDocument) return false;
+        if (activeFilters.certifications.length > 0) {
+            const hasCertification = activeFilters.certifications.some(cert => vendor.certifications?.includes(cert));
+            if (!hasCertification) return false;
         }
         
         const searchTerm = document.getElementById('search-input').value.toLowerCase();
@@ -312,9 +312,9 @@ function updateCompetenciesChart() {
             if (!activeFilters.provinces.includes(vendorProvince)) return false;
         }
         
-        if (activeFilters.documents.length > 0) {
-            const hasDocument = activeFilters.documents.some(doc => vendor.documents?.includes(doc));
-            if (!hasDocument) return false;
+        if (activeFilters.certifications.length > 0) {
+            const hasCertification = activeFilters.certifications.some(cert => vendor.certifications?.includes(cert));
+            if (!hasCertification) return false;
         }
         
         const searchTerm = document.getElementById('search-input').value.toLowerCase();
@@ -359,13 +359,13 @@ function updateCompetenciesChart() {
     charts.competencies.update();
 }
 
-// Funzione per ricalcolare i dati del grafico Documenti
-function updateDocumentsChart() {
-    const documentCounts = {};
+// Funzione per ricalcolare i dati del grafico Certificazioni
+function updateCertificationsChart() {
+    const certificationCounts = {};
     
-    // Filtra i vendor escludendo il filtro documenti per calcolare il grafico
-    const vendorsWithoutDocumentFilter = allVendors.filter(vendor => {
-        // Applica tutti i filtri ECCETTO documenti
+    // Filtra i vendor escludendo il filtro certificazioni per calcolare il grafico
+    const vendorsWithoutCertificationFilter = allVendors.filter(vendor => {
+        // Applica tutti i filtri ECCETTO certificazioni
         if (activeFilters.vendor_types.length > 0) {
             if (!activeFilters.vendor_types.includes(vendor.vendor_type)) return false;
         }
@@ -401,7 +401,7 @@ function updateDocumentsChart() {
                 vendor.address?.city, vendor.address?.state_province,
                 vendor.vat_number, vendor.fiscal_code,
                 vendor.competences?.join(' '),
-                vendor.documents?.join(' ')
+                vendor.certifications?.join(' ')
             ].join(' ').toLowerCase();
             if (!searchableText.includes(searchTerm)) return false;
         }
@@ -409,30 +409,30 @@ function updateDocumentsChart() {
         return true;
     });
     
-    vendorsWithoutDocumentFilter.forEach(v => {
-        if (v.documents && Array.isArray(v.documents)) {
-            v.documents.forEach(doc => {
-                documentCounts[doc] = (documentCounts[doc] || 0) + 1;
+    vendorsWithoutCertificationFilter.forEach(v => {
+        if (v.certifications && Array.isArray(v.certifications)) {
+            v.certifications.forEach(cert => {
+                certificationCounts[cert] = (certificationCounts[cert] || 0) + 1;
             });
         }
     });
     
-    // Ordina per conteggio e mostra TUTTI i documenti
-    const sortedDocuments = Object.entries(documentCounts)
+    // Ordina per conteggio e mostra TUTTE le certificazioni
+    const sortedCertifications = Object.entries(certificationCounts)
         .sort((a, b) => b[1] - a[1]);
     
-    const labels = sortedDocuments.map(([doc]) => doc);
-    const data = sortedDocuments.map(([, count]) => count);
+    const labels = sortedCertifications.map(([cert]) => cert);
+    const data = sortedCertifications.map(([, count]) => count);
     
     // Evidenzia le selezioni attive
     const backgroundColors = labels.map(label => 
-        activeFilters.documents.includes(label) ? '#20c997' : '#ffc107'
+        activeFilters.certifications.includes(label) ? '#20c997' : '#ffc107'
     );
     
-    charts.documents.data.labels = labels;
-    charts.documents.data.datasets[0].data = data;
-    charts.documents.data.datasets[0].backgroundColor = backgroundColors;
-    charts.documents.update();
+    charts.certifications.data.labels = labels;
+    charts.certifications.data.datasets[0].data = data;
+    charts.certifications.data.datasets[0].backgroundColor = backgroundColors;
+    charts.certifications.update();
 }
 
 // Create charts
@@ -504,7 +504,7 @@ function createIcoConsultantChart(data) {
             onClick: (e, activeElements) => {
                 if (activeElements.length > 0) {
                     const index = activeElements[0].index;
-                    const isIco = index === 0; // 0 = Consulenti ICO, 1 = Altri Fornitori
+                    const isIco = index === 0;
                     toggleIcoFilter(isIco);
                 }
             },
@@ -560,7 +560,6 @@ function createRegionChart(data) {
 function createProvinceChart(data) {
     const ctx = document.getElementById('provinceChart').getContext('2d');
     
-    // Se non ci sono dati dal backend, calcoliamo manualmente
     if (!data || data.length === 0) {
         const provinceCount = {};
         
@@ -677,12 +676,12 @@ function createCompetenciesChart(data) {
     });
 }
 
-function createDocumentsChart(data) {
-    const ctx = document.getElementById('documentsChart').getContext('2d');
-    charts.documents = new Chart(ctx, {
+function createCertificationsChart(data) {
+    const ctx = document.getElementById('certificationsChart').getContext('2d');
+    charts.certifications = new Chart(ctx, {
         type: 'bar',
         data: {
-            labels: data.map(item => item.document || 'N/A'),
+            labels: data.map(item => item.certification || 'N/A'),
             datasets: [{ label: 'Numero Fornitori', data: data.map(item => item.count), backgroundColor: '#ffc107' }]
         },
         options: {
@@ -690,7 +689,7 @@ function createDocumentsChart(data) {
             maintainAspectRatio: false,
             onClick: (e, activeElements) => {
                 if (activeElements.length > 0) {
-                    toggleFilter('documents', charts.documents.data.labels[activeElements[0].index]);
+                    toggleFilter('certifications', charts.certifications.data.labels[activeElements[0].index]);
                 }
             },
             scales: { 
@@ -739,9 +738,9 @@ function updateProvinceChart() {
             if (!hasCompetency) return false;
         }
         
-        if (activeFilters.documents.length > 0) {
-            const hasDocument = activeFilters.documents.some(doc => vendor.documents?.includes(doc));
-            if (!hasDocument) return false;
+        if (activeFilters.certifications.length > 0) {
+            const hasCertification = activeFilters.certifications.some(cert => vendor.certifications?.includes(cert));
+            if (!hasCertification) return false;
         }
         
         const searchTerm = document.getElementById('search-input').value.toLowerCase();
@@ -826,7 +825,7 @@ function toggleIcoFilter(isIco) {
 }
 
 function clearAllFilters() {
-    activeFilters = { regions: [], provinces: [], vendor_types: [], ico_consultant: null, competencies: [], documents: [] };
+    activeFilters = { regions: [], provinces: [], vendor_types: [], ico_consultant: null, competencies: [], certifications: [] };
     document.getElementById('search-input').value = '';
     
     updateActiveFiltersDisplay();
@@ -869,7 +868,7 @@ function updateActiveFiltersDisplay() {
         'regions': 'Regione',
         'provinces': 'Provincia',
         'competencies': 'Competenza',
-        'documents': 'Documento'
+        'certifications': 'Certificazione'
     };
     
     Object.entries(activeFilters).forEach(([key, values]) => {
@@ -917,9 +916,9 @@ function filterVendors() {
             if (!hasCompetency) return false;
         }
         
-        if (activeFilters.documents.length > 0) {
-            const hasDocument = activeFilters.documents.some(doc => vendor.documents?.includes(doc));
-            if (!hasDocument) return false;
+        if (activeFilters.certifications.length > 0) {
+            const hasCertification = activeFilters.certifications.some(cert => vendor.certifications?.includes(cert));
+            if (!hasCertification) return false;
         }
         
         if (searchTerm) {
@@ -929,7 +928,8 @@ function filterVendors() {
                 vendor.category?.name || vendor.category, vendor.address?.region,
                 vendor.address?.city, vendor.address?.state_province,
                 vendor.vat_number, vendor.fiscal_code,
-                vendor.competences?.join(' ')
+                vendor.competences?.join(' '),
+                vendor.certifications?.join(' ')
             ].join(' ').toLowerCase();
             if (!searchableText.includes(searchTerm)) return false;
         }
