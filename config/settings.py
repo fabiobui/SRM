@@ -298,7 +298,7 @@ JAZZMIN_SETTINGS = {
     "custom_links": {
         "vendors": [{
             "name": "Dashboard",
-            "url": "/vendors/dashboard/",
+            "url": "/vendors/dashboard/" if not USE_FORNITORI_PREFIX else "/fornitori/vendors/dashboard/",
             "icon": "fas fa-tachometer-alt",
         }]
     },
