@@ -160,3 +160,7 @@ POSTGRES_PASSWORD=
 - `POST /purchase-orders/<po_number>/deliver/` - Deliver a purchase order
 - `POST /purchase-orders/<po_number>/cancel/` - Cancel a purchase order
 - `POST /purchase-orders/<po_number>/rate-quality/` - Assign a value for rate_quality of the purchase order
+
+
+## Create LDAP USER
+- `python manage.py sync_ldap_users --create-ldap-user lmoroni@fulgard.com --role bo_user`
