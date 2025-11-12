@@ -89,7 +89,7 @@ class CompetenceAdmin(admin.ModelAdmin):
 class VendorCompetenceInline(admin.TabularInline):
     model = VendorCompetence
     extra = 1
-    fields = ['competence', 'has_competence', 'certification_number', 'issue_date', 'expiry_date', 'verified', 'expiry_status_display']
+    fields = ['competence', 'has_competence', 'has_certification', 'certification_number', 'issue_date', 'expiry_date', 'verified', 'expiry_status_display']
     readonly_fields = ['expiry_status_display', 'created_at', 'updated_at']
     autocomplete_fields = ['competence']
     
@@ -115,8 +115,8 @@ class VendorCompetenceInline(admin.TabularInline):
 # VendorCompetence Admin
 @admin.register(VendorCompetence)
 class VendorCompetenceAdmin(admin.ModelAdmin):
-    list_display = ['vendor', 'competence', 'has_competence', 'issue_date', 'expiry_date', 'verified', 'expiry_status_badge']
-    list_filter = ['has_competence', 'verified', 'competence__competence_category', 'expiry_date']
+    list_display = ['vendor', 'competence', 'has_competence', 'has_certification', 'issue_date', 'expiry_date', 'verified', 'expiry_status_badge']
+    list_filter = ['has_competence', 'has_certification', 'verified', 'competence__competence_category', 'expiry_date']
     search_fields = ['vendor__name', 'competence__name', 'certification_number']
     date_hierarchy = 'expiry_date'
     readonly_fields = ['created_at', 'updated_at', 'is_expired', 'days_to_expiry', 'expiry_status']
@@ -127,7 +127,7 @@ class VendorCompetenceAdmin(admin.ModelAdmin):
             'fields': ('vendor', 'competence', 'has_competence')
         }),
         (_('Dettagli Certificazione'), {
-            'fields': ('certification_number', 'certification_body', 'issue_date', 'expiry_date')
+            'fields': ('has_certification', 'certification_number', 'certification_body', 'issue_date', 'expiry_date')
         }),
         (_('Verifica'), {
             'fields': ('verified', 'verified_by', 'verified_date')
@@ -491,4 +491,4 @@ class VendorAdmin(admin.ModelAdmin):
         updated = queryset.update(next_audit_due=next_audit)
         self.message_user(request, f'{updated} fornitori marcati per audit tra 30 giorni.', 'info')
     mark_for_audit.short_description = _('Programma audit (30 giorni)')
-    
+

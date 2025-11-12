@@ -1100,6 +1100,23 @@ class VendorViewSet(viewsets.ViewSet):
                                 }
                             )
                         ),
+                        "competence_missing_certification": openapi.Schema(
+                            type=openapi.TYPE_ARRAY,
+                            items=openapi.Schema(
+                                type=openapi.TYPE_OBJECT,
+                                properties={
+                                    "vendor_code": openapi.Schema(type=openapi.TYPE_STRING),
+                                    "name": openapi.Schema(type=openapi.TYPE_STRING),
+                                    "email": openapi.Schema(type=openapi.TYPE_STRING),
+                                    "phone": openapi.Schema(type=openapi.TYPE_STRING),
+                                    "category": openapi.Schema(type=openapi.TYPE_STRING),
+                                    "qualification_status": openapi.Schema(type=openapi.TYPE_STRING),
+                                    "risk_level": openapi.Schema(type=openapi.TYPE_STRING),
+                                    "is_qualified": openapi.Schema(type=openapi.TYPE_BOOLEAN),
+                                    "audit_overdue": openapi.Schema(type=openapi.TYPE_BOOLEAN),
+                                }
+                            )
+                        ),
                     }
                 )
             ),
@@ -1134,12 +1151,19 @@ class VendorViewSet(viewsets.ViewSet):
         # Get vendors without category assigned
         no_category = Vendor.objects.select_related('address').filter(category__isnull=True)
         
+        competence_missing_certification = Vendor.objects.select_related('category', 'address').filter(
+            vendor_competences__competence__requires_certification=True,
+            vendor_competences__has_competence=True,
+            vendor_competences__has_certification=False
+        ).distinct()
+        
         data = {
             'overdue_audits': VendorListSerializer(overdue_audits, many=True).data,
             'expired_qualifications': VendorListSerializer(expired_qualifications, many=True).data,
             'high_risk_vendors': VendorListSerializer(high_risk_vendors, many=True).data,
             'missing_certification': VendorListSerializer(missing_certification, many=True).data,
             'no_category': VendorListSerializer(no_category, many=True).data,
+            'competence_missing_certification': VendorListSerializer(competence_missing_certification, many=True).data,
         }
         
         return response.Response(data, status=status.HTTP_200_OK)

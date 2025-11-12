@@ -352,7 +352,13 @@ class VendorCompetence(models.Model):
         default=True,
         help_text=_("Il fornitore possiede questa competenza")
     )
-    
+
+    has_certification = models.BooleanField(
+        _("Possiede Certificazione"),
+        default=False,
+        help_text=_("Il fornitore possiede questa certificazione")
+    )
+
     # Certification details
     certification_number = models.CharField(
         _("Numero Certificazione"),
