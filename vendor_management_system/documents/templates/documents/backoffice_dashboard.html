@@ -52,8 +52,7 @@
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-info">
         <div class="container">
-            <a class="navbar-brand" href="/"><i class="fas fa-clipboard-check"></i> Dashboard Back Office</a>
-            
+            <a class="navbar-brand" href="{% url 'documents:backoffice_dashboard' %}"><i class="fas fa-clipboard-check"></i> Dashboard Back Office</a>
             <div class="navbar-nav ms-auto d-flex align-items-center">
                 <!-- Info utente -->
                 <span class="navbar-text me-3">
@@ -63,13 +62,13 @@
                 </span>
                 
                 <!-- Menu -->
-                <a class="nav-link" href="/documents/backoffice/"><i class="fas fa-clipboard-check"></i> Back Office</a>
+                <a class="nav-link" href="{% url 'documents:backoffice_dashboard' %}"><i class="fas fa-clipboard-check"></i> Back Office</a>
                 {% if user.is_admin %}
-                    <a class="nav-link" href="/documents/admin/"><i class="fas fa-chart-bar"></i> Admin</a>
-                    <a class="nav-link" href="/admin/"><i class="fas fa-cog"></i> Django Admin</a>
+                    <a class="nav-link" href="{% url 'documents:admin_dashboard' %}"><i class="fas fa-chart-bar"></i> Admin</a>
+                    <a class="nav-link" href="{% url 'admin:index' %}"><i class="fas fa-cog"></i> Django Admin</a>
                 {% endif %}
-                <a class="nav-link" href="/documents/portal/"><i class="fas fa-upload"></i> Portale</a>
-                <a class="nav-link" href="/auth/logout/"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                <a class="nav-link" href="{% url 'documents:portal' %}"><i class="fas fa-upload"></i> Portale</a>
+                <a class="nav-link" href="{% url 'logout' %}"><i class="fas fa-sign-out-alt"></i> Logout</a>
             </div>
         </div>
     </nav>
@@ -267,15 +266,14 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+    // Base URL (ends with /0/ so we can replace 0 with the real id)
+    const reviewBaseUrl = "{% url 'document-review' 0 %}";
     function showRejectModal(docId, docType, vendorName) {
-        // Imposta le informazioni nel modal
         document.getElementById('reject-doc-type').textContent = docType;
         document.getElementById('reject-vendor-name').textContent = vendorName;
-        
-        // Imposta l'action del form
-        document.getElementById('rejectForm').action = `/documents/review/${docId}/`;
-        
-        // Mostra il modal
+        // Replace trailing /0/ with /<id>/
+        const actionUrl = reviewBaseUrl.replace(/0\/?$/, docId + "/");
+        document.getElementById('rejectForm').action = actionUrl;
         const modal = new bootstrap.Modal(document.getElementById('rejectModal'));
         modal.show();
     }
