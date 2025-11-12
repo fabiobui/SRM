@@ -52,7 +52,11 @@
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-info">
         <div class="container">
-            <a class="navbar-brand" href="{% url 'documents:backoffice_dashboard' %}"><i class="fas fa-clipboard-check"></i> Dashboard Back Office</a>
+            {% url 'documents:backoffice_dashboard' as backoffice_url %}
+            <a class="navbar-brand" href="{% if backoffice_url %}{{ backoffice_url }}{% else %}/documents/backoffice/{% endif %}">
+                <i class="fas fa-clipboard-check"></i> Dashboard Back Office
+            </a>
+            
             <div class="navbar-nav ms-auto d-flex align-items-center">
                 <!-- Info utente -->
                 <span class="navbar-text me-3">
@@ -62,13 +66,25 @@
                 </span>
                 
                 <!-- Menu -->
-                <a class="nav-link" href="{% url 'documents:backoffice_dashboard' %}"><i class="fas fa-clipboard-check"></i> Back Office</a>
+                {% url 'documents:backoffice_dashboard' as backoffice_url %}
+                <a class="nav-link" href="{% if backoffice_url %}{{ backoffice_url }}{% else %}/documents/backoffice/{% endif %}">
+                    <i class="fas fa-clipboard-check"></i> Back Office
+                </a>
                 {% if user.is_admin %}
-                    <a class="nav-link" href="{% url 'documents:admin_dashboard' %}"><i class="fas fa-chart-bar"></i> Admin</a>
+                    {% url 'documents:admin_dashboard' as documents_admin_url %}
+                    <a class="nav-link" href="{% if documents_admin_url %}{{ documents_admin_url }}{% else %}/documents/admin/{% endif %}">
+                        <i class="fas fa-chart-bar"></i> Admin
+                    </a>
                     <a class="nav-link" href="{% url 'admin:index' %}"><i class="fas fa-cog"></i> Django Admin</a>
                 {% endif %}
-                <a class="nav-link" href="{% url 'documents:portal' %}"><i class="fas fa-upload"></i> Portale</a>
-                <a class="nav-link" href="{% url 'logout' %}"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                {% url 'documents:portal' as portal_url %}
+                <a class="nav-link" href="{% if portal_url %}{{ portal_url }}{% else %}/documents/portal/{% endif %}">
+                    <i class="fas fa-upload"></i> Portale
+                </a>
+                {% url 'logout' as logout_url %}
+                <a class="nav-link" href="{% if logout_url %}{{ logout_url }}{% else %}/auth/logout/{% endif %}">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </a>
             </div>
         </div>
     </nav>
@@ -156,7 +172,8 @@
                                     </td>
                                     <td>
                                         <div class="action-buttons">
-                                            <form method="post" action="{% url 'document-review' doc.id %}" style="display: inline;">
+                                            {% url 'document-review' doc.id as doc_review_url %}
+                                            <form method="post" action="{% if doc_review_url %}{{ doc_review_url }}{% else %}/documents/review/{{ doc.id }}/{% endif %}" style="display: inline;">
                                                 {% csrf_token %}
                                                 <input type="hidden" name="action" value="approve">
                                                 <button type="submit" class="btn btn-sm btn-success" onclick="return confirm('Confermi di voler approvare questo documento?')">
@@ -265,14 +282,14 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    {% url 'document-review' 0 as review_base_url %}
     <script>
-    // Base URL (ends with /0/ so we can replace 0 with the real id)
-    const reviewBaseUrl = "{% url 'document-review' 0 %}";
+    // Safe reversed base URL with fallback
+    const reviewBaseUrl = "{{ review_base_url|default:'/documents/review/0/' }}";
     function showRejectModal(docId, docType, vendorName) {
         document.getElementById('reject-doc-type').textContent = docType;
         document.getElementById('reject-vendor-name').textContent = vendorName;
-        // Replace trailing /0/ with /<id>/
-        const actionUrl = reviewBaseUrl.replace(/0\/?$/, docId + "/");
+        const actionUrl = reviewBaseUrl.replace(/0\/?$/, String(docId).replace(/\/?$/, '') + "/");
         document.getElementById('rejectForm').action = actionUrl;
         const modal = new bootstrap.Modal(document.getElementById('rejectModal'));
         modal.show();
