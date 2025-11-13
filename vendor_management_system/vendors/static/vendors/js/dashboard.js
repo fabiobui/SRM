@@ -185,6 +185,15 @@ function updateVendorTypeChart() {
             if (!hasCertification) return false;
         }
         
+        // Apply advanced filters
+        if (advancedFilters.length > 0) {
+            for (const filter of advancedFilters) {
+                if (!applyAdvancedFilterToVendor(vendor, filter)) {
+                    return false;
+                }
+            }
+        }
+        
         const searchTerm = document.getElementById('search-input').value.toLowerCase();
         if (searchTerm) {
             const searchableText = [
@@ -257,6 +266,15 @@ function updateIcoConsultantChart() {
             if (!hasCertification) return false;
         }
         
+        // Apply advanced filters
+        if (advancedFilters.length > 0) {
+            for (const filter of advancedFilters) {
+                if (!applyAdvancedFilterToVendor(vendor, filter)) {
+                    return false;
+                }
+            }
+        }
+        
         const searchTerm = document.getElementById('search-input').value.toLowerCase();
         if (searchTerm) {
             const searchableText = [
@@ -310,6 +328,15 @@ function updateRegionChart() {
         if (activeFilters.certifications.length > 0) {
             const hasCertification = activeFilters.certifications.some(cert => vendor.certifications?.includes(cert));
             if (!hasCertification) return false;
+        }
+        
+        // Apply advanced filters
+        if (advancedFilters.length > 0) {
+            for (const filter of advancedFilters) {
+                if (!applyAdvancedFilterToVendor(vendor, filter)) {
+                    return false;
+                }
+            }
         }
         
         const searchTerm = document.getElementById('search-input').value.toLowerCase();
@@ -375,6 +402,15 @@ function updateCompetenciesChart() {
         if (activeFilters.certifications.length > 0) {
             const hasCertification = activeFilters.certifications.some(cert => vendor.certifications?.includes(cert));
             if (!hasCertification) return false;
+        }
+        
+        // Apply advanced filters
+        if (advancedFilters.length > 0) {
+            for (const filter of advancedFilters) {
+                if (!applyAdvancedFilterToVendor(vendor, filter)) {
+                    return false;
+                }
+            }
         }
         
         const searchTerm = document.getElementById('search-input').value.toLowerCase();
@@ -450,6 +486,15 @@ function updateCertificationsChart() {
                 activeFilters.competencies.includes(comp)
             );
             if (!hasMatchingCompetency) return false;
+        }
+        
+        // Apply advanced filters
+        if (advancedFilters.length > 0) {
+            for (const filter of advancedFilters) {
+                if (!applyAdvancedFilterToVendor(vendor, filter)) {
+                    return false;
+                }
+            }
         }
         
         const searchTerm = document.getElementById('search-input').value.toLowerCase();
@@ -801,6 +846,15 @@ function updateProvinceChart() {
         if (activeFilters.certifications.length > 0) {
             const hasCertification = activeFilters.certifications.some(cert => vendor.certifications?.includes(cert));
             if (!hasCertification) return false;
+        }
+        
+        // Apply advanced filters
+        if (advancedFilters.length > 0) {
+            for (const filter of advancedFilters) {
+                if (!applyAdvancedFilterToVendor(vendor, filter)) {
+                    return false;
+                }
+            }
         }
         
         const searchTerm = document.getElementById('search-input').value.toLowerCase();
