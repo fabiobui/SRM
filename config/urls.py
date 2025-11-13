@@ -1,5 +1,5 @@
 from django.contrib import admin
-from django.urls import include, path
+from django.urls import include, path, reverse
 from django.conf import settings
 from django.conf.urls.static import static
 from django.http import HttpResponse
@@ -25,7 +25,11 @@ def home_view(request):
     if request.user.is_authenticated:
         return redirect('dashboard-redirect')
     
-    html = """
+    # Generate dynamic URLs
+    admin_url = reverse('admin:index')
+    swagger_url = reverse('schema-swagger-ui')
+    
+    html = f"""
     <!DOCTYPE html>
     <html lang="it">
     <head>
@@ -70,13 +74,13 @@ def home_view(request):
                                 </div>
                             </div>
                             
-                            <a href="/admin/" class="btn btn-primary btn-lg">
+                            <a href="{admin_url}" class="btn btn-primary btn-lg">
                                 <i class="fas fa-sign-in-alt"></i> Accedi al Sistema
                             </a>
                             
                             <div class="mt-4">
                                 <small class="text-muted">
-                                    <a href="/swagger/">📘 API Documentation</a>
+                                    <a href="{swagger_url}">📘 API Documentation</a>
                                 </small>
                             </div>
                         </div>

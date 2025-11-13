@@ -35,7 +35,6 @@ LANGUAGES = [
 
 LOCALE_PATHS = [BASE_DIR / "locale"]
 
-
 # App directory of the Django project
 APPS_DIR = BASE_DIR / "vendor_management_system"
 
@@ -224,7 +223,7 @@ AUTH_PASSWORD_VALIDATORS = [
 # ------------------------------------------------------------------------------
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
-    "corsheaders.middleware.CorsMiddleware",
+    "corsheaders.middleware.CorsMiddleware",  # deve stare subito dopo SecurityMiddleware
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.locale.LocaleMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -449,3 +448,6 @@ REST_FRAMEWORK = {
 # django-cors-headers
 # -------------------------------------------------------------------------------
 CORS_URLS_REGEX = r"^/api/.*$"
+
+print("💡 USE_FORNITORI_PREFIX:", USE_FORNITORI_PREFIX)
+print("💡 FORCE_SCRIPT_NAME:", FORCE_SCRIPT_NAME)
