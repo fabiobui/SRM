@@ -1,0 +1,193 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Fornitori - Analisi e Classificazione</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="{% static 'vendors/css/dashboard.css' %}" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container-fluid">
+            {% url 'vendors:dashboard' as vendors_dashboard_url %}
+            {% url 'dashboard' as dashboard_url %}
+            <a class="navbar-brand" href="{% if vendors_dashboard_url %}{{ vendors_dashboard_url }}{% elif dashboard_url %}{{ dashboard_url }}{% else %}/vendors/dashboard/{% endif %}">
+                <i class="fas fa-building"></i> Sistema Gestione Fornitori
+            </a>
+            <ul class="navbar-nav ms-auto">
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'admin:index' %}"><i class="fas fa-cog"></i> Admin</a>
+                </li>
+                <li class="nav-item">
+                    <form method="post" action="{% url 'admin:logout' %}" class="m-0">
+                        {% csrf_token %}
+                        <button type="submit" class="nav-link bg-transparent border-0" id="logout-link" title="Termina la sessione ed esci dal sistema">
+                            <i class="fas fa-sign-out-alt"></i> Logout
+                        </button>
+                    </form>
+                </li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="container-fluid py-4">
+        <div class="row mb-4">
+            <div class="col-12">
+                <h1 class="h3 mb-0">📊 Dashboard Fornitori - Analisi e Classificazione</h1>
+                <p class="text-muted">Esplora i fornitori per dimensioni e caratteristiche</p>
+            </div>
+        </div>
+        
+        <!-- Summary Statistics Cards -->
+        <div class="row mb-4">
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="stats-card" onclick="clearAllFilters()">
+                    <div class="stats-number" id="total-vendors">{{ total_vendors }}</div>
+                    <div class="text-muted">Fornitori Totali</div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="stats-card success">
+                    <div class="stats-number" id="active-vendors">{{ active_vendors }}</div>
+                    <div class="text-muted">Attivi</div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="stats-card info">
+                    <div class="stats-number" id="selected-vendors">{{ total_vendors }}</div>
+                    <div class="text-muted">Selezionati</div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="stats-card warning">
+                    <div class="stats-number" id="positive-vendors">{{ positive_vendors }}</div>
+                    <div class="text-muted">Positivi</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Active Filters Display -->
+        <div class="row mb-3" id="active-filters-row" style="display: none;">
+            <div class="col-12">
+                <div class="alert alert-info">
+                    <strong>Filtri Attivi:</strong>
+                    <div id="active-filters-container"></div>
+                    <button class="btn btn-sm btn-outline-danger mt-2" onclick="clearAllFilters()">
+                        <i class="fas fa-times"></i> Cancella tutti i filtri
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Charts Row 1 -->
+        <div class="row mb-4">
+            <div class="col-lg-6 mb-3">
+                <div class="chart-container">
+                    <h5 class="mb-3">Tipo Fornitore</h5>
+                    <canvas id="vendorTypeChart" class="chart-clickable"></canvas>
+                </div>
+            </div>
+            <div class="col-lg-6 mb-3">
+                <div class="chart-container">
+                    <h5 class="mb-3">Consulenti ICO</h5>
+                    <canvas id="serviceTypeChart" class="chart-clickable"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Charts Row 2 -->
+        <div class="row mb-4">
+            <div class="col-lg-6 mb-3">
+                <div class="chart-container">
+                    <h5 class="mb-3">Fornitori per Regione</h5>
+                    <canvas id="regionChart" class="chart-clickable"></canvas>
+                </div>
+            </div>
+            <div class="col-lg-6 mb-3">
+                <div class="chart-container">
+                    <h5 class="mb-3">
+                        Province
+                        <span id="province-region-badge" class="badge bg-info ms-2" style="display: none;"></span>
+                    </h5>
+                    <canvas id="provinceChart" class="chart-clickable"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Charts Row 4 -->
+        <div class="row mb-4">
+            <div class="col-lg-6 mb-3">
+                <div class="chart-container" style="height: 450px;">
+                    <h5 class="mb-3">Competenze</h5>
+                    <canvas id="competenciesChart" class="chart-clickable"></canvas>
+                </div>
+            </div>
+            <div class="col-lg-6 mb-3">
+                <div class="chart-container" style="height: 450px;">
+                    <h5 class="mb-3">Certificazioni</h5>
+                    <canvas id="certificationsChart" class="chart-clickable"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Vendors Table -->
+        <div class="row">
+            <div class="col-12">
+                <div class="vendor-table">
+                    <div class="p-3 bg-light border-bottom">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">Elenco Fornitori <span class="badge bg-primary" id="filtered-count">{{ total_vendors }}</span></h5>
+                            <input type="text" class="form-control form-control-sm d-inline-block" id="search-input" 
+                                   placeholder="🔍 Cerca fornitore..." style="width: 300px;">
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th>Nome</th>
+                                    <th>Tipo</th>
+                                    <th>Email</th>
+                                    <th>Telefono</th>
+                                    <th>Regione</th>
+                                    <th>Provincia</th>
+                                    <th>Valutazione Complessiva</th>
+                                    <th>Azioni</th>
+                                </tr>
+                            </thead>
+                            <tbody id="vendors-table-body">
+                                <tr>
+                                    <td colspan="8" class="text-center py-4">
+                                        <div class="spinner-border text-primary" role="status"></div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="p-3 bg-light border-top">
+                        <small class="text-muted">Mostrando <span id="showing-count">0</span> fornitori</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <button class="btn btn-success btn-lg export-btn" onclick="exportToExcel()" title="Esporta in Excel">
+        <i class="fas fa-file-excel"></i> Esporta Excel
+    </button>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{% static 'vendors/js/dashboard.js' %}?v=3"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const chartData = {{ chart_data_json|safe }};
+            const vendorsData = {{ vendors_data_json|safe }};
+            initDashboard(chartData, vendorsData);
+        });
+    </script>
+</body>
+</html>

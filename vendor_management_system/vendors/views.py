@@ -1,9 +1,6 @@
-# Imports
-from django.shortcuts import get_object_or_404, redirect
-from django.contrib.auth.decorators import login_required
-from django.contrib import messages
-from django.http import HttpResponse
-from django.urls import reverse
+# API ViewSets - REST Framework
+from django.shortcuts import get_object_or_404
+from django.db.models import Count, Q, F
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import permissions, response, status, viewsets
@@ -1103,6 +1100,23 @@ class VendorViewSet(viewsets.ViewSet):
                                 }
                             )
                         ),
+                        "competence_missing_certification": openapi.Schema(
+                            type=openapi.TYPE_ARRAY,
+                            items=openapi.Schema(
+                                type=openapi.TYPE_OBJECT,
+                                properties={
+                                    "vendor_code": openapi.Schema(type=openapi.TYPE_STRING),
+                                    "name": openapi.Schema(type=openapi.TYPE_STRING),
+                                    "email": openapi.Schema(type=openapi.TYPE_STRING),
+                                    "phone": openapi.Schema(type=openapi.TYPE_STRING),
+                                    "category": openapi.Schema(type=openapi.TYPE_STRING),
+                                    "qualification_status": openapi.Schema(type=openapi.TYPE_STRING),
+                                    "risk_level": openapi.Schema(type=openapi.TYPE_STRING),
+                                    "is_qualified": openapi.Schema(type=openapi.TYPE_BOOLEAN),
+                                    "audit_overdue": openapi.Schema(type=openapi.TYPE_BOOLEAN),
+                                }
+                            )
+                        ),
                     }
                 )
             ),
@@ -1137,12 +1151,19 @@ class VendorViewSet(viewsets.ViewSet):
         # Get vendors without category assigned
         no_category = Vendor.objects.select_related('address').filter(category__isnull=True)
         
+        competence_missing_certification = Vendor.objects.select_related('category', 'address').filter(
+            vendor_competences__competence__requires_certification=True,
+            vendor_competences__has_competence=True,
+            vendor_competences__has_certification=False
+        ).distinct()
+        
         data = {
             'overdue_audits': VendorListSerializer(overdue_audits, many=True).data,
             'expired_qualifications': VendorListSerializer(expired_qualifications, many=True).data,
             'high_risk_vendors': VendorListSerializer(high_risk_vendors, many=True).data,
             'missing_certification': VendorListSerializer(missing_certification, many=True).data,
             'no_category': VendorListSerializer(no_category, many=True).data,
+            'competence_missing_certification': VendorListSerializer(competence_missing_certification, many=True).data,
         }
         
         return response.Response(data, status=status.HTTP_200_OK)
@@ -1337,27 +1358,3 @@ class QueryParamObtainAuthToken(ObtainAuthToken):
     )
     def post(self, request, *args, **kwargs):
         return super().post(request, *args, **kwargs)
-
-
-@login_required
-def dashboard_redirect(request):
-    """Reindirizza l'utente alla dashboard appropriata in base al ruolo"""
-    user = request.user
-    
-    if user.is_admin():
-        return redirect('admin-dashboard')
-    elif user.is_bo_user():
-        return redirect('backoffice-dashboard')
-    elif user.is_vendor_user():
-        return redirect('vendor-portal')
-    else:
-        messages.warning(request, "Il tuo account non ha un ruolo assegnato. Contatta l'amministratore.")
-        logout_url = reverse('admin:logout')
-        return HttpResponse(f"""
-        <div style="padding: 20px; font-family: Arial;">
-            <h2>⚠️ Ruolo non assegnato</h2>
-            <p>Il tuo account non ha un ruolo configurato.</p>
-            <p>Contatta l'amministratore del sistema.</p>
-            <a href="{logout_url}">Logout</a>
-        </div>
-        """)

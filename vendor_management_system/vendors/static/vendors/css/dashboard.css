@@ -1,0 +1,99 @@
+.stats-card {
+    background: #fff;
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border-left: 4px solid #007bff;
+    margin-bottom: 1rem;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.stats-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.stats-card.warning { border-left-color: #ffc107; }
+.stats-card.danger { border-left-color: #dc3545; }
+.stats-card.success { border-left-color: #28a745; }
+.stats-card.info { border-left-color: #17a2b8; }
+
+.stats-number {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #333;
+}
+
+.chart-container {
+    background: #fff;
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin-bottom: 1rem;
+    position: relative;
+    height: 350px;
+}
+
+.vendor-table {
+    background: #fff;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.filter-chip {
+    display: inline-block;
+    padding: 0.4rem 0.8rem;
+    margin: 0.2rem;
+    background: #e9ecef;
+    border-radius: 20px;
+    font-size: 0.9rem;
+}
+
+.filter-chip .remove {
+    cursor: pointer;
+    margin-left: 0.5rem;
+    color: #dc3545;
+}
+
+.status-badge {
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.status-approved { background: #d4edda; color: #155724; }
+.status-pending { background: #fff3cd; color: #856404; }
+.status-rejected { background: #f8d7da; color: #721c24; }
+
+.export-btn {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    z-index: 1000;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.chart-clickable {
+    cursor: pointer;
+}
+
+.loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255,255,255,0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    display: none;
+}
+
+.loading-overlay.show {
+    display: flex;
+}

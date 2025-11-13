@@ -115,7 +115,6 @@ LOCAL_APPS = [
 ]
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
-
 # AUTHENTICATION
 # ------------------------------------------------------------------------------
 AUTH_USER_MODEL = "users.User"
@@ -283,6 +282,82 @@ TEMPLATES = [
     },
 ]
 
+# Jazzmin configuration (controls admin look & icons)
+JAZZMIN_SETTINGS = {
+    "site_title": "VMS Admin",
+    "site_header": "Vendor Management",
+    "site_brand": "VMS",
+    "welcome_sign": "Benvenuto nell'area amministrativa",
+    "navigation_expanded": True,
+    "copyright": "Fabio Bui - Fulgard",
+    # Whether to display the side menu
+    "show_sidebar": True,
+    "default_icon_parents": "fas fa-folder-open",
+    "default_icon_children": "fas fa-file-alt",
+    "hide_apps": ["django_celery_beat", "purchase_orders", "historical_performances", "authtoken"],
+    "hide_models": [],
+    "topmenu_links": [
+        {"name": "Selezione",
+         "url": "/vendors/dashboard/" if not USE_FORNITORI_PREFIX else "/fornitori/vendors/dashboard/",
+         "icon": "fas fa-filter"
+        },
+    ],
+
+    "custom_links": {
+        "vendors": [{
+            "name": "Selezione",
+            "url": "/vendors/dashboard/" if not USE_FORNITORI_PREFIX else "/fornitori/vendors/dashboard/",
+            "icon": "fas fa-filter",
+            "order": 0,
+        }]
+    },
+
+    "order_with_respect_to": [
+        "vendors", "vendors.selezione", "vendors.vendor", "vendors.category", "vendors.address",
+        "vendors.servicetype", "vendors.evaluationcriterion",
+        "vendors.vendorevaluation", "historical_performances",
+         "vendors.document", "documenttype", "auth", "users",
+    ],
+
+    "icons": {
+        "auth": "fas fa-users-cog",
+        "auth.user": "fas fa-user",
+        "auth.group": "fas fa-user-shield",
+        "authtoken.tokenproxy": "fas fa-key",
+        "users.user": "fas fa-users",
+        "core": "fas fa-cogs",
+        "vendors": "fas fa-store",
+        "purchase_orders.purchaseorder": "fas fa-shopping-cart",
+        "historical_performances.historicalperformance": "fas fa-chart-line",
+        "documents.document": "fas fa-folder-open",
+        "django_celery_beat.clockedschedule": "fas fa-clock",
+        "django_celery_beat.crontabschedule": "fas fa-stopwatch",
+        "django_celery_beat.intervalschedule": "fas fa-tachometer-alt",
+        "django_celery_beat.periodictask": "fas fa-tasks",
+        "django_celery_beat.solarschedule": "fas fa-sun",
+        "vendors.vendor": "fas fa-truck",
+        "vendors.category": "fas fa-tags",
+        "vendors.address": "fas fa-map-marker-alt",
+        "vendors.document": "fas fa-file-alt",
+        "vendors.documenttype": "fas fa-file-signature",
+        "vendors.qualificationtype": "fas fa-graduation-cap",
+        "vendors.skill": "fas fa-tools",
+        "vendors.competence": "fas fa-toolbox",
+        "vendors.vendorcompetence": "fas fa-handshake",
+        "vendors.evaluationcriterion": "fas fa-star-half-alt",
+        "vendors.evaluation": "fas fa-star",
+        "vendors.assessment": "fas fa-clipboard-check",
+        "vendors.typology": "fas fa-shapes",
+        "vendors.servicetype": "fas fa-concierge-bell",
+        "vendors.typologyservice": "fas fa-layer-group",
+        "vendors.vendorevaluation": "fas fa-star",
+        "documents.document": "fas fa-file-alt",
+        "documents.documenttype": "fas fa-file-signature",
+        "documents.category": "fas fa-folder-tree",
+    },
+}
+
+
 
 # FIXTURES
 # ------------------------------------------------------------------------------
@@ -294,6 +369,7 @@ FIXTURE_DIRS = (str(BASE_DIR / "fixtures"),)
 SESSION_COOKIE_HTTPONLY = True
 CSRF_COOKIE_HTTPONLY = True
 X_FRAME_OPTIONS = "DENY"
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 
 
 # ADMIN

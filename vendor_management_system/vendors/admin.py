@@ -2,582 +2,493 @@
 
 # Imports (aggiorna le imports esistenti)
 from django.contrib import admin
-from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
-from django.db.models import Count
-
-from vendor_management_system.vendors.models import Vendor, Address, Category
-
-
-# Inline per subcategories
-class SubcategoryInline(admin.TabularInline):
-    model = Category
-    fk_name = 'parent'
-    extra = 0
-    fields = ['code', 'name', 'is_active', 'sort_order', 'default_risk_level']
-    readonly_fields = []
+from django.utils.html import format_html
+from django.urls import reverse
+from django.utils import timezone
+from .models import (
+    Category, Competence, VendorCompetence, DocumentType, VendorDocument,
+    Address, QualificationType, ServiceType, EvaluationCriterion,
+    VendorEvaluation, Vendor
+)
 
 
-# Register Category model in admin
+# Category Admin
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
-    list_display = [
-        "code",
-        "name",
-        "parent_category_display",
-        "level_display",
-        "vendor_count_display",
-        "color_display",
-        "requires_certification",
-        "default_risk_level_display",
-        "is_active",
-        "sort_order",
-    ]
-    
-    list_filter = [
-        "is_active",
-        "requires_certification",
-        "default_risk_level",
-        "parent",
-        "created_at",
-    ]
-    
-    search_fields = [
-        "code",
-        "name",
-        "description",
-        "parent__name",
-    ]
-    
-    ordering = ["sort_order", "name"]
+    list_display = ['code', 'name', 'parent', 'is_active', 'sort_order', 'vendor_count', 'color_badge']
+    list_filter = ['is_active', 'requires_certification', 'default_risk_level', 'parent']
+    search_fields = ['code', 'name', 'description']
+    ordering = ['sort_order', 'name']
+    list_editable = ['is_active', 'sort_order']
+    readonly_fields = ['created_at', 'updated_at', 'full_name', 'level', 'vendor_count', 'total_vendor_count']
     
     fieldsets = (
-        (
-            _("Informazioni principali"),
-            {
-                "fields": (
-                    "code",
-                    "name",
-                    "description",
-                    "parent",
-                )
-            },
-        ),
-        (
-            _("Configurazione"),
-            {
-                "fields": (
-                    ("is_active", "sort_order"),
-                    ("requires_certification", "default_risk_level"),
-                    "color_code",
-                )
-            },
-        ),
-        (
-            _("Metadata"),
-            {
-                "fields": (
-                    "created_at",
-                    "updated_at",
-                ),
-                "classes": ("collapse",),
-            },
-        ),
+        (_('Informazioni Base'), {
+            'fields': ('code', 'name', 'description', 'parent')
+        }),
+        (_('Classificazione'), {
+            'fields': ('is_active', 'sort_order', 'color_code')
+        }),
+        (_('Regole di Business'), {
+            'fields': ('requires_certification', 'default_risk_level')
+        }),
+        (_('Statistiche'), {
+            'fields': ('full_name', 'level', 'vendor_count', 'total_vendor_count'),
+            'classes': ('collapse',)
+        }),
+        (_('Metadata'), {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
     )
     
-    readonly_fields = [
-        "id",
-        "created_at",
-        "updated_at",
-    ]
-    
-    inlines = [SubcategoryInline]
-    
-    # Custom queryset per ottimizzare le query
-    def get_queryset(self, request):
-        queryset = super().get_queryset(request)
-        return queryset.select_related('parent').annotate(
-            admin_vendor_count=Count('vendors', distinct=True)
-        )
-    
-    # Custom display methods
-    def parent_category_display(self, obj):
-        if obj.parent:
-            return format_html(
-                '<span style="color: #007cba;">{}</span>',
-                obj.parent.name
-            )
-        else:
-            return format_html(
-                '<span style="color: #6c757d; font-style: italic;">Root</span>'
-            )
-    parent_category_display.short_description = _('Parent Category')
-    
-    def level_display(self, obj):
-        level = obj.level
-        indent = "━" * level if level > 0 else ""
-        return format_html(
-            '<span style="color: #6c757d;">{}{}</span>',
-            indent,
-            f"Level {level}"
-        )
-    level_display.short_description = _('Level')
-    
-    def vendor_count_display(self, obj):
-        # Usa l'annotazione se disponibile, altrimenti la property
-        count = getattr(obj, 'admin_vendor_count', obj.vendor_count)
-        if count > 0:
-            return format_html(
-                '<span style="color: #28a745; font-weight: bold;">{}</span>',
-                count
-            )
-        else:
-            return format_html(
-                '<span style="color: #6c757d;">0</span>'
-            )
-    vendor_count_display.short_description = _('Vendors')
-    vendor_count_display.admin_order_field = 'admin_vendor_count'  # Aggiornato anche questo    
-    
-    def color_display(self, obj):
+    def color_badge(self, obj):
         if obj.color_code:
             return format_html(
-                '<div style="width: 20px; height: 20px; background-color: {}; border: 1px solid #ccc; border-radius: 3px; display: inline-block;"></div> {}',
+                '<span style="background-color: {}; padding: 5px 10px; border-radius: 3px; color: white;">{}</span>',
                 obj.color_code,
                 obj.color_code
             )
-        else:
-            return format_html(
-                '<span style="color: #6c757d;">Nessun colore</span>'
-            )
-    color_display.short_description = _('Color')
-    
-    def default_risk_level_display(self, obj):
-        colors = {
-            'LOW': '#28a745',    # green
-            'MEDIUM': '#ffc107', # yellow
-            'HIGH': '#dc3545',   # red
-        }
-        color = colors.get(obj.default_risk_level, '#6c757d')
-        return format_html(
-            '<span style="color: {}; font-weight: bold;">{}</span>',
-            color,
-            obj.get_default_risk_level_display()
-        )
-    default_risk_level_display.short_description = _('Default Risk')
-    
-    # Custom actions
-    actions = ['activate_categories', 'deactivate_categories', 'reset_sort_order']
-    
-    def activate_categories(self, request, queryset):
-        updated = queryset.update(is_active=True)
-        self.message_user(
-            request,
-            f'{updated} categoria/e attivata/e.'
-        )
-    activate_categories.short_description = _('Activate selected categories')
-    
-    def deactivate_categories(self, request, queryset):
-        updated = queryset.update(is_active=False)
-        self.message_user(
-            request,
-            f'{updated} categoria/e disattivata/e.'
-        )
-    deactivate_categories.short_description = _('Deactivate selected categories')
-    
-    def reset_sort_order(self, request, queryset):
-        for i, category in enumerate(queryset.order_by('name'), start=1):
-            category.sort_order = i * 10
-            category.save()
-        self.message_user(
-            request,
-            f'Ordine di visualizzazione reimpostato per {queryset.count()} categoria/e.'
-        )
-    reset_sort_order.short_description = _('Reset sort order')
+        return '-'
+    color_badge.short_description = _('Colore')
 
 
-# Register Address model in admin
-@admin.register(Address)
-class AddressAdmin(admin.ModelAdmin):
-    list_display = [
-        "short_address_display",
-        "city",
-        "postal_code",
-        "country",
-        "address_type",
-        "is_active",
-        "vendors_count",
-        "created_at",
-    ]
-    
-    list_filter = [
-        "address_type",
-        "is_active",
-        "country",
-        "city",
-        "created_at",
-    ]
-    
-    search_fields = [
-        "street_address",
-        "street_address_2",
-        "city",
-        "postal_code",
-        "country",
-        "state_province",
-    ]
-    
-    ordering = ["-created_at"]
+# Competence Admin
+@admin.register(Competence)
+class CompetenceAdmin(admin.ModelAdmin):
+    list_display = ['code', 'name', 'competence_category', 'is_mandatory', 'requires_certification', 'requires_renewal', 'is_active']
+    list_filter = ['competence_category', 'is_mandatory', 'requires_certification', 'requires_renewal', 'is_active']
+    search_fields = ['code', 'name', 'description']
+    ordering = ['competence_category', 'sort_order', 'name']
+    list_editable = ['is_active', 'is_mandatory']
+    filter_horizontal = ['applicable_categories']
+    readonly_fields = ['created_at', 'updated_at']
     
     fieldsets = (
-        (
-            _("Informazioni principali"),
-            {
-                "fields": (
-                    "street_address",
-                    "street_address_2",
-                    ("city", "state_province"),
-                    ("postal_code", "country"),
-                )
-            },
-        ),
-        (
-            _("Classificazione"),
-            {
-                "fields": (
-                    "address_type",
-                    "is_active",
-                )
-            },
-        ),
-        (
-            _("Coordinate geografiche"),
-            {
-                "fields": (
-                    ("latitude", "longitude"),
-                ),
-                "classes": ("collapse",),
-            },
-        ),
-        (
-            _("Note e dettagli"),
-            {
-                "fields": (
-                    "notes",
-                ),
-                "classes": ("collapse",),
-            },
-        ),
-        (
-            _("Metadata"),
-            {
-                "fields": (
-                    "created_at",
-                    "updated_at",
-                ),
-                "classes": ("collapse",),
-            },
-        ),
+        (_('Informazioni Base'), {
+            'fields': ('code', 'name', 'description', 'competence_category')
+        }),
+        (_('Requisiti'), {
+            'fields': ('requires_certification', 'requires_renewal', 'renewal_period_months')
+        }),
+        (_('Configurazione'), {
+            'fields': ('is_mandatory', 'is_active', 'sort_order')
+        }),
+        (_('Categorie Applicabili'), {
+            'fields': ('applicable_categories',)
+        }),
+        (_('Metadata'), {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+
+
+# VendorCompetence Inline
+class VendorCompetenceInline(admin.TabularInline):
+    model = VendorCompetence
+    extra = 1
+    fields = ['competence', 'has_competence', 'has_certification', 'certification_number', 'issue_date', 'expiry_date', 'verified', 'expiry_status_display']
+    readonly_fields = ['expiry_status_display', 'created_at', 'updated_at']
+    autocomplete_fields = ['competence']
+    
+    def expiry_status_display(self, obj):
+        if obj.pk:
+            status = obj.expiry_status
+            colors = {
+                'EXPIRED': 'red',
+                'EXPIRING_SOON': 'orange',
+                'EXPIRING': 'yellow',
+                'VALID': 'green',
+                'NO_EXPIRY': 'gray'
+            }
+            return format_html(
+                '<span style="color: {}; font-weight: bold;">{}</span>',
+                colors.get(status, 'black'),
+                status
+            )
+        return '-'
+    expiry_status_display.short_description = _('Stato Scadenza')
+
+
+# VendorCompetence Admin
+@admin.register(VendorCompetence)
+class VendorCompetenceAdmin(admin.ModelAdmin):
+    list_display = ['vendor', 'competence', 'has_competence', 'has_certification', 'issue_date', 'expiry_date', 'verified', 'expiry_status_badge']
+    list_filter = ['has_competence', 'has_certification', 'verified', 'competence__competence_category', 'expiry_date']
+    search_fields = ['vendor__name', 'competence__name', 'certification_number']
+    date_hierarchy = 'expiry_date'
+    readonly_fields = ['created_at', 'updated_at', 'is_expired', 'days_to_expiry', 'expiry_status']
+    autocomplete_fields = ['vendor', 'competence']
+    
+    fieldsets = (
+        (_('Relazione'), {
+            'fields': ('vendor', 'competence', 'has_competence')
+        }),
+        (_('Dettagli Certificazione'), {
+            'fields': ('has_certification', 'certification_number', 'certification_body', 'issue_date', 'expiry_date')
+        }),
+        (_('Verifica'), {
+            'fields': ('verified', 'verified_by', 'verified_date')
+        }),
+        (_('Documentazione'), {
+            'fields': ('document_file', 'notes')
+        }),
+        (_('Stato Scadenza'), {
+            'fields': ('is_expired', 'days_to_expiry', 'expiry_status'),
+            'classes': ('collapse',)
+        }),
+        (_('Metadata'), {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
     )
     
-    readonly_fields = [
-        "id",
-        "created_at",
-        "updated_at",
-    ]
-    
-    # Custom display methods
-    def short_address_display(self, obj):
-        return obj.short_address
-    short_address_display.short_description = _('Indirizzo')
-    
-    def vendors_count(self, obj):
-        count = obj.vendors.count()
-        if count > 0:
-            return format_html(
-                '<span style="color: #28a745; font-weight: bold;">{} vendor(s)</span>',
-                count
-            )
-        else:
-            return format_html(
-                '<span style="color: #6c757d;">Nessun vendor</span>'
-            )
-    vendors_count.short_description = _('Vendors collegati')
+    def expiry_status_badge(self, obj):
+        status = obj.expiry_status
+        colors = {
+            'EXPIRED': 'red',
+            'EXPIRING_SOON': 'orange',
+            'EXPIRING': 'yellow',
+            'VALID': 'green',
+            'NO_EXPIRY': 'gray'
+        }
+        return format_html(
+            '<span style="background-color: {}; padding: 3px 8px; border-radius: 3px; color: white;">{}</span>',
+            colors.get(status, 'black'),
+            status
+        )
+    expiry_status_badge.short_description = _('Stato')
 
 
-# VendorAdmin CORRETTO (senza AddressInline)
+# DocumentType Admin
+@admin.register(DocumentType)
+class DocumentTypeAdmin(admin.ModelAdmin):
+    list_display = ['code', 'name', 'document_category', 'is_mandatory', 'requires_renewal', 'default_validity_days', 'is_active']
+    list_filter = ['document_category', 'is_mandatory', 'requires_renewal', 'is_active']
+    search_fields = ['code', 'name', 'description']
+    ordering = ['document_category', 'sort_order', 'name']
+    list_editable = ['is_active', 'is_mandatory']
+    filter_horizontal = ['applicable_categories']
+    readonly_fields = ['created_at', 'updated_at']
+    
+    fieldsets = (
+        (_('Informazioni Base'), {
+            'fields': ('code', 'name', 'description', 'document_category')
+        }),
+        (_('Requisiti'), {
+            'fields': ('is_mandatory', 'requires_renewal', 'default_validity_days', 'alert_days_before_expiry')
+        }),
+        (_('Configurazione'), {
+            'fields': ('is_active', 'sort_order')
+        }),
+        (_('Categorie Applicabili'), {
+            'fields': ('applicable_categories',)
+        }),
+        (_('Template e Istruzioni'), {
+            'fields': ('template_file', 'instructions')
+        }),
+        (_('Metadata'), {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+
+
+# VendorDocument Inline
+class VendorDocumentInline(admin.TabularInline):
+    model = VendorDocument
+    extra = 1
+    fields = ['document_type', 'status', 'issue_date', 'expiry_date', 'verified', 'expiry_status_display']
+    readonly_fields = ['expiry_status_display', 'created_at', 'updated_at']
+    autocomplete_fields = ['document_type']
+    
+    def expiry_status_display(self, obj):
+        if obj.pk:
+            status = obj.expiry_status
+            colors = {
+                'EXPIRED': 'red',
+                'EXPIRING_SOON': 'orange',
+                'VALID': 'green',
+                'NO_EXPIRY': 'gray'
+            }
+            return format_html(
+                '<span style="color: {}; font-weight: bold;">{}</span>',
+                colors.get(status, 'black'),
+                status
+            )
+        return '-'
+    expiry_status_display.short_description = _('Stato Scadenza')
+
+
+# VendorDocument Admin
+@admin.register(VendorDocument)
+class VendorDocumentAdmin(admin.ModelAdmin):
+    list_display = ['vendor', 'document_type', 'status', 'issue_date', 'expiry_date', 'verified', 'expiry_status_badge']
+    list_filter = ['status', 'verified', 'document_type__document_category', 'expiry_date']
+    search_fields = ['vendor__name', 'document_type__name', 'document_number']
+    date_hierarchy = 'expiry_date'
+    readonly_fields = ['created_at', 'updated_at', 'is_expired', 'days_to_expiry', 'expiry_status', 'is_valid']
+    autocomplete_fields = ['vendor', 'document_type']
+    
+    fieldsets = (
+        (_('Relazione'), {
+            'fields': ('vendor', 'document_type')
+        }),
+        (_('Dettagli Documento'), {
+            'fields': ('document_number', 'issue_date', 'expiry_date', 'status')
+        }),
+        (_('Verifica'), {
+            'fields': ('verified', 'verified_by', 'verified_date')
+        }),
+        (_('File e Note'), {
+            'fields': ('document_file', 'notes', 'rejection_reason', 'uploaded_by')
+        }),
+        (_('Stato Validità'), {
+            'fields': ('is_expired', 'days_to_expiry', 'expiry_status', 'is_valid'),
+            'classes': ('collapse',)
+        }),
+        (_('Metadata'), {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def expiry_status_badge(self, obj):
+        status = obj.expiry_status
+        colors = {
+            'EXPIRED': 'red',
+            'EXPIRING_SOON': 'orange',
+            'VALID': 'green',
+            'NO_EXPIRY': 'gray'
+        }
+        return format_html(
+            '<span style="background-color: {}; padding: 3px 8px; border-radius: 3px; color: white;">{}</span>',
+            colors.get(status, 'black'),
+            status
+        )
+    expiry_status_badge.short_description = _('Stato')
+    
+    actions = ['mark_as_approved', 'mark_as_verified']
+    
+    def mark_as_approved(self, request, queryset):
+        updated = queryset.update(status='APPROVED')
+        self.message_user(request, f'{updated} documenti approvati.')
+    mark_as_approved.short_description = _('Approva documenti selezionati')
+    
+    def mark_as_verified(self, request, queryset):
+        updated = queryset.update(verified=True, verified_date=timezone.now().date())
+        self.message_user(request, f'{updated} documenti verificati.')
+    mark_as_verified.short_description = _('Verifica documenti selezionati')
+
+
+# Address Admin
+@admin.register(Address)
+class AddressAdmin(admin.ModelAdmin):
+    list_display = ['short_address', 'city', 'postal_code', 'country', 'address_type', 'is_active']
+    list_filter = ['address_type', 'is_active', 'country', 'city']
+    search_fields = ['street_address', 'city', 'postal_code', 'country']
+    readonly_fields = ['created_at', 'updated_at', 'full_address']
+    
+    fieldsets = (
+        (_('Indirizzo'), {
+            'fields': ('street_address', 'street_address_2', 'city', 'state_province', 'region', 'postal_code', 'country')
+        }),
+        (_('Coordinate Geografiche'), {
+            'fields': ('latitude', 'longitude'),
+            'classes': ('collapse',)
+        }),
+        (_('Informazioni Aggiuntive'), {
+            'fields': ('address_type', 'is_active', 'full_address')
+        }),
+        (_('Metadata'), {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+
+
+# QualificationType Admin
+@admin.register(QualificationType)
+class QualificationTypeAdmin(admin.ModelAdmin):
+    list_display = ['code', 'name', 'level', 'is_active', 'sort_order']
+    list_filter = ['is_active', 'level']
+    search_fields = ['code', 'name', 'description']
+    ordering = ['sort_order', 'name']
+    list_editable = ['is_active', 'sort_order']
+
+
+# ServiceType Admin
+@admin.register(ServiceType)
+class ServiceTypeAdmin(admin.ModelAdmin):
+    list_display = ['code', 'name', 'parent', 'is_active', 'sort_order', 'is_category']
+    list_filter = ['is_active', 'parent']
+    search_fields = ['code', 'name', 'description']
+    ordering = ['sort_order', 'name']
+    list_editable = ['is_active', 'sort_order']
+    
+    def is_category(self, obj):
+        return obj.is_category
+    is_category.boolean = True
+    is_category.short_description = _('È Categoria')
+
+
+# EvaluationCriterion Admin
+@admin.register(EvaluationCriterion)
+class EvaluationCriterionAdmin(admin.ModelAdmin):
+    list_display = ['code', 'name', 'category', 'is_active']
+    list_filter = ['category', 'is_active']
+    search_fields = ['code', 'name', 'description']
+    ordering = ['category', 'code']
+    list_editable = ['is_active']
+
+
+# VendorEvaluation Inline
+class VendorEvaluationInline(admin.TabularInline):
+    model = VendorEvaluation
+    extra = 1
+    fields = ['criterion', 'score', 'notes', 'evaluated_at']
+    readonly_fields = ['evaluated_at']
+    autocomplete_fields = ['criterion']
+    
+    def formfield_for_dbfield(self, db_field, request, **kwargs):
+        if db_field.name == 'notes':
+            kwargs['widget'] = admin.widgets.AdminTextareaWidget(attrs={'rows': 2, 'cols': 40, 'style': 'width: 300px;'})
+        return super().formfield_for_dbfield(db_field, request, **kwargs)
+    
+    def expiry_status_display(self, obj):
+        if obj.pk:
+            status = obj.expiry_status
+            colors = {
+                'EXPIRED': 'red',
+                'EXPIRING_SOON': 'orange',
+                'EXPIRING': 'yellow',
+                'VALID': 'green',
+                'NO_EXPIRY': 'gray'
+            }
+            return format_html(
+                '<span style="color: {}; font-weight: bold;">{}</span>',
+                colors.get(status, 'black'),
+                status
+            )
+        return '-'
+    expiry_status_display.short_description = _('Stato Scadenza')
+
+
+# VendorEvaluation Admin
+@admin.register(VendorEvaluation)
+class VendorEvaluationAdmin(admin.ModelAdmin):
+    list_display = ['vendor', 'criterion', 'score', 'score_display', 'evaluated_at']
+    list_filter = ['score', 'criterion__category', 'evaluated_at']
+    search_fields = ['vendor__name', 'criterion__name', 'notes']
+    date_hierarchy = 'evaluated_at'
+    autocomplete_fields = ['vendor', 'criterion']
+    
+    def score_display(self, obj):
+        return obj.get_score_display()
+    score_display.short_description = _('Valutazione')
+
+
+# Vendor Admin (Enhanced)
 @admin.register(Vendor)
 class VendorAdmin(admin.ModelAdmin):
     list_display = [
-        "vendor_code",
-        "name",
-        "email",
-        "phone",
-        "category_display",
-        "address_display",
-        "qualification_status_display",
-        "risk_level_display",
-        "is_qualified_display",
-        "audit_overdue_display"
+        'vendor_code', 'name', 'category', 'qualification_status', 'risk_level',
+        'is_qualified_display', 'is_active', 'qualification_score'
     ]
-    
     list_filter = [
-        "qualification_status",
-        "risk_level",
-        "category",
-        "country",
-        "qualification_date",
-        "next_audit_due",
-        "address__country",  # Filtro per paese dell'indirizzo
-        "address__city",     # Filtro per città dell'indirizzo
+        'qualification_status', 'risk_level', 'is_active', 'category',
+        'vendor_type', 'contractual_status', 'vendor_final_evaluation'
     ]
-    
-    search_fields = [
-        "name",
-        "vendor_code",
-        "email",
-        "vat_number",
-        "fiscal_code",
-        "reference_contact",
-        "address__street_address",
-        "address__city",
-        "address__postal_code",
+    search_fields = ['vendor_code', 'name', 'vat_number', 'fiscal_code', 'email']
+    readonly_fields = [
+        'vendor_code', 'is_qualified', 'audit_overdue', 'is_documentation_complete',
+        'active_competences', 'expired_competences', 'expiring_competences',
+        'missing_mandatory_competences', 'valid_documents', 'expired_documents',
+        'expiring_documents', 'missing_mandatory_documents'
     ]
-    
-    ordering = ["name"]
+    autocomplete_fields = ['address', 'category', 'qualification_type', 'service_type', 'user_account']
+    inlines = [VendorCompetenceInline, VendorDocumentInline, VendorEvaluationInline]
     
     fieldsets = (
-        (
-            _("Generale"),
-            {
-                "fields": (
-                    "vendor_code",
-                    "name",
-                    "vat_number",
-                    "fiscal_code", 
-                    "category",
-                    "risk_level",
-                )
-            },
-        ),
-        (
-            _("Contatti"),
-            {
-                "fields": (
-                    "address",  # Campo address come ForeignKey
-                    "country",
-                    "phone",
-                    "email",
-                    "reference_contact",
-                    "contact_details",
-                    "website",
-                )
-            },
-        ),
-        (
-            _("Qualifica"),
-            {
-                "fields": (
-                    "qualification_status",
-                    "qualification_score",
-                    "qualification_date",
-                    "qualification_expiry",
-                    "iso_certifications",
-                ),
-                "classes": ("collapse",),
-            },
-        ),
-        (
-            _("Rating"),
-            {
-                "fields": (
-                    "on_time_delivery_rate",
-                    "quality_rating_avg",
-                    "average_response_time",
-                    "fulfillment_rate",
-                ),
-                "classes": ("collapse",),
-            },
-        ),
-        (
-            _("Audit"),
-            {
-                "fields": (
-                    "last_audit_date",
-                    "next_audit_due",
-                    "review_notes",
-                ),
-                "classes": ("collapse",),
-            },
-        ),
-    )    
-    
-    readonly_fields = [
-        "vendor_code",
-    ]
-    
-    # RIMOSSE le inlines perché Address non ha ForeignKey verso Vendor
-    # inlines = [AddressInline]  # RIMOSSO
-    
-    actions = [
-        'mark_as_approved', 
-        'mark_as_pending', 
-        'mark_as_rejected',
-        'update_risk_from_category',
-        'assign_category'
-    ]
-    
-    def update_risk_from_category(self, request, queryset):
-        updated = 0
-        for vendor in queryset:
-            if vendor.category:
-                vendor.risk_level = vendor.category.default_risk_level
-                vendor.save()
-                updated += 1
-        self.message_user(
-            request,
-            f'{updated} vendor(s) updated with category default risk level.'
-        )
-    update_risk_from_category.short_description = _('Update risk level from category default')
-
-    def assign_category(self, request, queryset):
-        # Questa action permetterà di assegnare una categoria ai vendor selezionati
-        # Implementazione da fare se necessaria
-        pass
-    assign_category.short_description = _('Assign category to selected vendors')
-
-    def category_display(self, obj):
-        if obj.category:
-            color_style = ""
-            if obj.category.color_code:
-                color_style = f"border-left: 4px solid {obj.category.color_code}; padding-left: 8px;"
-            
-            certification_badge = ""
-            if obj.category.requires_certification:
-                certification_badge = '<span style="color: #ffc107; font-size: 12px;"> 🏅</span>'
-            
-            category_text = obj.category.full_name if obj.category.parent else obj.category.name
-            
-            return format_html(
-                '<span style="{}" title="{}">{}{}</span>',
-                color_style,
-                f"Codice: {obj.category.code}\nDescrizione: {obj.category.description or 'N/A'}\nRichiede certificazione: {'Sì' if obj.category.requires_certification else 'No'}",
-                category_text,
-                certification_badge
+        (_('Informazioni Base'), {
+            'fields': (
+                'vendor_code', 'old_code', 'name', 'vendor_type',
+                'vat_number', 'fiscal_code', 'category', 'risk_level',
+                'vendor_final_evaluation', 'is_active'
             )
-        else:
-            return format_html(
-                '<span style="color: #dc3545; font-style: italic;">⚠ Nessuna categoria</span>'
+        }),
+        (_('Contatti'), {
+            'fields': ('email', 'phone', 'reference_contact', 'website', 'address', 'contact_details')
+        }),
+        (_('Stato Contrattuale'), {
+            'fields': (
+                'contractual_status', 'contractual_start_date', 'contractual_end_date',
+                'contractual_terms', 'reference_person'
             )
-    category_display.short_description = _('Category')
-    category_display.admin_order_field = 'category__name'
-    
-    def address_display(self, obj):
-        if obj.address:
-            return format_html(
-                '<span title="{}">{}</span>',
-                obj.address.full_address,
-                obj.address.short_address
+        }),
+        (_('Servizi'), {
+            'fields': (
+                'qualification_type', 'service_type', 'cluster_corso',
+                'begin_experience_date', 'vendor_task_description',
+                'service_additional', 'service_note', 'competences_zone'
             )
-        else:
-            return format_html(
-                '<span style="color: #dc3545;">⚠ Nessun indirizzo</span>'
+        }),
+        (_('Servizi Medici'), {
+            'fields': (
+                'vendor_medical_service', 'mobile_device', 'ambulatory_service',
+                'laboratory_service', 'laboratory_independent',
+                'licensed_physician_year', 'date_of_establishment',
+                'other_medical_service', 'doctor_registration',
+                'doctor_cv', 'doctor_cv2'
+            ),
+            'classes': ('collapse',)
+        }),
+        (_('Performance'), {
+            'fields': (
+                'on_time_delivery_rate', 'quality_rating_avg',
+                'average_response_time', 'fulfillment_rate'
             )
-    address_display.short_description = _('Indirizzo')
-    
-    def qualification_status_display(self, obj):
-        colors = {
-            'PENDING': '#ffc107',  # warning/yellow
-            'APPROVED': '#28a745',  # success/green
-            'REJECTED': '#dc3545',  # danger/red
-        }
-        color = colors.get(obj.qualification_status, '#6c757d')
-        return format_html(
-            '<span style="color: {}; font-weight: bold;">{}</span>',
-            color,
-            obj.get_qualification_status_display()
-        )
-    qualification_status_display.short_description = _('Qualification Status')
-    
-    def risk_level_display(self, obj):
-        colors = {
-            'LOW': '#28a745',    # green
-            'MEDIUM': '#ffc107', # yellow
-            'HIGH': '#dc3545',   # red
-        }
-        color = colors.get(obj.risk_level, '#6c757d')
-        return format_html(
-            '<span style="color: {}; font-weight: bold;">{}</span>',
-            color,
-            obj.get_risk_level_display()
-        )
-    risk_level_display.short_description = _('Risk Level')
-    
+        }),
+        (_('Qualifica e Audit'), {
+            'fields': (
+                'qualification_status', 'qualification_score', 'qualification_date',
+                'qualification_expiry', 'last_audit_date', 'next_audit_due',
+                'is_qualified', 'audit_overdue', 'review_notes'
+            )
+        }),
+        (_('Gestione/Altro'), {
+            'fields': ('vendor_management_update', 'is_ico_consultant', 'albo_zucchetti')
+        }),
+        (_('Account Utente'), {
+            'fields': ('user_account',),
+            'classes': ('collapse',)
+        }),
+    )
+        
     def is_qualified_display(self, obj):
         if obj.is_qualified:
-            return format_html(
-                '<span style="color: #28a745; font-weight: bold;">✓ {}</span>',
-                _('Qualified')
-            )
-        else:
-            return format_html(
-                '<span style="color: #dc3545; font-weight: bold;">✗ {}</span>',
-                _('Not Qualified')
-            )
-    is_qualified_display.short_description = _('Qualified')
+            return format_html('<span style="color: green; font-weight: bold;">✓ Qualificato</span>')
+        return format_html('<span style="color: red; font-weight: bold;">✗ Non Qualificato</span>')
+    is_qualified_display.short_description = _('Qualificato')
     
-    def audit_overdue_display(self, obj):
-        if obj.audit_overdue:
-            return format_html(
-                '<span style="color: #dc3545; font-weight: bold;">⚠ {}</span>',
-                _('Overdue')
-            )
-        elif obj.next_audit_due:
-            return format_html(
-                '<span style="color: #28a745;">✓ {}</span>',
-                _('Scheduled')
-            )
-        else:
-            return format_html(
-                '<span style="color: #6c757d;">- {}</span>',
-                _('Not Scheduled')
-            )
-    audit_overdue_display.short_description = _('Audit Status')
+    actions = ['approve_vendors', 'reject_vendors', 'mark_for_audit']
     
-    # Add custom actions
-    def mark_as_approved(self, request, queryset):
+    def approve_vendors(self, request, queryset):
         updated = queryset.update(qualification_status='APPROVED')
-        self.message_user(
-            request,
-            f'{updated} vendor(s) marked as approved.'
-        )
-    mark_as_approved.short_description = _('Mark selected vendors as approved')
+        self.message_user(request, f'{updated} fornitori approvati.', 'success')
+    approve_vendors.short_description = _('Approva fornitori selezionati')
     
-    def mark_as_pending(self, request, queryset):
-        updated = queryset.update(qualification_status='PENDING')
-        self.message_user(
-            request,
-            f'{updated} vendor(s) marked as pending.'
-        )
-    mark_as_pending.short_description = _('Mark selected vendors as pending')
-    
-    def mark_as_rejected(self, request, queryset):
+    def reject_vendors(self, request, queryset):
         updated = queryset.update(qualification_status='REJECTED')
-        self.message_user(
-            request,
-            f'{updated} vendor(s) marked as rejected.'
-        )
-    mark_as_rejected.short_description = _('Mark selected vendors as rejected')
+        self.message_user(request, f'{updated} fornitori respinti.', 'warning')
+    reject_vendors.short_description = _('Respingi fornitori selezionati')
     
-    # Custom save method for admin
-    def save_model(self, request, obj, form, change):
-        if not change:  # This is a new object
-            # Auto-set qualification date if status is approved and no date is set
-            if obj.qualification_status == 'APPROVED' and not obj.qualification_date:
-                from django.utils import timezone
-                obj.qualification_date = timezone.now().date()
-            
-            # Auto-set risk level from category if not specified
-            if not obj.risk_level and obj.category:
-                obj.risk_level = obj.category.default_risk_level
-                
-        super().save_model(request, obj, form, change)
+    def mark_for_audit(self, request, queryset):
+        from datetime import timedelta
+        next_audit = timezone.now().date() + timedelta(days=30)
+        updated = queryset.update(next_audit_due=next_audit)
+        self.message_user(request, f'{updated} fornitori marcati per audit tra 30 giorni.', 'info')
+    mark_for_audit.short_description = _('Programma audit (30 giorni)')
+
