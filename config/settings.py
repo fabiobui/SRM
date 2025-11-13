@@ -291,20 +291,30 @@ JAZZMIN_SETTINGS = {
     "welcome_sign": "Benvenuto nell'area amministrativa",
     "navigation_expanded": True,
     "copyright": "Fabio Bui - Fulgard",
-
+    # Whether to display the side menu
+    "show_sidebar": True,
     "default_icon_parents": "fas fa-folder-open",
     "default_icon_children": "fas fa-file-alt",
+    "hide_apps": ["django_celery_beat", "purchase_orders", "historical_performances", "authtoken"],
+    "hide_models": [],
+    "topmenu_links": [
+        {"name": "Selezione",
+         "url": "/vendors/dashboard/" if not USE_FORNITORI_PREFIX else "/fornitori/vendors/dashboard/",
+         "icon": "fas fa-filter"
+        },
+    ],
 
     "custom_links": {
         "vendors": [{
-            "name": "Dashboard",
+            "name": "Selezione",
             "url": "/vendors/dashboard/" if not USE_FORNITORI_PREFIX else "/fornitori/vendors/dashboard/",
-            "icon": "fas fa-tachometer-alt",
+            "icon": "fas fa-filter",
+            "order": 0,
         }]
     },
 
     "order_with_respect_to": [
-        "vendors", "vendors.vendor", "vendors.category", "vendors.address",
+        "vendors", "vendors.selezione", "vendors.vendor", "vendors.category", "vendors.address",
         "vendors.servicetype", "vendors.evaluationcriterion",
         "vendors.vendorevaluation", "historical_performances",
          "vendors.document", "documenttype", "auth", "users",
@@ -360,6 +370,7 @@ FIXTURE_DIRS = (str(BASE_DIR / "fixtures"),)
 SESSION_COOKIE_HTTPONLY = True
 CSRF_COOKIE_HTTPONLY = True
 X_FRAME_OPTIONS = "DENY"
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 
 
 # ADMIN

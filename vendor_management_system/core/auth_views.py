@@ -50,6 +50,7 @@ class CustomLoginView(View):
             
             if user is not None:
                 login(request, user)
+                request.session.set_expiry(0)  # La sessione scade alla chiusura del browser
                 messages.success(request, f'Benvenuto, {user.name or user.email}!')
                 
                 # Reindirizza basato sul ruolo

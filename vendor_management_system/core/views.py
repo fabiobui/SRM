@@ -53,19 +53,18 @@ class QueryParamObtainAuthToken(ObtainAuthToken):
 def dashboard_redirect(request):
     """Reindirizza l'utente alla dashboard appropriata in base al ruolo"""
     user = request.user
-    
     # Controlla se l'utente ha il campo role (per compatibilità)
     if hasattr(user, 'role'):
         if user.role == 'admin' or user.is_superuser:
-            return redirect('/documents/admin/')
+            return redirect('/admin/')
         elif user.role == 'bo_user':
-            return redirect('/documents/backoffice/')
+            return redirect('/vendors/dashboard/')
         elif user.role == 'vendor' and hasattr(user, 'vendor') and user.vendor:
             return redirect('/documents/portal/')
     
     # Fallback per utenti senza ruolo definito
     if user.is_superuser or user.is_staff:
-        return redirect('/documents/admin/')
+        return redirect('/admin/')
     else:
         messages.warning(request, "Il tuo account non ha un ruolo assegnato. Contatta l'amministratore.")
         return HttpResponse("""
