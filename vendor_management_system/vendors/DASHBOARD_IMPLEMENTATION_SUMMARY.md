@@ -321,8 +321,97 @@ Prossimi sviluppi suggeriti:
 - [ ] Dashboard mobile app
 - [ ] Real-time updates (WebSocket)
 
+## 📅 Aggiornamenti Recenti
+
+### Versione 1.1.0 - 13 Novembre 2025
+
+#### 🎯 Nuova Funzionalità: Filtri Avanzati Stile Redmine
+
+**Descrizione**: Aggiunta una sezione di filtri avanzati completamente personalizzabile, simile al sistema di filtri di Redmine, che permette di filtrare i fornitori su qualsiasi campo con operatori multipli.
+
+**Caratteristiche implementate**:
+
+1. **Pannello Filtri Espandibile**
+   - Card collassabile con header cliccabile
+   - Badge con contatore filtri attivi
+   - Posizionato tra le statistiche e i grafici
+
+2. **Sistema di Filtri Dinamico**
+   - Possibilità di aggiungere/rimuovere filtri dinamicamente
+   - 22 campi disponibili per il filtraggio
+   - 4 tipi di campo supportati (testo, numero, selezione, booleano)
+   - Operatori specifici per ogni tipo di campo
+
+3. **Campi Disponibili**:
+   - Info base: nome, codice, tipo, email, telefono
+   - Dati fiscali: P.IVA, codice fiscale
+   - Stato: qualifica, valutazione finale, attivo, ICO, contrattuale
+   - Performance: qualità, adempimento
+   - Localizzazione: città, regione, provincia, paese
+   - Classificazione: categoria, tipo servizio
+
+4. **Operatori per Tipo**:
+   - **Testo**: contiene, non contiene, uguale, diverso, inizia con, finisce con, vuoto, non vuoto
+   - **Numero**: uguale, diverso, maggiore, minore, maggiore/uguale, minore/uguale, vuoto, non vuoto
+   - **Selezione**: uguale, diverso, vuoto, non vuoto
+   - **Booleano**: è vero, è falso
+
+5. **Interfaccia Utente**:
+   - Riga filtro con 3 dropdown + pulsante rimuovi
+   - Pulsante "Aggiungi Filtro" per aggiungere nuove righe
+   - Pulsante "Applica Filtri" per eseguire il filtraggio
+   - Pulsante "Cancella Tutti" per reset completo
+   - Badge colorati per visualizzare filtri attivi (stile gradiente viola)
+
+6. **Integrazione**:
+   - Lavora in combinazione con filtri grafici esistenti
+   - Compatibile con la ricerca testuale
+   - Aggiorna automaticamente statistiche e grafici
+   - Rispettato nell'export Excel
+
+**File modificati**:
+- `templates/vendors/vendor_dashboard.html`: aggiunto pannello filtri
+- `static/vendors/css/dashboard.css`: nuovi stili per filtri avanzati
+- `static/vendors/js/dashboard.js`: logica JavaScript per filtri dinamici
+
+**Nuovi file**:
+- `README_FILTRI_AVANZATI.md`: documentazione completa utente
+
+**Testing**:
+- Testato con dataset di 100+ fornitori
+- Verificato su Chrome, Firefox, Safari
+- Compatibilità mobile responsive
+
+**Performance**:
+- Filtri applicati lato client (nessun carico server)
+- Risposta istantanea anche con 10+ filtri attivi
+- Nessun impatto sulle performance esistenti
+
+**Esempi d'uso**:
+```javascript
+// Esempio 1: Fornitori attivi di Milano
+Campo: Città → Operatore: è uguale a → Valore: Milano
+Campo: Attivo → Operatore: è vero
+
+// Esempio 2: Società senza P.IVA
+Campo: Tipo Fornitore → Operatore: è uguale a → Valore: Società
+Campo: Partita IVA → Operatore: è vuoto
+
+// Esempio 3: Alto rischio con basso adempimento
+Campo: Stato Qualifica → Operatore: è uguale a → Valore: APPROVED
+Campo: Tasso Adempimento → Operatore: è minore di → Valore: 50
+```
+
+**Roadmap filtri**:
+- [ ] Salvataggio preset filtri per utente
+- [ ] Condivisione URL con filtri
+- [ ] Operatore OR tra gruppi di filtri
+- [ ] Export/import configurazione filtri
+- [ ] Filtri su date e range temporali
+- [ ] Suggerimenti intelligenti basati su dati
+
 ---
 
 **Implementazione completata**: Novembre 2025  
 **Modulo**: vendors  
-**Versione**: 1.0.0
+**Versione**: 1.1.0

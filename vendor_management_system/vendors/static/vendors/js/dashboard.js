@@ -9,8 +9,68 @@ let activeFilters = {
     competencies: [],
     certifications: []
 };
+let advancedFilters = []; // Array of {field, operator, value}
+let filterRowCounter = 0;
 let charts = {};
 let allProvinces = [];
+
+// Available filter fields configuration
+const filterFields = {
+    'name': { label: 'Nome', type: 'text' },
+    'vendor_code': { label: 'Codice Fornitore', type: 'text' },
+    'vendor_type': { label: 'Tipo Fornitore', type: 'select', options: ['Società', 'Professionista', 'Dipendente', 'Dipendente + Libero professionista', 'Disoccupato', 'Libero Professionista', 'Presso Studio', 'Prestazione Occasionale', 'Società/professionista', 'Internazionale'] },
+    'email': { label: 'Email', type: 'text' },
+    'phone': { label: 'Telefono', type: 'text' },
+    'vat_number': { label: 'Partita IVA', type: 'text' },
+    'fiscal_code': { label: 'Codice Fiscale', type: 'text' },
+    'qualification_status': { label: 'Stato Qualifica', type: 'select', options: ['PENDING', 'APPROVED', 'REJECTED'] },
+    'vendor_final_evaluation': { label: 'Valutazione Finale', type: 'select', options: ['DA VALUTARE', 'NEGATIVO', 'POSITIVO', 'MOLTO POSITIVO'] },
+    'quality_rating_avg': { label: 'Valutazione Qualità', type: 'number' },
+    'fulfillment_rate': { label: 'Tasso Adempimento', type: 'number' },
+    'is_active': { label: 'Attivo', type: 'boolean' },
+    'is_ico_consultant': { label: 'Consulente ICO', type: 'boolean' },
+    'contractual_status': { label: 'Stato Contrattuale', type: 'select', options: ['00', '02', '03', '04', '05', '06', '99'] },
+    'address.city': { label: 'Città', type: 'text' },
+    'address.region': { label: 'Regione', type: 'text' },
+    'address.state_province': { label: 'Provincia', type: 'text' },
+    'address.country': { label: 'Paese', type: 'text' },
+    'category.name': { label: 'Categoria', type: 'text' },
+    'service_type.name': { label: 'Tipo Servizio', type: 'text' }
+};
+
+// Operator options by field type
+const operatorsByType = {
+    'text': [
+        { value: 'contains', label: 'contiene' },
+        { value: 'not_contains', label: 'non contiene' },
+        { value: 'equals', label: 'è uguale a' },
+        { value: 'not_equals', label: 'è diverso da' },
+        { value: 'starts_with', label: 'inizia con' },
+        { value: 'ends_with', label: 'finisce con' },
+        { value: 'is_empty', label: 'è vuoto' },
+        { value: 'is_not_empty', label: 'non è vuoto' }
+    ],
+    'number': [
+        { value: 'equals', label: 'è uguale a' },
+        { value: 'not_equals', label: 'è diverso da' },
+        { value: 'greater_than', label: 'è maggiore di' },
+        { value: 'less_than', label: 'è minore di' },
+        { value: 'greater_or_equal', label: 'è maggiore o uguale a' },
+        { value: 'less_or_equal', label: 'è minore o uguale a' },
+        { value: 'is_empty', label: 'è vuoto' },
+        { value: 'is_not_empty', label: 'non è vuoto' }
+    ],
+    'select': [
+        { value: 'equals', label: 'è uguale a' },
+        { value: 'not_equals', label: 'è diverso da' },
+        { value: 'is_empty', label: 'è vuoto' },
+        { value: 'is_not_empty', label: 'non è vuoto' }
+    ],
+    'boolean': [
+        { value: 'is_true', label: 'è vero' },
+        { value: 'is_false', label: 'è falso' }
+    ]
+};
 
 // Italian Provinces mapping to Regions
 const provinceRegionMap = {
@@ -826,7 +886,9 @@ function toggleIcoFilter(isIco) {
 
 function clearAllFilters() {
     activeFilters = { regions: [], provinces: [], vendor_types: [], ico_consultant: null, competencies: [], certifications: [] };
+    advancedFilters = [];
     document.getElementById('search-input').value = '';
+    document.getElementById('applied-filters-count').style.display = 'none';
     
     updateActiveFiltersDisplay();
     filterVendors();
@@ -893,6 +955,7 @@ function filterVendors() {
     const searchTerm = document.getElementById('search-input').value.toLowerCase();
     
     filteredVendors = allVendors.filter(vendor => {
+        // Apply chart-based filters
         if (activeFilters.vendor_types.length > 0) {
             if (!activeFilters.vendor_types.includes(vendor.vendor_type)) return false;
         }
@@ -921,6 +984,16 @@ function filterVendors() {
             if (!hasCertification) return false;
         }
         
+        // Apply advanced filters
+        if (advancedFilters.length > 0) {
+            for (const filter of advancedFilters) {
+                if (!applyAdvancedFilterToVendor(vendor, filter)) {
+                    return false;
+                }
+            }
+        }
+        
+        // Apply search term
         if (searchTerm) {
             const searchableText = [
                 vendor.vendor_code, vendor.name, vendor.email,
@@ -944,6 +1017,9 @@ function filterVendors() {
     if (searchTerm) {
         updateAllCharts();
     }
+    
+    // Update advanced filters display
+    updateAdvancedFiltersDisplay();
 }
 
 function renderVendorsTable() {
@@ -1000,4 +1076,391 @@ function exportToExcel() {
     if (searchTerm) params.append('search', searchTerm);
     
     window.location.href = `/vendors/export-excel/${params.toString() ? '?' + params.toString() : ''}`;
+}
+
+// ===== ADVANCED FILTERS FUNCTIONS =====
+
+function toggleAdvancedFilters() {
+    const body = document.getElementById('advanced-filters-body');
+    const btn = document.getElementById('toggle-filters-btn');
+    
+    if (body.style.display === 'none') {
+        body.style.display = 'block';
+        btn.innerHTML = '<i class="fas fa-chevron-up"></i> Nascondi';
+        // Add first filter row if none exist
+        if (document.getElementById('filters-container').children.length === 0) {
+            addFilterRow();
+        }
+    } else {
+        body.style.display = 'none';
+        btn.innerHTML = '<i class="fas fa-chevron-down"></i> Mostra';
+    }
+}
+
+function addFilterRow() {
+    filterRowCounter++;
+    const container = document.getElementById('filters-container');
+    
+    const row = document.createElement('div');
+    row.className = 'filter-row';
+    row.id = `filter-row-${filterRowCounter}`;
+    row.dataset.rowId = filterRowCounter;
+    
+    // Field selector
+    const fieldSelect = document.createElement('select');
+    fieldSelect.className = 'form-select form-select-sm filter-field-select';
+    fieldSelect.id = `filter-field-${filterRowCounter}`;
+    fieldSelect.innerHTML = '<option value="">-- Seleziona Campo --</option>';
+    
+    for (const [key, config] of Object.entries(filterFields)) {
+        const option = document.createElement('option');
+        option.value = key;
+        option.textContent = config.label;
+        option.dataset.type = config.type;
+        fieldSelect.appendChild(option);
+    }
+    
+    fieldSelect.addEventListener('change', function() {
+        updateOperatorOptions(filterRowCounter);
+        updateValueInput(filterRowCounter);
+    });
+    
+    // Operator selector
+    const operatorSelect = document.createElement('select');
+    operatorSelect.className = 'form-select form-select-sm filter-operator-select';
+    operatorSelect.id = `filter-operator-${filterRowCounter}`;
+    operatorSelect.innerHTML = '<option value="">-- Seleziona Operatore --</option>';
+    
+    operatorSelect.addEventListener('change', function() {
+        updateValueInputVisibility(filterRowCounter);
+    });
+    
+    // Value input
+    const valueInput = document.createElement('input');
+    valueInput.className = 'form-control form-control-sm filter-value-input';
+    valueInput.id = `filter-value-${filterRowCounter}`;
+    valueInput.placeholder = 'Valore';
+    
+    // Remove button
+    const removeBtn = document.createElement('button');
+    removeBtn.className = 'btn btn-sm btn-danger btn-remove';
+    removeBtn.innerHTML = '<i class="fas fa-trash"></i>';
+    removeBtn.onclick = function() { removeFilterRow(filterRowCounter); };
+    
+    row.appendChild(fieldSelect);
+    row.appendChild(operatorSelect);
+    row.appendChild(valueInput);
+    row.appendChild(removeBtn);
+    
+    container.appendChild(row);
+}
+
+function removeFilterRow(rowId) {
+    const row = document.getElementById(`filter-row-${rowId}`);
+    if (row) {
+        row.remove();
+    }
+}
+
+function updateOperatorOptions(rowId) {
+    const fieldSelect = document.getElementById(`filter-field-${rowId}`);
+    const operatorSelect = document.getElementById(`filter-operator-${rowId}`);
+    
+    const selectedOption = fieldSelect.options[fieldSelect.selectedIndex];
+    if (!selectedOption || !selectedOption.value) {
+        operatorSelect.innerHTML = '<option value="">-- Seleziona Operatore --</option>';
+        return;
+    }
+    
+    const fieldType = selectedOption.dataset.type;
+    const operators = operatorsByType[fieldType] || operatorsByType['text'];
+    
+    operatorSelect.innerHTML = '<option value="">-- Seleziona Operatore --</option>';
+    operators.forEach(op => {
+        const option = document.createElement('option');
+        option.value = op.value;
+        option.textContent = op.label;
+        operatorSelect.appendChild(option);
+    });
+}
+
+function updateValueInput(rowId) {
+    const fieldSelect = document.getElementById(`filter-field-${rowId}`);
+    const valueInput = document.getElementById(`filter-value-${rowId}`);
+    
+    const selectedOption = fieldSelect.options[fieldSelect.selectedIndex];
+    if (!selectedOption || !selectedOption.value) {
+        return;
+    }
+    
+    const fieldKey = selectedOption.value;
+    const fieldConfig = filterFields[fieldKey];
+    
+    // Clear existing input
+    const row = document.getElementById(`filter-row-${rowId}`);
+    const oldInput = valueInput;
+    
+    if (fieldConfig.type === 'select') {
+        // Replace with select
+        const newSelect = document.createElement('select');
+        newSelect.className = 'form-select form-select-sm filter-value-input';
+        newSelect.id = `filter-value-${rowId}`;
+        newSelect.innerHTML = '<option value="">-- Seleziona Valore --</option>';
+        
+        fieldConfig.options.forEach(opt => {
+            const option = document.createElement('option');
+            option.value = opt;
+            option.textContent = opt;
+            newSelect.appendChild(option);
+        });
+        
+        row.replaceChild(newSelect, oldInput);
+    } else if (fieldConfig.type === 'boolean') {
+        // For boolean, value input is not needed (handled by operator)
+        const newInput = document.createElement('input');
+        newInput.className = 'form-control form-control-sm filter-value-input';
+        newInput.id = `filter-value-${rowId}`;
+        newInput.style.display = 'none';
+        row.replaceChild(newInput, oldInput);
+    } else if (fieldConfig.type === 'number') {
+        // Replace with number input
+        const newInput = document.createElement('input');
+        newInput.type = 'number';
+        newInput.className = 'form-control form-control-sm filter-value-input';
+        newInput.id = `filter-value-${rowId}`;
+        newInput.placeholder = 'Valore numerico';
+        newInput.step = '0.01';
+        row.replaceChild(newInput, oldInput);
+    } else {
+        // Text input
+        const newInput = document.createElement('input');
+        newInput.type = 'text';
+        newInput.className = 'form-control form-control-sm filter-value-input';
+        newInput.id = `filter-value-${rowId}`;
+        newInput.placeholder = 'Valore';
+        row.replaceChild(newInput, oldInput);
+    }
+}
+
+function updateValueInputVisibility(rowId) {
+    const operatorSelect = document.getElementById(`filter-operator-${rowId}`);
+    const valueInput = document.getElementById(`filter-value-${rowId}`);
+    
+    const operator = operatorSelect.value;
+    const noValueOperators = ['is_empty', 'is_not_empty', 'is_true', 'is_false'];
+    
+    if (noValueOperators.includes(operator)) {
+        valueInput.style.display = 'none';
+        valueInput.value = '';
+    } else {
+        valueInput.style.display = 'block';
+    }
+}
+
+function applyAdvancedFilters() {
+    // Collect all filter rows
+    advancedFilters = [];
+    const rows = document.querySelectorAll('.filter-row');
+    
+    rows.forEach(row => {
+        const rowId = row.dataset.rowId;
+        const field = document.getElementById(`filter-field-${rowId}`).value;
+        const operator = document.getElementById(`filter-operator-${rowId}`).value;
+        const value = document.getElementById(`filter-value-${rowId}`).value;
+        
+        if (field && operator) {
+            // For operators that don't need a value
+            const noValueOperators = ['is_empty', 'is_not_empty', 'is_true', 'is_false'];
+            if (noValueOperators.includes(operator) || value) {
+                advancedFilters.push({
+                    field: field,
+                    operator: operator,
+                    value: value,
+                    label: filterFields[field].label
+                });
+            }
+        }
+    });
+    
+    // Update badge count
+    const badge = document.getElementById('applied-filters-count');
+    if (advancedFilters.length > 0) {
+        badge.textContent = advancedFilters.length;
+        badge.style.display = 'inline-block';
+    } else {
+        badge.style.display = 'none';
+    }
+    
+    // Apply filters
+    filterVendors();
+    updateAllCharts();
+    updateStatistics();
+    updateAdvancedFiltersDisplay();
+}
+
+function clearAdvancedFilters() {
+    advancedFilters = [];
+    document.getElementById('filters-container').innerHTML = '';
+    filterRowCounter = 0;
+    document.getElementById('applied-filters-count').style.display = 'none';
+    
+    // Re-apply without advanced filters
+    filterVendors();
+    updateAllCharts();
+    updateStatistics();
+    updateAdvancedFiltersDisplay();
+    
+    // Add one empty row
+    addFilterRow();
+}
+
+function removeAdvancedFilter(index) {
+    advancedFilters.splice(index, 1);
+    
+    // Update badge
+    const badge = document.getElementById('applied-filters-count');
+    if (advancedFilters.length > 0) {
+        badge.textContent = advancedFilters.length;
+    } else {
+        badge.style.display = 'none';
+    }
+    
+    filterVendors();
+    updateAllCharts();
+    updateStatistics();
+    updateAdvancedFiltersDisplay();
+}
+
+function updateAdvancedFiltersDisplay() {
+    const container = document.getElementById('active-filters-container');
+    const row = document.getElementById('active-filters-row');
+    
+    // Check if we have any filters (chart filters or advanced filters)
+    const hasChartFilters = Object.values(activeFilters).some(val => 
+        (Array.isArray(val) && val.length > 0) || (val !== null && val !== undefined && !Array.isArray(val))
+    );
+    const hasAdvancedFilters = advancedFilters.length > 0;
+    
+    if (!hasChartFilters && !hasAdvancedFilters) {
+        row.style.display = 'none';
+        return;
+    }
+    
+    row.style.display = 'block';
+    
+    // Clear and rebuild
+    container.innerHTML = '';
+    
+    // Add chart filters (existing functionality)
+    const filterLabels = {
+        'vendor_types': 'Tipo Fornitore',
+        'regions': 'Regione',
+        'provinces': 'Provincia',
+        'competencies': 'Competenza',
+        'certifications': 'Certificazione'
+    };
+    
+    Object.entries(activeFilters).forEach(([key, values]) => {
+        if (key === 'ico_consultant' && values !== null) {
+            const chip = document.createElement('span');
+            chip.className = 'filter-chip';
+            const label = values ? 'Consulenti ICO' : 'Altri Fornitori';
+            chip.innerHTML = `Tipo: <strong>${label}</strong> <span class="remove" onclick="removeFilter('ico_consultant', null)">✕</span>`;
+            container.appendChild(chip);
+        } else if (Array.isArray(values)) {
+            values.forEach(value => {
+                const chip = document.createElement('span');
+                chip.className = 'filter-chip';
+                chip.innerHTML = `${filterLabels[key]}: <strong>${value}</strong> <span class="remove" onclick="removeFilter('${key}', '${value.replace(/'/g, "\\'")}')">✕</span>`;
+                container.appendChild(chip);
+            });
+        }
+    });
+    
+    // Add advanced filters
+    advancedFilters.forEach((filter, index) => {
+        const chip = document.createElement('span');
+        chip.className = 'applied-filter-badge';
+        
+        const operatorLabel = getOperatorLabel(filter.operator);
+        let displayValue = filter.value;
+        
+        // For operators that don't show value
+        if (['is_empty', 'is_not_empty', 'is_true', 'is_false'].includes(filter.operator)) {
+            chip.innerHTML = `
+                <span class="filter-label">${filter.label}</span>
+                <span class="filter-operator">${operatorLabel}</span>
+                <span class="remove" onclick="removeAdvancedFilter(${index})">✕</span>
+            `;
+        } else {
+            chip.innerHTML = `
+                <span class="filter-label">${filter.label}</span>
+                <span class="filter-operator">${operatorLabel}</span>
+                <span class="filter-value">"${displayValue}"</span>
+                <span class="remove" onclick="removeAdvancedFilter(${index})">✕</span>
+            `;
+        }
+        
+        container.appendChild(chip);
+    });
+}
+
+function getOperatorLabel(operatorValue) {
+    for (const [type, operators] of Object.entries(operatorsByType)) {
+        const found = operators.find(op => op.value === operatorValue);
+        if (found) return found.label;
+    }
+    return operatorValue;
+}
+
+function applyAdvancedFilterToVendor(vendor, filter) {
+    // Get the field value from vendor (supports nested properties like address.city)
+    const fieldPath = filter.field.split('.');
+    let value = vendor;
+    
+    for (const part of fieldPath) {
+        if (value === null || value === undefined) {
+            value = null;
+            break;
+        }
+        value = value[part];
+    }
+    
+    // Convert value to string for text operations
+    const strValue = value !== null && value !== undefined ? String(value).toLowerCase() : '';
+    const filterValue = filter.value ? String(filter.value).toLowerCase() : '';
+    
+    // Apply operator
+    switch (filter.operator) {
+        case 'contains':
+            return strValue.includes(filterValue);
+        case 'not_contains':
+            return !strValue.includes(filterValue);
+        case 'equals':
+            return strValue === filterValue || value === filter.value;
+        case 'not_equals':
+            return strValue !== filterValue && value !== filter.value;
+        case 'starts_with':
+            return strValue.startsWith(filterValue);
+        case 'ends_with':
+            return strValue.endsWith(filterValue);
+        case 'is_empty':
+            return value === null || value === undefined || strValue === '';
+        case 'is_not_empty':
+            return value !== null && value !== undefined && strValue !== '';
+        case 'greater_than':
+            return parseFloat(value) > parseFloat(filter.value);
+        case 'less_than':
+            return parseFloat(value) < parseFloat(filter.value);
+        case 'greater_or_equal':
+            return parseFloat(value) >= parseFloat(filter.value);
+        case 'less_or_equal':
+            return parseFloat(value) <= parseFloat(filter.value);
+        case 'is_true':
+            return value === true;
+        case 'is_false':
+            return value === false || value === null || value === undefined;
+        default:
+            return true;
+    }
 }
