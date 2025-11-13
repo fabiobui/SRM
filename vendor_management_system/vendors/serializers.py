@@ -158,13 +158,13 @@ class AddressSerializer(ModelSerializer):
             'street_address_2',
             'city',
             'state_province',
+            'region',
             'postal_code',
             'country',
             'latitude',
             'longitude',
             'address_type',
             'is_active',
-            'notes',
             'full_address',
             'short_address',
             'created_at',
@@ -214,13 +214,13 @@ class AddressManagementSerializer(ModelSerializer):
             'street_address_2',
             'city',
             'state_province',
+            'region',
             'postal_code',
             'country',
             'latitude',
             'longitude',
             'address_type',
             'is_active',
-            'notes',
         ]
 
     def validate(self, data):
@@ -267,6 +267,7 @@ class VendorSerializer(ModelSerializer):
         fields = [
             # Core fields
             "vendor_code",
+            "old_code",
             "name",
             "contact_details",
             "address",
@@ -277,6 +278,11 @@ class VendorSerializer(ModelSerializer):
             "reference_contact",
             "phone",
             "website",
+            "vendor_type",
+            # Service information
+            "service_type",
+            "service_additional",
+            "service_note",
             # Performance metrics
             "on_time_delivery_rate",
             "quality_rating_avg",
@@ -287,16 +293,21 @@ class VendorSerializer(ModelSerializer):
             "qualification_score",
             "qualification_date",
             "qualification_expiry",
+            "vendor_final_evaluation",
             # Evaluation and operational capacity
             "category",
             "category_id",
             "risk_level",
-            "country",
-            "iso_certifications",
+            "competences_zone",
+            # Contractual information
+            "contractual_status",
+            "contractual_start_date",
+            "contractual_end_date",
             # Audit and management
             "last_audit_date",
             "next_audit_due",
             "review_notes",
+            "is_active",
             # Computed properties
             "is_qualified",
             "audit_overdue",
@@ -381,8 +392,10 @@ class VendorCreateUpdateSerializer(ModelSerializer):
             "reference_contact",
             "phone",
             "website",
+            "vendor_type",
+            "service_additional",
+            "service_note",
             "category_id",
-            "country",
         ]
 
     def validate_category_id(self, value):
@@ -456,9 +469,13 @@ class VendorListSerializer(ModelSerializer):
             "name",
             "email",
             "phone",
+            "vendor_type",
             "category",
             "qualification_status",
+            "vendor_final_evaluation",
             "risk_level",
+            "contractual_status",
+            "is_active",
             "is_qualified",
             "audit_overdue",
             "address",
@@ -542,8 +559,9 @@ class VendorQualificationSerializer(ModelSerializer):
             "qualification_score",
             "qualification_date",
             "qualification_expiry",
+            "vendor_final_evaluation",
             "risk_level",
-            "iso_certifications",
+            "competences_zone",
         ]
         read_only_fields = ["vendor_code", "name", "category"]
 
@@ -588,7 +606,10 @@ class VendorAuditSerializer(ModelSerializer):
             "next_audit_due",
             "review_notes",
             "qualification_status",
+            "vendor_final_evaluation",
             "risk_level",
+            "contractual_status",
+            "is_active",
         ]
         read_only_fields = ["vendor_code", "name", "category"]
 

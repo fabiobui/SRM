@@ -15,9 +15,17 @@ schema_view = get_schema_view(
         title="Vendor Management System API",
         default_version='v1',
         description="Sistema di Gestione Fornitori con Documenti",
+        contact=openapi.Contact(email="fabio-bui@fulgard.com"),
+        license=openapi.License(name="MIT License"),
     ),
     public=True,
-    permission_classes=[permissions.AllowAny],
+    permission_classes=(permissions.AllowAny,),
+    patterns=[
+        path('vendors/', include('vendor_management_system.vendors.urls')),
+        path('users/', include('vendor_management_system.users.urls')),
+        path('purchase-orders/', include('vendor_management_system.purchase_orders.urls')),
+        path('documents/', include('vendor_management_system.documents.urls')),
+    ],
 )
 
 # Homepage con redirect automatico
@@ -115,37 +123,3 @@ urlpatterns = [
 if settings.DEBUG:
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-
-
-# Swagger settings
-schema_view = get_schema_view(
-    openapi.Info(
-        title="Vendor Management System API",
-        default_version="v1",
-        description="**Vendor Management System: Django / Django Rest Framework based Vendor Management System.**",
-        contact=openapi.Contact(email="rohit.vilas.ingole@gmail.com"),
-        license=openapi.License(name="MIT License"),
-    ),
-    public=True,
-    permission_classes=(permissions.AllowAny,),
-)
-
-
-# Swagger URL pattern
-urlpatterns += [
-    path(
-        "swagger<format>/",
-        schema_view.without_ui(cache_timeout=0),
-        name="swagger--schema",
-    ),
-    path(
-        "",
-        schema_view.with_ui("swagger", cache_timeout=0),
-        name="swagger--playground",
-    ),
-    path(
-        "redoc/",
-        schema_view.with_ui("redoc", cache_timeout=0),
-        name="swagger--redoc",
-    ),
-]
