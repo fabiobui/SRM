@@ -32,75 +32,13 @@ schema_view = get_schema_view(
 def home_view(request):
     if request.user.is_authenticated:
         return redirect('dashboard-redirect')
-    
-    html = """
-    <!DOCTYPE html>
-    <html lang="it">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Sistema Gestione Fornitori</title>
-        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-        <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    </head>
-    <body class="bg-light">
-        <div class="container mt-5">
-            <div class="row justify-content-center">
-                <div class="col-md-6">
-                    <div class="card shadow">
-                        <div class="card-header bg-primary text-white text-center">
-                            <h1><i class="fas fa-building"></i> Sistema Gestione Fornitori</h1>
-                        </div>
-                        <div class="card-body text-center">
-                            <p class="lead">Accedi al sistema con le tue credenziali</p>
-                            
-                            <div class="mb-4">
-                                <h5>🔐 Ruoli Disponibili:</h5>
-                                <div class="row text-start">
-                                    <div class="col-md-4">
-                                        <div class="border rounded p-2 mb-2">
-                                            <strong>👑 Admin</strong><br>
-                                            <small>Accesso completo</small>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <div class="border rounded p-2 mb-2">
-                                            <strong>👥 BO User</strong><br>
-                                            <small>Gestione fornitori</small>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <div class="border rounded p-2 mb-2">
-                                            <strong>🏢 Vendor</strong><br>
-                                            <small>Propri documenti</small>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <a href="/admin/" class="btn btn-primary btn-lg">
-                                <i class="fas fa-sign-in-alt"></i> Accedi al Sistema
-                            </a>
-                            
-                            <div class="mt-4">
-                                <small class="text-muted">
-                                    <a href="/swagger/">📘 API Documentation</a>
-                                </small>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </body>
-    </html>
-    """
-    return HttpResponse(html)
+    else:
+        # Redirect to login page if not authenticated
+        return redirect('login')
 
 urlpatterns = [
     # Homepage con redirect automatico
     path('', home_view, name='home'),
-    #path('', HomeRedirectView.as_view(), name='home'),  # ← AGGIUNGI
     
     # Admin
     path(settings.ADMIN_URL, admin.site.urls),
