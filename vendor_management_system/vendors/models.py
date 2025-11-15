@@ -116,7 +116,7 @@ class Category(models.Model):
 
     def __str__(self):
         if self.parent:
-            return f"{self.parent.name} > {self.name}"
+            return f"{self.parent.name} → {self.name}"
         return self.name
 
     @property
@@ -996,10 +996,21 @@ class QualificationType(models.Model):
         help_text=_("Livello di qualifica secondo il Quadro Europeo delle Qualifiche (EQF)")
     )
 
+    # nuovo: struttura gerarchica padre-figlio
+    parent = models.ForeignKey(
+        'self',
+        verbose_name=_("Titolo/Qualifica Padre"),
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="sub_qualifications",
+        help_text=_("Titolo/Qualifica padre (es. 'Laurea' per 'Laurea triennale', 'Laurea magistrale', ecc.)")
+    )
+
     is_active = models.BooleanField(
         _("È Attivo"),
         default=True,
-        help_text=_("Titolo di studio attivo e selezionabile")
+        help_text=_("Titolo/Qualifica attivo e selezionabile")
     )
 
     sort_order = models.PositiveIntegerField(
@@ -1013,6 +1024,8 @@ class QualificationType(models.Model):
         ordering = ['sort_order', 'name']
 
     def __str__(self):
+        if self.parent:
+            return f"{self.parent.name} → {self.name}"
         return self.name
 
 class ServiceType(models.Model):
@@ -1070,7 +1083,7 @@ class ServiceType(models.Model):
 
     def __str__(self):
         if self.parent:
-            return f"{self.parent.name} > {self.name}"
+            return f"{self.parent.name} → {self.name}"
         return self.name
 
     @property
@@ -1695,7 +1708,7 @@ class Vendor(models.Model):
         if not self.category:
             return DocumentType.objects.none()
         
-        # Documenti obbligatori per la categoria
+        # Documenti obbligatorie per la categoria
         required = self.category.required_documents.filter(is_mandatory=True, is_active=True)
         
         # Documenti già caricati e validi
