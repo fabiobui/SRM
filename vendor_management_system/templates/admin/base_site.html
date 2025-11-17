@@ -7,20 +7,18 @@
     .admin-footer-bar{position:fixed;left:0;right:0;bottom:0;background:#f9f9f9;border-top:1px solid #ddd;padding:6px 12px;text-align:center;color:#666;font-size:12px;z-index:9999}
     body{padding-bottom:38px}
 
-     /* Fix: Select2 dropdowns rendered extremely small
-       Happens when initialized inside hidden tabs/containers.
-       Force full-width and proper control height. */
+    /* Select2 size fix */
     .select2-container{min-width:20rem !important}
     .select2-container .select2-selection--single{height:2.375rem}
     .select2-container .select2-selection--single .select2-selection__rendered{line-height:2.375rem}
     .select2-container .select2-selection--single .select2-selection__arrow{height:100%}
     .select2-search__field{width:100% !important}
-    
-    /* Keep Select2 and its related action icons on the same row */
+
+    /* Row layout for select + action icons */
     .related-widget-wrapper{display:flex;align-items:center;gap:.375rem;flex-wrap:nowrap}
     .related-widget-wrapper .select2-container{flex:1 1 auto}
     .related-widget-wrapper .related-widget-wrapper-link{flex:0 0 auto;white-space:nowrap}
-
+    .related-widget-wrapper a.view-related.disabled{opacity:.45;pointer-events:none}
   </style>
 {% endblock %}
 
@@ -31,3 +29,4 @@
     </div>
   </div>
 {% endblock %}
+

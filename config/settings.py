@@ -371,7 +371,10 @@ FIXTURE_DIRS = (str(BASE_DIR / "fixtures"),)
 # ------------------------------------------------------------------------------
 SESSION_COOKIE_HTTPONLY = True
 CSRF_COOKIE_HTTPONLY = True
-X_FRAME_OPTIONS = "DENY"
+# Jet apre alcune viste admin (popup correlati ai campi Select2) dentro un iframe.
+# Con "DENY" il browser blocca il contenuto (blank / Connection denied).
+# Impostiamo SAMEORIGIN per consentire l'embedding solo dallo stesso host, mantenendo protezione clickjacking di base.
+X_FRAME_OPTIONS = "SAMEORIGIN"
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 
 
