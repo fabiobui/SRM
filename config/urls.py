@@ -40,6 +40,10 @@ urlpatterns = [
     # Homepage con redirect automatico
     path('', home_view, name='home'),
     
+    # Jet Reboot (admin theme)
+    path('jet/', include(('jet.urls', 'jet'), namespace='jet')),
+    path('jet/dashboard/', include(('jet.dashboard.urls', 'jet-dashboard'), namespace='jet-dashboard')),
+
     # Admin
     path(settings.ADMIN_URL, admin.site.urls),
     

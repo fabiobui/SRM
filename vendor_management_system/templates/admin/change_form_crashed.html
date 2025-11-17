@@ -1,7 +1,5 @@
 {% extends "admin/base_site.html" %}
-{% load i18n admin_urls static admin_modify jazzmin %}
-{% get_jazzmin_settings request as jazzmin_settings %}
-{% get_jazzmin_ui_tweaks as jazzmin_ui %}
+{% load i18n admin_urls static admin_modify %}
 
 {% block submit_buttons_top %}{% submit_row %}{% endblock %}
 
@@ -27,6 +25,15 @@
     #jazzy-actions .form-group { margin: 0; }
     #jazzy-actions .btn.form-control, #jazzy-actions .btn-block { width: auto; display: inline-block; }
     #jazzy-actions .object-tools { margin-left: auto; }
+
+    /* Tabs fallback styling (works without Bootstrap CSS) */
+    #changeform-tabs { list-style: none; padding-left: 0; margin: 0; display: flex; flex-wrap: wrap; border-bottom: 1px solid #dee2e6; }
+    #changeform-tabs .nav-item { margin-bottom: -1px; }
+    #changeform-tabs .nav-link { display: block; padding: .5rem .75rem; border: 1px solid transparent; border-top-left-radius: .25rem; border-top-right-radius: .25rem; text-decoration: none; color: inherit; }
+    #changeform-tabs .nav-link:hover { text-decoration: none; background-color: rgba(0,0,0,.03); }
+    #changeform-tabs .nav-link.active { color: inherit; background-color: #fff; border-color: #dee2e6 #dee2e6 #fff; }
+    .tab-content .tab-pane { display: none; }
+    .tab-content .tab-pane.show.active { display: block; }
   </style>
   <link rel="stylesheet" href="{% static 'vendor/select2/css/select2.min.css' %}">
 {% endblock %}
@@ -91,8 +98,32 @@
           <div class="col-12 col-lg-9">
             <div class="card">
               <div class="card-body">
-                {% get_changeform_template adminform as changeform_template %}
-                {% include changeform_template %}
+                <ul class="nav nav-tabs" id="changeform-tabs" role="tablist">
+                  {% for fieldset in adminform %}
+                    <li class="nav-item" role="presentation">
+                      <a class="nav-link {% if forloop.first %}active{% endif %}"
+                         id="tab{{ forloop.counter }}-tab"
+                         data-toggle="tab"
+                         href="#tab{{ forloop.counter }}"
+                         role="tab"
+                         aria-controls="tab{{ forloop.counter }}"
+                         aria-selected="{% if forloop.first %}true{% else %}false{% endif %}">
+                        {% if fieldset.name %}{{ fieldset.name }}{% else %}{% trans "Dati" %} {{ forloop.counter }}{% endif %}
+                      </a>
+                    </li>
+                  {% endfor %}
+                </ul>
+
+                <div class="tab-content mt-3" id="changeform-tabs-content">
+                  {% for fieldset in adminform %}
+                    <div class="tab-pane fade {% if forloop.first %}show active{% endif %}"
+                         id="tab{{ forloop.counter }}"
+                         role="tabpanel"
+                         aria-labelledby="tab{{ forloop.counter }}-tab">
+                      {% include "admin/includes/fieldset.html" %}
+                    </div>
+                  {% endfor %}
+                </div>
               </div>
             </div>
           </div>
@@ -103,7 +134,7 @@
         {% block after_related_objects %}{% endblock %}
 
         <div class="col-12 col-lg-3">
-          <div id="jazzy-actions" class="{{ jazzmin_ui.actions_classes }}">
+          <div id="jazzy-actions" class="d-flex flex-column gap-2">
             {% block submit_buttons_bottom %}
               {% submit_row %}
               {% block object-tools %}
@@ -132,9 +163,30 @@
 {% block extrajs %}
   {{ block.super }}
   <script type="text/javascript" src="{% static 'vendor/select2/js/select2.min.js' %}"></script>
-  <script type="text/javascript" src="{% static 'jazzmin/js/change_form.js' %}"></script>
-  {% if jazzmin_settings.related_modal_active %}
-    <script type="text/javascript" src="{% static 'jazzmin/plugins/bootstrap-show-modal/bootstrap-show-modal.min.js' %}"></script>
-    <script type="text/javascript" src="{% static 'jazzmin/js/related-modal.js' %}"></script>
-  {% endif %}
+  <script>
+    (function(){
+      function enableTabs(){
+        var links = document.querySelectorAll('#changeform-tabs .nav-link');
+        if (!links.length) return;
+        links.forEach(function(link){
+          link.addEventListener('click', function(e){
+            // If Bootstrap's tab plugin is present, let it handle
+            if (window.jQuery && jQuery.fn && jQuery.fn.tab) return;
+            e.preventDefault();
+            links.forEach(function(l){ l.classList.remove('active'); l.setAttribute('aria-selected','false'); });
+            document.querySelectorAll('#changeform-tabs-content .tab-pane').forEach(function(p){ p.classList.remove('show','active'); });
+            link.classList.add('active');
+            link.setAttribute('aria-selected','true');
+            var target = document.querySelector(link.getAttribute('href'));
+            if (target){ target.classList.add('show','active'); }
+          });
+        });
+      }
+      if (document.readyState === 'loading'){
+        document.addEventListener('DOMContentLoaded', enableTabs);
+      } else {
+        enableTabs();
+      }
+    })();
+  </script>
 {% endblock %}

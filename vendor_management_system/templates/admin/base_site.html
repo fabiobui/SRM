@@ -1,0 +1,18 @@
+{% extends "admin/base.html" %}
+{% load i18n static %}
+
+{% block extrastyle %}
+  {{ block.super }}
+  <style>
+    .admin-footer-bar{position:fixed;left:0;right:0;bottom:0;background:#f9f9f9;border-top:1px solid #ddd;padding:6px 12px;text-align:center;color:#666;font-size:12px;z-index:9999}
+    body{padding-bottom:38px}
+  </style>
+{% endblock %}
+
+{% block footer %}
+  <div id="footer">
+    <div class="admin-footer-bar">
+      © {% now "Y" %} Fabio Bui - Tutti i diritti riservati
+    </div>
+  </div>
+{% endblock %}

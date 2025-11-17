@@ -89,7 +89,9 @@ WSGI_APPLICATION = "config.wsgi.application"
 # APPS
 # ------------------------------------------------------------------------------
 DJANGO_APPS = [
-    "jazzmin",
+    # Tema admin: Jet Reboot (manteniamo Jazzmin installato ma disattivato)
+    "jet.dashboard",
+    "jet",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
@@ -449,3 +451,12 @@ REST_FRAMEWORK = {
 # django-cors-headers
 # -------------------------------------------------------------------------------
 CORS_URLS_REGEX = r"^/api/.*$"
+
+
+# Default primary key field type
+# https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
+
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+JET_DEFAULT_THEME = 'default'
+JET_SIDE_MENU_COMPACT = True
