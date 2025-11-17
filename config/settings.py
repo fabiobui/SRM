@@ -460,3 +460,28 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 JET_DEFAULT_THEME = 'default'
 JET_SIDE_MENU_COMPACT = True
+
+# Mantieni il menu Vendors con tutti i modelli + link dashboard
+JET_SIDE_MENU_ITEMS = [
+    {
+        "label": "Fornitori",
+        "items": [
+            {
+                "label": "Selezione/Dashboard",
+                "url": "/vendors/dashboard/" if not USE_FORNITORI_PREFIX else "/fornitori/vendors/dashboard/",
+                "icon": "fas fa-filter",
+            },
+            {"name": "vendors.vendor"},
+            {"name": "vendors.category"},
+            {"name": "vendors.address"},
+            {"name": "vendors.servicetype"},
+            {"name": "vendors.qualificationtype"},
+            {"name": "vendors.competence"},
+            {"name": "vendors.vendorcompetence"},
+            {"name": "vendors.documenttype"},
+            {"name": "vendors.vendordocument"},
+            {"name": "vendors.evaluationcriterion"},
+            {"name": "vendors.vendorevaluation"},
+        ],
+    },
+]
