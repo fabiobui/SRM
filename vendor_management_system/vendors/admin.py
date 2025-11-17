@@ -91,7 +91,7 @@ class VendorCompetenceInline(admin.TabularInline):
     extra = 1
     fields = ['competence', 'has_competence', 'has_certification', 'certification_number', 'issue_date', 'expiry_date', 'verified', 'expiry_status_display']
     readonly_fields = ['expiry_status_display', 'created_at', 'updated_at']
-    autocomplete_fields = ['competence']
+    raw_id_fields = ['competence']
     
     def expiry_status_display(self, obj):
         if obj.pk:
@@ -120,7 +120,7 @@ class VendorCompetenceAdmin(admin.ModelAdmin):
     search_fields = ['vendor__name', 'competence__name', 'certification_number']
     date_hierarchy = 'expiry_date'
     readonly_fields = ['created_at', 'updated_at', 'is_expired', 'days_to_expiry', 'expiry_status']
-    autocomplete_fields = ['vendor', 'competence']
+    raw_id_fields = ['vendor', 'competence']
     
     fieldsets = (
         (_('Relazione'), {
@@ -202,7 +202,7 @@ class VendorDocumentInline(admin.TabularInline):
     extra = 1
     fields = ['document_type', 'status', 'issue_date', 'expiry_date', 'verified', 'expiry_status_display']
     readonly_fields = ['expiry_status_display', 'created_at', 'updated_at']
-    autocomplete_fields = ['document_type']
+    raw_id_fields = ['document_type']
     
     def expiry_status_display(self, obj):
         if obj.pk:
@@ -230,7 +230,7 @@ class VendorDocumentAdmin(admin.ModelAdmin):
     search_fields = ['vendor__name', 'document_type__name', 'document_number']
     date_hierarchy = 'expiry_date'
     readonly_fields = ['created_at', 'updated_at', 'is_expired', 'days_to_expiry', 'expiry_status', 'is_valid']
-    autocomplete_fields = ['vendor', 'document_type']
+    raw_id_fields = ['vendor', 'document_type']
     
     fieldsets = (
         (_('Relazione'), {
@@ -350,7 +350,7 @@ class VendorEvaluationInline(admin.TabularInline):
     extra = 1
     fields = ['criterion', 'score', 'notes', 'evaluated_at']
     readonly_fields = ['evaluated_at']
-    autocomplete_fields = ['criterion']
+    raw_id_fields = ['criterion']
     
     def formfield_for_dbfield(self, db_field, request, **kwargs):
         if db_field.name == 'notes':
@@ -383,7 +383,7 @@ class VendorEvaluationAdmin(admin.ModelAdmin):
     list_filter = ['score', 'criterion__category', 'evaluated_at']
     search_fields = ['vendor__name', 'criterion__name', 'notes']
     date_hierarchy = 'evaluated_at'
-    autocomplete_fields = ['vendor', 'criterion']
+    raw_id_fields = ['vendor', 'criterion']
     
     def score_display(self, obj):
         return obj.get_score_display()
@@ -408,7 +408,7 @@ class VendorAdmin(admin.ModelAdmin):
         'missing_mandatory_competences', 'valid_documents', 'expired_documents',
         'expiring_documents', 'missing_mandatory_documents'
     ]
-    autocomplete_fields = ['address', 'category', 'qualification_type', 'service_type', 'user_account']
+    raw_id_fields = ['address', 'user_account']
     inlines = [VendorCompetenceInline, VendorDocumentInline, VendorEvaluationInline]
     
     fieldsets = (
