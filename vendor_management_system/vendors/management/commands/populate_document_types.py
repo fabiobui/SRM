@@ -3,7 +3,7 @@ Management command per popolare i tipi di documenti comuni richiesti ai fornitor
 Uso: python manage.py populate_document_types
 """
 from django.core.management.base import BaseCommand
-from vendor_management_system.vendors.models import DocumentType
+from vendor_management_system.documents.models import DocumentType
 
 
 class Command(BaseCommand):

@@ -15,7 +15,8 @@ sys.path.append(str(BASE_DIR))
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
 django.setup()
 
-from vendor_management_system.vendors.models import Vendor, DocumentType, VendorDocument
+from vendor_management_system.vendors.models import Vendor
+from vendor_management_system.documents.models import DocumentType, Document
 
 
 # === CONFIG ===
@@ -121,12 +122,11 @@ def import_documents(file_path=None, sheet_name=None, dry_run=None):
 
                 expiry_date = parse_date(value)
 
-                vd, created = VendorDocument.objects.update_or_create(
+                vd, created = Document.objects.update_or_create(
                     vendor=vendor,
                     document_type=doc_type,
                     defaults=dict(
                         status=status,
-                        verified=False,
                         expiry_date=expiry_date,
                         notes=value if not expiry_date else None,
                     ),
@@ -151,7 +151,7 @@ def import_documents(file_path=None, sheet_name=None, dry_run=None):
 
 # === CLI ===
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Import documenti vendor (VendorDocument) da Excel/CSV")
+    parser = argparse.ArgumentParser(description="Import documenti vendor (Document) da Excel/CSV")
     parser.add_argument("-f", "--file", dest="file_path", default=FILE_PATH, help="Percorso file")
     parser.add_argument("-s", "--sheet", dest="sheet_name", default=SHEET_NAME, help="Indice o nome foglio")
     parser.add_argument("--dry-run", action="store_true", help="Simula senza salvare modifiche")

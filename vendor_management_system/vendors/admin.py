@@ -7,10 +7,12 @@ from django.utils.html import format_html
 from django.urls import reverse
 from django.utils import timezone
 from .models import (
-    Category, Competence, VendorCompetence, DocumentType, VendorDocument,
+    Category, Competence, VendorCompetence,
     Address, QualificationType, ServiceType, EvaluationCriterion,
     VendorEvaluation, Vendor
 )
+# Import Document and DocumentType from documents app
+from vendor_management_system.documents.models import Document, DocumentType
 
 
 # Category Admin
@@ -162,125 +164,32 @@ class VendorCompetenceAdmin(admin.ModelAdmin):
     expiry_status_badge.short_description = _('Stato')
 
 
-# DocumentType Admin
-@admin.register(DocumentType)
-class DocumentTypeAdmin(admin.ModelAdmin):
-    list_display = ['code', 'name', 'document_category', 'is_mandatory', 'requires_renewal', 'default_validity_days', 'is_active']
-    list_filter = ['document_category', 'is_mandatory', 'requires_renewal', 'is_active']
-    search_fields = ['code', 'name', 'description']
-    ordering = ['document_category', 'sort_order', 'name']
-    list_editable = ['is_active', 'is_mandatory']
-    filter_horizontal = ['applicable_categories']
-    readonly_fields = ['created_at', 'updated_at']
-    
-    fieldsets = (
-        (_('Informazioni Base'), {
-            'fields': ('code', 'name', 'description', 'document_category')
-        }),
-        (_('Requisiti'), {
-            'fields': ('is_mandatory', 'requires_renewal', 'default_validity_days', 'alert_days_before_expiry')
-        }),
-        (_('Configurazione'), {
-            'fields': ('is_active', 'sort_order')
-        }),
-        (_('Categorie Applicabili'), {
-            'fields': ('applicable_categories',)
-        }),
-        (_('Template e Istruzioni'), {
-            'fields': ('template_file', 'instructions')
-        }),
-        (_('Metadata'), {
-            'fields': ('created_at', 'updated_at'),
-            'classes': ('collapse',)
-        }),
-    )
-
-
-# VendorDocument Inline
-class VendorDocumentInline(admin.TabularInline):
-    model = VendorDocument
+# Document Inline
+class DocumentInline(admin.TabularInline):
+    model = Document
     extra = 1
-    fields = ['document_type', 'status', 'issue_date', 'expiry_date', 'verified', 'expiry_status_display']
-    readonly_fields = ['expiry_status_display', 'created_at', 'updated_at']
+    fields = ['document_type', 'status', 'issue_date', 'expiry_date', 'expiry_status_display']
+    readonly_fields = ['expiry_status_display', 'uploaded_at']
     autocomplete_fields = ['document_type']
     
     def expiry_status_display(self, obj):
         if obj.pk:
-            status = obj.expiry_status
-            colors = {
-                'EXPIRED': 'red',
-                'EXPIRING_SOON': 'orange',
-                'VALID': 'green',
-                'NO_EXPIRY': 'gray'
-            }
+            if obj.is_expired:
+                status = 'EXPIRED'
+                color = 'red'
+            elif obj.is_expiring_soon:
+                status = 'EXPIRING_SOON'
+                color = 'orange'
+            else:
+                status = 'VALID'
+                color = 'green'
             return format_html(
                 '<span style="color: {}; font-weight: bold;">{}</span>',
-                colors.get(status, 'black'),
+                color,
                 status
             )
         return '-'
     expiry_status_display.short_description = _('Stato Scadenza')
-
-
-# VendorDocument Admin
-@admin.register(VendorDocument)
-class VendorDocumentAdmin(admin.ModelAdmin):
-    list_display = ['vendor', 'document_type', 'status', 'issue_date', 'expiry_date', 'verified', 'expiry_status_badge']
-    list_filter = ['status', 'verified', 'document_type__document_category', 'expiry_date']
-    search_fields = ['vendor__name', 'document_type__name', 'document_number']
-    date_hierarchy = 'expiry_date'
-    readonly_fields = ['created_at', 'updated_at', 'is_expired', 'days_to_expiry', 'expiry_status', 'is_valid']
-    autocomplete_fields = ['vendor', 'document_type']
-    
-    fieldsets = (
-        (_('Relazione'), {
-            'fields': ('vendor', 'document_type')
-        }),
-        (_('Dettagli Documento'), {
-            'fields': ('document_number', 'issue_date', 'expiry_date', 'status')
-        }),
-        (_('Verifica'), {
-            'fields': ('verified', 'verified_by', 'verified_date')
-        }),
-        (_('File e Note'), {
-            'fields': ('document_file', 'notes', 'rejection_reason', 'uploaded_by')
-        }),
-        (_('Stato Validità'), {
-            'fields': ('is_expired', 'days_to_expiry', 'expiry_status', 'is_valid'),
-            'classes': ('collapse',)
-        }),
-        (_('Metadata'), {
-            'fields': ('created_at', 'updated_at'),
-            'classes': ('collapse',)
-        }),
-    )
-    
-    def expiry_status_badge(self, obj):
-        status = obj.expiry_status
-        colors = {
-            'EXPIRED': 'red',
-            'EXPIRING_SOON': 'orange',
-            'VALID': 'green',
-            'NO_EXPIRY': 'gray'
-        }
-        return format_html(
-            '<span style="background-color: {}; padding: 3px 8px; border-radius: 3px; color: white;">{}</span>',
-            colors.get(status, 'black'),
-            status
-        )
-    expiry_status_badge.short_description = _('Stato')
-    
-    actions = ['mark_as_approved', 'mark_as_verified']
-    
-    def mark_as_approved(self, request, queryset):
-        updated = queryset.update(status='APPROVED')
-        self.message_user(request, f'{updated} documenti approvati.')
-    mark_as_approved.short_description = _('Approva documenti selezionati')
-    
-    def mark_as_verified(self, request, queryset):
-        updated = queryset.update(verified=True, verified_date=timezone.now().date())
-        self.message_user(request, f'{updated} documenti verificati.')
-    mark_as_verified.short_description = _('Verifica documenti selezionati')
 
 
 # Address Admin
@@ -409,7 +318,7 @@ class VendorAdmin(admin.ModelAdmin):
         'expiring_documents', 'missing_mandatory_documents'
     ]
     autocomplete_fields = ['address', 'category', 'qualification_type', 'service_type', 'user_account']
-    inlines = [VendorCompetenceInline, VendorDocumentInline, VendorEvaluationInline]
+    inlines = [VendorCompetenceInline, DocumentInline, VendorEvaluationInline]
     
     fieldsets = (
         (_('Informazioni Base'), {

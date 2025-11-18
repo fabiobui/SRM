@@ -15,38 +15,139 @@ class DocumentType(models.Model):
         editable=False,
         help_text=_("Unique ID for Document Type"),
     )
+    
+    # Core fields
+    code = models.CharField(
+        _("Codice Documento"),
+        max_length=50,
+        unique=True,
+        blank=True,
+        null=True,
+        help_text=_("Codice univoco del tipo di documento (es. 'DURC', 'VISURA')")
+    )
+    
     name = models.CharField(
         _("Document Type Name"),
-        max_length=100,
+        max_length=255,
         help_text=_("Name of document type (e.g. DURC, ISO 9001, etc.)")
     )
+    
     description = models.TextField(
         _("Description"),
         help_text=_("Description of this document type"),
-        blank=True
+        blank=True,
+        null=True
     )
+    
+    # Categorization
+    document_category = models.CharField(
+        _("Categoria Documento"),
+        max_length=50,
+        choices=[
+            ('LEGAL', _('Legale/Amministrativo')),
+            ('FINANCIAL', _('Finanziario')),
+            ('SAFETY', _('Sicurezza')),
+            ('QUALITY', _('Qualità')),
+            ('TECHNICAL', _('Tecnico')),
+            ('INSURANCE', _('Assicurativo')),
+            ('CERTIFICATION', _('Certificazioni')),
+            ('OTHER', _('Altro')),
+        ],
+        default='LEGAL',
+        blank=True,
+        null=True,
+        help_text=_("Categoria del documento")
+    )
+    
+    # Requirements (is_required già esiste, manteniamo quello)
     is_required = models.BooleanField(
         _("Required"),
         default=True,
         help_text=_("Whether this document is required for vendor qualification")
     )
+    
+    requires_renewal = models.BooleanField(
+        _("Richiede Rinnovo"),
+        default=True,
+        help_text=_("Documento con scadenza che necessita rinnovo")
+    )
+    
+    # validity_period_days già esiste, manteniamo quello
     validity_period_days = models.IntegerField(
         _("Validity Period (Days)"),
         help_text=_("How many days this document is valid for"),
         default=365
     )
+    
+    # reminder_days_before già esiste, manteniamo quello
     reminder_days_before = models.IntegerField(
         _("Reminder Days Before Expiry"),
         help_text=_("Send reminder X days before expiry"),
         default=30
     )
     
+    # Business rules
+    is_active = models.BooleanField(
+        _("È Attivo"),
+        default=True,
+        help_text=_("Tipo di documento attivo e utilizzabile")
+    )
+    
+    sort_order = models.PositiveIntegerField(
+        _("Ordine di Ordinamento"),
+        default=100,
+        help_text=_("Ordine di visualizzazione")
+    )
+    
+    # Metadata
+    created_at = models.DateTimeField(
+        _("Creato il"),
+        auto_now_add=True
+    )
+    
+    updated_at = models.DateTimeField(
+        _("Aggiornato il"),
+        auto_now=True
+    )
+    
+    # Related categories
+    applicable_categories = models.ManyToManyField(
+        'vendors.Category',
+        verbose_name=_("Categorie Applicabili"),
+        blank=True,
+        related_name="required_documents",
+        help_text=_("Categorie per cui questo documento è richiesto")
+    )
+    
+    # Template and instructions
+    template_file = models.FileField(
+        _("File Template"),
+        upload_to='document_templates/',
+        blank=True,
+        null=True,
+        help_text=_("Template o modello del documento")
+    )
+    
+    instructions = models.TextField(
+        _("Istruzioni"),
+        blank=True,
+        null=True,
+        help_text=_("Istruzioni per il fornitore su come compilare/ottenere il documento")
+    )
+    
     class Meta:
-        verbose_name = _("Document Type")
-        verbose_name_plural = _("Document Types")
-        ordering = ["name"]
+        verbose_name = _("Tipo di Documento")
+        verbose_name_plural = _("Tipi di Documento")
+        ordering = ["document_category", "sort_order", "name"]
+        indexes = [
+            models.Index(fields=['code']),
+            models.Index(fields=['document_category', 'is_active']),
+            models.Index(fields=['is_required']),
+        ]
     
     def __str__(self):
+        if self.code:
+            return f"{self.code} - {self.name}"
         return self.name
     
     def save(self, *args, **kwargs):
@@ -83,50 +184,50 @@ class Document(models.Model):
     document_type = models.ForeignKey(
         DocumentType,
         on_delete=models.CASCADE,
-        verbose_name=_("Document Type"),
-        help_text=_("Type of document")
+        verbose_name=_("Tipo di Documento"),
+        help_text=_("Tipo di documento")
     )
     file = models.FileField(
-        _("Document File"),
+        _("File Documento"),
         upload_to="vendor_documents/%Y/%m/",
-        help_text=_("Upload the document file"),
+        help_text=_("Carica il file del documento"),
         null=True,
         blank=True
     )
     issue_date = models.DateField(
-        _("Issue Date"),
-        help_text=_("Date when document was issued"),
+        _("Data di Emissione"),
+        help_text=_("Data di emissione del documento"),
         null=True,
         blank=True
     )
     expiry_date = models.DateField(
-        _("Expiry Date"),
-        help_text=_("Date when document expires"),
+        _("Data di Scadenza"),
+        help_text=_("Data di scadenza del documento"),
         null=True,
         blank=True
     )
     status = models.CharField(
-        _("Status"),
+        _("Stato"),
         max_length=20,
         choices=STATUS_CHOICES,
         default='PENDING',
-        help_text=_("Current status of document")
+        help_text=_("Stato corrente del documento")
     )
     notes = models.TextField(
-        _("Notes"),
-        help_text=_("Additional notes about this document"),
+        _("Note"),
+        help_text=_("Note aggiuntive su questo documento"),
         blank=True
     )
     uploaded_at = models.DateTimeField(
-        _("Uploaded At"),
+        _("Data di Caricamento"),
         auto_now_add=True,
-        help_text=_("When document was uploaded")
+        help_text=_("Data di caricamento del documento")
     )
     reviewed_by = models.ForeignKey(
         "users.User",
         on_delete=models.SET_NULL,
-        verbose_name=_("Reviewed By"),
-        help_text=_("User who reviewed this document"),
+        verbose_name=_("Revisionato da"),
+        help_text=_("Utente che ha revisionato questo documento"),
         null=True,
         blank=True,
         related_name="reviewed_documents"
@@ -139,8 +240,8 @@ class Document(models.Model):
     )
     
     class Meta:
-        verbose_name = _("Document")
-        verbose_name_plural = _("Documents")
+        verbose_name = _("Documento")
+        verbose_name_plural = _("Documenti")
         ordering = ["-uploaded_at"]
         unique_together = ["vendor", "document_type"]
     
