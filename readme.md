@@ -164,3 +164,31 @@ POSTGRES_PASSWORD=
 
 ## Create LDAP USER
 - `python manage.py sync_ldap_users --create-ldap-user lmoroni@fulgard.com --role bo_user`
+
+### Nuovo comando `sync_ldap_users`
+Il comando ora permette di creare o aggiornare manualmente un utente LDAP nel database senza effettuare autenticazione.
+
+Opzioni disponibili:
+
+```
+python manage.py sync_ldap_users \
+	--create-ldap-user EMAIL \
+	[--role admin|bo_user|vendor] \
+	[--name "Nome Cognome"] \
+	[--vendor-code VENDORCODE] \
+	[--dry-run]
+```
+
+Note:
+- `--create-ldap-user` (obbligatorio): email dell'utente da creare/aggiornare.
+- `--role`: ruolo da assegnare (default `bo_user`).
+- `--name`: nome visualizzato (se omesso deriva dalla parte locale dell'email).
+- `--vendor-code`: richiesto se il ruolo è `vendor` (codice fornitore esistente).
+- `--dry-run`: mostra cosa verrebbe fatto senza salvare.
+
+Esempi:
+```
+python manage.py sync_ldap_users --create-ldap-user mario.rossi@example.com --role bo_user
+python manage.py sync_ldap_users --create-ldap-user admin@example.com --role admin --name "Admin User"
+python manage.py sync_ldap_users --create-ldap-user fornitore@example.com --role vendor --vendor-code ABC123
+```
