@@ -1226,6 +1226,15 @@ class Vendor(models.Model):
         help_text=_("Competenze possedute dal fornitore")
     )
 
+    # Document relationship (nuovo)
+    vendor_documents = models.ManyToManyField(
+        Document,
+        verbose_name=_("Documenti"),
+        blank=True,
+        related_name="vendors",
+        help_text=_("Documenti associati al fornitore")
+    )
+
     risk_level = models.CharField(
         _("Livello di Rischio"),
         max_length=20,
@@ -1349,7 +1358,7 @@ class Vendor(models.Model):
     @property
     def valid_documents(self):
         """Ritorna i documenti validi del fornitore"""
-        return self.documents.filter(
+        return self.vendor_documents.filter(
             status='APPROVED'
         ).exclude(
             expiry_date__lt=timezone.now().date()
@@ -1358,7 +1367,7 @@ class Vendor(models.Model):
     @property
     def expired_documents(self):
         """Ritorna i documenti scaduti"""
-        return self.documents.filter(
+        return self.vendor_documents.filter(
             expiry_date__lt=timezone.now().date()
         )
     
@@ -1367,13 +1376,13 @@ class Vendor(models.Model):
         """Ritorna i documenti in scadenza (entro i giorni di preavviso)"""
         from datetime import timedelta
         documents_expiring = []
-        for doc in self.documents.filter(
+        for doc in self.vendor_documents.filter(
             status='APPROVED',
             expiry_date__isnull=False
         ):
             if doc.expiry_date >= timezone.now().date():
                 days_to_expiry = (doc.expiry_date - timezone.now().date()).days
-                if days_to_expiry <= doc.document_type.reminder_days_before:
+                if doc.document_type.reminder_days_before is not None and days_to_expiry <= doc.document_type.reminder_days_before:
                     documents_expiring.append(doc)
         return documents_expiring
     
@@ -1383,15 +1392,12 @@ class Vendor(models.Model):
         if not self.category:
             return DocumentType.objects.none()
         
-        # Documenti obbligatori per la categoria
         required = DocumentType.objects.filter(is_required=True)
         
-        # Documenti già caricati e validi
-        submitted_ids = self.documents.filter(
+        submitted_ids = self.vendor_documents.filter(
             status__in=['APPROVED', 'UPLOADED']
         ).values_list('document_type_id', flat=True)
         
-        # Ritorna quelli mancanti
         return required.exclude(id__in=submitted_ids)
     
     @property
@@ -1400,7 +1406,11 @@ class Vendor(models.Model):
         missing = self.missing_mandatory_documents
         expired = self.expired_documents.filter(document_type__is_required=True)
         return not missing.exists() and not expired.exists()
-    
+
+    # Alias di compatibilità: mantiene self.documents.filter(...)
+    @property
+    def documents(self):
+        return self.vendor_documents
 
 class VendorEvaluation(models.Model):
     """
