@@ -60,8 +60,8 @@ class CategoryAdmin(admin.ModelAdmin):
 @admin.register(Competence)
 class CompetenceAdmin(admin.ModelAdmin):
     list_display = ['code', 'name', 'competence_category', 'is_mandatory', 'requires_certification', 'requires_renewal', 'is_active']
-    list_filter = ['competence_category', 'is_mandatory', 'requires_certification', 'requires_renewal', 'is_active']
-    search_fields = ['code', 'name', 'description']
+    list_filter = ['requirement_type', 'competence_category', 'is_mandatory', 'requires_certification', 'requires_renewal', 'is_active']
+    search_fields = ['code', 'requirement_type', 'name', 'description']
     ordering = ['competence_category', 'sort_order', 'name']
     list_editable = ['is_active', 'is_mandatory']
     filter_horizontal = ['applicable_categories']
@@ -69,7 +69,7 @@ class CompetenceAdmin(admin.ModelAdmin):
     
     fieldsets = (
         (_('Informazioni Base'), {
-            'fields': ('code', 'name', 'description', 'competence_category')
+            'fields': ('requirement_type', 'code', 'name', 'description', 'competence_category')
         }),
         (_('Requisiti'), {
             'fields': ('requires_certification', 'requires_renewal', 'renewal_period_months')

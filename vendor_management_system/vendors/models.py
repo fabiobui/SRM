@@ -212,30 +212,34 @@ class Competence(models.Model):
         editable=False
     )
     
+    requirement_type = models.CharField(_("Requisito Professionale"), max_length=20,
+         choices=[("competenza", "Competenza"), ("qualifica", "Qualifica")],
+         blank=True, null=True)
+
     # Core fields
     code = models.CharField(
-        _("Codice Competenza"),
+        _("Codice Requisito"),
         max_length=50,
         unique=True,
-        help_text=_("Codice univoco della competenza (es. 'RSPP', 'ASPP')")
+        help_text=_("Codice univoco del requisito professionale (es. 'RSPP', 'ASPP')")
     )
     
     name = models.CharField(
-        _("Nome Competenza"),
+        _("Nome Requisito Professionale"),
         max_length=255,
-        help_text=_("Nome della competenza/qualifica")
+        help_text=_("Nome del requisito professionale")
     )
     
     description = models.TextField(
         _("Descrizione"),
         blank=True,
         null=True,
-        help_text=_("Descrizione dettagliata della competenza")
+        help_text=_("Descrizione dettagliata del requisito professionale")
     )
     
     # Categorization
     competence_category = models.CharField(
-        _("Categoria Competenza"),
+        _("Categoria Requisito Professionale"),
         max_length=50,
         choices=[
             ('SAFETY', _('Sicurezza')),
@@ -247,20 +251,20 @@ class Competence(models.Model):
             ('OTHER', _('Altro')),
         ],
         default='TECHNICAL',
-        help_text=_("Categoria della competenza")
+        help_text=_("Categoria del requisito professionale")
     )
     
     # Requirements
     requires_certification = models.BooleanField(
         _("Richiede Certificazione"),
         default=True,
-        help_text=_("Indica se la competenza richiede una certificazione formale")
+        help_text=_("Indica se il requisito professionale richiede una certificazione formale")
     )
     
     requires_renewal = models.BooleanField(
         _("Richiede Rinnovo"),
         default=False,
-        help_text=_("Indica se la competenza ha una scadenza e necessita rinnovo")
+        help_text=_("Indica se il requisito professionale ha una scadenza e necessita rinnovo")
     )
     
     renewal_period_months = models.PositiveIntegerField(
@@ -272,15 +276,15 @@ class Competence(models.Model):
     
     # Business rules
     is_mandatory = models.BooleanField(
-        _("È Obbligatoria"),
+        _("È Obbligatorio"),
         default=False,
-        help_text=_("Competenza obbligatoria per alcune categorie di fornitori")
+        help_text=_("Requisito professionale obbligatorio per alcune categorie di fornitori")
     )
     
     is_active = models.BooleanField(
-        _("È Attiva"),
+        _("È Attivo"),
         default=True,
-        help_text=_("Competenza attiva e utilizzabile")
+        help_text=_("Requisito professionale attivo e utilizzabile")
     )
     
     sort_order = models.PositiveIntegerField(
@@ -310,8 +314,8 @@ class Competence(models.Model):
     )
 
     class Meta:
-        verbose_name = _("Competenza a catalogo")
-        verbose_name_plural = _("Catalogo Competenze")
+        verbose_name = _("Requisito Professionale")
+        verbose_name_plural = _("Catalogo Requisiti Professionali")
         ordering = ['competence_category', 'sort_order', 'name']
         indexes = [
             models.Index(fields=['code']),
@@ -344,16 +348,16 @@ class VendorCompetence(models.Model):
     
     competence = models.ForeignKey(
         Competence,
-        verbose_name=_("Competenza"),
+        verbose_name=_("Requisito Professionale"),
         on_delete=models.CASCADE,
         related_name="vendor_assignments"
     )
     
     # Status
     has_competence = models.BooleanField(
-        _("Possiede Competenza"),
+        _("Possiede Requisito Professionale"),
         default=True,
-        help_text=_("Il fornitore possiede questa competenza")
+        help_text=_("Il fornitore possiede questo requisito professionale")
     )
 
     has_certification = models.BooleanField(
@@ -443,8 +447,8 @@ class VendorCompetence(models.Model):
     )
 
     class Meta:
-        verbose_name = _("Competenza assegnata")
-        verbose_name_plural = _("Competenze assegnate")
+        verbose_name = _("Requisito Professionale Assegnato")
+        verbose_name_plural = _("Requisiti Professionali Assegnati")
         unique_together = [['vendor', 'competence']]
         ordering = ['-created_at']
         indexes = [
