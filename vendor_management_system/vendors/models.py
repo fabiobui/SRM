@@ -213,7 +213,7 @@ class Competence(models.Model):
     )
     
     requirement_type = models.CharField(_("Requisito Professionale"), max_length=20,
-         choices=[("competenza", "Competenza"), ("qualifica", "Qualifica")],
+         choices=[("competenza", "Competenza"), ("qualifica", "Qualifica"), ("iscrizione_albo", "Iscrizione Albo")], default="qualifica",
          blank=True, null=True)
 
     # Core fields
