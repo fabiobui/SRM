@@ -4,10 +4,13 @@ from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
 from django.http import HttpResponse, JsonResponse
-from django.db.models import Count, Q, F
+from django.db.models import Count, Q, F, Prefetch
 from django.core.serializers.json import DjangoJSONEncoder
 
-from vendor_management_system.vendors.models import Vendor, Address, Category
+from vendor_management_system.vendors.models import (
+    Vendor, Address, Category, VendorService, 
+    Competence, VendorCompetence, ServiceType
+)
 
 
 @login_required
@@ -15,7 +18,17 @@ def vendor_dashboard_view(request):
     """
     Dashboard view che mostra statistiche e grafici sui fornitori
     """
-    vendors = Vendor.objects.select_related('category', 'service_type', 'service_type__parent', 'address').prefetch_related('competences', 'vendor_documents__document_type').all()
+    vendors = Vendor.objects.select_related(
+        'category', 
+        'address'
+    ).prefetch_related(
+        'competences',
+        'vendor_documents__document_type',
+        Prefetch(
+            'vendor_services',
+            queryset=VendorService.objects.select_related('service_type', 'service_type__parent')
+        )
+    ).all()
     
     # Summary statistics
     total_vendors = vendors.count()
@@ -47,15 +60,13 @@ def vendor_dashboard_view(request):
             .annotate(count=Count('vendor_code'), region=F('address__region'))
             .order_by('-count')
         ),
-        'by_service_type': list(
-            vendors.values('service_type__name')
-            .annotate(count=Count('vendor_code'), service_type=F('service_type__name'))
-            .order_by('-count')
-        ),
         'by_quality': [],
         'by_fulfillment': [],
-        'by_competencies': [],
+        'by_qualifiche': [],
+        'by_competenze': [],
         'by_certifications': [],
+        'by_service_categories': [],
+        'by_services': [],
     }
     
     # Add count for vendors without address or region
@@ -70,43 +81,81 @@ def vendor_dashboard_view(request):
             'count': vendors_no_region
         })
     
-    # Competencies aggregation
+    # Qualifiche aggregation (requirement_type=qualifica)
     try:
-        from vendor_management_system.vendors.models import Competence
-        
-        competencies_data = (
+        qualifiche_data = (
             Competence.objects
-            .annotate(vendor_count=Count('vendors_with_competence'))
+            .filter(requirement_type='qualifica')
+            .annotate(vendor_count=Count(
+                'vendor_assignments__vendor',
+                filter=Q(vendor_assignments__has_competence=True),
+                distinct=True
+            ))
             .filter(vendor_count__gt=0)
             .values('name', 'vendor_count')
             .order_by('-vendor_count')
         )
         
-        for comp_data in competencies_data:
-            chart_data['by_competencies'].append({
-                'competency': comp_data['name'],
+        print(f"DEBUG Qualifiche query: {len(qualifiche_data)} results")
+        for qual_data in qualifiche_data:
+            print(f"  - {qual_data['name']}: {qual_data['vendor_count']} vendors")
+            chart_data['by_qualifiche'].append({
+                'qualifica': qual_data['name'],
+                'count': qual_data['vendor_count']
+            })
+        
+    except Exception as e:
+        print(f"ERROR Qualifiche aggregation: {e}")
+        pass
+    
+    # Se non ci sono qualifiche, mostra placeholder
+    if not chart_data['by_qualifiche']:
+        chart_data['by_qualifiche'] = [
+            {'qualifica': 'Nessuna qualifica assegnata', 'count': 0}
+        ]
+    
+    # Competenze aggregation (requirement_type=competenza)
+    try:
+        competenze_data = (
+            Competence.objects
+            .filter(requirement_type='competenza')
+            .annotate(vendor_count=Count(
+                'vendor_assignments__vendor',
+                filter=Q(vendor_assignments__has_competence=True),
+                distinct=True
+            ))
+            .filter(vendor_count__gt=0)
+            .values('name', 'vendor_count')
+            .order_by('-vendor_count')
+        )
+        
+        print(f"DEBUG Competenze query: {len(competenze_data)} results")
+        for comp_data in competenze_data:
+            print(f"  - {comp_data['name']}: {comp_data['vendor_count']} vendors")
+            chart_data['by_competenze'].append({
+                'competenza': comp_data['name'],
                 'count': comp_data['vendor_count']
             })
         
     except Exception as e:
+        print(f"ERROR Competenze aggregation: {e}")
         pass
     
     # Se non ci sono competenze, mostra placeholder
-    if not chart_data['by_competencies']:
-        chart_data['by_competencies'] = [
-            {'competency': 'Nessuna competenza assegnata', 'count': 0}
+    if not chart_data['by_competenze']:
+        chart_data['by_competenze'] = [
+            {'competenza': 'Nessuna competenza assegnata', 'count': 0}
         ]
     
     # Certifications aggregation (filtra per has_certification=True)
     try:
-        from vendor_management_system.vendors.models import Competence, VendorCompetence
-        
         certifications_data = (
             Competence.objects
             .annotate(
                 vendor_count=Count(
-                    'vendor_assignments',
-                    filter=Q(vendor_assignments__has_certification=True)
+                    'vendor_assignments__vendor',
+                    filter=Q(vendor_assignments__has_certification=True),
+                    distinct=True
                 )
             )
             .filter(vendor_count__gt=0)
@@ -127,6 +176,65 @@ def vendor_dashboard_view(request):
     if not chart_data['by_certifications']:
         chart_data['by_certifications'] = [
             {'certification': 'Nessuna certificazione assegnata', 'count': 0}
+        ]
+    
+    # Service Categories aggregation (parent=None)
+    try:
+        service_categories_data = (
+            ServiceType.objects
+            .filter(parent__isnull=True)
+            .annotate(vendor_count=Count(
+                'subservices__vendor_assignments__vendor',
+                distinct=True
+            ))
+            .filter(vendor_count__gt=0)
+            .values('name', 'vendor_count')
+            .order_by('-vendor_count')
+        )
+        
+        for serv_cat_data in service_categories_data:
+            chart_data['by_service_categories'].append({
+                'category': serv_cat_data['name'],
+                'count': serv_cat_data['vendor_count']
+            })
+        
+    except Exception as e:
+        pass
+    
+    # Se non ci sono categorie servizi, mostra placeholder
+    if not chart_data['by_service_categories']:
+        chart_data['by_service_categories'] = [
+            {'category': 'Nessuna categoria servizio', 'count': 0}
+        ]
+    
+    # Specific Services aggregation (parent!=None)
+    try:
+        services_data = (
+            ServiceType.objects
+            .annotate(vendor_count=Count(
+                'vendor_assignments__vendor',
+                distinct=True
+            ))
+            .filter(vendor_count__gt=0, parent__isnull=False)
+            .select_related('parent')
+            .values('name', 'vendor_count', 'parent__name')
+            .order_by('-vendor_count')
+        )
+        
+        for serv_data in services_data:
+            chart_data['by_services'].append({
+                'service': serv_data['name'],
+                'count': serv_data['vendor_count'],
+                'category': serv_data['parent__name']
+            })
+        
+    except Exception as e:
+        pass
+    
+    # Se non ci sono servizi, mostra placeholder
+    if not chart_data['by_services']:
+        chart_data['by_services'] = [
+            {'service': 'Nessun servizio assegnato', 'count': 0, 'category': None}
         ]
     
     # Quality rating distribution
@@ -162,6 +270,9 @@ def vendor_dashboard_view(request):
     # Vendors data for table
     vendors_data = []
     for vendor in vendors:
+        # Recupera il servizio principale
+        primary_service = vendor.vendor_services.filter(is_primary=True).first()
+        
         vendor_dict = {
             'vendor_code': vendor.vendor_code,
             'name': vendor.name,
@@ -179,9 +290,16 @@ def vendor_dashboard_view(request):
             'vendor_final_evaluation': vendor.vendor_final_evaluation,
             'category': {'name': vendor.category.name if vendor.category else None},
             'service_type': {
-                'name': vendor.service_type.name if vendor.service_type else None,
-                'parent': vendor.service_type.parent.name if vendor.service_type and vendor.service_type.parent else None
-            },
+                'name': primary_service.service_type.name if primary_service else None,
+                'parent': primary_service.service_type.parent.name if primary_service and primary_service.service_type.parent else None
+            } if primary_service else None,
+            'services': [
+                {
+                    'name': vs.service_type.name,
+                    'is_primary': vs.is_primary
+                } 
+                for vs in vendor.vendor_services.all()
+            ],
             'address': {
                 'street_address': vendor.address.street_address if vendor.address else None,
                 'city': vendor.address.city if vendor.address else None,
@@ -191,10 +309,23 @@ def vendor_dashboard_view(request):
                 'country': vendor.address.country if vendor.address else 'Italia',
             } if vendor.address else None,
             'competences': [comp.name for comp in vendor.competences.all()],
+            'qualifiche': [
+                vc.competence.name 
+                for vc in vendor.vendor_competences.filter(competence__requirement_type='qualifica')
+            ],
+            'competenze_req': [
+                vc.competence.name 
+                for vc in vendor.vendor_competences.filter(competence__requirement_type='competenza')
+            ],
             'certifications': [
                 vc.competence.name 
                 for vc in vendor.vendor_competences.filter(has_certification=True)
-            ]
+            ],
+            'service_categories': list(set([
+                vs.service_type.parent.name 
+                for vs in vendor.vendor_services.all() 
+                if vs.service_type.parent
+            ]))
         }
         vendors_data.append(vendor_dict)
     
@@ -235,7 +366,12 @@ def dashboard_vendors_list_api(request):
     """
     API endpoint per lista fornitori con filtri
     """
-    vendors = Vendor.objects.select_related('category', 'service_type').all()
+    vendors = Vendor.objects.select_related('category').prefetch_related(
+        Prefetch(
+            'vendor_services',
+            queryset=VendorService.objects.select_related('service_type').filter(is_primary=True)
+        )
+    ).all()
     
     # Apply filters from query params
     category = request.GET.get('category')
@@ -251,7 +387,7 @@ def dashboard_vendors_list_api(request):
     if risk_level:
         vendors = vendors.filter(risk_level=risk_level)
     if service_type:
-        vendors = vendors.filter(service_type__name=service_type)
+        vendors = vendors.filter(vendor_services__service_type__name=service_type).distinct()
     if search:
         vendors = vendors.filter(
             Q(vendor_code__icontains=search) |
@@ -261,17 +397,22 @@ def dashboard_vendors_list_api(request):
             Q(fiscal_code__icontains=search)
         )
     
-    vendors_data = list(vendors.values(
-        'vendor_code', 'name', 'email',
-        'qualification_status', 'risk_level',
-        'quality_rating_avg', 'fulfillment_rate',
-        'category__name', 'service_type__name'
-    ))
-    
-    # Rename nested fields
-    for vendor in vendors_data:
-        vendor['category'] = {'name': vendor.pop('category__name', None)}
-        vendor['service_type'] = {'name': vendor.pop('service_type__name', None)}
+    vendors_data = []
+    for vendor in vendors:
+        primary_service = vendor.vendor_services.filter(is_primary=True).first()
+        vendors_data.append({
+            'vendor_code': vendor.vendor_code,
+            'name': vendor.name,
+            'email': vendor.email,
+            'qualification_status': vendor.qualification_status,
+            'risk_level': vendor.risk_level,
+            'quality_rating_avg': vendor.quality_rating_avg,
+            'fulfillment_rate': vendor.fulfillment_rate,
+            'category': {'name': vendor.category.name if vendor.category else None},
+            'service_type': {
+                'name': primary_service.service_type.name if primary_service else None
+            }
+        })
     
     return JsonResponse({'vendors': vendors_data})
 
@@ -285,7 +426,9 @@ def export_vendors_excel(request):
     from openpyxl.styles import Font, PatternFill
     from django.http import HttpResponse
     
-    vendors = Vendor.objects.select_related('category', 'service_type').all()
+    vendors = Vendor.objects.select_related('category').prefetch_related(
+        'vendor_services__service_type'
+    ).all()
     
     # Apply filters
     category = request.GET.get('category')
@@ -301,7 +444,7 @@ def export_vendors_excel(request):
     if risk_level:
         vendors = vendors.filter(risk_level=risk_level)
     if service_type:
-        vendors = vendors.filter(service_type__name=service_type)
+        vendors = vendors.filter(vendor_services__service_type__name=service_type).distinct()
     if search:
         vendors = vendors.filter(
             Q(vendor_code__icontains=search) |
