@@ -19,7 +19,7 @@ from vendor_management_system.vendors.models import Vendor, Competence, VendorCo
 
 
 # === CONFIG ===
-FILE_PATH = "import_competenze.xlsx"
+FILE_PATH = "import_competenze_assegnate.xlsx"
 SHEET_NAME = 0
 DRY_RUN = False
 
@@ -50,22 +50,6 @@ def resolve_file_path(path: str | Path) -> Path | None:
     return None
 
 
-def classify_competence_category(name: str) -> str:
-    """Tenta di assegnare la categoria più adatta alla competenza"""
-    n = name.upper()
-    if any(k in n for k in ["RSPP", "ASPP", "SICUREZZA", "CANTIERE", "ANTINCENDIO"]):
-        return "SAFETY"
-    if any(k in n for k in ["AUDITOR", "ISO", "SGS", "9001", "14001", "45001", "50001"]):
-        return "AUDIT"
-    if any(k in n for k in ["ENERGY", "EGE", "MANAGER"]):
-        return "ENERGY"
-    if any(k in n for k in ["AMBIENTE", "ERGONOMO", "IGIENISTA", "AMIANTO", "ATEX"]):
-        return "ENVIRONMENT"
-    if any(k in n for k in ["HAZOP", "SIL", "QRA", "FERA", "SAFETY EXPERT"]):
-        return "TECHNICAL"
-    return "OTHER"
-
-
 # === MAIN FUNCTION ===
 @transaction.atomic
 def import_competences(file_path: str | Path | None = None, sheet_name=None, dry_run: bool | None = None):
@@ -79,14 +63,38 @@ def import_competences(file_path: str | Path | None = None, sheet_name=None, dry
         sys.exit(1)
 
     ext = resolved_path.suffix.lower()
+    
+    # Nuovo formato: riga 0 = nomi descrittivi, riga 1 = codici (header)
+    # Leggiamo prima le due righe di intestazione per creare il mapping codice -> nome
     if ext == ".csv":
-        df = pd.read_csv(resolved_path, dtype=str)
+        df_headers = pd.read_csv(resolved_path, dtype=str, nrows=2, header=None)
     else:
-        df = pd.read_excel(resolved_path, sheet_name=sheet_name, dtype=str)
+        df_headers = pd.read_excel(resolved_path, sheet_name=sheet_name, dtype=str, nrows=2, header=None)
+    
+    # Riga 0: nomi descrittivi delle competenze
+    # Riga 1: codici delle competenze (QUAL-001, QUAL-003, ecc.)
+    names_row = df_headers.iloc[0].tolist()
+    codes_row = df_headers.iloc[1].tolist()
+    
+    # Creiamo mapping codice -> nome (escludendo la prima colonna "codice")
+    code_to_name = {}
+    for i, (name, code) in enumerate(zip(names_row, codes_row)):
+        if i == 0:  # Salta la prima colonna (codice vendor)
+            continue
+        code_str = safe_str(code)
+        name_str = safe_str(name)
+        if code_str and name_str:
+            code_to_name[code_str] = name_str
+    
+    # Ora leggiamo il file con header sulla riga 1 (codici) e skippiamo la riga 0
+    if ext == ".csv":
+        df = pd.read_csv(resolved_path, dtype=str, header=1)
+    else:
+        df = pd.read_excel(resolved_path, sheet_name=sheet_name, dtype=str, header=1)
 
     print(colored(f"\n📘 Import competenze da: {resolved_path}", "cyan"))
     print(colored(f"   Foglio: {sheet_name} | DRY_RUN: {dry_run}", "cyan", attrs=["bold"]))
-    print(colored(f"   Righe: {len(df)}\n", "cyan", attrs=["bold"]))
+    print(colored(f"   Righe dati: {len(df)} | Competenze: {len(code_to_name)}\n", "cyan", attrs=["bold"]))
 
     created_vendor_competences = 0
     missing_vendors = 0
@@ -94,9 +102,10 @@ def import_competences(file_path: str | Path | None = None, sheet_name=None, dry
 
     with transaction.atomic():
         for i, row in df.iterrows():
-            old_code = safe_str(row.get("old_code"))
+            # La prima colonna ora si chiama "codice" (non più "old_code")
+            old_code = safe_str(row.get("codice"))
             if not old_code:
-                print(colored(f"[{i+1}] ⚠️ Riga senza old_code, saltata", "yellow"))
+                print(colored(f"[{i+1}] ⚠️ Riga senza codice, saltata", "yellow"))
                 continue
 
             vendor = Vendor.objects.filter(old_code=old_code).first()
@@ -108,27 +117,28 @@ def import_competences(file_path: str | Path | None = None, sheet_name=None, dry
             print(colored(f"\n➡️ {i+1}. Vendor: {vendor.name or old_code}", "cyan"))
 
             for col, val in row.items():
-                if col == "old_code":
+                if col == "codice":
                     continue
                 if not parse_bool(val):
                     continue
 
-                comp_name = col.strip()
-                comp_code = comp_name.upper().replace(" ", "_").replace("/", "_").replace("-", "_")
-                category = classify_competence_category(comp_name)
+                # Il codice competenza è l'intestazione della colonna (es. QUAL-001)
+                comp_code = safe_str(col)
+                # Il nome viene dal mapping con la prima riga
+                comp_name = code_to_name.get(comp_code, comp_code)
 
                 comp, created = Competence.objects.get_or_create(
                     code=comp_code,
                     defaults={
                         "name": comp_name,
-                        "competence_category": category,
+                        "requirement_type": "qualifica",
                         "is_active": True,
                         "requires_certification": True,
                     },
                 )
                 if created:
                     created_competences += 1
-                    print(colored(f"   🆕 Creata competenza: {comp.name}", "green"))
+                    print(colored(f"   🆕 Creata competenza: {comp.code} - {comp.name}", "green"))
 
                 vc, created_vc = VendorCompetence.objects.get_or_create(
                     vendor=vendor,
