@@ -5,7 +5,7 @@ from celery.schedules import crontab
 from urllib.parse import urlparse
 from dotenv import load_dotenv
 from django.utils.translation import gettext_lazy as _
-#from import_export.formats.base_formats import CSV, XLSX
+from import_export.formats.base_formats import CSV, XLSX
 
 load_dotenv()
 
@@ -105,6 +105,7 @@ THIRD_PARTY_APPS = [
     "corsheaders",
     "django_extensions",
     "drf_yasg",
+    "import_export",
 ]
 LOCAL_APPS = [
     "vendor_management_system.users",
@@ -241,7 +242,7 @@ if USE_FORNITORI_PREFIX:
         "vendor_management_system.core.middleware.force_prefix.ForcePrefixMiddleware",
     )
 
-#IMPORT_EXPORT_FORMATS = [XLSX, CSV]  # ordine = priorità nel menu
+IMPORT_EXPORT_FORMATS = [XLSX, CSV]  # ordine = priorità nel menu
 
 # STATIC
 # ------------------------------------------------------------------------------

@@ -6,6 +6,8 @@ from django.utils.translation import gettext_lazy as _
 from django.utils.html import format_html
 from django.urls import reverse
 from django.utils import timezone
+from import_export import resources
+from import_export.admin import ImportExportModelAdmin
 from .models import (
     Category, Competence, VendorCompetence,
     Address, QualificationType, ServiceType, EvaluationCriterion,
@@ -56,9 +58,21 @@ class CategoryAdmin(admin.ModelAdmin):
     color_badge.short_description = _('Colore')
 
 
+# Competence Resource for import/export
+class CompetenceResource(resources.ModelResource):
+    class Meta:
+        model = Competence
+        fields = ('id', 'requirement_type', 'code', 'name', 'description', 'competence_category',
+                  'requires_certification', 'requires_renewal', 'renewal_period_months',
+                  'is_mandatory', 'is_active', 'sort_order')
+        export_order = fields
+        import_id_fields = ['code']
+
+
 # Competence Admin
 @admin.register(Competence)
-class CompetenceAdmin(admin.ModelAdmin):
+class CompetenceAdmin(ImportExportModelAdmin):
+    resource_class = CompetenceResource
     list_display = ['code', 'name', 'competence_category', 'is_mandatory', 'requires_certification', 'requires_renewal', 'is_active']
     list_filter = ['requirement_type', 'competence_category', 'is_mandatory', 'requires_certification', 'requires_renewal', 'is_active']
     search_fields = ['code', 'requirement_type', 'name', 'description']
@@ -241,6 +255,13 @@ class ServiceTypeAdmin(admin.ModelAdmin):
         return obj.is_category
     is_category.boolean = True
     is_category.short_description = _('È Categoria')
+    
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        """Personalizza il campo parent per mostrare solo le categorie"""
+        if db_field.name == "parent":
+            # Mostra solo i ServiceType che sono categorie (parent=None)
+            kwargs["queryset"] = ServiceType.objects.filter(parent__isnull=True)
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 
 # EvaluationCriterion Admin
