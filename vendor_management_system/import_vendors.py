@@ -17,7 +17,7 @@ sys.path.append(str(BASE_DIR))
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
 django.setup()
 
-from vendor_management_system.vendors.models import Vendor, Address, QualificationType, ServiceType
+from vendor_management_system.vendors.models import Vendor, Address, QualificationType
 
 
 # === CONFIG ===
@@ -151,8 +151,6 @@ def import_vendors(file_path: str | Path | None = None, sheet_name=None, dry_run
 
                 # === ForeignKey resolution ===
                 qualification = resolve_fk(QualificationType, "name", row.get("qualification_type"))
-                service_type = resolve_fk(ServiceType, "name", row.get("service_type"))
-                service_parent = resolve_fk(ServiceType, "name", row.get("service_type.parent"))
 
                 # === Vendor ===
                 defaults = dict(
@@ -160,16 +158,12 @@ def import_vendors(file_path: str | Path | None = None, sheet_name=None, dry_run
                     vat_number=safe_str(row.get("vat_number")),
                     email=safe_str(row.get("email")),
                     phone=safe_str(row.get("phone")),
-                    vendor_type=safe_str(row.get("vendor_typye (typo)")),
+                    vendor_type=safe_str(row.get("vendor_type")),
                     competences_zone=safe_str(row.get("competences_zone")),
                     vendor_management_update=safe_str(row.get("vendor_management_update")),
                     qualification_type=qualification,
                     is_ico_consultant=parse_bool(row.get("is_ico_consultant")),
                     albo_zucchetti=safe_str(row.get("albo_zucchetti")),
-                    service_type=service_type or service_parent,
-                    service_additional=safe_str(row.get("service_additional")),
-                    service_note=safe_str(row.get("service_note")),
-                    cluster_cost=safe_str(row.get("cluster_cost")),
                     vendor_task_description=safe_str(row.get("vendor_task_description")),
                     begin_experience_date=parse_date(row.get("begin_experience_date")),
                     vendor_medical_service=safe_str(row.get("vendor_medical_service")),
@@ -177,7 +171,7 @@ def import_vendors(file_path: str | Path | None = None, sheet_name=None, dry_run
                     ambulatory_service=safe_str(row.get("ambulatory_service")),
                     laboratory_service=parse_bool(row.get("laboratory_service")),
                     laboratory_independent=parse_bool(row.get("laboratory_independent")),
-                    date_of_establishment=parse_date(row.get("date_of_establishment")),
+                    date_of_establishment=parse_date(row.get("year_of_establishment")),
                     licensed_physician_year=row.get("licensed_physician_year") if not pd.isna(row.get("licensed_physician_year")) else None,
                     other_medical_service=safe_str(row.get("other_medical_service")),
                     doctor_registration=safe_str(row.get("doctor_registration")),
