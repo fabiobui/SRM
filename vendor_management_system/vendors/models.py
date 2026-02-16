@@ -771,6 +771,94 @@ class ServiceType(models.Model):
     def is_category(self):
         return self.parent is None
 
+
+class VendorService(models.Model):
+    """
+    Modello per associare servizi ai fornitori con informazioni aggiuntive
+    """
+    # Primary key
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False
+    )
+    
+    # Relations
+    vendor = models.ForeignKey(
+        'Vendor',
+        verbose_name=_("Fornitore"),
+        on_delete=models.CASCADE,
+        related_name="vendor_services"
+    )
+    
+    service_type = models.ForeignKey(
+        ServiceType,
+        verbose_name=_("Servizio"),
+        on_delete=models.CASCADE,
+        related_name="vendor_assignments"
+    )
+    
+    # Additional info
+    is_primary = models.BooleanField(
+        _("Servizio Principale"),
+        default=False,
+        help_text=_("Indica se questo è il servizio principale del fornitore")
+    )
+    
+    start_date = models.DateField(
+        _("Data Inizio Erogazione"),
+        null=True,
+        blank=True,
+        help_text=_("Data di inizio erogazione del servizio")
+    )
+    
+    end_date = models.DateField(
+        _("Data Fine Erogazione"),
+        null=True,
+        blank=True,
+        help_text=_("Data di fine erogazione del servizio (se applicabile)")
+    )
+    
+    notes = models.TextField(
+        _("Note"),
+        blank=True,
+        null=True,
+        help_text=_("Note aggiuntive sul servizio erogato")
+    )
+    
+    # Metadata
+    created_at = models.DateTimeField(
+        _("Creato il"),
+        auto_now_add=True
+    )
+    
+    updated_at = models.DateTimeField(
+        _("Aggiornato il"),
+        auto_now=True
+    )
+
+    class Meta:
+        verbose_name = _("Servizio Fornitore")
+        verbose_name_plural = _("Servizi Fornitori")
+        unique_together = [['vendor', 'service_type']]
+        ordering = ['-is_primary', '-created_at']
+        indexes = [
+            models.Index(fields=['vendor', 'service_type']),
+            models.Index(fields=['is_primary']),
+        ]
+
+    def __str__(self):
+        primary = " (Principale)" if self.is_primary else ""
+        return f"{self.vendor.name} - {self.service_type.name}{primary}"
+    
+    @property
+    def is_active(self):
+        """Verifica se il servizio è ancora attivo"""
+        if self.end_date:
+            return self.end_date >= timezone.now().date()
+        return True
+
+
 class EvaluationCriterion(models.Model):
     """
     Singolo criterio di valutazione appartenente a una categoria
@@ -1011,26 +1099,17 @@ class Vendor(models.Model):
         related_name="vendors",
         help_text=_("Titolo di studio o qualifica del fornitore")
     )
-    service_type = models.ForeignKey(
+
+    # NUOVO: relazione many-to-many con ServiceType
+    services = models.ManyToManyField(
         ServiceType,
-        verbose_name=_("Servizio / Tipologia Servizio"),
-        null=True,
+        verbose_name=_("Servizi Erogati"),
+        through='VendorService',
         blank=True,
-        on_delete=models.SET_NULL,
-        related_name="vendors",
-        help_text=_("Servizio specifico o tipologia principale del fornitore")
+        related_name="vendors_providing_service",
+        help_text=_("Servizi erogati dal fornitore")
     )
-    service_additional = models.CharField(
-        _("Servizio Aggiuntivo"),
-        max_length=255,
-        blank=True, null=True,
-        help_text=_("Descrizione di servizi aggiuntivi offerti dal fornitore")
-    )
-    service_note = models.TextField(
-        _("Note sul Servizio"),
-        blank=True, null=True,
-        help_text=_("Note aggiuntive sul servizio offerto dal fornitore")
-    )
+
     cluster_corso = models.CharField(
         _("Cluster Corso"),
         max_length=50,
@@ -1038,11 +1117,7 @@ class Vendor(models.Model):
         blank=True, null=True,
         help_text=_("Raggruppamento di corso per tipologia di servizio")
     )
-    begin_experience_date = models.DateField(
-        _("Data Inizio Esperienza"),
-        null=True, blank=True,
-        help_text=_("Data di inizio dell'esperienza")
-    )
+
     vendor_task_description = models.TextField(
         _("Descrizione Attività Fornitore"),
         blank=True, null=True,
@@ -1314,6 +1389,19 @@ class Vendor(models.Model):
         if self.next_audit_due:
             return self.next_audit_due < timezone.now().date()
         return False
+    
+    @property
+    def primary_service(self):
+        """Ritorna il servizio principale del fornitore"""
+        primary = self.vendor_services.filter(is_primary=True).first()
+        return primary.service_type if primary else None
+    
+    @property
+    def active_services(self):
+        """Ritorna i servizi attivi del fornitore"""
+        return self.vendor_services.filter(
+            models.Q(end_date__isnull=True) | models.Q(end_date__gte=timezone.now().date())
+        )
     
     @property
     def active_competences(self):

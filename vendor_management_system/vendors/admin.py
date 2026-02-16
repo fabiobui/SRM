@@ -9,7 +9,7 @@ from django.utils import timezone
 from import_export import resources
 from import_export.admin import ImportExportModelAdmin
 from .models import (
-    Category, Competence, VendorCompetence,
+    Category, Competence, VendorCompetence, VendorService,
     Address, QualificationType, ServiceType, EvaluationCriterion,
     VendorEvaluation, Vendor
 )
@@ -105,9 +105,21 @@ class CompetenceAdmin(ImportExportModelAdmin):
 class VendorCompetenceInline(admin.TabularInline):
     model = VendorCompetence
     extra = 1
-    fields = ['competence', 'has_competence', 'has_certification', 'certification_number', 'issue_date', 'expiry_date', 'verified', 'expiry_status_display']
-    readonly_fields = ['expiry_status_display', 'created_at', 'updated_at']
+    fields = ['competence', 'requirement_type_display', 'has_certification', 'certification_number', 'issue_date', 'expiry_date', 'verified', 'expiry_status_display']
+    readonly_fields = ['requirement_type_display', 'expiry_status_display', 'created_at', 'updated_at']
     autocomplete_fields = ['competence']
+    
+    def requirement_type_display(self, obj):
+        if obj.pk and obj.competence:
+            req_type = obj.competence.requirement_type
+            labels = {
+                'competenza': 'Competenza',
+                'qualifica': 'Qualifica',
+                'iscrizione_albo': 'Iscr. Albo'
+            }
+            return labels.get(req_type, req_type or '-')
+        return '-'
+    requirement_type_display.short_description = _('Tipo Requisito')
     
     def expiry_status_display(self, obj):
         if obj.pk:
@@ -126,6 +138,54 @@ class VendorCompetenceInline(admin.TabularInline):
             )
         return '-'
     expiry_status_display.short_description = _('Stato Scadenza')
+
+
+# VendorService Inline
+class VendorServiceInline(admin.TabularInline):
+    model = VendorService
+    extra = 1
+    fields = ['service_type', 'is_primary', 'start_date', 'end_date', 'notes']
+    autocomplete_fields = ['service_type']
+    readonly_fields = ['created_at', 'updated_at']
+    
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "service_type":
+            # Mostra solo i servizi attivi
+            kwargs["queryset"] = ServiceType.objects.filter(is_active=True)
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+
+# VendorService Admin
+@admin.register(VendorService)
+class VendorServiceAdmin(admin.ModelAdmin):
+    list_display = ['vendor', 'service_type', 'is_primary', 'start_date', 'end_date', 'is_active_display']
+    list_filter = ['is_primary', 'service_type__parent', 'start_date', 'end_date']
+    search_fields = ['vendor__name', 'service_type__name']
+    date_hierarchy = 'start_date'
+    readonly_fields = ['created_at', 'updated_at', 'is_active']
+    autocomplete_fields = ['vendor', 'service_type']
+    
+    fieldsets = (
+        (_('Relazione'), {
+            'fields': ('vendor', 'service_type', 'is_primary')
+        }),
+        (_('Periodo Erogazione'), {
+            'fields': ('start_date', 'end_date', 'is_active')
+        }),
+        (_('Note'), {
+            'fields': ('notes',)
+        }),
+        (_('Metadata'), {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def is_active_display(self, obj):
+        if obj.is_active:
+            return format_html('<span style="color: green; font-weight: bold;">✓ Attivo</span>')
+        return format_html('<span style="color: red; font-weight: bold;">✗ Terminato</span>')
+    is_active_display.short_description = _('Stato')
 
 
 # VendorCompetence Admin
@@ -336,16 +396,16 @@ class VendorAdmin(admin.ModelAdmin):
         'vendor_code', 'is_qualified', 'audit_overdue', 'is_documentation_complete',
         'active_competences', 'expired_competences', 'expiring_competences',
         'missing_mandatory_competences', 'valid_documents', 'expired_documents',
-        'expiring_documents', 'missing_mandatory_documents'
+        'expiring_documents', 'missing_mandatory_documents', 'primary_service', 'active_services'
     ]
-    autocomplete_fields = ['address', 'category', 'qualification_type', 'service_type', 'user_account']
-    inlines = [VendorCompetenceInline, DocumentInline, VendorEvaluationInline]
+    autocomplete_fields = ['address', 'category', 'qualification_type', 'user_account']
+    inlines = [VendorServiceInline, VendorCompetenceInline, DocumentInline, VendorEvaluationInline]
     
     fieldsets = (
         (_('Informazioni Base'), {
             'fields': (
                 'vendor_code', 'old_code', 'name', 'vendor_type',
-                'vat_number', 'fiscal_code', 'category', 'risk_level',
+                'vat_number', 'fiscal_code', 'qualification_type', 'category', 'risk_level',
                 'vendor_final_evaluation', 'is_active'
             )
         }),
@@ -358,12 +418,8 @@ class VendorAdmin(admin.ModelAdmin):
                 'contractual_terms', 'reference_person'
             )
         }),
-        (_('Servizi'), {
-            'fields': (
-                'qualification_type', 'service_type', 'cluster_corso',
-                'begin_experience_date', 'vendor_task_description',
-                'service_additional', 'service_note', 'competences_zone'
-            )
+        (_('Gestione/Altro'), {
+            'fields': ('competences_zone', 'vendor_management_update','vendor_task_description', 'is_ico_consultant','cluster_corso', 'albo_zucchetti')
         }),
         (_('Servizi Medici'), {
             'fields': (
@@ -387,9 +443,6 @@ class VendorAdmin(admin.ModelAdmin):
                 'qualification_expiry', 'last_audit_date', 'next_audit_due',
                 'is_qualified', 'audit_overdue', 'review_notes'
             )
-        }),
-        (_('Gestione/Altro'), {
-            'fields': ('vendor_management_update', 'is_ico_consultant', 'albo_zucchetti')
         }),
         (_('Account Utente'), {
             'fields': ('user_account',),
