@@ -145,13 +145,12 @@ class VendorServiceInline(admin.TabularInline):
     model = VendorService
     extra = 1
     fields = ['service_type', 'is_primary', 'start_date', 'end_date', 'notes']
-    autocomplete_fields = ['service_type']
     readonly_fields = ['created_at', 'updated_at']
     
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         if db_field.name == "service_type":
-            # Mostra solo i servizi attivi
-            kwargs["queryset"] = ServiceType.objects.filter(is_active=True)
+            # Mostra solo i servizi specifici (con parent), non le categorie principali
+            kwargs["queryset"] = ServiceType.objects.filter(is_active=True, parent__isnull=False).order_by('parent__name', 'name')
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 
