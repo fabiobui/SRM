@@ -430,12 +430,13 @@ class VendorAdmin(admin.ModelAdmin):
             ),
             'classes': ('collapse',)
         }),
-        (_('Performance'), {
-            'fields': (
-                'on_time_delivery_rate', 'quality_rating_avg',
-                'average_response_time', 'fulfillment_rate'
-            )
-        }),
+# remove this section if not needed      
+#        (_('Performance'), {
+#            'fields': (
+#                'on_time_delivery_rate', 'quality_rating_avg',
+#                'average_response_time', 'fulfillment_rate'
+#            )
+#        }),
         (_('Qualifica e Audit'), {
             'fields': (
                 'qualification_status', 'qualification_score', 'qualification_date',

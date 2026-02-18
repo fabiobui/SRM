@@ -735,6 +735,15 @@ class ServiceType(models.Model):
         help_text=_("Descrizione dettagliata del servizio")
     )
 
+    price = models.DecimalField(
+        _("Prezzo orario del servizio"),
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text=_("Prezzo del servizio")
+    )
+
     parent = models.ForeignKey(
         'self',
         verbose_name=_("Tipologia Padre"),
@@ -1315,11 +1324,11 @@ class Vendor(models.Model):
     )
 
     risk_level = models.CharField(
-        _("Livello di Rischio"),
+        _("Livello di Affidabilità/Rischio"),
         max_length=20,
         choices=RISK_LEVEL_CHOICES,
         default='MEDIUM',
-        help_text=_("Valutazione del rischio fornitore"),
+        help_text=_("Valutazione dell'affidabilità/rischio del fornitore"),
         blank=True, null=True
     )
     # Audit and Management Fields
