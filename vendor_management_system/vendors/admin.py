@@ -144,7 +144,7 @@ class VendorCompetenceInline(admin.TabularInline):
 class VendorServiceInline(admin.TabularInline):
     model = VendorService
     extra = 1
-    fields = ['service_type', 'is_primary', 'start_date', 'end_date', 'notes']
+    fields = ['service_type', 'is_primary', 'hourly_rate', 'start_date', 'end_date', 'notes']
     readonly_fields = ['created_at', 'updated_at']
     
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
@@ -157,7 +157,7 @@ class VendorServiceInline(admin.TabularInline):
 # VendorService Admin
 @admin.register(VendorService)
 class VendorServiceAdmin(admin.ModelAdmin):
-    list_display = ['vendor', 'service_type', 'is_primary', 'start_date', 'end_date', 'is_active_display']
+    list_display = ['vendor', 'service_type', 'is_primary', 'hourly_rate', 'start_date', 'end_date', 'is_active_display']
     list_filter = ['is_primary', 'service_type__parent', 'start_date', 'end_date']
     search_fields = ['vendor__name', 'service_type__name']
     date_hierarchy = 'start_date'
@@ -167,6 +167,9 @@ class VendorServiceAdmin(admin.ModelAdmin):
     fieldsets = (
         (_('Relazione'), {
             'fields': ('vendor', 'service_type', 'is_primary')
+        }),
+        (_('Tariffa'), {
+            'fields': ('hourly_rate',)
         }),
         (_('Periodo Erogazione'), {
             'fields': ('start_date', 'end_date', 'is_active')

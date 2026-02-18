@@ -735,15 +735,6 @@ class ServiceType(models.Model):
         help_text=_("Descrizione dettagliata del servizio")
     )
 
-    price = models.DecimalField(
-        _("Prezzo orario del servizio"),
-        max_digits=10,
-        decimal_places=2,
-        null=True,
-        blank=True,
-        help_text=_("Prezzo del servizio")
-    )
-
     parent = models.ForeignKey(
         'self',
         verbose_name=_("Tipologia Padre"),
@@ -808,6 +799,15 @@ class VendorService(models.Model):
     )
     
     # Additional info
+    hourly_rate = models.DecimalField(
+        _("Prezzo Orario"),
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text=_("Prezzo orario del servizio per questo fornitore")
+    )
+    
     is_primary = models.BooleanField(
         _("Servizio Principale"),
         default=False,
