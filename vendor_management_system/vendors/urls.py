@@ -21,6 +21,22 @@ urlpatterns = [
         vendor_dashboard_view,
         name="vendor-dashboard",
     ),
+    # Dashboard API endpoints (BEFORE <vendor_code>/ catch-all)
+    path(
+        "dashboard-stats/",
+        dashboard_stats_api,
+        name="dashboard-stats-api",
+    ),
+    path(
+        "dashboard-vendors/",
+        dashboard_vendors_list_api,
+        name="dashboard-vendors-api",
+    ),
+    path(
+        "export-excel/",
+        export_vendors_excel,
+        name="export-vendors-excel",
+    ),
     # Main vendor CRUD operations
     path(
         "",
@@ -64,23 +80,6 @@ urlpatterns = [
         "alerts/",
         VendorViewSet.as_view({"get": "alerts"}),
         name="vendors--alerts",
-    ),
-    
-    # Dashboard API endpoints
-    path(
-        "dashboard-stats/",
-        dashboard_stats_api,
-        name="dashboard-stats-api",
-    ),
-    path(
-        "dashboard-vendors/",
-        dashboard_vendors_list_api,
-        name="dashboard-vendors-api",
-    ),
-    path(
-        "export-excel/",
-        export_vendors_excel,
-        name="export-vendors-excel",
     ),
     
     # Address CRUD operations (standalone) (mantieni dal precedente)

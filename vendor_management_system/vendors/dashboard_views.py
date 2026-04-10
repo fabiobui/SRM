@@ -419,7 +419,7 @@ def dashboard_vendors_list_api(request):
     return JsonResponse({'vendors': vendors_data})
 
 
-@csrf_exempt
+@login_required
 def export_vendors_excel(request):
     """
     Export vendors to Excel with applied filters
