@@ -1,5 +1,6 @@
 # Dashboard Views
 import json
+from django.conf import settings as django_settings
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
@@ -337,6 +338,7 @@ def vendor_dashboard_view(request):
         'high_risk_vendors': high_risk_vendors,
         'chart_data_json': json.dumps(chart_data, cls=DjangoJSONEncoder),
         'vendors_data_json': json.dumps(vendors_data, cls=DjangoJSONEncoder),
+        'FORCE_SCRIPT_NAME': django_settings.FORCE_SCRIPT_NAME or '',
     }
     
     return render(request, 'vendors/vendor_dashboard.html', context)
@@ -426,17 +428,75 @@ def export_vendors_excel(request):
     from openpyxl.styles import Font, PatternFill
     from django.http import HttpResponse
     
-    vendors = Vendor.objects.select_related('category').prefetch_related(
-        'vendor_services__service_type'
+    vendors = Vendor.objects.select_related('category', 'address').prefetch_related(
+        'vendor_services__service_type',
+        'competences',
+        'vendor_competences__competence',
     ).all()
     
-    # Apply filters
+    # Apply filters (matching dashboard JS activeFilters keys)
+    regions = request.GET.get('regions')
+    provinces = request.GET.get('provinces')
+    vendor_types = request.GET.get('vendor_types')
+    ico_consultant = request.GET.get('ico_consultant')
+    competencies = request.GET.get('competencies')
+    certifications = request.GET.get('certifications')
+    qualifiche = request.GET.get('qualifiche')
+    competenze_req = request.GET.get('competenze_req')
+    service_categories = request.GET.get('service_categories')
+    services = request.GET.get('services')
+    search = request.GET.get('search', '')
+    
+    # Legacy filters
     category = request.GET.get('category')
     qualification_status = request.GET.get('qualification_status')
     risk_level = request.GET.get('risk_level')
     service_type = request.GET.get('service_type')
-    search = request.GET.get('search', '')
     
+    if regions:
+        region_list = [r.strip() for r in regions.split(',')]
+        vendors = vendors.filter(address__region__in=region_list)
+    if provinces:
+        province_list = [p.strip() for p in provinces.split(',')]
+        vendors = vendors.filter(address__state_province__in=province_list)
+    if vendor_types:
+        type_list = [t.strip() for t in vendor_types.split(',')]
+        vendors = vendors.filter(vendor_type__in=type_list)
+    if ico_consultant and ico_consultant != 'null':
+        vendors = vendors.filter(is_ico_consultant=(ico_consultant == 'true'))
+    if competencies:
+        comp_list = [c.strip() for c in competencies.split(',')]
+        vendors = vendors.filter(competences__name__in=comp_list).distinct()
+    if certifications:
+        cert_list = [c.strip() for c in certifications.split(',')]
+        vendors = vendors.filter(
+            vendor_competences__has_certification=True,
+            vendor_competences__competence__name__in=cert_list
+        ).distinct()
+    if qualifiche:
+        qual_list = [q.strip() for q in qualifiche.split(',')]
+        vendors = vendors.filter(
+            vendor_competences__competence__requirement_type='qualifica',
+            vendor_competences__has_competence=True,
+            vendor_competences__competence__name__in=qual_list
+        ).distinct()
+    if competenze_req:
+        creq_list = [c.strip() for c in competenze_req.split(',')]
+        vendors = vendors.filter(
+            vendor_competences__competence__requirement_type='competenza',
+            vendor_competences__has_competence=True,
+            vendor_competences__competence__name__in=creq_list
+        ).distinct()
+    if service_categories:
+        cat_list = [c.strip() for c in service_categories.split(',')]
+        vendors = vendors.filter(
+            vendor_services__service_type__parent__name__in=cat_list
+        ).distinct()
+    if services:
+        svc_list = [s.strip() for s in services.split(',')]
+        vendors = vendors.filter(
+            vendor_services__service_type__name__in=svc_list
+        ).distinct()
     if category:
         vendors = vendors.filter(category__name=category)
     if qualification_status:

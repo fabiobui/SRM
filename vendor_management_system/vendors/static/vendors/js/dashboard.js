@@ -1777,7 +1777,7 @@ function renderVendorsTable() {
             <td>${region}</td>
             <td>${province}</td>
             <td><span class="badge ${evaluationBadge}">${evaluation}</span></td>
-            <td><a href="/admin/vendors/vendor/${vendor.vendor_code}/change/" class="btn btn-sm btn-outline-primary" target="_blank"><i class="fas fa-eye"></i></a></td>
+            <td><a href="${typeof SCRIPT_PREFIX !== 'undefined' ? SCRIPT_PREFIX : ''}/admin/vendors/vendor/${vendor.vendor_code}/change/" class="btn btn-sm btn-outline-primary" target="_blank"><i class="fas fa-eye"></i></a></td>
         </tr>`;
     }).join('');
 }
@@ -1785,12 +1785,18 @@ function renderVendorsTable() {
 function exportToExcel() {
     const params = new URLSearchParams();
     Object.entries(activeFilters).forEach(([key, values]) => {
-        if (values.length > 0) params.append(key, values.join(','));
+        if (values === null || values === undefined) return;
+        if (Array.isArray(values)) {
+            if (values.length > 0) params.append(key, values.join(','));
+        } else {
+            params.append(key, values);
+        }
     });
     const searchTerm = document.getElementById('search-input').value;
     if (searchTerm) params.append('search', searchTerm);
     
-    window.location.href = `/vendors/export-excel/${params.toString() ? '?' + params.toString() : ''}`;
+    const prefix = typeof SCRIPT_PREFIX !== 'undefined' ? SCRIPT_PREFIX : '';
+    window.location.href = `${prefix}/vendors/export-excel/${params.toString() ? '?' + params.toString() : ''}`;
 }
 
 // ===== ADVANCED FILTERS FUNCTIONS =====
