@@ -11,7 +11,7 @@ from import_export.admin import ImportExportModelAdmin
 from .models import (
     Category, Competence, VendorCompetence, VendorService,
     Address, QualificationType, ServiceType, EvaluationCriterion,
-    VendorEvaluation, Vendor, Contract,
+    EvaluationFrequency, VendorEvaluation, Vendor, Contract, Evaluator,
     Country, Region, Province, CompetenceZone, CompetenceZoneRule
 )
 # Import Document and DocumentType from documents app
@@ -428,17 +428,40 @@ class EvaluationCriterionAdmin(admin.ModelAdmin):
     list_editable = ['is_active']
 
 
+# EvaluationFrequency Admin
+@admin.register(EvaluationFrequency)
+class EvaluationFrequencyAdmin(admin.ModelAdmin):
+    list_display = ['name', 'months', 'is_active']
+    list_filter = ['is_active']
+    search_fields = ['name']
+    ordering = ['months']
+
+
+# Evaluator Admin
+@admin.register(Evaluator)
+class EvaluatorAdmin(admin.ModelAdmin):
+    list_display = ['last_name', 'first_name', 'email', 'role', 'department', 'is_active']
+    list_filter = ['is_active', 'department']
+    search_fields = ['first_name', 'last_name', 'email', 'role', 'department']
+    ordering = ['last_name', 'first_name']
+
+
 # VendorEvaluation Inline
 class VendorEvaluationInline(admin.TabularInline):
     model = VendorEvaluation
     extra = 1
-    fields = ['criterion', 'score', 'notes', 'evaluated_at']
+    fields = ['criterion', 'score', 'evaluator', 'evaluation_frequency', 'notes', 'evaluated_at']
     readonly_fields = ['evaluated_at']
-    autocomplete_fields = ['criterion']
+    autocomplete_fields = ['criterion', 'evaluator', 'evaluation_frequency']
     
     def formfield_for_dbfield(self, db_field, request, **kwargs):
         if db_field.name == 'notes':
             kwargs['widget'] = admin.widgets.AdminTextareaWidget(attrs={'rows': 2, 'cols': 40, 'style': 'width: 300px;'})
+        if db_field.name == 'evaluation_frequency':
+            try:
+                kwargs['initial'] = EvaluationFrequency.objects.get(months=12).pk
+            except EvaluationFrequency.DoesNotExist:
+                pass
         return super().formfield_for_dbfield(db_field, request, **kwargs)
     
     def expiry_status_display(self, obj):
@@ -463,11 +486,11 @@ class VendorEvaluationInline(admin.TabularInline):
 # VendorEvaluation Admin
 @admin.register(VendorEvaluation)
 class VendorEvaluationAdmin(admin.ModelAdmin):
-    list_display = ['vendor', 'criterion', 'score', 'score_display', 'evaluated_at']
-    list_filter = ['score', 'criterion__category', 'evaluated_at']
-    search_fields = ['vendor__name', 'criterion__name', 'notes']
+    list_display = ['vendor', 'criterion', 'score', 'score_display', 'evaluator', 'evaluated_at']
+    list_filter = ['score', 'criterion__category', 'evaluator', 'evaluated_at']
+    search_fields = ['vendor__name', 'criterion__name', 'notes', 'evaluator__last_name', 'evaluator__first_name']
     date_hierarchy = 'evaluated_at'
-    autocomplete_fields = ['vendor', 'criterion']
+    autocomplete_fields = ['vendor', 'criterion', 'evaluator']
     
     def score_display(self, obj):
         return obj.get_score_display()

@@ -1227,6 +1227,33 @@ class Contract(models.Model):
         return True
 
 
+class EvaluationFrequency(models.Model):
+    """
+    Frequenza di valutazione espressa in mesi
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(
+        _("Nome"),
+        max_length=50,
+        unique=True,
+        help_text=_("Nome della frequenza (es. Mensile, Trimestrale)")
+    )
+    months = models.PositiveIntegerField(
+        _("Mesi"),
+        unique=True,
+        help_text=_("Numero di mesi tra una valutazione e la successiva")
+    )
+    is_active = models.BooleanField(_("Attiva"), default=True)
+
+    class Meta:
+        verbose_name = _("Frequenza di Valutazione")
+        verbose_name_plural = _("Frequenze di Valutazione")
+        ordering = ["months"]
+
+    def __str__(self):
+        return f"{self.name} ({self.months} mesi)"
+
+
 class EvaluationCriterion(models.Model):
     """
     Singolo criterio di valutazione appartenente a una categoria
@@ -1880,6 +1907,52 @@ class Vendor(models.Model):
     def documents(self):
         return self.vendor_documents
 
+
+class Evaluator(models.Model):
+    """
+    Valutatore che può essere associato alle valutazioni dei fornitori
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    first_name = models.CharField(
+        _("Nome"),
+        max_length=100
+    )
+    last_name = models.CharField(
+        _("Cognome"),
+        max_length=100
+    )
+    email = models.EmailField(
+        _("Email"),
+        unique=True,
+        blank=True,
+        null=True
+    )
+    role = models.CharField(
+        _("Ruolo"),
+        max_length=150,
+        blank=True,
+        null=True,
+        help_text=_("Ruolo o qualifica del valutatore")
+    )
+    department = models.CharField(
+        _("Dipartimento"),
+        max_length=150,
+        blank=True,
+        null=True
+    )
+    is_active = models.BooleanField(_("Attivo"), default=True)
+    created_at = models.DateTimeField(_("Data Creazione"), auto_now_add=True)
+    updated_at = models.DateTimeField(_("Data Aggiornamento"), auto_now=True)
+
+    class Meta:
+        verbose_name = _("Valutatore")
+        verbose_name_plural = _("Valutatori")
+        ordering = ["last_name", "first_name"]
+
+    def __str__(self):
+        return f"{self.last_name} {self.first_name}"
+
+
 class VendorEvaluation(models.Model):
     """
     Punteggio assegnato a un fornitore per un determinato criterio
@@ -1913,6 +1986,32 @@ class VendorEvaluation(models.Model):
         choices=EVALUATION_SCALE,
         help_text=_("Valutazione da 1 (Scarso) a 8 (Eccellente)")
     )
+    evaluator = models.ForeignKey(
+        Evaluator,
+        verbose_name=_("Valutatore"),
+        on_delete=models.SET_NULL,
+        related_name="evaluations",
+        blank=True,
+        null=True
+    )
+    evaluation_frequency = models.ForeignKey(
+        EvaluationFrequency,
+        verbose_name=_("Frequenza di Valutazione"),
+        on_delete=models.SET_NULL,
+        related_name="evaluations",
+        blank=True,
+        null=True,
+        default=None
+    )
+
+    def save(self, *args, **kwargs):
+        if self.evaluation_frequency_id is None:
+            try:
+                self.evaluation_frequency = EvaluationFrequency.objects.get(months=12)
+            except EvaluationFrequency.DoesNotExist:
+                pass
+        super().save(*args, **kwargs)
+
     notes = models.TextField(
         _("Note"),
         blank=True,
