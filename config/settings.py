@@ -373,6 +373,14 @@ CSRF_COOKIE_HTTPONLY = True
 X_FRAME_OPTIONS = "DENY"
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 
+# CSRF_TRUSTED_ORIGINS (obbligatorio da Django 4.0+ per richieste HTTPS)
+CSRF_TRUSTED_ORIGINS = [
+    f"https://{host.strip()}" for host in ALLOWED_HOSTS if host.strip() not in ('*', 'localhost', '127.0.0.1')
+] + [
+    "http://localhost",
+    "http://127.0.0.1",
+]
+
 
 # ADMIN
 # ------------------------------------------------------------------------------

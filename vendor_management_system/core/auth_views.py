@@ -61,24 +61,23 @@ class CustomLoginView(View):
         return render(request, self.template_name, {'form': form})
     
     def redirect_by_role(self, user):
-        """Reindirizza l'utente basato sui suoi gruppi/ruoli"""
+        """Reindirizza l'utente basato sul campo role del modello User"""
         
         # Verifica se è superuser
         if user.is_superuser:
             return redirect('/admin/')
         
-        # Ottieni i nomi dei gruppi dell'utente
-        user_groups = user.groups.values_list('name', flat=True)
-        
-        # Reindirizzamento basato sui ruoli
-        if 'Admin' in user_groups or 'Revisore' in user_groups:
+        # Reindirizzamento basato sul ruolo dell'utente
+        if user.role == 'admin':
             return redirect('/vendors/dashboard/')
-        elif 'Fornitore' in user_groups:
+        elif user.role == 'bo_user':
+            return redirect('/vendors/dashboard/')
+        elif user.role == 'vendor' and hasattr(user, 'vendor') and user.vendor:
             return redirect('/documents/portal/')
         else:
-            # Utente senza ruolo specifico - vai alla dashboard admin di default
+            # Utente senza ruolo specifico o vendor non associato
             messages.warning(
-                self.request if hasattr(self, 'request') else None,
+                self.request,
                 'Nessun ruolo assegnato. Contatta l\'amministratore.'
             )
             return redirect('/vendors/dashboard/')
