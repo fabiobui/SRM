@@ -403,6 +403,9 @@ class VendorAdmin(admin.ModelAdmin):
     autocomplete_fields = ['address', 'category', 'qualification_type', 'user_account']
     inlines = [VendorServiceInline, VendorCompetenceInline, DocumentInline, VendorEvaluationInline]
     
+    class Media:
+        js = ('admin/js/vendor_form_guard.js',)
+    
     fieldsets = (
         (_('Informazioni Base'), {
             'fields': (
@@ -421,7 +424,7 @@ class VendorAdmin(admin.ModelAdmin):
             )
         }),
         (_('Gestione/Altro'), {
-            'fields': ('competences_zone', 'vendor_management_update','vendor_task_description', 'is_ico_consultant','cluster_corso', 'albo_zucchetti')
+            'fields': ('competences_zone', 'vendor_management_update', 'vendor_task_description')
         }),
         (_('Servizi Medici'), {
             'fields': (
