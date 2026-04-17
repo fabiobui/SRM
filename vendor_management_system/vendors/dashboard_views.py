@@ -82,14 +82,14 @@ def vendor_dashboard_view(request):
             'count': vendors_no_region
         })
     
-    # Qualifiche aggregation (requirement_type=qualifica)
+    # Qualifiche aggregation (is_qualifica=True on VendorCompetence)
     try:
         qualifiche_data = (
             Competence.objects
-            .filter(requirement_type='qualifica')
+            .filter(vendor_assignments__is_qualifica=True)
             .annotate(vendor_count=Count(
                 'vendor_assignments__vendor',
-                filter=Q(vendor_assignments__has_competence=True),
+                filter=Q(vendor_assignments__is_qualifica=True, vendor_assignments__has_competence=True),
                 distinct=True
             ))
             .filter(vendor_count__gt=0)
@@ -115,14 +115,14 @@ def vendor_dashboard_view(request):
             {'qualifica': 'Nessuna qualifica assegnata', 'count': 0}
         ]
     
-    # Competenze aggregation (requirement_type=competenza)
+    # Competenze aggregation (is_competenza=True on VendorCompetence)
     try:
         competenze_data = (
             Competence.objects
-            .filter(requirement_type='competenza')
+            .filter(vendor_assignments__is_competenza=True)
             .annotate(vendor_count=Count(
                 'vendor_assignments__vendor',
-                filter=Q(vendor_assignments__has_competence=True),
+                filter=Q(vendor_assignments__is_competenza=True, vendor_assignments__has_competence=True),
                 distinct=True
             ))
             .filter(vendor_count__gt=0)
@@ -312,11 +312,11 @@ def vendor_dashboard_view(request):
             'competences': [comp.name for comp in vendor.competences.all()],
             'qualifiche': [
                 vc.competence.name 
-                for vc in vendor.vendor_competences.filter(competence__requirement_type='qualifica')
+                for vc in vendor.vendor_competences.filter(is_qualifica=True)
             ],
             'competenze_req': [
                 vc.competence.name 
-                for vc in vendor.vendor_competences.filter(competence__requirement_type='competenza')
+                for vc in vendor.vendor_competences.filter(is_competenza=True)
             ],
             'certifications': [
                 vc.competence.name 
@@ -476,14 +476,14 @@ def export_vendors_excel(request):
     if qualifiche:
         qual_list = [q.strip() for q in qualifiche.split(',')]
         vendors = vendors.filter(
-            vendor_competences__competence__requirement_type='qualifica',
+            vendor_competences__is_qualifica=True,
             vendor_competences__has_competence=True,
             vendor_competences__competence__name__in=qual_list
         ).distinct()
     if competenze_req:
         creq_list = [c.strip() for c in competenze_req.split(',')]
         vendors = vendors.filter(
-            vendor_competences__competence__requirement_type='competenza',
+            vendor_competences__is_competenza=True,
             vendor_competences__has_competence=True,
             vendor_competences__competence__name__in=creq_list
         ).distinct()
