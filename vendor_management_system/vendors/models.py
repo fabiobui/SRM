@@ -828,6 +828,16 @@ class VendorService(models.Model):
         help_text=_("Data di fine erogazione del servizio (se applicabile)")
     )
     
+    contract = models.ForeignKey(
+        'Contract',
+        verbose_name=_("Contratto"),
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="contract_services",
+        help_text=_("Contratto associato a questo servizio")
+    )
+
     notes = models.TextField(
         _("Note"),
         blank=True,
@@ -863,6 +873,94 @@ class VendorService(models.Model):
     @property
     def is_active(self):
         """Verifica se il servizio è ancora attivo"""
+        if self.end_date:
+            return self.end_date >= timezone.now().date()
+        return True
+
+
+class Contract(models.Model):
+    """
+    Contratto associato a un fornitore, con collegamento ai servizi erogati.
+    Un fornitore può avere più contratti.
+    """
+    CONTRACT_STATUS_CHOICES = [
+        ('DRAFT', _('Bozza')),
+        ('ACTIVE', _('Attivo')),
+        ('EXPIRED', _('Scaduto')),
+        ('TERMINATED', _('Risolto')),
+        ('SUSPENDED', _('Sospeso')),
+    ]
+
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False
+    )
+    vendor = models.ForeignKey(
+        'Vendor',
+        verbose_name=_("Fornitore"),
+        on_delete=models.CASCADE,
+        related_name="contracts"
+    )
+    contract_number = models.CharField(
+        _("Numero Contratto"),
+        max_length=50,
+        unique=True,
+        help_text=_("Codice identificativo del contratto")
+    )
+    title = models.CharField(
+        _("Titolo"),
+        max_length=255,
+        help_text=_("Descrizione breve del contratto")
+    )
+    status = models.CharField(
+        _("Stato"),
+        max_length=20,
+        choices=CONTRACT_STATUS_CHOICES,
+        default='DRAFT'
+    )
+    start_date = models.DateField(
+        _("Data Inizio"),
+        help_text=_("Data di decorrenza del contratto")
+    )
+    end_date = models.DateField(
+        _("Data Fine"),
+        null=True,
+        blank=True,
+        help_text=_("Data di scadenza del contratto")
+    )
+    amount = models.DecimalField(
+        _("Importo"),
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text=_("Importo totale del contratto")
+    )
+    notes = models.TextField(
+        _("Note"),
+        blank=True,
+        null=True
+    )
+    created_at = models.DateTimeField(_("Creato il"), auto_now_add=True)
+    updated_at = models.DateTimeField(_("Aggiornato il"), auto_now=True)
+
+    class Meta:
+        verbose_name = _("Contratto")
+        verbose_name_plural = _("Contratti")
+        ordering = ['-start_date']
+        indexes = [
+            models.Index(fields=['vendor', 'status']),
+            models.Index(fields=['contract_number']),
+        ]
+
+    def __str__(self):
+        return f"{self.contract_number} - {self.title}"
+
+    @property
+    def is_active(self):
+        if self.status != 'ACTIVE':
+            return False
         if self.end_date:
             return self.end_date >= timezone.now().date()
         return True

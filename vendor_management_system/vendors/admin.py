@@ -11,7 +11,7 @@ from import_export.admin import ImportExportModelAdmin
 from .models import (
     Category, Competence, VendorCompetence, VendorService,
     Address, QualificationType, ServiceType, EvaluationCriterion,
-    VendorEvaluation, Vendor
+    VendorEvaluation, Vendor, Contract
 )
 # Import Document and DocumentType from documents app
 from vendor_management_system.documents.models import Document, DocumentType
@@ -144,13 +144,22 @@ class VendorCompetenceInline(admin.TabularInline):
 class VendorServiceInline(admin.TabularInline):
     model = VendorService
     extra = 1
-    fields = ['service_type', 'is_primary', 'hourly_rate', 'start_date', 'end_date', 'notes']
+    fields = ['service_type', 'is_primary', 'hourly_rate', 'start_date', 'end_date', 'contract', 'notes']
     readonly_fields = ['created_at', 'updated_at']
     
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         if db_field.name == "service_type":
             # Mostra solo i servizi specifici (con parent), non le categorie principali
             kwargs["queryset"] = ServiceType.objects.filter(is_active=True, parent__isnull=False).order_by('parent__name', 'name')
+        if db_field.name == "contract":
+            # Mostra solo i contratti del vendor corrente
+            vendor_id = None
+            if hasattr(request, '_obj_') and request._obj_:
+                vendor_id = request._obj_.vendor_code
+            if vendor_id:
+                kwargs["queryset"] = Contract.objects.filter(vendor__vendor_code=vendor_id)
+            else:
+                kwargs["queryset"] = Contract.objects.none()
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 
@@ -382,6 +391,36 @@ class VendorEvaluationAdmin(admin.ModelAdmin):
     score_display.short_description = _('Valutazione')
 
 
+# Contract Inline
+class ContractInline(admin.StackedInline):
+    model = Contract
+    extra = 0
+    fields = ['contract_number', 'title', 'status', 'start_date', 'end_date', 'amount', 'notes']
+
+
+# Contract Admin (standalone)
+@admin.register(Contract)
+class ContractAdmin(admin.ModelAdmin):
+    list_display = ['contract_number', 'title', 'vendor', 'status', 'start_date', 'end_date', 'amount']
+    list_filter = ['status', 'start_date']
+    search_fields = ['contract_number', 'title', 'vendor__name', 'vendor__vendor_code']
+    autocomplete_fields = ['vendor']
+    date_hierarchy = 'start_date'
+    readonly_fields = ['created_at', 'updated_at']
+    fieldsets = (
+        (None, {
+            'fields': ('contract_number', 'title', 'vendor', 'status')
+        }),
+        (_('Date e Importo'), {
+            'fields': ('start_date', 'end_date', 'amount')
+        }),
+        (_('Note e Metadati'), {
+            'fields': ('notes', 'created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+
+
 # Vendor Admin (Enhanced)
 @admin.register(Vendor)
 class VendorAdmin(admin.ModelAdmin):
@@ -401,7 +440,12 @@ class VendorAdmin(admin.ModelAdmin):
         'expiring_documents', 'missing_mandatory_documents', 'primary_service', 'active_services'
     ]
     autocomplete_fields = ['address', 'category', 'qualification_type', 'user_account']
-    inlines = [VendorServiceInline, VendorCompetenceInline, DocumentInline, VendorEvaluationInline]
+    inlines = [VendorServiceInline, VendorCompetenceInline, DocumentInline, ContractInline, VendorEvaluationInline]
+
+    def get_form(self, request, obj=None, **kwargs):
+        # Salva l'oggetto corrente per usarlo negli inline
+        request._obj_ = obj
+        return super().get_form(request, obj, **kwargs)
     
     class Media:
         js = ('admin/js/vendor_form_guard.js',)

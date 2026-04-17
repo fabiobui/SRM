@@ -356,6 +356,7 @@ JAZZMIN_SETTINGS = {
         "documents.document": "fas fa-file-alt",
         "documents.documenttype": "fas fa-file-signature",
         "documents.category": "fas fa-folder-tree",
+        "vendors.contract": "fas fa-file-contract",
     },
 }
 
