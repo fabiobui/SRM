@@ -69,9 +69,9 @@ class CustomLoginView(View):
         
         # Reindirizzamento basato sul ruolo dell'utente
         if user.role == 'admin':
-            return redirect('/vendors/dashboard/')
+            return redirect('/admin/')
         elif user.role == 'bo_user':
-            return redirect('/vendors/dashboard/')
+            return redirect('/admin/')
         elif user.role == 'vendor' and hasattr(user, 'vendor') and user.vendor:
             return redirect('/documents/portal/')
         else:
@@ -80,7 +80,7 @@ class CustomLoginView(View):
                 self.request,
                 'Nessun ruolo assegnato. Contatta l\'amministratore.'
             )
-            return redirect('/vendors/dashboard/')
+            return redirect('/admin/')
 
 
 # In vendor_management_system/core/auth_views.py
