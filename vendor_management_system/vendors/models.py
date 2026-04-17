@@ -11,6 +11,252 @@ from django.conf import settings
 from vendor_management_system.documents.models import DocumentType, Document
 
 
+# ============================================================================
+# Modelli Geografici (Nazione, Regione, Provincia)
+# ============================================================================
+
+class Country(models.Model):
+    """Tabella delle Nazioni"""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    code = models.CharField(
+        _("Codice ISO"),
+        max_length=3,
+        unique=True,
+        help_text=_("Codice ISO 3166-1 alpha-2 (es. 'IT', 'DE', 'FR')")
+    )
+    name = models.CharField(
+        _("Nome Nazione"),
+        max_length=100,
+        help_text=_("Nome della nazione")
+    )
+    is_active = models.BooleanField(_("È Attiva"), default=True)
+    sort_order = models.PositiveIntegerField(_("Ordine"), default=100)
+
+    class Meta:
+        verbose_name = _("Nazione")
+        verbose_name_plural = _("Nazioni")
+        ordering = ['sort_order', 'name']
+
+    def __str__(self):
+        return self.name
+
+
+class Region(models.Model):
+    """Tabella delle Regioni"""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    code = models.CharField(
+        _("Codice Regione"),
+        max_length=10,
+        unique=True,
+        help_text=_("Codice univoco della regione (es. 'LOM', 'VEN')")
+    )
+    name = models.CharField(
+        _("Nome Regione"),
+        max_length=100,
+        help_text=_("Nome della regione")
+    )
+    country = models.ForeignKey(
+        Country,
+        verbose_name=_("Nazione"),
+        on_delete=models.CASCADE,
+        related_name="regions",
+        help_text=_("Nazione di appartenenza")
+    )
+    is_active = models.BooleanField(_("È Attiva"), default=True)
+    sort_order = models.PositiveIntegerField(_("Ordine"), default=100)
+
+    class Meta:
+        verbose_name = _("Regione")
+        verbose_name_plural = _("Regioni")
+        ordering = ['country__name', 'sort_order', 'name']
+
+    def __str__(self):
+        return f"{self.name} ({self.country.code})"
+
+
+class Province(models.Model):
+    """Tabella delle Province"""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    code = models.CharField(
+        _("Sigla Provincia"),
+        max_length=10,
+        unique=True,
+        help_text=_("Sigla della provincia (es. 'MI', 'RM', 'RA')")
+    )
+    name = models.CharField(
+        _("Nome Provincia"),
+        max_length=100,
+        help_text=_("Nome della provincia")
+    )
+    region = models.ForeignKey(
+        Region,
+        verbose_name=_("Regione"),
+        on_delete=models.CASCADE,
+        related_name="provinces",
+        help_text=_("Regione di appartenenza")
+    )
+    is_active = models.BooleanField(_("È Attiva"), default=True)
+    sort_order = models.PositiveIntegerField(_("Ordine"), default=100)
+
+    class Meta:
+        verbose_name = _("Provincia")
+        verbose_name_plural = _("Province")
+        ordering = ['region__name', 'sort_order', 'name']
+
+    def __str__(self):
+        return f"{self.name} ({self.code})"
+
+
+# ============================================================================
+# Modello Zona di Competenza
+# ============================================================================
+
+class CompetenceZone(models.Model):
+    """
+    Zona di competenza geografica, definita tramite regole di inclusione/esclusione
+    a livello di Nazione, Regione o Provincia.
+
+    Esempi:
+    - "Tutta l'Italia" → 1 regola: INCLUDE Nazione=Italia
+    - "Italia escluse isole" → INCLUDE Italia + EXCLUDE Sicilia + EXCLUDE Sardegna
+    - "Lombardia e Veneto" → INCLUDE Lombardia + INCLUDE Veneto
+    - "Lombardia e Ravenna" → INCLUDE Lombardia + INCLUDE Provincia Ravenna
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(
+        _("Nome Zona"),
+        max_length=255,
+        unique=True,
+        help_text=_("Nome descrittivo della zona (es. 'Tutta l'Italia', 'Nord Italia')")
+    )
+    description = models.TextField(
+        _("Descrizione"),
+        blank=True,
+        null=True,
+        help_text=_("Descrizione dettagliata della zona di competenza")
+    )
+    is_active = models.BooleanField(_("È Attiva"), default=True)
+    created_at = models.DateTimeField(_("Creato il"), auto_now_add=True)
+    updated_at = models.DateTimeField(_("Aggiornato il"), auto_now=True)
+
+    class Meta:
+        verbose_name = _("Zona di Competenza")
+        verbose_name_plural = _("Zone di Competenza")
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
+
+    @property
+    def rules_summary(self):
+        """Ritorna un riepilogo testuale delle regole"""
+        parts = []
+        for rule in self.rules.all().order_by('rule_type'):
+            prefix = "+" if rule.rule_type == 'INCLUDE' else "-"
+            parts.append(f"{prefix} {rule.geographic_target}")
+        return "; ".join(parts) if parts else _("Nessuna regola definita")
+
+
+class CompetenceZoneRule(models.Model):
+    """
+    Singola regola di inclusione/esclusione per una zona di competenza.
+    Esattamente uno tra country, region e province deve essere valorizzato.
+    """
+    RULE_TYPE_CHOICES = [
+        ('INCLUDE', _('Includi')),
+        ('EXCLUDE', _('Escludi')),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    zone = models.ForeignKey(
+        CompetenceZone,
+        verbose_name=_("Zona di Competenza"),
+        on_delete=models.CASCADE,
+        related_name="rules"
+    )
+    rule_type = models.CharField(
+        _("Tipo Regola"),
+        max_length=10,
+        choices=RULE_TYPE_CHOICES,
+        default='INCLUDE',
+        help_text=_("Includi o escludi questa area geografica")
+    )
+    country = models.ForeignKey(
+        Country,
+        verbose_name=_("Nazione"),
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="zone_rules",
+        help_text=_("Seleziona per regola a livello nazionale")
+    )
+    region = models.ForeignKey(
+        Region,
+        verbose_name=_("Regione"),
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="zone_rules",
+        help_text=_("Seleziona per regola a livello regionale")
+    )
+    province = models.ForeignKey(
+        Province,
+        verbose_name=_("Provincia"),
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="zone_rules",
+        help_text=_("Seleziona per regola a livello provinciale")
+    )
+
+    class Meta:
+        verbose_name = _("Regola Zona di Competenza")
+        verbose_name_plural = _("Regole Zone di Competenza")
+        ordering = ['rule_type', 'id']
+
+    def __str__(self):
+        return f"{self.get_rule_type_display()} {self.geographic_target}"
+
+    @property
+    def geographic_target(self):
+        """Ritorna la descrizione dell'area geografica di questa regola"""
+        if self.province:
+            return f"Provincia: {self.province.name}"
+        elif self.region:
+            return f"Regione: {self.region.name}"
+        elif self.country:
+            return f"Nazione: {self.country.name}"
+        return _("Non definito")
+
+    @property
+    def level(self):
+        """Ritorna il livello geografico della regola"""
+        if self.province:
+            return 'PROVINCE'
+        elif self.region:
+            return 'REGION'
+        elif self.country:
+            return 'COUNTRY'
+        return None
+
+    def clean(self):
+        """Valida che esattamente uno dei 3 livelli sia valorizzato"""
+        from django.core.exceptions import ValidationError
+        filled = sum([
+            self.country_id is not None,
+            self.region_id is not None,
+            self.province_id is not None,
+        ])
+        if filled == 0:
+            raise ValidationError(
+                _("Selezionare almeno una tra Nazione, Regione o Provincia.")
+            )
+        if filled > 1:
+            raise ValidationError(
+                _("Selezionare solo una tra Nazione, Regione o Provincia per ogni regola.")
+            )
+
+
 # Nuovo Model per Category
 class Category(models.Model):
     """
@@ -1400,7 +1646,15 @@ class Vendor(models.Model):
         _("Zona Competenze"),
         max_length=255,
         blank=True, null=True,
-        help_text=_("Zona geografica delle competenze del fornitore")
+        help_text=_("Zona geografica delle competenze del fornitore (campo legacy)")
+    )
+    # Nuova relazione strutturata con Zone di Competenza
+    competence_zones = models.ManyToManyField(
+        CompetenceZone,
+        verbose_name=_("Zone di Competenza"),
+        blank=True,
+        related_name="vendors",
+        help_text=_("Zone di competenza geografica del fornitore")
     )
     # Competences relationship
     competences = models.ManyToManyField(

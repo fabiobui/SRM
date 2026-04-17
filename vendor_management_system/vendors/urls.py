@@ -4,6 +4,10 @@ from vendor_management_system.vendors.views import (
     VendorViewSet, 
     AddressViewSet, 
     CategoryViewSet,
+    CountryViewSet,
+    RegionViewSet,
+    ProvinceViewSet,
+    CompetenceZoneViewSet,
 )
 from vendor_management_system.vendors.dashboard_views import (
     vendor_dashboard_view,
@@ -125,5 +129,45 @@ urlpatterns = [
         "categories/<uuid:category_id>/vendors/",
         CategoryViewSet.as_view({"get": "vendors"}),
         name="categories--vendors",
+    ),
+    
+    # =========================================================================
+    # Geography endpoints (Nazione, Regione, Provincia)
+    # =========================================================================
+    path(
+        "countries/",
+        CountryViewSet.as_view({"get": "list"}),
+        name="countries--list",
+    ),
+    path(
+        "countries/tree/",
+        CountryViewSet.as_view({"get": "tree"}),
+        name="countries--tree",
+    ),
+    path(
+        "regions/",
+        RegionViewSet.as_view({"get": "list"}),
+        name="regions--list",
+    ),
+    path(
+        "provinces/",
+        ProvinceViewSet.as_view({"get": "list"}),
+        name="provinces--list",
+    ),
+    
+    # =========================================================================
+    # Competence Zone endpoints (Zone di Competenza)
+    # =========================================================================
+    path(
+        "competence-zones/",
+        CompetenceZoneViewSet.as_view({"get": "list", "post": "create"}),
+        name="competence-zones--list-create",
+    ),
+    path(
+        "competence-zones/<uuid:zone_id>/",
+        CompetenceZoneViewSet.as_view(
+            {"get": "retrieve", "put": "update", "delete": "destroy"}
+        ),
+        name="competence-zones--detail",
     ),
 ]

@@ -11,10 +11,102 @@ from import_export.admin import ImportExportModelAdmin
 from .models import (
     Category, Competence, VendorCompetence, VendorService,
     Address, QualificationType, ServiceType, EvaluationCriterion,
-    VendorEvaluation, Vendor, Contract
+    VendorEvaluation, Vendor, Contract,
+    Country, Region, Province, CompetenceZone, CompetenceZoneRule
 )
 # Import Document and DocumentType from documents app
 from vendor_management_system.documents.models import Document, DocumentType
+
+
+# ============================================================================
+# Admin Geografici (Nazione, Regione, Provincia)
+# ============================================================================
+
+@admin.register(Country)
+class CountryAdmin(admin.ModelAdmin):
+    list_display = ['code', 'name', 'is_active', 'sort_order', 'region_count']
+    list_filter = ['is_active']
+    search_fields = ['code', 'name']
+    ordering = ['sort_order', 'name']
+    list_editable = ['is_active', 'sort_order']
+
+    def region_count(self, obj):
+        return obj.regions.count()
+    region_count.short_description = _('N. Regioni')
+
+
+@admin.register(Region)
+class RegionAdmin(admin.ModelAdmin):
+    list_display = ['code', 'name', 'country', 'is_active', 'sort_order', 'province_count']
+    list_filter = ['is_active', 'country']
+    search_fields = ['code', 'name']
+    ordering = ['country__name', 'sort_order', 'name']
+    list_editable = ['is_active', 'sort_order']
+    autocomplete_fields = ['country']
+
+    def province_count(self, obj):
+        return obj.provinces.count()
+    province_count.short_description = _('N. Province')
+
+
+@admin.register(Province)
+class ProvinceAdmin(admin.ModelAdmin):
+    list_display = ['code', 'name', 'region', 'region_country', 'is_active', 'sort_order']
+    list_filter = ['is_active', 'region__country', 'region']
+    search_fields = ['code', 'name']
+    ordering = ['region__country__name', 'region__name', 'sort_order', 'name']
+    list_editable = ['is_active', 'sort_order']
+    autocomplete_fields = ['region']
+
+    def region_country(self, obj):
+        return obj.region.country.name
+    region_country.short_description = _('Nazione')
+
+
+# ============================================================================
+# Admin Zone di Competenza
+# ============================================================================
+
+class CompetenceZoneRuleInline(admin.TabularInline):
+    model = CompetenceZoneRule
+    extra = 1
+    fields = ['rule_type', 'country', 'region', 'province']
+    autocomplete_fields = ['country', 'region', 'province']
+
+
+@admin.register(CompetenceZone)
+class CompetenceZoneAdmin(admin.ModelAdmin):
+    list_display = ['name', 'rules_summary', 'is_active', 'vendor_count', 'created_at']
+    list_filter = ['is_active']
+    search_fields = ['name', 'description']
+    readonly_fields = ['created_at', 'updated_at', 'rules_summary']
+    inlines = [CompetenceZoneRuleInline]
+
+    fieldsets = (
+        (_('Informazioni Base'), {
+            'fields': ('name', 'description', 'is_active')
+        }),
+        (_('Riepilogo'), {
+            'fields': ('rules_summary',),
+            'classes': ('collapse',)
+        }),
+        (_('Metadata'), {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+
+    def vendor_count(self, obj):
+        return obj.vendors.count()
+    vendor_count.short_description = _('N. Fornitori')
+
+
+@admin.register(CompetenceZoneRule)
+class CompetenceZoneRuleAdmin(admin.ModelAdmin):
+    list_display = ['zone', 'rule_type', 'geographic_target', 'level']
+    list_filter = ['rule_type', 'zone']
+    search_fields = ['zone__name', 'country__name', 'region__name', 'province__name']
+    autocomplete_fields = ['zone', 'country', 'region', 'province']
 
 
 # Category Admin
@@ -439,7 +531,7 @@ class VendorAdmin(admin.ModelAdmin):
         'missing_mandatory_competences', 'valid_documents', 'expired_documents',
         'expiring_documents', 'missing_mandatory_documents', 'primary_service', 'active_services'
     ]
-    autocomplete_fields = ['address', 'category', 'qualification_type', 'user_account']
+    autocomplete_fields = ['address', 'category', 'qualification_type', 'user_account', 'competence_zones']
     inlines = [VendorServiceInline, VendorCompetenceInline, DocumentInline, ContractInline, VendorEvaluationInline]
 
     def get_form(self, request, obj=None, **kwargs):
@@ -468,7 +560,7 @@ class VendorAdmin(admin.ModelAdmin):
             )
         }),
         (_('Gestione/Altro'), {
-            'fields': ('competences_zone', 'vendor_management_update', 'vendor_task_description')
+            'fields': ('competences_zone', 'competence_zones', 'vendor_management_update', 'vendor_task_description')
         }),
         (_('Servizi Medici'), {
             'fields': (

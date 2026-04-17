@@ -2,7 +2,193 @@
 from rest_framework import serializers
 from rest_framework.serializers import ModelSerializer, ValidationError
 
-from vendor_management_system.vendors.models import Vendor, Address, Category
+from vendor_management_system.vendors.models import (
+    Vendor, Address, Category,
+    Country, Region, Province, CompetenceZone, CompetenceZoneRule
+)
+
+
+# ============================================================================
+# Serializers Geografici
+# ============================================================================
+
+class CountrySerializer(ModelSerializer):
+    region_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Country
+        fields = ['id', 'code', 'name', 'is_active', 'sort_order', 'region_count']
+        read_only_fields = ['id']
+
+    def get_region_count(self, obj):
+        return obj.regions.filter(is_active=True).count()
+
+
+class RegionSerializer(ModelSerializer):
+    country_name = serializers.CharField(source='country.name', read_only=True)
+    province_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Region
+        fields = ['id', 'code', 'name', 'country', 'country_name', 'is_active', 'sort_order', 'province_count']
+        read_only_fields = ['id']
+
+    def get_province_count(self, obj):
+        return obj.provinces.filter(is_active=True).count()
+
+
+class ProvinceSerializer(ModelSerializer):
+    region_name = serializers.CharField(source='region.name', read_only=True)
+    country_name = serializers.CharField(source='region.country.name', read_only=True)
+
+    class Meta:
+        model = Province
+        fields = ['id', 'code', 'name', 'region', 'region_name', 'country_name', 'is_active', 'sort_order']
+        read_only_fields = ['id']
+
+
+# Versioni compatte per nested use
+class CountryCompactSerializer(ModelSerializer):
+    class Meta:
+        model = Country
+        fields = ['id', 'code', 'name']
+
+
+class RegionCompactSerializer(ModelSerializer):
+    country_name = serializers.CharField(source='country.name', read_only=True)
+
+    class Meta:
+        model = Region
+        fields = ['id', 'code', 'name', 'country_name']
+
+
+class ProvinceCompactSerializer(ModelSerializer):
+    region_name = serializers.CharField(source='region.name', read_only=True)
+
+    class Meta:
+        model = Province
+        fields = ['id', 'code', 'name', 'region_name']
+
+
+# Serializer gerarchico: Nazione → Regioni → Province
+class CountryTreeSerializer(ModelSerializer):
+    regions = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Country
+        fields = ['id', 'code', 'name', 'regions']
+
+    def get_regions(self, obj):
+        regions = obj.regions.filter(is_active=True).order_by('sort_order', 'name')
+        return RegionTreeSerializer(regions, many=True).data
+
+
+class RegionTreeSerializer(ModelSerializer):
+    provinces = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Region
+        fields = ['id', 'code', 'name', 'provinces']
+
+    def get_provinces(self, obj):
+        provinces = obj.provinces.filter(is_active=True).order_by('sort_order', 'name')
+        return ProvinceCompactSerializer(provinces, many=True).data
+
+
+# ============================================================================
+# Serializers Zone di Competenza
+# ============================================================================
+
+class CompetenceZoneRuleSerializer(ModelSerializer):
+    geographic_target = serializers.ReadOnlyField()
+    level = serializers.ReadOnlyField()
+    country_name = serializers.CharField(source='country.name', read_only=True)
+    region_name = serializers.CharField(source='region.name', read_only=True)
+    province_name = serializers.CharField(source='province.name', read_only=True)
+
+    class Meta:
+        model = CompetenceZoneRule
+        fields = [
+            'id', 'rule_type',
+            'country', 'country_name',
+            'region', 'region_name',
+            'province', 'province_name',
+            'geographic_target', 'level',
+        ]
+        read_only_fields = ['id']
+
+    def validate(self, data):
+        filled = sum([
+            data.get('country') is not None,
+            data.get('region') is not None,
+            data.get('province') is not None,
+        ])
+        if filled == 0:
+            raise ValidationError(
+                "Selezionare almeno una tra Nazione, Regione o Provincia."
+            )
+        if filled > 1:
+            raise ValidationError(
+                "Selezionare solo una tra Nazione, Regione o Provincia per ogni regola."
+            )
+        return data
+
+
+class CompetenceZoneSerializer(ModelSerializer):
+    rules = CompetenceZoneRuleSerializer(many=True, read_only=True)
+    rules_summary = serializers.ReadOnlyField()
+    vendor_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CompetenceZone
+        fields = [
+            'id', 'name', 'description', 'is_active',
+            'rules', 'rules_summary', 'vendor_count',
+            'created_at', 'updated_at',
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+    def get_vendor_count(self, obj):
+        return obj.vendors.count()
+
+
+class CompetenceZoneCompactSerializer(ModelSerializer):
+    rules_summary = serializers.ReadOnlyField()
+
+    class Meta:
+        model = CompetenceZone
+        fields = ['id', 'name', 'rules_summary']
+
+
+class CompetenceZoneCreateUpdateSerializer(ModelSerializer):
+    """Serializer per creare/aggiornare zone di competenza con regole inline"""
+    rules = CompetenceZoneRuleSerializer(many=True, required=False)
+
+    class Meta:
+        model = CompetenceZone
+        fields = ['name', 'description', 'is_active', 'rules']
+
+    def create(self, validated_data):
+        rules_data = validated_data.pop('rules', [])
+        zone = CompetenceZone.objects.create(**validated_data)
+        for rule_data in rules_data:
+            CompetenceZoneRule.objects.create(zone=zone, **rule_data)
+        return zone
+
+    def update(self, instance, validated_data):
+        rules_data = validated_data.pop('rules', None)
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+
+        if rules_data is not None:
+            # Rimuove le regole esistenti e ricrea
+            instance.rules.all().delete()
+            for rule_data in rules_data:
+                CompetenceZoneRule.objects.create(zone=instance, **rule_data)
+
+        return instance
+
 
 # Serializer per Category
 class CategorySerializer(ModelSerializer):
@@ -261,6 +447,7 @@ class VendorSerializer(ModelSerializer):
     address = AddressSerializer(required=False, allow_null=True)
     category = CategoryCompactSerializer(read_only=True)
     category_id = serializers.UUIDField(write_only=True, required=False, allow_null=True)
+    competence_zones = CompetenceZoneCompactSerializer(many=True, read_only=True)
     
     class Meta:
         model = Vendor
@@ -299,6 +486,7 @@ class VendorSerializer(ModelSerializer):
             "category_id",
             "risk_level",
             "competences_zone",
+            "competence_zones",
             # Contractual information
             "contractual_status",
             "contractual_start_date",
@@ -548,6 +736,7 @@ class CategoryStatsSerializer(ModelSerializer):
 # Serializer per vendor qualification
 class VendorQualificationSerializer(ModelSerializer):
     category = CategoryCompactSerializer(read_only=True)
+    competence_zones = CompetenceZoneCompactSerializer(many=True, read_only=True)
     
     class Meta:
         model = Vendor
@@ -562,8 +751,9 @@ class VendorQualificationSerializer(ModelSerializer):
             "vendor_final_evaluation",
             "risk_level",
             "competences_zone",
+            "competence_zones",
         ]
-        read_only_fields = ["vendor_code", "name", "category"]
+        read_only_fields = ["vendor_code", "name", "category", "competence_zones"]
 
     def validate(self, data):
         # Get the list of allowed fields from the Meta class
