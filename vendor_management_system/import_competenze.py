@@ -131,7 +131,6 @@ def import_competences(file_path: str | Path | None = None, sheet_name=None, dry
                     code=comp_code,
                     defaults={
                         "name": comp_name,
-                        "requirement_type": "qualifica",
                         "is_active": True,
                         "requires_certification": True,
                     },

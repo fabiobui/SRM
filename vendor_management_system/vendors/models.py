@@ -458,10 +458,6 @@ class Competence(models.Model):
         editable=False
     )
     
-    requirement_type = models.CharField(_("Requisito Professionale"), max_length=20,
-         choices=[("competenza", "Competenza"), ("qualifica", "Qualifica"), ("iscrizione_albo", "Iscrizione Albo")], default="qualifica",
-         blank=True, null=True)
-
     # Core fields
     code = models.CharField(
         _("Codice Requisito"),
@@ -599,6 +595,25 @@ class VendorCompetence(models.Model):
         related_name="vendor_assignments"
     )
     
+    # Tipo Requisito
+    is_competenza = models.BooleanField(
+        _("Competenza"),
+        default=False,
+        help_text=_("Indica se il requisito è assegnato come competenza")
+    )
+
+    is_qualifica = models.BooleanField(
+        _("Qualifica"),
+        default=False,
+        help_text=_("Indica se il requisito è assegnato come qualifica")
+    )
+
+    is_iscrizione_albo = models.BooleanField(
+        _("Iscrizione Albo"),
+        default=False,
+        help_text=_("Indica se il requisito è un'iscrizione all'albo")
+    )
+
     # Status
     has_competence = models.BooleanField(
         _("Possiede Requisito Professionale"),

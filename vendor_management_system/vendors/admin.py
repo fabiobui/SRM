@@ -154,7 +154,7 @@ class CategoryAdmin(admin.ModelAdmin):
 class CompetenceResource(resources.ModelResource):
     class Meta:
         model = Competence
-        fields = ('id', 'requirement_type', 'code', 'name', 'description', 'competence_category',
+        fields = ('id', 'code', 'name', 'description', 'competence_category',
                   'requires_certification', 'requires_renewal', 'renewal_period_months',
                   'is_mandatory', 'is_active', 'sort_order')
         export_order = fields
@@ -166,8 +166,8 @@ class CompetenceResource(resources.ModelResource):
 class CompetenceAdmin(ImportExportModelAdmin):
     resource_class = CompetenceResource
     list_display = ['code', 'name', 'competence_category', 'is_mandatory', 'requires_certification', 'requires_renewal', 'is_active']
-    list_filter = ['requirement_type', 'competence_category', 'is_mandatory', 'requires_certification', 'requires_renewal', 'is_active']
-    search_fields = ['code', 'requirement_type', 'name', 'description']
+    list_filter = ['competence_category', 'is_mandatory', 'requires_certification', 'requires_renewal', 'is_active']
+    search_fields = ['code', 'name', 'description']
     ordering = ['competence_category', 'sort_order', 'name']
     list_editable = ['is_active', 'is_mandatory']
     filter_horizontal = ['applicable_categories']
@@ -175,7 +175,7 @@ class CompetenceAdmin(ImportExportModelAdmin):
     
     fieldsets = (
         (_('Informazioni Base'), {
-            'fields': ('requirement_type', 'code', 'name', 'description', 'competence_category')
+            'fields': ('code', 'name', 'description', 'competence_category')
         }),
         (_('Requisiti'), {
             'fields': ('requires_certification', 'requires_renewal', 'renewal_period_months')
@@ -197,21 +197,9 @@ class CompetenceAdmin(ImportExportModelAdmin):
 class VendorCompetenceInline(admin.TabularInline):
     model = VendorCompetence
     extra = 1
-    fields = ['competence', 'requirement_type_display', 'has_certification', 'certification_number', 'issue_date', 'expiry_date', 'verified', 'expiry_status_display']
-    readonly_fields = ['requirement_type_display', 'expiry_status_display', 'created_at', 'updated_at']
+    fields = ['competence', 'is_competenza', 'is_qualifica', 'is_iscrizione_albo', 'has_certification', 'certification_number', 'issue_date', 'expiry_date', 'verified', 'expiry_status_display']
+    readonly_fields = ['expiry_status_display', 'created_at', 'updated_at']
     autocomplete_fields = ['competence']
-    
-    def requirement_type_display(self, obj):
-        if obj.pk and obj.competence:
-            req_type = obj.competence.requirement_type
-            labels = {
-                'competenza': 'Competenza',
-                'qualifica': 'Qualifica',
-                'iscrizione_albo': 'Iscr. Albo'
-            }
-            return labels.get(req_type, req_type or '-')
-        return '-'
-    requirement_type_display.short_description = _('Tipo Requisito')
     
     def expiry_status_display(self, obj):
         if obj.pk:
@@ -294,8 +282,8 @@ class VendorServiceAdmin(admin.ModelAdmin):
 # VendorCompetence Admin
 @admin.register(VendorCompetence)
 class VendorCompetenceAdmin(admin.ModelAdmin):
-    list_display = ['vendor', 'competence', 'has_competence', 'has_certification', 'issue_date', 'expiry_date', 'verified', 'expiry_status_badge']
-    list_filter = ['has_competence', 'has_certification', 'verified', 'competence__competence_category', 'expiry_date']
+    list_display = ['vendor', 'competence', 'is_competenza', 'is_qualifica', 'is_iscrizione_albo', 'has_competence', 'has_certification', 'issue_date', 'expiry_date', 'verified', 'expiry_status_badge']
+    list_filter = ['is_competenza', 'is_qualifica', 'is_iscrizione_albo', 'has_competence', 'has_certification', 'verified', 'competence__competence_category', 'expiry_date']
     search_fields = ['vendor__name', 'competence__name', 'certification_number']
     date_hierarchy = 'expiry_date'
     readonly_fields = ['created_at', 'updated_at', 'is_expired', 'days_to_expiry', 'expiry_status']
@@ -304,6 +292,9 @@ class VendorCompetenceAdmin(admin.ModelAdmin):
     fieldsets = (
         (_('Relazione'), {
             'fields': ('vendor', 'competence', 'has_competence')
+        }),
+        (_('Tipo Requisito'), {
+            'fields': ('is_competenza', 'is_qualifica', 'is_iscrizione_albo')
         }),
         (_('Dettagli Certificazione'), {
             'fields': ('has_certification', 'certification_number', 'certification_body', 'issue_date', 'expiry_date')
