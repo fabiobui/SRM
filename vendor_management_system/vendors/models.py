@@ -1614,6 +1614,11 @@ class Vendor(models.Model):
         help_text=_("Gestione aggiornamenti del fornitore"),
         blank=True, null=True
     )
+    embyon_blocked = models.BooleanField(
+        _("Bloccato in Embyon"),
+        default=False,
+        help_text=_("Indica se il fornitore risulta bloccato in Embyon")
+    )
 
     # Performance Fields (existing)
     on_time_delivery_rate = models.FloatField(

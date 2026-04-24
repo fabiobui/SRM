@@ -531,12 +531,12 @@ class ContractAdmin(admin.ModelAdmin):
 @admin.register(Vendor)
 class VendorAdmin(admin.ModelAdmin):
     list_display = [
-        'vendor_code', 'name', 'category', 'qualification_status', 'risk_level',
+        'vendor_code', 'name', 'category', 'qualification_status', 'embyon_blocked',
         'is_qualified_display', 'is_active', 'qualification_score'
     ]
     list_filter = [
         'qualification_status', 'risk_level', 'is_active', 'category',
-        'vendor_type', 'contractual_status', 'vendor_final_evaluation'
+        'vendor_type', 'contractual_status', 'vendor_final_evaluation', 'embyon_blocked'
     ]
     search_fields = ['vendor_code', 'name', 'vat_number', 'fiscal_code', 'email']
     readonly_fields = [
@@ -561,7 +561,7 @@ class VendorAdmin(admin.ModelAdmin):
             'fields': (
                 'vendor_code', 'old_code', 'name', 'vendor_type',
                 'vat_number', 'fiscal_code', 'qualification_type', 'category', 'risk_level',
-                'vendor_final_evaluation', 'is_active'
+                'embyon_blocked', 'vendor_final_evaluation', 'is_active'
             )
         }),
         (_('Contatti'), {
