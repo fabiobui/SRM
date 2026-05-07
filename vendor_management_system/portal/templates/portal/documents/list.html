@@ -1,0 +1,212 @@
+{% extends "portal/base_portal.html" %}
+
+{% block title %}I miei documenti — Portale Fornitore{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h3 mb-1"><i class="fas fa-file-alt text-success"></i> I miei documenti</h1>
+        <p class="text-muted mb-0">{{ vendor.name }} · {{ vendor.vendor_code }}</p>
+    </div>
+</div>
+
+<div class="alert alert-light border">
+    <i class="fas fa-info-circle text-muted"></i>
+    L'elenco dei documenti richiesti è definito dal back-office. Qui puoi caricare i file
+    sui documenti già previsti per la tua qualifica. Per richiedere un nuovo tipo di
+    documento, contatta il tuo referente.
+</div>
+
+{% if expiring_docs %}
+<div class="alert alert-info">
+    <strong><i class="fas fa-clock"></i> In scadenza:</strong>
+    {% for d in expiring_docs %}
+        <a href="{% url 'portal:my-document-detail' pk=d.pk %}" class="alert-link">{{ d.document_type.name }}</a>
+        ({{ d.expiry_date|date:"d/m/Y" }}){% if not forloop.last %}, {% endif %}
+    {% endfor %}
+</div>
+{% endif %}
+
+{% if pending_docs %}
+<h5 class="text-danger mb-3"><i class="fas fa-cloud-upload-alt"></i> Da caricare ({{ pending_docs|length }})</h5>
+<div class="row g-3 mb-4">
+    {% for d in pending_docs %}
+    <div class="col-lg-6">
+        <div class="card doc-card h-100 border-danger">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div>
+                        <h6 class="mb-1">{{ d.document_type.name }}</h6>
+                        {% if d.document_type.code %}
+                        <small class="text-muted">{{ d.document_type.code }}</small>
+                        {% endif %}
+                        <div class="my-2">
+                            <span class="badge badge-status-PENDING">In attesa di caricamento</span>
+                        </div>
+                        {% if d.document_type.instructions %}
+                        <small class="text-muted d-block">{{ d.document_type.instructions|truncatechars:120 }}</small>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="d-flex gap-2 flex-wrap">
+                    <button type="button" class="btn btn-sm btn-success"
+                            data-bs-toggle="modal" data-bs-target="#uploadModal"
+                            data-document-id="{{ d.pk }}"
+                            data-document-name="{{ d.document_type.name }}"
+                            data-issue-date="{{ d.issue_date|date:'Y-m-d' }}"
+                            data-expiry-date="{{ d.expiry_date|date:'Y-m-d' }}"
+                            data-notes="{{ d.notes }}">
+                        <i class="fas fa-upload"></i> Carica file
+                    </button>
+                    <a href="{% url 'portal:my-document-detail' pk=d.pk %}" class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-eye"></i> Dettaglio
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+{% if submitted_docs %}
+<h5 class="text-muted mb-3"><i class="fas fa-list"></i> Documenti caricati ({{ submitted_docs|length }})</h5>
+<div class="row g-3">
+    {% for d in submitted_docs %}
+    <div class="col-lg-6">
+        <div class="card doc-card h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div>
+                        <h6 class="mb-1">{{ d.document_type.name }}</h6>
+                        {% if d.document_type.code %}
+                        <small class="text-muted">{{ d.document_type.code }}</small>
+                        {% endif %}
+                        <div class="my-2">
+                            <span class="badge badge-status-{{ d.status }}">{{ d.get_status_display }}</span>
+                            {% if d.expiry_date %}
+                                <small class="text-muted ms-2">
+                                    Scadenza: {{ d.expiry_date|date:"d/m/Y" }}
+                                    {% if d.is_expired %}<span class="text-danger">(scaduto)</span>
+                                    {% elif d.is_expiring_soon %}<span class="text-warning">(in scadenza)</span>
+                                    {% endif %}
+                                </small>
+                            {% endif %}
+                        </div>
+                        {% if d.status == 'REJECTED' and d.notes %}
+                        <small class="text-danger d-block">
+                            <i class="fas fa-exclamation-circle"></i> Motivo rifiuto: {{ d.notes|truncatechars:100 }}
+                        </small>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="d-flex gap-2 flex-wrap">
+                    <a href="{% url 'portal:my-document-detail' pk=d.pk %}" class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-eye"></i> Dettaglio
+                    </a>
+                    {% if d.file %}
+                    <a href="{{ d.file.url }}" class="btn btn-sm btn-outline-primary" target="_blank">
+                        <i class="fas fa-download"></i> Scarica
+                    </a>
+                    {% endif %}
+                    {% if d.status == 'REJECTED' or d.is_expired or d.is_expiring_soon %}
+                    <button type="button" class="btn btn-sm btn-success"
+                            data-bs-toggle="modal" data-bs-target="#uploadModal"
+                            data-document-id="{{ d.pk }}"
+                            data-document-name="{{ d.document_type.name }}"
+                            data-issue-date="{{ d.issue_date|date:'Y-m-d' }}"
+                            data-expiry-date="{{ d.expiry_date|date:'Y-m-d' }}"
+                            data-notes="{{ d.notes }}">
+                        <i class="fas fa-sync"></i> Ricarica
+                    </button>
+                    {% else %}
+                    <button type="button" class="btn btn-sm btn-outline-success"
+                            data-bs-toggle="modal" data-bs-target="#uploadModal"
+                            data-document-id="{{ d.pk }}"
+                            data-document-name="{{ d.document_type.name }}"
+                            data-issue-date="{{ d.issue_date|date:'Y-m-d' }}"
+                            data-expiry-date="{{ d.expiry_date|date:'Y-m-d' }}"
+                            data-notes="{{ d.notes }}">
+                        <i class="fas fa-sync"></i> Aggiorna
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+{% if not pending_docs and not submitted_docs %}
+<div class="alert alert-info text-center">
+    <i class="fas fa-info-circle fa-2x mb-2"></i>
+    <p class="mb-0">Nessun documento è stato ancora associato al tuo fornitore dal back-office.</p>
+</div>
+{% endif %}
+
+<!-- Modal Upload (action impostata dinamicamente con il pk del Document) -->
+<div class="modal fade" id="uploadModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <form id="uploadForm" method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-upload"></i> Carica documento</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">File <span class="text-danger">*</span></label>
+                        <input type="file" name="file" class="form-control" required>
+                        <div class="form-text">Max 20 MB. PDF/immagini consigliati.</div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Data emissione</label>
+                            <input type="date" name="issue_date" id="modalIssueDate" class="form-control">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Data scadenza</label>
+                            <input type="date" name="expiry_date" id="modalExpiryDate" class="form-control">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Note</label>
+                        <textarea name="notes" id="modalNotes" rows="3" class="form-control"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                    <button type="submit" class="btn btn-success"><i class="fas fa-upload"></i> Carica</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Imposta dinamicamente l'action del form e pre-popola i campi col valore esistente
+document.getElementById('uploadModal').addEventListener('show.bs.modal', function (event) {
+    const trigger = event.relatedTarget;
+    if (!trigger) return;
+    const docId = trigger.getAttribute('data-document-id');
+    const docName = trigger.getAttribute('data-document-name') || 'documento';
+    const issue = trigger.getAttribute('data-issue-date') || '';
+    const expiry = trigger.getAttribute('data-expiry-date') || '';
+    const notes = trigger.getAttribute('data-notes') || '';
+
+    // L'URL pattern è /portale/documenti/<pk>/upload/
+    const form = document.getElementById('uploadForm');
+    form.action = `{% url 'portal:my-documents' %}${docId}/upload/`;
+
+    document.querySelector('#uploadModal .modal-title').innerHTML =
+        '<i class="fas fa-upload"></i> Carica: ' + docName;
+    document.getElementById('modalIssueDate').value = issue;
+    document.getElementById('modalExpiryDate').value = expiry;
+    document.getElementById('modalNotes').value = notes;
+});
+</script>
+{% endblock %}

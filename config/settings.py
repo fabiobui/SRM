@@ -114,6 +114,7 @@ LOCAL_APPS = [
     "vendor_management_system.purchase_orders",
     "vendor_management_system.historical_performances",
     "vendor_management_system.documents",  # ← NUOVO MODULO
+    "vendor_management_system.portal",     # ← Portale fornitore
 ]
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 

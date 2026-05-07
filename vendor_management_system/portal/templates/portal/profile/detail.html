@@ -1,0 +1,82 @@
+{% extends "portal/base_portal.html" %}
+
+{% block title %}Anagrafica — Portale Fornitore{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0"><i class="fas fa-id-card text-success"></i> Anagrafica</h1>
+    <div class="d-flex gap-2">
+        <a href="{% url 'portal:my-change-requests' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-history"></i> Storico richieste
+        </a>
+        {% if not pending_change_request %}
+        <a href="{% url 'portal:my-profile-change' %}" class="btn btn-success">
+            <i class="fas fa-edit"></i> Proponi modifiche
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+{% if pending_change_request %}
+<div class="alert alert-warning d-flex align-items-center">
+    <i class="fas fa-hourglass-half fa-lg me-3"></i>
+    <div>
+        Hai una richiesta di modifica in attesa di approvazione (inviata il
+        <strong>{{ pending_change_request.created_at|date:"d/m/Y H:i" }}</strong>).
+        Non puoi inviarne un'altra finché non viene gestita dal back-office.
+        <a href="{% url 'portal:my-change-requests' %}" class="alert-link">Vedi dettagli</a>
+    </div>
+</div>
+{% endif %}
+
+<div class="card">
+    <div class="card-header bg-light">
+        <strong>Dati aziendali</strong>
+        <small class="text-muted">— campi modificabili dal fornitore previa approvazione BO</small>
+    </div>
+    <div class="card-body">
+        <dl class="row mb-0">
+            <dt class="col-sm-3">Codice fornitore</dt>
+            <dd class="col-sm-9">{{ vendor.vendor_code }} <small class="text-muted">(non modificabile)</small></dd>
+
+            <dt class="col-sm-3">Ragione sociale</dt>
+            <dd class="col-sm-9">{{ vendor.name|default:"—" }}</dd>
+
+            <dt class="col-sm-3">Partita IVA</dt>
+            <dd class="col-sm-9">{{ vendor.vat_number|default:"—" }} <small class="text-muted">(non modificabile)</small></dd>
+
+            <dt class="col-sm-3">Codice Fiscale</dt>
+            <dd class="col-sm-9">{{ vendor.fiscal_code|default:"—" }} <small class="text-muted">(non modificabile)</small></dd>
+
+            <dt class="col-sm-3">Email</dt>
+            <dd class="col-sm-9">{{ vendor.email|default:"—" }}</dd>
+
+            <dt class="col-sm-3">Telefono</dt>
+            <dd class="col-sm-9">{{ vendor.phone|default:"—" }}</dd>
+
+            <dt class="col-sm-3">Sito web</dt>
+            <dd class="col-sm-9">
+                {% if vendor.website %}<a href="{{ vendor.website }}" target="_blank">{{ vendor.website }}</a>
+                {% else %}—{% endif %}
+            </dd>
+
+            <dt class="col-sm-3">Contatto di riferimento</dt>
+            <dd class="col-sm-9">{{ vendor.reference_contact|default:"—" }}</dd>
+
+            <dt class="col-sm-3">Persona di riferimento</dt>
+            <dd class="col-sm-9">{{ vendor.reference_person|default:"—" }}</dd>
+
+            <dt class="col-sm-3">Dettagli di contatto</dt>
+            <dd class="col-sm-9">{{ vendor.contact_details|linebreaksbr|default:"—" }}</dd>
+
+            <dt class="col-sm-3">Descrizione attività</dt>
+            <dd class="col-sm-9">{{ vendor.vendor_task_description|linebreaksbr|default:"—" }}</dd>
+
+            {% if vendor.address %}
+            <dt class="col-sm-3">Indirizzo</dt>
+            <dd class="col-sm-9">{{ vendor.address }} <small class="text-muted">(modifiche tramite BO)</small></dd>
+            {% endif %}
+        </dl>
+    </div>
+</div>
+{% endblock %}

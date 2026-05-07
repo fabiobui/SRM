@@ -1,0 +1,100 @@
+{% extends "portal/base_portal.html" %}
+
+{% block title %}Dashboard — Portale Fornitore{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h3 mb-1">Benvenuto{% if user.name %}, {{ user.name }}{% endif %}</h1>
+        {% if vendor %}
+            <p class="text-muted mb-0">
+                {{ vendor.name }} <span class="text-secondary">·</span> Codice {{ vendor.vendor_code }}
+            </p>
+        {% endif %}
+    </div>
+</div>
+
+{% if to_upload_count or expired_count or expiring_count or rejected_count %}
+<div class="alert alert-warning d-flex align-items-center" role="alert">
+    <i class="fas fa-exclamation-triangle fa-lg me-3"></i>
+    <div>
+        Hai
+        {% if to_upload_count %}<strong>{{ to_upload_count }}</strong> documento/i da caricare{% endif %}
+        {% if rejected_count %}{% if to_upload_count %}, {% endif %}<strong>{{ rejected_count }}</strong> respinto/i da ricaricare{% endif %}
+        {% if expired_count %}{% if to_upload_count or rejected_count %}, {% endif %}<strong>{{ expired_count }}</strong> scaduto/i{% endif %}
+        {% if expiring_count %}{% if to_upload_count or rejected_count or expired_count %}, {% endif %}<strong>{{ expiring_count }}</strong> in scadenza{% endif %}.
+        <a href="{% url 'portal:my-documents' %}" class="alert-link">Vai ai documenti →</a>
+    </div>
+</div>
+{% endif %}
+
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card kpi-card h-100" style="border-left-color:#dc3545">
+            <div class="card-body">
+                <div class="kpi-value">{{ to_upload_count }}</div>
+                <div class="kpi-label"><i class="fas fa-cloud-upload-alt text-danger"></i> Da caricare</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card kpi-card h-100" style="border-left-color:#ffc107">
+            <div class="card-body">
+                <div class="kpi-value">{{ pending_review_count }}</div>
+                <div class="kpi-label"><i class="fas fa-hourglass-half text-warning"></i> In revisione</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card kpi-card h-100" style="border-left-color:#198754">
+            <div class="card-body">
+                <div class="kpi-value">{{ approved_count }}</div>
+                <div class="kpi-label"><i class="fas fa-check-circle text-success"></i> Approvati</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card kpi-card h-100" style="border-left-color:#212529">
+            <div class="card-body">
+                <div class="kpi-value">{{ expired_count }}</div>
+                <div class="kpi-label"><i class="fas fa-times-circle"></i> Scaduti</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title"><i class="fas fa-file-alt"></i> Documenti</h5>
+                <p class="text-muted">Carica e aggiorna i documenti richiesti per la tua qualifica.</p>
+                <a href="{% url 'portal:my-documents' %}" class="btn btn-success">Gestisci documenti</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title"><i class="fas fa-id-card"></i> Anagrafica</h5>
+                <p class="text-muted">
+                    Visualizza i dati della tua azienda e proponi modifiche al back-office.
+                    {% if pending_change_requests %}
+                        <span class="badge bg-warning text-dark">{{ pending_change_requests }} richiesta in attesa</span>
+                    {% endif %}
+                </p>
+                <a href="{% url 'portal:my-profile' %}" class="btn btn-outline-success">Vai all'anagrafica</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title"><i class="fas fa-award"></i> Stato qualifica</h5>
+                <p class="text-muted">Consulta punteggio, scadenza qualifica e prossimo audit.</p>
+                <a href="{% url 'portal:my-qualification' %}" class="btn btn-outline-success">Vai allo stato qualifica</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

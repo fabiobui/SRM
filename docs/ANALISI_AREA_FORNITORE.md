@@ -374,6 +374,7 @@ Job periodici (Celery beat):
 - Modello `VendorRegistrationRequest`.
 - Form pubblico `/portale/registrazione/` con anti‑spam.
 - View BO di approvazione → crea Vendor + User + invio invito email.
+- Dobbiamo verificare **tramite partita IVA**
 - Flow "imposta password" via token.
 - Reset password fornitore.
 

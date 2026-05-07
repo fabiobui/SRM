@@ -55,6 +55,9 @@ urlpatterns = [
     path('purchase-orders/', include('vendor_management_system.purchase_orders.urls')),
     path('auth/', include('vendor_management_system.core.auth_urls')),
     path('documents/', include('vendor_management_system.documents.urls')),
+
+    # Portale Fornitore (nuova area /portale/)
+    path('portale/', include(('vendor_management_system.portal.urls', 'portal'), namespace='portal')),
 ]
 
 # Serve static and media files in development
