@@ -89,7 +89,13 @@ class User(AbstractUser):
         return self.role == 'bo_user'
     
     def is_vendor_user(self):
-        return self.role == 'vendor' and self.vendor is not None
+        if self.role != 'vendor':
+            return False
+        from vendor_management_system.vendors.models import Vendor
+        try:
+            return self.vendor is not None
+        except Vendor.DoesNotExist:
+            return False
     
     def can_access_admin(self):
         return self.is_admin()

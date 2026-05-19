@@ -62,20 +62,31 @@ class CustomLoginView(View):
     
     def redirect_by_role(self, user):
         """Reindirizza l'utente basato sul campo role del modello User"""
-        
+        from vendor_management_system.vendors.models import Vendor
+
         # Verifica se è superuser
         if user.is_superuser:
             return redirect('/admin/')
-        
+
         # Reindirizzamento basato sul ruolo dell'utente
         if user.role == 'admin':
             return redirect('/admin/')
         elif user.role == 'bo_user':
             return redirect('/admin/')
-        elif user.role == 'vendor' and hasattr(user, 'vendor') and user.vendor:
-            return redirect('/documents/portal/')
+        elif user.role == 'vendor':
+            try:
+                vendor = user.vendor
+            except Vendor.DoesNotExist:
+                vendor = None
+            if vendor:
+                return redirect('/documents/portal/')
+            messages.warning(
+                self.request,
+                'Il tuo account fornitore non è collegato a nessuna anagrafica. Contatta l\'amministratore.'
+            )
+            return redirect('login')
         else:
-            # Utente senza ruolo specifico o vendor non associato
+            # Utente senza ruolo specifico
             messages.warning(
                 self.request,
                 'Nessun ruolo assegnato. Contatta l\'amministratore.'
