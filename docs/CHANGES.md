@@ -41,5 +41,7 @@ Nella lista/vista dei fornitori queste modifiche:
 
 Nella lista degli 'Stati di qualifica' aggiungere 'Da Revisionare'
 
+#### PORTALE FORNITORI
 
+Togliamo il menù 'Stato Qualifica' e mettiamo nella 'Home' **solo** lo 'stato qualifica' come era nel menù 'Stato qualifica ': ![[Pasted image 20260519155016.png]]
 

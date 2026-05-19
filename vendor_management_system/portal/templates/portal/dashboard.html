@@ -28,6 +28,26 @@
 </div>
 {% endif %}
 
+{% if vendor %}
+<div class="card mb-4">
+    <div class="card-body text-center">
+        <div class="text-muted mb-1"><i class="fas fa-award text-success"></i> Stato qualifica</div>
+        {% if vendor.qualification_status == 'APPROVED' %}
+            <h3 class="mb-0"><span class="badge bg-success">{{ vendor.get_qualification_status_display }}</span></h3>
+        {% elif vendor.qualification_status == 'REJECTED' %}
+            <h3 class="mb-0"><span class="badge bg-danger">{{ vendor.get_qualification_status_display }}</span></h3>
+        {% elif vendor.qualification_status == 'TO_REVIEW' %}
+            <h3 class="mb-0"><span class="badge bg-warning text-dark">{{ vendor.get_qualification_status_display }}</span></h3>
+        {% else %}
+            <h3 class="mb-0"><span class="badge bg-secondary">{{ vendor.get_qualification_status_display|default:"In attesa" }}</span></h3>
+        {% endif %}
+        {% if vendor.is_qualified %}
+            <div class="text-success mt-2"><i class="fas fa-check-circle"></i> Qualificato e in corso di validità</div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
 <div class="row g-3 mb-4">
     <div class="col-md-3">
         <div class="card kpi-card h-100" style="border-left-color:#dc3545">
@@ -84,15 +104,6 @@
                     {% endif %}
                 </p>
                 <a href="{% url 'portal:my-profile' %}" class="btn btn-outline-success">Vai all'anagrafica</a>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-6">
-        <div class="card h-100">
-            <div class="card-body">
-                <h5 class="card-title"><i class="fas fa-award"></i> Stato qualifica</h5>
-                <p class="text-muted">Consulta punteggio, scadenza qualifica e prossimo audit.</p>
-                <a href="{% url 'portal:my-qualification' %}" class="btn btn-outline-success">Vai allo stato qualifica</a>
             </div>
         </div>
     </div>
