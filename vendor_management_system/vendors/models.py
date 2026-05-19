@@ -1152,6 +1152,13 @@ class Contract(models.Model):
         ('SUSPENDED', _('Sospeso')),
     ]
 
+    CONTRACT_TYPE_CHOICES = [
+        ('ACCORDO_QUADRO', _('Accordo quadro')),
+        ('ORDINE', _('Ordine')),
+        ('ORDINE_RICORRENTE', _('Ordine ricorrente')),
+        ('FORNITURA_OCCASIONALE', _('Fornitura occasionale')),
+    ]
+
     id = models.UUIDField(
         primary_key=True,
         default=uuid.uuid4,
@@ -1173,6 +1180,21 @@ class Contract(models.Model):
         _("Titolo"),
         max_length=255,
         help_text=_("Descrizione breve del contratto")
+    )
+    contract_type = models.CharField(
+        _("Tipo contratto"),
+        max_length=30,
+        choices=CONTRACT_TYPE_CHOICES,
+        blank=True,
+        null=True,
+        help_text=_("Tipologia del contratto")
+    )
+    reference_person = models.CharField(
+        _("Persona di riferimento"),
+        max_length=100,
+        blank=True,
+        null=True,
+        help_text=_("Persona di riferimento per il contratto")
     )
     status = models.CharField(
         _("Stato"),
@@ -1199,7 +1221,7 @@ class Contract(models.Model):
         help_text=_("Importo totale del contratto")
     )
     notes = models.TextField(
-        _("Note"),
+        _("Note/Ulteriori condizioni contrattuali"),
         blank=True,
         null=True
     )
@@ -1310,6 +1332,7 @@ class Vendor(models.Model):
         ('PENDING', _('In attesa')),
         ('APPROVED', _('Approvato')),
         ('REJECTED', _('Respinto')),
+        ('TO_REVIEW', _('Da Revisionare')),
     ]
     
     # Risk Level Choices
@@ -1390,12 +1413,23 @@ class Vendor(models.Model):
     ]
 
     old_code = models.CharField(
-        _("Vecchio Codice Fornitore"),
+        _("Codice Embyon"),
         max_length=10,
         unique=True,
         blank=True,
         null=True,
-        help_text=_("Vecchio codice univoco del fornitore, se applicabile")
+        help_text=_("Codice Embyon (ex Vecchio codice fornitore)")
+    )
+
+    managed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name=_("Utente gestione fornitore"),
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="managed_vendors",
+        limit_choices_to={'role__in': ['admin', 'bo_user']},
+        help_text=_("Utente Back Office o Admin responsabile della gestione del fornitore")
     )
 
     # Foreign Key to Address model

@@ -13,10 +13,8 @@
    - 3.2 [Informazioni Base](#32-informazioni-base)
    - 3.3 [Contatti](#33-contatti)
    - 3.4 [Indirizzo (Sede)](#34-indirizzo-sede)
-   - 3.5 [Stato Contrattuale](#35-stato-contrattuale)
-   - 3.6 [Gestione e Zone di Competenza](#36-gestione-e-zone-di-competenza)
-   - 3.7 [Servizi Medici](#37-servizi-medici)
-   - 3.8 [Qualifica e Audit](#38-qualifica-e-audit)
+   - 3.5 [Servizi Medici](#35-servizi-medici)
+   - 3.6 [Qualifica e Audit](#36-qualifica-e-audit)
 4. [Lista Fornitori — ricerca e filtri](#4-lista-fornitori--ricerca-e-filtri)
 5. [Azioni massive sui fornitori](#5-azioni-massive-sui-fornitori)
 6. [Servizi del Fornitore](#6-servizi-del-fornitore)
@@ -93,21 +91,24 @@ Le sezioni principali sono:
 
 ### 3.2 Informazioni Base
 
-Questa è la prima sezione del form, contiene i dati identificativi del fornitore.
+Questa è la prima sezione del form, contiene i dati identificativi del fornitore. L'ordine dei campi nel form rispecchia la tabella sottostante.
 
-| Campo | Obbligatorio | Descrizione |
-|-------|:---:|-------------|
-| **Codice Fornitore** | Auto | Generato automaticamente, non modificabile |
-| **Vecchio Codice** | No | Eventuale codice proveniente da sistemi precedenti |
-| **Nome** | Sì | Ragione sociale o nome completo |
-| **Tipo Fornitore** | Sì | Selezionare dal menu a tendina (default: *Società*) |
-| **Partita IVA** | No | Partita IVA del fornitore |
-| **Codice Fiscale** | No | Codice fiscale |
-| **Titolo di Studio** | No | Selezionare il titolo di studio dal catalogo (utile per professionisti) |
-| **Categoria** | No | Categoria merceologica di appartenenza |
-| **Livello di Rischio** | No | `Basso`, `Medio` o `Alto` |
-| **Valutazione Finale** | No | `Da Valutare`, `Negativo`, `Positivo`, `Molto Positivo` |
-| **Attivo** | Sì | Spuntare per rendere il fornitore operativo |
+| # | Campo | Obbligatorio | Descrizione |
+|:--:|-------|:---:|-------------|
+| 1 | **Codice Fornitore** | Auto | Generato automaticamente, non modificabile |
+| 2 | **Codice Embyon** | No | Codice del fornitore proveniente da Embyon (ex *Vecchio codice fornitore*) |
+| 3 | **Utente gestione fornitore** | No | Utente Admin o BackOffice responsabile della gestione del fornitore (lookup ristretto ai gruppi *Administrators* / *BackOffice Users*) |
+| 4 | **Nome del Fornitore** | Sì | Ragione sociale o nome completo |
+| 5 | **Tipo di Fornitore** | Sì | Selezionare dal menu a tendina (default: *Società*) |
+| 6 | **Partita IVA** | No | Partita IVA del fornitore |
+| 7 | **Codice Fiscale** | No | Codice fiscale |
+| 8 | **Titolo di Studio / Tipo di Qualifica** | No | Titolo di studio o tipo di qualifica del fornitore |
+| 9 | **Categoria** | No | Categoria merceologica di appartenenza |
+| 10 | **Zone di Competenza** | No | Una o più zone geografiche di operatività (autocomplete; vedi [§14.5](#145-zone-di-competenza)) |
+| 11 | **Valutazione Finale del Fornitore** | No | `Da Valutare`, `Negativo`, `Positivo`, `Molto Positivo` |
+| 12 | **Livello di Affidabilità/Rischio** | No | `Basso`, `Medio` o `Alto` |
+| 13 | **Bloccato in Embyon** | No | Spuntare se il fornitore risulta bloccato lato Embyon |
+| 14 | **È Attivo** | Sì | Spuntare per rendere il fornitore operativo |
 
 **Tipi Fornitore disponibili:**
 
@@ -168,50 +169,7 @@ L'indirizzo del fornitore è un'entità separata. Per associare un indirizzo:
 
 ---
 
-### 3.5 Stato Contrattuale
-
-Questa sezione traccia lo stato dell'iter contrattuale con il fornitore.
-
-| Campo | Descrizione |
-|-------|-------------|
-| **Stato Contrattuale** | Selezionare dallo stato corrente (vedi tabella sotto) |
-| **Data Inizio Contratto** | Data di decorrenza |
-| **Data Fine Contratto** | Data di scadenza |
-| **Termini Contrattuali** | Note sui termini |
-| **Persona di Riferimento** | Referente interno per il contratto |
-
-**Stati Contrattuali:**
-
-| Codice | Stato | Significato |
-|:---:|-------|-------------|
-| 00 | Da verificare | Stato iniziale — verifica in corso |
-| 02 | Fare RAI | È necessario effettuare la RAI |
-| 03 | RAI Effettuata | RAI completata, in attesa di contratto |
-| 04 | Contrattualizzato | Fornitore con contratto attivo |
-| 05 | Da contrattualizzare ad esigenza | Disponibile, da contrattualizzare quando necessario |
-| 06 | Contratto Scaduto | Il contratto è scaduto |
-| 99 | Non Usare | Fornitore disabilitato / non utilizzare |
-
-<!-- 📸 SCREENSHOT: Sezione "Stato Contrattuale" -->
-
----
-
-### 3.6 Gestione e Zone di Competenza
-
-| Campo | Descrizione |
-|-------|-------------|
-| **Zone di Competenza** | Selezionare una o più zone geografiche di operatività (autocomplete) |
-| **Zona Competenza (legacy)** | Campo testuale libero per compatibilità |
-| **Aggiornamento Gestione** | Note sull'ultimo aggiornamento gestionale |
-| **Descrizione Attività** | Descrizione delle attività svolte dal fornitore |
-
-> Le **Zone di Competenza** sono definite tramite regole geografiche (Nazione / Regione / Provincia) con logica include/exclude. Vedere [§14.5](#145-zone-di-competenza) per la configurazione.
-
-<!-- 📸 SCREENSHOT: Sezione "Gestione" con zone di competenza -->
-
----
-
-### 3.7 Servizi Medici
+### 3.5 Servizi Medici
 
 > Questa sezione è **collassata** di default e va aperta solo per fornitori del settore medico/sanitario.
 
@@ -234,13 +192,13 @@ Contiene campi specifici per professionisti e strutture mediche:
 
 ---
 
-### 3.8 Qualifica e Audit
+### 3.6 Qualifica e Audit
 
 Questa sezione gestisce il processo di qualificazione e gli audit periodici.
 
 | Campo | Modificabile | Descrizione |
 |-------|:---:|-------------|
-| **Stato Qualifica** | Sì | `In Attesa`, `Approvato`, `Rifiutato` |
+| **Stato Qualifica** | Sì | `In Attesa`, `Approvato`, `Rifiutato`, `Da Revisionare` |
 | **Punteggio Qualifica** | Sì | Valore numerico da 0 a 100 |
 | **Data Qualifica** | Sì | Data in cui è stata effettuata la qualifica |
 | **Scadenza Qualifica** | Sì | Data di scadenza della qualifica |
@@ -260,26 +218,25 @@ La lista fornitori mostra le colonne principali:
 
 | Colonna | Descrizione |
 |---------|-------------|
-| Codice | Codice fornitore univoco |
+| Codice Embyon | Codice Embyon (ex *Vecchio codice fornitore*) |
 | Nome | Ragione sociale |
 | Categoria | Categoria merceologica |
-| Stato Qualifica | In Attesa / Approvato / Rifiutato |
-| Livello Rischio | Basso / Medio / Alto |
-| Qualificato | Icona ✅ o ❌ |
+| Stato Qualifica | `In Attesa` / `Approvato` / `Rifiutato` / `Da Revisionare` |
+| Valutazione Finale | `Da Valutare` / `Negativo` / `Positivo` / `Molto Positivo` |
+| Bloccato in Embyon | Spuntato se il fornitore è bloccato lato Embyon |
 | Attivo | Stato attivo/disattivo |
 | Punteggio | Punteggio di qualifica |
 
-**Ricerca:** digitare nel campo di ricerca in alto per cercare per *codice fornitore*, *nome*, *partita IVA*, *codice fiscale* o *email*.
+**Ricerca:** digitare nel campo di ricerca in alto per cercare per *codice fornitore*, *codice Embyon*, *nome*, *partita IVA*, *codice fiscale* o *email*.
 
 **Filtri laterali** (pannello destro):
 
 - Stato Qualifica
-- Livello di Rischio
 - Attivo (Sì/No)
 - Categoria
 - Tipo Fornitore
-- Stato Contrattuale
 - Valutazione Finale
+- Bloccato in Embyon
 
 > **Suggerimento:** combinare più filtri per restringere rapidamente la ricerca. Ad esempio: *Stato Qualifica = Approvato* + *Attivo = Sì* per vedere solo i fornitori operativi.
 
@@ -459,11 +416,13 @@ I contratti sono gestibili sia dalla sezione dedicata (**Vendors → Contratti**
 | **Numero Contratto** | Codice univoco del contratto |
 | **Titolo** | Descrizione breve del contratto |
 | **Fornitore** | Fornitore collegato |
+| **Tipo contratto** | `Accordo quadro`, `Ordine`, `Ordine ricorrente`, `Fornitura occasionale` |
+| **Persona di riferimento** | Referente per il contratto |
 | **Stato** | `Bozza`, `Attivo`, `Scaduto`, `Terminato`, `Sospeso` |
 | **Data Inizio** | Decorrenza del contratto |
 | **Data Fine** | Scadenza |
 | **Importo** | Valore economico in € |
-| **Note** | Note libere |
+| **Note/Ulteriori condizioni contrattuali** | Note libere e condizioni aggiuntive |
 
 <!-- 📸 SCREENSHOT: Lista contratti o inline nella scheda fornitore -->
 

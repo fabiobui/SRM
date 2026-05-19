@@ -501,21 +501,24 @@ class VendorEvaluationAdmin(admin.ModelAdmin):
 class ContractInline(admin.StackedInline):
     model = Contract
     extra = 0
-    fields = ['contract_number', 'title', 'status', 'start_date', 'end_date', 'amount', 'notes']
+    fields = [
+        'contract_number', 'title', 'contract_type', 'reference_person',
+        'status', 'start_date', 'end_date', 'amount', 'notes'
+    ]
 
 
 # Contract Admin (standalone)
 @admin.register(Contract)
 class ContractAdmin(admin.ModelAdmin):
-    list_display = ['contract_number', 'title', 'vendor', 'status', 'start_date', 'end_date', 'amount']
-    list_filter = ['status', 'start_date']
-    search_fields = ['contract_number', 'title', 'vendor__name', 'vendor__vendor_code']
+    list_display = ['contract_number', 'title', 'vendor', 'contract_type', 'status', 'start_date', 'end_date', 'amount']
+    list_filter = ['status', 'contract_type', 'start_date']
+    search_fields = ['contract_number', 'title', 'vendor__name', 'vendor__vendor_code', 'reference_person']
     autocomplete_fields = ['vendor']
     date_hierarchy = 'start_date'
     readonly_fields = ['created_at', 'updated_at']
     fieldsets = (
         (None, {
-            'fields': ('contract_number', 'title', 'vendor', 'status')
+            'fields': ('contract_number', 'title', 'vendor', 'contract_type', 'reference_person', 'status')
         }),
         (_('Date e Importo'), {
             'fields': ('start_date', 'end_date', 'amount')
@@ -531,21 +534,21 @@ class ContractAdmin(admin.ModelAdmin):
 @admin.register(Vendor)
 class VendorAdmin(admin.ModelAdmin):
     list_display = [
-        'vendor_code', 'name', 'category', 'qualification_status', 'embyon_blocked',
-        'is_qualified_display', 'is_active', 'qualification_score'
+        'old_code', 'name', 'category', 'qualification_status', 'vendor_final_evaluation',
+        'embyon_blocked', 'is_active', 'qualification_score'
     ]
     list_filter = [
-        'qualification_status', 'risk_level', 'is_active', 'category',
-        'vendor_type', 'contractual_status', 'vendor_final_evaluation', 'embyon_blocked'
+        'qualification_status', 'is_active', 'category',
+        'vendor_type', 'vendor_final_evaluation', 'embyon_blocked'
     ]
-    search_fields = ['vendor_code', 'name', 'vat_number', 'fiscal_code', 'email']
+    search_fields = ['vendor_code', 'old_code', 'name', 'vat_number', 'fiscal_code', 'email']
     readonly_fields = [
         'vendor_code', 'is_qualified', 'audit_overdue', 'is_documentation_complete',
         'active_competences', 'expired_competences', 'expiring_competences',
         'missing_mandatory_competences', 'valid_documents', 'expired_documents',
         'expiring_documents', 'missing_mandatory_documents', 'primary_service', 'active_services'
     ]
-    autocomplete_fields = ['address', 'category', 'qualification_type', 'user_account', 'competence_zones']
+    autocomplete_fields = ['address', 'category', 'qualification_type', 'managed_by', 'competence_zones']
     inlines = [VendorServiceInline, VendorCompetenceInline, DocumentInline, ContractInline, VendorEvaluationInline]
 
     def get_form(self, request, obj=None, **kwargs):
@@ -559,22 +562,14 @@ class VendorAdmin(admin.ModelAdmin):
     fieldsets = (
         (_('Informazioni Base'), {
             'fields': (
-                'vendor_code', 'old_code', 'name', 'vendor_type',
-                'vat_number', 'fiscal_code', 'qualification_type', 'category', 'risk_level',
-                'embyon_blocked', 'vendor_final_evaluation', 'is_active'
+                'vendor_code', 'old_code', 'managed_by', 'name', 'vendor_type',
+                'vat_number', 'fiscal_code', 'qualification_type', 'category',
+                'competence_zones', 'vendor_final_evaluation', 'risk_level',
+                'embyon_blocked', 'is_active'
             )
         }),
         (_('Contatti'), {
             'fields': ('email', 'phone', 'reference_contact', 'website', 'address', 'contact_details')
-        }),
-        (_('Stato Contrattuale'), {
-            'fields': (
-                'contractual_status', 'contractual_start_date', 'contractual_end_date',
-                'contractual_terms', 'reference_person'
-            )
-        }),
-        (_('Gestione/Altro'), {
-            'fields': ('competences_zone', 'competence_zones', 'vendor_management_update', 'vendor_task_description')
         }),
         (_('Servizi Medici'), {
             'fields': (
@@ -599,10 +594,6 @@ class VendorAdmin(admin.ModelAdmin):
                 'qualification_expiry', 'last_audit_date', 'next_audit_due',
                 'is_qualified', 'audit_overdue', 'review_notes'
             )
-        }),
-        (_('Account Utente'), {
-            'fields': ('user_account',),
-            'classes': ('collapse',)
         }),
     )
         
