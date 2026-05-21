@@ -1351,6 +1351,7 @@ class Vendor(models.Model):
         ('Presso Studio', _('Presso Studio')),
         ('Prestazione Occasionale', _('Prestazione Occasionale')),
         ('Società/professionista', _('Società/professionista')),
+        ('Subappaltatore', _('Subappaltatore')),
         ('Internazionale', _('Internazionale')),
     ]
 
@@ -1716,7 +1717,7 @@ class Vendor(models.Model):
 
     category = models.ForeignKey(
         Category,
-        verbose_name=_("Categoria"),
+        verbose_name=_("Classificazione"),
         null=True,
         blank=True,
         on_delete=models.SET_NULL,
