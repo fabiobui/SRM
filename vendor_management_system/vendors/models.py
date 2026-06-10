@@ -271,41 +271,41 @@ class Category(models.Model):
     
     # Core fields
     code = models.CharField(
-        _("Codice Categoria"),
+        _("Codice Classificazione"),
         max_length=20,
         unique=True,
-        help_text=_("Codice univoco della categoria (es. 'SERV', 'FORN', 'MANU')")
+        help_text=_("Codice univoco della classificazione (es. 'SERV', 'FORN', 'MANU')")
     )
     
     name = models.CharField(
-        _("Nome Categoria"),
+        _("Nome Classificazione"),
         max_length=100,
-        help_text=_("Nome della categoria")
+        help_text=_("Nome della classificazione")
     )
     
     description = models.TextField(
         _("Descrizione"),
         blank=True,
         null=True,
-        help_text=_("Descrizione dettagliata della categoria")
+        help_text=_("Descrizione dettagliata della classificazione")
     )
     
     # Hierarchical structure (optional)
     parent = models.ForeignKey(
         'self',
-        verbose_name=_("Categoria Padre"),
+        verbose_name=_("Classificazione Padre"),
         null=True,
         blank=True,
         on_delete=models.CASCADE,
         related_name='subcategories',
-        help_text=_("Categoria padre per struttura gerarchica")
+        help_text=_("Classificazione padre per struttura gerarchica")
     )
     
     # Status and classification
     is_active = models.BooleanField(
         _("È Attiva"),
         default=True,
-        help_text=_("Categoria attiva e utilizzabile")
+        help_text=_("Classificazione attiva e utilizzabile")
     )
     
     sort_order = models.PositiveIntegerField(
@@ -354,8 +354,8 @@ class Category(models.Model):
     )
 
     class Meta:
-        verbose_name = _("Categoria")
-        verbose_name_plural = _("Categorie")
+        verbose_name = _("Classificazione")
+        verbose_name_plural = _("Classificazioni")
         ordering = ['sort_order', 'name']
         indexes = [
             models.Index(fields=['code']),
@@ -1156,6 +1156,7 @@ class Contract(models.Model):
         ('ACCORDO_QUADRO', _('Accordo quadro')),
         ('ORDINE', _('Ordine')),
         ('ORDINE_RICORRENTE', _('Ordine ricorrente')),
+        ('DEROGA', _('Deroga')),
         ('FORNITURA_OCCASIONALE', _('Fornitura occasionale')),
     ]
 
@@ -1649,10 +1650,10 @@ class Vendor(models.Model):
         help_text=_("Gestione aggiornamenti del fornitore"),
         blank=True, null=True
     )
-    embyon_blocked = models.BooleanField(
-        _("Bloccato in Embyon"),
-        default=False,
-        help_text=_("Indica se il fornitore risulta bloccato in Embyon")
+    embyon_active = models.BooleanField(
+        _("Attivo in Embyon"),
+        default=True,
+        help_text=_("Indica se il fornitore risulta attivo in Embyon")
     )
 
     # Performance Fields (existing)
