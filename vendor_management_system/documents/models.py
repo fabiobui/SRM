@@ -266,9 +266,73 @@ class Document(models.Model):
     def save(self, *args, **kwargs):
         if not self.id:
             self.id = str(uuid.uuid4()).replace("-", "")[:10].upper()
-        
+
         # Auto-update status based on expiry
         if self.is_expired and self.status != 'EXPIRED':
             self.status = 'EXPIRED'
-        
+
         super().save(*args, **kwargs)
+
+
+class DocumentSet(models.Model):
+    """Set documentale: insieme predefinito di tipi di documento da assegnare
+    in blocco a un fornitore dal tab Documenti dell'admin."""
+
+    name = models.CharField(
+        _("Nome Set"),
+        max_length=255,
+        help_text=_("Nome del set documentale (es. 'Set base appalti', 'Set sanitario')")
+    )
+
+    description = models.TextField(
+        _("Descrizione"),
+        blank=True,
+        null=True,
+        help_text=_("Descrizione del set documentale")
+    )
+
+    category = models.ForeignKey(
+        'vendors.Category',
+        verbose_name=_("Classificazione"),
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="document_sets",
+        help_text=_("Classificazione del fornitore a cui si applica il set "
+                    "(vuoto = applicabile a tutte le classificazioni)")
+    )
+
+    document_types = models.ManyToManyField(
+        DocumentType,
+        verbose_name=_("Tipi di Documento"),
+        related_name="document_sets",
+        help_text=_("Tipi di documento inclusi nel set")
+    )
+
+    default_status = models.CharField(
+        _("Stato Predefinito"),
+        max_length=20,
+        choices=Document.STATUS_CHOICES,
+        default='PENDING',
+        help_text=_("Stato applicato ai documenti creati dal set")
+    )
+
+    is_active = models.BooleanField(
+        _("Attivo"),
+        default=True,
+        help_text=_("Set attivo e selezionabile")
+    )
+
+    sort_order = models.PositiveIntegerField(
+        _("Ordine"),
+        default=0,
+        help_text=_("Ordine di visualizzazione")
+    )
+
+    class Meta:
+        verbose_name = _("Set Documentale")
+        verbose_name_plural = _("Set Documentali")
+        ordering = ["sort_order", "name"]
+
+    def __str__(self):
+        return self.name

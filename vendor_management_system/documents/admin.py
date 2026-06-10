@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.utils.translation import gettext_lazy as _
 from django.utils.html import format_html
-from vendor_management_system.documents.models import DocumentType, Document
+from vendor_management_system.documents.models import DocumentType, Document, DocumentSet
 
 @admin.register(DocumentType)
 class DocumentTypeAdmin(admin.ModelAdmin):
@@ -54,3 +54,29 @@ class DocumentAdmin(admin.ModelAdmin):
             'fields': ('reviewed_by', 'reviewed_at', 'notes')
         }),
     )
+
+
+@admin.register(DocumentSet)
+class DocumentSetAdmin(admin.ModelAdmin):
+    list_display = ['name', 'category', 'default_status', 'document_types_count', 'is_active', 'sort_order']
+    list_filter = ['is_active', 'category', 'default_status']
+    search_fields = ['name', 'description']
+    list_editable = ['is_active', 'sort_order']
+    filter_horizontal = ['document_types']
+    ordering = ['sort_order', 'name']
+
+    fieldsets = (
+        (_('Informazioni Base'), {
+            'fields': ('name', 'description', 'category')
+        }),
+        (_('Documenti del set'), {
+            'fields': ('document_types', 'default_status')
+        }),
+        (_('Configurazione'), {
+            'fields': ('is_active', 'sort_order')
+        }),
+    )
+
+    def document_types_count(self, obj):
+        return obj.document_types.count()
+    document_types_count.short_description = _('N. Documenti')

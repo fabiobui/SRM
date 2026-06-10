@@ -4,8 +4,10 @@
 from django.contrib import admin
 from django.utils.translation import gettext_lazy as _
 from django.utils.html import format_html
-from django.urls import reverse
+from django.urls import reverse, path
 from django.utils import timezone
+from django.http import JsonResponse
+from django.db.models import Q
 from import_export import resources
 from import_export.admin import ImportExportModelAdmin
 from .models import (
@@ -15,7 +17,7 @@ from .models import (
     Country, Region, Province, CompetenceZone, CompetenceZoneRule
 )
 # Import Document and DocumentType from documents app
-from vendor_management_system.documents.models import Document, DocumentType
+from vendor_management_system.documents.models import Document, DocumentType, DocumentSet
 
 
 # ============================================================================
@@ -555,9 +557,54 @@ class VendorAdmin(admin.ModelAdmin):
         # Salva l'oggetto corrente per usarlo negli inline
         request._obj_ = obj
         return super().get_form(request, obj, **kwargs)
-    
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom = [
+            path(
+                'document-sets/',
+                self.admin_site.admin_view(self.document_sets_view),
+                name='vendors_vendor_document_sets',
+            ),
+        ]
+        return custom + urls
+
+    def document_sets_view(self, request):
+        """Restituisce i set documentali attivi (filtrati per la Classificazione
+        del fornitore, se nota) con i relativi tipi di documento. Usato dal
+        dropdown 'Set Documentale' nel tab Documenti."""
+        qs = DocumentSet.objects.filter(is_active=True).prefetch_related('document_types')
+
+        category_id = None
+        vendor_id = request.GET.get('vendor')
+        if vendor_id:
+            vendor = Vendor.objects.filter(pk=vendor_id).only('category').first()
+            if vendor:
+                category_id = vendor.category_id
+
+        # Con classificazione nota: set universali (category nullo) + set della classificazione.
+        # Senza classificazione (o in creazione): tutti i set attivi.
+        if category_id:
+            qs = qs.filter(Q(category__isnull=True) | Q(category_id=category_id))
+
+        sets = [
+            {
+                'id': s.pk,
+                'name': s.name,
+                'default_status': s.default_status,
+                'document_types': [
+                    {'id': dt.pk, 'text': str(dt)} for dt in s.document_types.all()
+                ],
+            }
+            for s in qs
+        ]
+        return JsonResponse({'sets': sets})
+
     class Media:
-        js = ('admin/js/vendor_form_guard.js',)
+        js = (
+            'admin/js/vendor_form_guard.js',
+            'admin/js/document_set_applier.js',
+        )
     
     fieldsets = (
         (_('Informazioni Base'), {
