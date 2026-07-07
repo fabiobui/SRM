@@ -1907,6 +1907,14 @@ class Vendor(models.Model):
         return self.vendor_documents.filter(
             expiry_date__lt=timezone.now().date()
         )
+
+    @property
+    def invalid_documents(self):
+        """Ritorna i documenti NON validi: non 'Approvato' (NOT VALID) oppure
+        scaduti. Complementare di valid_documents."""
+        return self.vendor_documents.filter(
+            ~models.Q(status='APPROVED') | models.Q(expiry_date__lt=timezone.now().date())
+        )
     
     @property
     def expiring_documents(self):
@@ -1939,10 +1947,12 @@ class Vendor(models.Model):
     
     @property
     def is_documentation_complete(self):
-        """Verifica se tutta la documentazione obbligatoria è presente e valida"""
+        """Verifica se tutta la documentazione obbligatoria è presente e valida.
+        Un documento obbligatorio è valido solo se 'Approvato' e non scaduto:
+        qualunque obbligatorio NOT VALID rende la documentazione incompleta."""
         missing = self.missing_mandatory_documents
-        expired = self.expired_documents.filter(document_type__is_required=True)
-        return not missing.exists() and not expired.exists()
+        invalid = self.invalid_documents.filter(document_type__is_required=True)
+        return not missing.exists() and not invalid.exists()
 
     # Alias di compatibilità: mantiene self.documents.filter(...)
     @property

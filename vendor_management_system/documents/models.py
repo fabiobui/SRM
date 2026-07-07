@@ -4,6 +4,14 @@ from django.db import models
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
+# Etichetta e colore per ogni codice di validity_status (usato dagli admin).
+VALIDITY_STATUS_META = {
+    'NOT_VALID':     ('NOT VALID', 'red'),
+    'EXPIRED':       ('EXPIRED', 'red'),
+    'EXPIRING_SOON': ('EXPIRING_SOON', 'orange'),
+    'VALID':         ('VALID', 'green'),
+}
+
 class DocumentType(models.Model):
     """Tipi di documenti da richiedere ai fornitori"""
     
@@ -262,7 +270,25 @@ class Document(models.Model):
         if not self.expiry_date:
             return False
         return self.expiry_date < timezone.now().date()
-    
+
+    @property
+    def is_valid(self):
+        """Documento valido solo se lo stato di lavorazione è 'Approvato'
+        e il documento non è scaduto. Qualunque altro stato è NOT VALID."""
+        return self.status == 'APPROVED' and not self.is_expired
+
+    @property
+    def validity_status(self):
+        """Stato di validità del documento (fonte unica per admin/inline):
+        NOT_VALID se non approvato, altrimenti in base alla scadenza."""
+        if self.status != 'APPROVED':
+            return 'NOT_VALID'
+        if self.is_expired:
+            return 'EXPIRED'
+        if self.is_expiring_soon:
+            return 'EXPIRING_SOON'
+        return 'VALID'
+
     def save(self, *args, **kwargs):
         if not self.id:
             self.id = str(uuid.uuid4()).replace("-", "")[:10].upper()

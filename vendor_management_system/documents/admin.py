@@ -1,7 +1,9 @@
 from django.contrib import admin
 from django.utils.translation import gettext_lazy as _
 from django.utils.html import format_html
-from vendor_management_system.documents.models import DocumentType, Document, DocumentSet
+from vendor_management_system.documents.models import (
+    DocumentType, Document, DocumentSet, VALIDITY_STATUS_META,
+)
 
 @admin.register(DocumentType)
 class DocumentTypeAdmin(admin.ModelAdmin):
@@ -37,8 +39,17 @@ class DocumentTypeAdmin(admin.ModelAdmin):
 
 @admin.register(Document)
 class DocumentAdmin(admin.ModelAdmin):
-    list_display = ['vendor', 'document_type', 'status', 'issue_date', 'expiry_date', 'uploaded_at']
+    list_display = ['vendor', 'document_type', 'status', 'validity_badge', 'issue_date', 'expiry_date', 'uploaded_at']
     list_filter = ['status', 'document_type', 'uploaded_at']
+
+    @admin.display(description=_('Stato validità'))
+    def validity_badge(self, obj):
+        """Stato di validità (NOT VALID se lo stato di lavorazione non è
+        'Approvato'), coerente col tab Documenti del fornitore."""
+        label, color = VALIDITY_STATUS_META.get(obj.validity_status, (obj.validity_status, 'gray'))
+        return format_html(
+            '<span style="color: {}; font-weight: bold;">{}</span>', color, label
+        )
     search_fields = ['vendor__name', 'document_type__name']
     ordering = ['-uploaded_at']
     readonly_fields = ['id', 'uploaded_at']

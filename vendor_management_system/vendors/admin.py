@@ -1,6 +1,7 @@
 # Aggiornamenti per vendor_management_system/vendors/admin.py
 
 # Imports (aggiorna le imports esistenti)
+from django import forms
 from django.contrib import admin
 from django.utils.translation import gettext_lazy as _
 from django.utils.html import format_html
@@ -17,7 +18,7 @@ from .models import (
     Country, Region, Province, CompetenceZone, CompetenceZoneRule
 )
 # Import Document and DocumentType from documents app
-from vendor_management_system.documents.models import Document, DocumentType, DocumentSet
+from vendor_management_system.documents.models import Document, DocumentType, DocumentSet, VALIDITY_STATUS_META
 
 
 # ============================================================================
@@ -346,8 +347,20 @@ class VendorCompetenceAdmin(admin.ModelAdmin):
 
 
 # Document Inline
+class DocumentInlineForm(forms.ModelForm):
+    """Form dell'inline Documenti: rinomina la label dello stato di lavorazione."""
+
+    class Meta:
+        model = Document
+        fields = '__all__'
+        labels = {
+            'status': _('Stato lavorazione'),
+        }
+
+
 class DocumentInline(admin.TabularInline):
     model = Document
+    form = DocumentInlineForm
     extra = 1
     fields = ['document_type', 'status', 'issue_date', 'expiry_date', 'expiry_status_display', 'file', 'file_link']
     readonly_fields = ['expiry_status_display', 'file_link', 'uploaded_at']
@@ -365,23 +378,16 @@ class DocumentInline(admin.TabularInline):
     file_link.short_description = _('File Caricato')
 
     def expiry_status_display(self, obj):
-        if obj.pk:
-            if obj.is_expired:
-                status = 'EXPIRED'
-                color = 'red'
-            elif obj.is_expiring_soon:
-                status = 'EXPIRING_SOON'
-                color = 'orange'
-            else:
-                status = 'VALID'
-                color = 'green'
-            return format_html(
-                '<span style="color: {}; font-weight: bold;">{}</span>',
-                color,
-                status
-            )
-        return '-'
-    expiry_status_display.short_description = _('Stato Scadenza')
+        if not obj or not obj.pk:
+            return '-'
+        # Fonte unica: Document.validity_status (NOT VALID se non 'Approvato').
+        label, color = VALIDITY_STATUS_META.get(obj.validity_status, (obj.validity_status, 'gray'))
+        return format_html(
+            '<span class="doc-validity-status" style="color: {}; font-weight: bold;">{}</span>',
+            color,
+            label
+        )
+    expiry_status_display.short_description = _('Stato validità')
 
 
 # Address Admin
@@ -588,8 +594,29 @@ class VendorAdmin(admin.ModelAdmin):
                 self.admin_site.admin_view(self.document_sets_view),
                 name='vendors_vendor_document_sets',
             ),
+            path(
+                'document-type-validity/',
+                self.admin_site.admin_view(self.document_type_validity_view),
+                name='vendors_vendor_document_type_validity',
+            ),
         ]
         return custom + urls
+
+    def document_type_validity_view(self, request):
+        """Restituisce, per ogni tipo di documento attivo, la durata di validità
+        in giorni (validity_period_days). Usato dal JS che calcola in automatico
+        la Data di Scadenza a partire dalla Data di Emissione nel tab Documenti."""
+        types = {
+            dt.pk: {
+                'days': dt.validity_period_days,
+                'requires_renewal': dt.requires_renewal,
+                'reminder': dt.reminder_days_before,
+            }
+            for dt in DocumentType.objects.filter(is_active=True).only(
+                'pk', 'validity_period_days', 'requires_renewal', 'reminder_days_before'
+            )
+        }
+        return JsonResponse({'types': types})
 
     def document_sets_view(self, request):
         """Restituisce i set documentali attivi (filtrati per la Classificazione
@@ -626,6 +653,8 @@ class VendorAdmin(admin.ModelAdmin):
         js = (
             'admin/js/vendor_form_guard.js',
             'admin/js/document_set_applier.js',
+            'admin/js/document_expiry_calc.js',
+            'admin/js/document_validity_status.js',
         )
     
     fieldsets = (
