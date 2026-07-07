@@ -9,6 +9,7 @@ Convenzioni:
 
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
+from django.db.models import Q
 from django.http import HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
@@ -26,8 +27,10 @@ from vendor_management_system.core.permissions import (
     VendorRequiredMixin,
 )
 from vendor_management_system.documents.models import Document
+from vendor_management_system.vendors.models import VendorCompetence
 
 from .forms import (
+    CompetenceDocumentUploadForm,
     DocumentUploadForm,
     VendorChangeReviewForm,
     VendorProfileChangeForm,
@@ -77,10 +80,18 @@ class PortalDashboardView(VendorRequiredMixin, TemplateView):
             vendor=vendor, status=VendorChangeRequest.STATUS_PENDING
         ).count()
 
+        # Requisiti professionali assegnati senza documento caricato.
+        requirements = _vendor_competences_qs(vendor)
+        requirements_to_upload_count = requirements.filter(
+            Q(document_file="") | Q(document_file__isnull=True)
+        ).count()
+
         ctx.update(
             {
                 "vendor": vendor,
                 "to_upload_count": to_upload_count,
+                "requirements_to_upload_count": requirements_to_upload_count,
+                "total_requirements": requirements.count(),
                 "expiring_count": expiring_count,
                 "expired_count": expired_count,
                 "pending_review_count": pending_review_count,
@@ -188,6 +199,114 @@ class MyDocumentDetailView(VendorRequiredMixin, DetailView):
 
     def get_queryset(self):
         return _vendor_documents_qs(self.request.user.vendor)
+
+
+# --- requisiti professionali ------------------------------------------------
+
+def _vendor_competences_qs(vendor):
+    """Queryset dei requisiti professionali assegnati al vendor.
+
+    Le `VendorCompetence` sono pre-create dal back-office tramite il
+    `VendorCompetenceInline` di VendorAdmin. Il fornitore non sceglie i
+    requisiti: carica solo il file (`document_file`) sui record già esistenti
+    per il proprio vendor.
+    """
+    return VendorCompetence.objects.filter(vendor=vendor).select_related("competence")
+
+
+class MyRequirementsView(VendorRequiredMixin, ListView):
+    """Lista dei requisiti professionali assegnati al proprio fornitore.
+
+    Mostra tutti i `VendorCompetence` collegati al vendor; il template mette in
+    cima quelli senza file (= "da caricare"). Niente creazione di nuovi
+    requisiti: il fornitore lavora solo su quelli già assegnati dal back-office
+    (`VendorCompetenceInline` in VendorAdmin).
+    """
+
+    template_name = "portal/requirements/list.html"
+    context_object_name = "requirements"
+
+    def get_queryset(self):
+        return _vendor_competences_qs(self.request.user.vendor).order_by(
+            "competence__name"
+        )
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        vendor = self.request.user.vendor
+        requirements = list(self.get_queryset())
+
+        pending = [r for r in requirements if not r.document_file]
+        submitted = [r for r in requirements if r.document_file]
+        expiring = [
+            r
+            for r in submitted
+            if r.expiry_status in ("EXPIRING_SOON", "EXPIRING")
+        ]
+
+        ctx.update(
+            {
+                "vendor": vendor,
+                "pending_reqs": pending,
+                "submitted_reqs": submitted,
+                "expiring_reqs": expiring,
+            }
+        )
+        return ctx
+
+
+class MyRequirementUploadView(VendorRequiredMixin, View):
+    """POST upload/aggiornamento del documento di un requisito già assegnato.
+
+    L'URL contiene `pk` della VendorCompetence. La view filtra su
+    `vendor=request.user.vendor` per evitare IDOR: un fornitore non può caricare
+    file su requisiti di altri fornitori cambiando l'ID nell'URL.
+
+    Caricando un nuovo file la verifica precedente viene resettata
+    (`verified=False`), perché il documento va rivalutato dal back-office.
+    """
+
+    http_method_names = ["post"]
+
+    def post(self, request, pk, *args, **kwargs):
+        requirement = get_object_or_404(
+            VendorCompetence, pk=pk, vendor=request.user.vendor
+        )
+        form = CompetenceDocumentUploadForm(
+            request.POST, request.FILES, instance=requirement
+        )
+        if not form.is_valid():
+            for field, errs in form.errors.items():
+                for err in errs:
+                    messages.error(request, f"{field}: {err}")
+            return redirect("portal:my-requirement-detail", pk=requirement.pk)
+
+        requirement = form.save(commit=False)
+        # Un nuovo file va rivalutato dal back-office: reset della verifica.
+        requirement.verified = False
+        requirement.verified_by = None
+        requirement.verified_date = None
+        requirement.save()
+
+        messages.success(
+            request,
+            f"Documento del requisito '{requirement.competence.name}' "
+            "caricato correttamente.",
+        )
+        return redirect("portal:my-requirement-detail", pk=requirement.pk)
+
+
+class MyRequirementDetailView(VendorRequiredMixin, DetailView):
+    """Dettaglio di un singolo requisito professionale del proprio vendor.
+
+    Filtro queryset su `vendor=request.user.vendor` per evitare IDOR.
+    """
+
+    template_name = "portal/requirements/detail.html"
+    context_object_name = "requirement"
+
+    def get_queryset(self):
+        return _vendor_competences_qs(self.request.user.vendor)
 
 
 # --- anagrafica & qualifica (Fase 2) ---------------------------------------

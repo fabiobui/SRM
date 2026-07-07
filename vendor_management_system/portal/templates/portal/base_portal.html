@@ -46,6 +46,12 @@
                     </a>
                 </li>
                 <li class="nav-item">
+                    <a class="nav-link {% if 'requirement' in request.resolver_match.url_name %}active{% endif %}"
+                       href="{% url 'portal:my-requirements' %}">
+                        <i class="fas fa-user-graduate"></i> I miei requisiti
+                    </a>
+                </li>
+                <li class="nav-item">
                     <a class="nav-link {% if 'profile' in request.resolver_match.url_name or 'change-requests' in request.resolver_match.url_name %}active{% endif %}"
                        href="{% url 'portal:my-profile' %}">
                         <i class="fas fa-id-card"></i> Anagrafica

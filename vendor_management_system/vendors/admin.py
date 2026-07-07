@@ -199,10 +199,21 @@ class CompetenceAdmin(ImportExportModelAdmin):
 class VendorCompetenceInline(admin.TabularInline):
     model = VendorCompetence
     extra = 1
-    fields = ['competence', 'is_competenza', 'is_qualifica', 'is_iscrizione_albo', 'has_certification', 'certification_number', 'issue_date', 'expiry_date', 'verified', 'expiry_status_display']
-    readonly_fields = ['expiry_status_display', 'created_at', 'updated_at']
+    fields = ['competence', 'is_competenza', 'is_qualifica', 'is_iscrizione_albo', 'has_certification', 'certification_number', 'issue_date', 'expiry_date', 'verified', 'expiry_status_display', 'document_file', 'document_link']
+    readonly_fields = ['expiry_status_display', 'document_link', 'created_at', 'updated_at']
     autocomplete_fields = ['competence']
-    
+
+    def document_link(self, obj):
+        """Link per visualizzare/scaricare il file caricato dal fornitore."""
+        if obj and obj.pk and obj.document_file:
+            return format_html(
+                '<a href="{}" target="_blank" rel="noopener">{}</a>',
+                obj.document_file.url,
+                _('Visualizza')
+            )
+        return _('Nessun file')
+    document_link.short_description = _('File Caricato')
+
     def expiry_status_display(self, obj):
         if obj.pk:
             status = obj.expiry_status
@@ -338,10 +349,21 @@ class VendorCompetenceAdmin(admin.ModelAdmin):
 class DocumentInline(admin.TabularInline):
     model = Document
     extra = 1
-    fields = ['document_type', 'status', 'issue_date', 'expiry_date', 'expiry_status_display']
-    readonly_fields = ['expiry_status_display', 'uploaded_at']
+    fields = ['document_type', 'status', 'issue_date', 'expiry_date', 'expiry_status_display', 'file', 'file_link']
+    readonly_fields = ['expiry_status_display', 'file_link', 'uploaded_at']
     autocomplete_fields = ['document_type']
-    
+
+    def file_link(self, obj):
+        """Link per visualizzare/scaricare il file caricato dal fornitore."""
+        if obj and obj.pk and obj.file:
+            return format_html(
+                '<a href="{}" target="_blank" rel="noopener">{}</a>',
+                obj.file.url,
+                _('Visualizza')
+            )
+        return _('Nessun file')
+    file_link.short_description = _('File Caricato')
+
     def expiry_status_display(self, obj):
         if obj.pk:
             if obj.is_expired:
@@ -618,17 +640,7 @@ class VendorAdmin(admin.ModelAdmin):
         (_('Contatti'), {
             'fields': ('email', 'phone', 'reference_contact', 'website', 'address', 'contact_details')
         }),
-        (_('Servizi Medici'), {
-            'fields': (
-                'vendor_medical_service', 'mobile_device', 'ambulatory_service',
-                'laboratory_service', 'laboratory_independent',
-                'licensed_physician_year', 'date_of_establishment',
-                'other_medical_service', 'doctor_registration',
-                'doctor_cv', 'doctor_cv2'
-            ),
-            'classes': ('collapse',)
-        }),
-# remove this section if not needed      
+# remove this section if not needed
 #        (_('Performance'), {
 #            'fields': (
 #                'on_time_delivery_rate', 'quality_rating_avg',

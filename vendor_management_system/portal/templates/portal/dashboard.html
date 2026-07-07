@@ -84,7 +84,7 @@
 </div>
 
 <div class="row g-3">
-    <div class="col-md-6">
+    <div class="col-md-4">
         <div class="card h-100">
             <div class="card-body">
                 <h5 class="card-title"><i class="fas fa-file-alt"></i> Documenti</h5>
@@ -93,7 +93,21 @@
             </div>
         </div>
     </div>
-    <div class="col-md-6">
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title"><i class="fas fa-user-graduate"></i> Requisiti</h5>
+                <p class="text-muted">
+                    Carica il documento/attestato per ogni requisito professionale assegnato.
+                    {% if requirements_to_upload_count %}
+                        <span class="badge bg-danger">{{ requirements_to_upload_count }} da caricare</span>
+                    {% endif %}
+                </p>
+                <a href="{% url 'portal:my-requirements' %}" class="btn btn-outline-success">Gestisci requisiti</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
         <div class="card h-100">
             <div class="card-body">
                 <h5 class="card-title"><i class="fas fa-id-card"></i> Anagrafica</h5>

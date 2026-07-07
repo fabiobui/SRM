@@ -1,0 +1,156 @@
+{% extends "portal/base_portal.html" %}
+
+{% block title %}{{ requirement.competence.name }} — Portale Fornitore{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'portal:dashboard' %}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'portal:my-requirements' %}">I miei requisiti</a></li>
+        <li class="breadcrumb-item active">{{ requirement.competence.name }}</li>
+    </ol>
+</nav>
+
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">{{ requirement.competence.name }}</h5>
+        {% if not requirement.document_file %}
+            <span class="badge badge-status-PENDING fs-6">Documento da caricare</span>
+        {% elif requirement.verified %}
+            <span class="badge badge-status-APPROVED fs-6">Verificato</span>
+        {% else %}
+            <span class="badge badge-status-UPLOADED fs-6">Caricato - in verifica</span>
+        {% endif %}
+    </div>
+    <div class="card-body">
+        <dl class="row mb-0">
+            {% if requirement.competence.code %}
+            <dt class="col-sm-3">Codice</dt>
+            <dd class="col-sm-9">{{ requirement.competence.code }}</dd>
+            {% endif %}
+
+            {% if requirement.competence.description %}
+            <dt class="col-sm-3">Descrizione</dt>
+            <dd class="col-sm-9">{{ requirement.competence.description }}</dd>
+            {% endif %}
+
+            <dt class="col-sm-3">Tipo</dt>
+            <dd class="col-sm-9">
+                {% if requirement.is_competenza %}<span class="badge bg-secondary">Competenza</span>{% endif %}
+                {% if requirement.is_qualifica %}<span class="badge bg-secondary">Qualifica</span>{% endif %}
+                {% if requirement.is_iscrizione_albo %}<span class="badge bg-secondary">Iscrizione Albo</span>{% endif %}
+                {% if not requirement.is_competenza and not requirement.is_qualifica and not requirement.is_iscrizione_albo %}—{% endif %}
+            </dd>
+
+            <dt class="col-sm-3">Numero certificazione</dt>
+            <dd class="col-sm-9">{{ requirement.certification_number|default:"—" }}</dd>
+
+            <dt class="col-sm-3">Data rilascio</dt>
+            <dd class="col-sm-9">{{ requirement.issue_date|date:"d/m/Y"|default:"—" }}</dd>
+
+            <dt class="col-sm-3">Data scadenza</dt>
+            <dd class="col-sm-9">
+                {% if requirement.expiry_date %}
+                    {{ requirement.expiry_date|date:"d/m/Y" }}
+                    {% if requirement.is_expired %}
+                        <span class="badge bg-danger ms-2">Scaduto</span>
+                    {% elif requirement.expiry_status == 'EXPIRING_SOON' or requirement.expiry_status == 'EXPIRING' %}
+                        <span class="badge bg-warning text-dark ms-2">In scadenza</span>
+                    {% endif %}
+                {% else %}—{% endif %}
+            </dd>
+
+            {% if requirement.verified %}
+            <dt class="col-sm-3">Verifica</dt>
+            <dd class="col-sm-9">
+                <span class="text-success"><i class="fas fa-check-circle"></i> Verificato</span>
+                {% if requirement.verified_date %} il {{ requirement.verified_date|date:"d/m/Y" }}{% endif %}
+                {% if requirement.verified_by %} da {{ requirement.verified_by }}{% endif %}
+            </dd>
+            {% endif %}
+
+            {% if requirement.notes %}
+            <dt class="col-sm-3">Note</dt>
+            <dd class="col-sm-9">
+                <div class="alert alert-light mb-0">{{ requirement.notes|linebreaksbr }}</div>
+            </dd>
+            {% endif %}
+
+            <dt class="col-sm-3">File</dt>
+            <dd class="col-sm-9">
+                {% if requirement.document_file %}
+                    <a href="{{ requirement.document_file.url }}" class="btn btn-sm btn-outline-primary" target="_blank">
+                        <i class="fas fa-download"></i> Scarica
+                    </a>
+                {% else %}<span class="text-muted">Nessun file caricato</span>{% endif %}
+            </dd>
+        </dl>
+    </div>
+    <div class="card-footer">
+        <button type="button" class="btn btn-success"
+                data-bs-toggle="modal" data-bs-target="#uploadModal">
+            {% if requirement.document_file %}
+                <i class="fas fa-sync"></i> Aggiorna file
+            {% else %}
+                <i class="fas fa-upload"></i> Carica file
+            {% endif %}
+        </button>
+        <a href="{% url 'portal:my-requirements' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Torna ai requisiti
+        </a>
+    </div>
+</div>
+
+<!-- Modal Upload — action usa il pk della VendorCompetence corrente -->
+<div class="modal fade" id="uploadModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <form method="post" action="{% url 'portal:my-requirement-upload' pk=requirement.pk %}" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        {% if requirement.document_file %}
+                            <i class="fas fa-sync"></i> Aggiorna {{ requirement.competence.name }}
+                        {% else %}
+                            <i class="fas fa-upload"></i> Carica {{ requirement.competence.name }}
+                        {% endif %}
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">File <span class="text-danger">*</span></label>
+                        <input type="file" name="document_file" class="form-control" required>
+                        <div class="form-text">Max 20 MB.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Numero certificazione</label>
+                        <input type="text" name="certification_number" class="form-control"
+                               value="{{ requirement.certification_number|default:'' }}">
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Data rilascio</label>
+                            <input type="date" name="issue_date" class="form-control"
+                                   value="{{ requirement.issue_date|date:'Y-m-d' }}">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Data scadenza</label>
+                            <input type="date" name="expiry_date" class="form-control"
+                                   value="{{ requirement.expiry_date|date:'Y-m-d' }}">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Note</label>
+                        <textarea name="notes" rows="3" class="form-control">{{ requirement.notes|default:'' }}</textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                    <button type="submit" class="btn btn-success"><i class="fas fa-upload"></i> Carica</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

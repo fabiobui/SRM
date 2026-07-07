@@ -22,6 +22,15 @@ urlpatterns = [
     path("documenti/<str:pk>/", views.MyDocumentDetailView.as_view(), name="my-document-detail"),
     path("documenti/<str:pk>/upload/", views.MyDocumentUploadView.as_view(), name="my-document-upload"),
 
+    # I miei requisiti professionali — le VendorCompetence sono pre-create dal BO
+    # (vedi VendorCompetenceInline in vendors/admin.py); il fornitore carica il
+    # file sul singolo requisito identificato dal pk (UUID) in URL.
+    path("requisiti/", views.MyRequirementsView.as_view(), name="my-requirements"),
+    path("requisiti/<uuid:pk>/", views.MyRequirementDetailView.as_view(),
+         name="my-requirement-detail"),
+    path("requisiti/<uuid:pk>/upload/", views.MyRequirementUploadView.as_view(),
+         name="my-requirement-upload"),
+
     # Anagrafica
     path("anagrafica/", views.MyVendorProfileView.as_view(), name="my-profile"),
     path("anagrafica/modifica/", views.VendorChangeRequestCreateView.as_view(),

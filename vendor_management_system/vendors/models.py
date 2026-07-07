@@ -489,6 +489,7 @@ class Competence(models.Model):
             ('TECHNICAL', _('Tecnico')),
             ('ENERGY', _('Energia')),
             ('ENVIRONMENT', _('Ambiente')),
+            ('DOCTOR', _('Medico/Infermieristico')),
             ('AUDIT', _('Audit/Certificazioni')),
             ('OTHER', _('Altro')),
         ],

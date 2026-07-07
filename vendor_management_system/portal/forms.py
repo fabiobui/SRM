@@ -11,7 +11,7 @@ from django import forms
 from django.utils.translation import gettext_lazy as _
 
 from vendor_management_system.documents.models import Document
-from vendor_management_system.vendors.models import Vendor
+from vendor_management_system.vendors.models import Vendor, VendorCompetence
 
 
 # Whitelist server-side: solo questi campi sono modificabili dal fornitore via
@@ -60,6 +60,52 @@ class DocumentUploadForm(forms.ModelForm):
 
     def clean_file(self):
         f = self.cleaned_data.get("file")
+        if not f:
+            raise forms.ValidationError(_("Devi caricare un file."))
+        max_size = 20 * 1024 * 1024  # 20 MB
+        if f.size > max_size:
+            raise forms.ValidationError(_("File troppo grande (max 20 MB)."))
+        return f
+
+
+class CompetenceDocumentUploadForm(forms.ModelForm):
+    """Form upload del documento/attestato di un requisito professionale assegnato.
+
+    La `VendorCompetence` è già stata creata dal BO (con `competence` definita).
+    Il fornitore carica solo il file (`document_file`) e, opzionalmente, aggiorna
+    numero certificazione, date e note. La view identifica il record dal `pk` in
+    URL e applica `vendor=request.user.vendor` come filtro per evitare IDOR.
+    """
+
+    class Meta:
+        model = VendorCompetence
+        fields = (
+            "document_file",
+            "certification_number",
+            "issue_date",
+            "expiry_date",
+            "notes",
+        )
+        widgets = {
+            "document_file": forms.ClearableFileInput(attrs={"class": "form-control"}),
+            "certification_number": forms.TextInput(attrs={"class": "form-control"}),
+            "issue_date": forms.DateInput(
+                attrs={"class": "form-control", "type": "date"}
+            ),
+            "expiry_date": forms.DateInput(
+                attrs={"class": "form-control", "type": "date"}
+            ),
+            "notes": forms.Textarea(
+                attrs={"class": "form-control", "rows": 3, "placeholder": "Note opzionali"}
+            ),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["document_file"].required = True
+
+    def clean_document_file(self):
+        f = self.cleaned_data.get("document_file")
         if not f:
             raise forms.ValidationError(_("Devi caricare un file."))
         max_size = 20 * 1024 * 1024  # 20 MB
