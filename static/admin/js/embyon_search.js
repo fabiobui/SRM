@@ -249,12 +249,27 @@
             credentials: 'same-origin',
             headers: { 'X-Requested-With': 'XMLHttpRequest' }
         })
-            .then(function (r) { return r.json().catch(function () { return {}; }); })
-            .then(function (data) {
-                if (data && data.error) {
-                    setMessage(data.error);
+            .then(function (r) {
+                return r.text().then(function (t) {
+                    var data = null;
+                    try { data = JSON.parse(t); } catch (e) { /* non-JSON */ }
+                    return { ok: r.ok, status: r.status, data: data };
+                });
+            })
+            .then(function (res) {
+                // Errore server senza corpo JSON (es. 500/404 HTML).
+                if (!res.data) {
+                    setMessage(gettextSafe('Errore server') + ' (HTTP ' + res.status + ')');
+                    clearResults();
+                    return;
                 }
-                renderResults((data && data.results) || []);
+                // Errore applicativo restituito dalla view (mostra il messaggio reale).
+                if (res.data.error) {
+                    setMessage(res.data.error);
+                    clearResults();
+                    return;
+                }
+                renderResults(res.data.results || []);
             })
             .catch(function () {
                 setMessage(gettextSafe('Errore durante la ricerca.'));
