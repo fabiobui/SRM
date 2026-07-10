@@ -262,7 +262,13 @@
     }
 
     function buildEndpoint() {
-        // Path della change/add form: .../vendors/vendor/<pk>/change/ oppure .../vendors/vendor/add/
+        // URL generato lato server (via reverse), che include l'eventuale prefisso
+        // di deployment (FORCE_SCRIPT_NAME, es. /fornitori in produzione).
+        if (window.EMBYON_SEARCH_URL) {
+            return window.EMBYON_SEARCH_URL;
+        }
+        // Fallback: ricava il path dalla change/add form corrente
+        // (.../vendors/vendor/<pk>/change/ oppure .../vendors/vendor/add/).
         var m = window.location.pathname.match(/^(.*\/vendors\/vendor\/)/);
         if (!m) return null;
         return m[1] + 'embyon-search/';

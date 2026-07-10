@@ -35,6 +35,10 @@
   {{ block.super }}
   <script type="text/javascript" src="{% url 'admin:jsi18n' %}"></script>
   {{ media }}
+  {% if opts.app_label == 'vendors' and opts.model_name == 'vendor' %}
+    {# URL della ricerca Embyon generato lato server: rispetta FORCE_SCRIPT_NAME (es. /fornitori in produzione) #}
+    <script type="text/javascript">window.EMBYON_SEARCH_URL = "{% url 'admin:vendors_vendor_embyon_search' %}";</script>
+  {% endif %}
 {% endblock %}
 
 {% block coltype %}colM{% endblock %}
