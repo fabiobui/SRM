@@ -753,6 +753,63 @@ class VendorCompetence(models.Model):
         return 'VALID'
 
 
+class CompetenceSet(models.Model):
+    """Set di requisiti professionali: insieme predefinito di requisiti da
+    assegnare in blocco a un fornitore dal tab Requisiti Professionali
+    dell'admin."""
+
+    name = models.CharField(
+        _("Nome Set"),
+        max_length=255,
+        help_text=_("Nome del set di requisiti (es. 'MDL - Medico Competente')")
+    )
+
+    description = models.TextField(
+        _("Descrizione"),
+        blank=True,
+        null=True,
+        help_text=_("Descrizione del set di requisiti professionali")
+    )
+
+    category = models.ForeignKey(
+        Category,
+        verbose_name=_("Classificazione"),
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="competence_sets",
+        help_text=_("Classificazione del fornitore a cui si applica il set "
+                    "(vuoto = applicabile a tutte le classificazioni)")
+    )
+
+    competences = models.ManyToManyField(
+        Competence,
+        verbose_name=_("Requisiti Professionali"),
+        related_name="competence_sets",
+        help_text=_("Requisiti professionali inclusi nel set")
+    )
+
+    is_active = models.BooleanField(
+        _("Attivo"),
+        default=True,
+        help_text=_("Set attivo e selezionabile")
+    )
+
+    sort_order = models.PositiveIntegerField(
+        _("Ordine"),
+        default=0,
+        help_text=_("Ordine di visualizzazione")
+    )
+
+    class Meta:
+        verbose_name = _("Set Requisiti Professionali")
+        verbose_name_plural = _("Set Requisiti Professionali")
+        ordering = ["sort_order", "name"]
+
+    def __str__(self):
+        return self.name
+
+
 # Model for Address
 class Address(models.Model):
     """
@@ -1138,6 +1195,62 @@ class VendorService(models.Model):
         if self.end_date:
             return self.end_date >= timezone.now().date()
         return True
+
+
+class ServiceSet(models.Model):
+    """Set di servizi: insieme predefinito di servizi da assegnare in blocco a
+    un fornitore dal tab Servizi dell'admin."""
+
+    name = models.CharField(
+        _("Nome Set"),
+        max_length=255,
+        help_text=_("Nome del set di servizi (es. 'MEDICINA DEL LAVORO')")
+    )
+
+    description = models.TextField(
+        _("Descrizione"),
+        blank=True,
+        null=True,
+        help_text=_("Descrizione del set di servizi")
+    )
+
+    category = models.ForeignKey(
+        Category,
+        verbose_name=_("Classificazione"),
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="service_sets",
+        help_text=_("Classificazione del fornitore a cui si applica il set "
+                    "(vuoto = applicabile a tutte le classificazioni)")
+    )
+
+    service_types = models.ManyToManyField(
+        ServiceType,
+        verbose_name=_("Servizi"),
+        related_name="service_sets",
+        help_text=_("Servizi inclusi nel set")
+    )
+
+    is_active = models.BooleanField(
+        _("Attivo"),
+        default=True,
+        help_text=_("Set attivo e selezionabile")
+    )
+
+    sort_order = models.PositiveIntegerField(
+        _("Ordine"),
+        default=0,
+        help_text=_("Ordine di visualizzazione")
+    )
+
+    class Meta:
+        verbose_name = _("Set Servizi")
+        verbose_name_plural = _("Set Servizi")
+        ordering = ["sort_order", "name"]
+
+    def __str__(self):
+        return self.name
 
 
 class Contract(models.Model):

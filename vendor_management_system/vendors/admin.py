@@ -15,7 +15,8 @@ from .models import (
     Category, Competence, VendorCompetence, VendorService,
     Address, QualificationType, ServiceType, EvaluationCriterion,
     EvaluationFrequency, VendorEvaluation, Vendor, Contract, Evaluator,
-    Country, Region, Province, CompetenceZone, CompetenceZoneRule
+    Country, Region, Province, CompetenceZone, CompetenceZoneRule,
+    CompetenceSet, ServiceSet
 )
 # Import Document and DocumentType from documents app
 from vendor_management_system.documents.models import Document, DocumentType, DocumentSet, VALIDITY_STATUS_META
@@ -560,6 +561,77 @@ class ContractAdmin(admin.ModelAdmin):
     )
 
 
+# ============================================================================
+# Set predefiniti (Requisiti Professionali / Servizi)
+# ============================================================================
+
+def category_scope_ids(category):
+    """Id della classificazione indicata e di tutti i suoi antenati.
+
+    Serve a far comparire su un fornitore anche i set definiti su una
+    classificazione padre: un set legato a 'MDL' (104) resta valido per un
+    fornitore classificato 'MEDICO COMPETENTE' (104103).
+    """
+    ids, seen = [], set()
+    while category and category.pk not in seen:
+        seen.add(category.pk)
+        ids.append(category.pk)
+        category = category.parent
+    return ids
+
+
+@admin.register(CompetenceSet)
+class CompetenceSetAdmin(admin.ModelAdmin):
+    list_display = ['name', 'category', 'competences_count', 'is_active', 'sort_order']
+    list_filter = ['is_active', 'category']
+    search_fields = ['name', 'description']
+    list_editable = ['is_active', 'sort_order']
+    filter_horizontal = ['competences']
+    ordering = ['sort_order', 'name']
+
+    fieldsets = (
+        (_('Informazioni Base'), {
+            'fields': ('name', 'description', 'category')
+        }),
+        (_('Requisiti del set'), {
+            'fields': ('competences',)
+        }),
+        (_('Configurazione'), {
+            'fields': ('is_active', 'sort_order')
+        }),
+    )
+
+    def competences_count(self, obj):
+        return obj.competences.count()
+    competences_count.short_description = _('N. Requisiti')
+
+
+@admin.register(ServiceSet)
+class ServiceSetAdmin(admin.ModelAdmin):
+    list_display = ['name', 'category', 'service_types_count', 'is_active', 'sort_order']
+    list_filter = ['is_active', 'category']
+    search_fields = ['name', 'description']
+    list_editable = ['is_active', 'sort_order']
+    filter_horizontal = ['service_types']
+    ordering = ['sort_order', 'name']
+
+    fieldsets = (
+        (_('Informazioni Base'), {
+            'fields': ('name', 'description', 'category')
+        }),
+        (_('Servizi del set'), {
+            'fields': ('service_types',)
+        }),
+        (_('Configurazione'), {
+            'fields': ('is_active', 'sort_order')
+        }),
+    )
+
+    def service_types_count(self, obj):
+        return obj.service_types.count()
+    service_types_count.short_description = _('N. Servizi')
+
+
 # Vendor Admin (Enhanced)
 @admin.register(Vendor)
 class VendorAdmin(admin.ModelAdmin):
@@ -593,6 +665,16 @@ class VendorAdmin(admin.ModelAdmin):
                 'document-sets/',
                 self.admin_site.admin_view(self.document_sets_view),
                 name='vendors_vendor_document_sets',
+            ),
+            path(
+                'competence-sets/',
+                self.admin_site.admin_view(self.competence_sets_view),
+                name='vendors_vendor_competence_sets',
+            ),
+            path(
+                'service-sets/',
+                self.admin_site.admin_view(self.service_sets_view),
+                name='vendors_vendor_service_sets',
             ),
             path(
                 'document-type-validity/',
@@ -747,10 +829,74 @@ class VendorAdmin(admin.ModelAdmin):
         ]
         return JsonResponse({'sets': sets})
 
+    def _vendor_category_scope(self, request):
+        """Classificazione del fornitore in URL, con i suoi antenati. Restituisce
+        None quando il fornitore non è noto (form di creazione) o è privo di
+        classificazione: in quel caso vanno mostrati tutti i set attivi."""
+        vendor_id = request.GET.get('vendor')
+        if not vendor_id:
+            return None
+        vendor = Vendor.objects.filter(pk=vendor_id).select_related('category').first()
+        if not vendor or not vendor.category:
+            return None
+        return category_scope_ids(vendor.category)
+
+    def competence_sets_view(self, request):
+        """Restituisce i set di requisiti professionali attivi (filtrati per la
+        Classificazione del fornitore, se nota) con i relativi requisiti. Usato
+        dal dropdown 'Set Requisiti' nel tab Requisiti Professionali."""
+        qs = CompetenceSet.objects.filter(is_active=True).prefetch_related('competences')
+
+        scope = self._vendor_category_scope(request)
+        if scope:
+            qs = qs.filter(Q(category__isnull=True) | Q(category_id__in=scope))
+
+        sets = [
+            {
+                'id': s.pk,
+                'name': s.name,
+                'items': [
+                    {'id': str(c.pk), 'text': str(c)}
+                    for c in s.competences.filter(is_active=True)
+                ],
+            }
+            for s in qs
+        ]
+        return JsonResponse({'sets': sets})
+
+    def service_sets_view(self, request):
+        """Restituisce i set di servizi attivi (filtrati per la Classificazione
+        del fornitore, se nota) con i relativi servizi. Usato dal dropdown
+        'Set Servizi' nel tab Servizi.
+
+        Le categorie di servizio (ServiceType senza parent) sono escluse: come
+        nell'inline Servizi si assegnano solo i servizi specifici."""
+        qs = ServiceSet.objects.filter(is_active=True).prefetch_related('service_types')
+
+        scope = self._vendor_category_scope(request)
+        if scope:
+            qs = qs.filter(Q(category__isnull=True) | Q(category_id__in=scope))
+
+        sets = [
+            {
+                'id': s.pk,
+                'name': s.name,
+                'items': [
+                    {'id': str(st.pk), 'text': str(st)}
+                    for st in s.service_types.filter(is_active=True, parent__isnull=False)
+                ],
+            }
+            for s in qs
+        ]
+        return JsonResponse({'sets': sets})
+
     class Media:
         js = (
             'admin/js/vendor_form_guard.js',
+            'admin/js/set_applier_base.js',
             'admin/js/document_set_applier.js',
+            'admin/js/competence_set_applier.js',
+            'admin/js/service_set_applier.js',
             'admin/js/document_expiry_calc.js',
             'admin/js/document_validity_status.js',
             'admin/js/embyon_search.js',
