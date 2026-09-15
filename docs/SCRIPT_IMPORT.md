@@ -1,0 +1,547 @@
+# Script di import e manutenzione dati
+
+Raccolta di tutti gli script da riga di comando del progetto SRM: cosa fanno, che
+file leggono, quali opzioni accettano e in che ordine vanno lanciati.
+
+Tutti gli script configurano Django da soli (`django.setup()` con
+`config.settings`): si lanciano come normali script Python, **non** servono
+`manage.py` né `manage.py shell`, con l'unica eccezione di `import_geography.py`.
+
+---
+
+## Prima di iniziare
+
+### Ambiente
+
+```bash
+cd /percorso/SRM
+.venv/bin/python vendor_management_system/import_vendors.py --dry-run
+```
+
+Dipendenze richieste dagli script Excel: `pandas`, `openpyxl>=3.1.5`, `termcolor`
+(tutte in `requirements.txt`). Con `openpyxl` più vecchio di 3.1.5 pandas 3.x si
+rifiuta di aprire gli `.xlsx`:
+
+```
+ImportError: Pandas requires version '3.1.5' or newer of 'openpyxl'
+```
+
+### Su quale database scrivono
+
+Gli script scrivono sul DB configurato in `.env` (`DB_NAME`, `DB_HOST`, ...).
+**Controlla sempre di puntare al database giusto prima di un'esecuzione reale**:
+non c'è nessuna conferma interattiva, a parte in `delete_vendors.py`.
+
+### Dry run
+
+Quasi tutti accettano `--dry-run`: eseguono l'intera elaborazione dentro una
+transazione e poi fanno rollback, stampando esattamente quello che avrebbero
+fatto. È il modo corretto di provare un file nuovo.
+
+### Dove vengono cercati i file
+
+Gli script di import risolvono un percorso relativo in quest'ordine:
+
+1. percorso assoluto, se lo è
+2. cartella corrente (da dove lanci il comando)
+3. `vendor_management_system/`
+4. root del progetto
+
+I file `.xlsx` **non sono versionati**: vanno passati con `-f /percorso/file.xlsx`.
+`sync_sets.py` fa eccezione: non legge file, copia i dati da un altro database.
+
+### Ordine consigliato
+
+Gli import di dettaglio agganciano il fornitore tramite il **Codice Embyon**
+(`old_code`), quindi vanno dopo l'anagrafica; le tabelle di lookup vanno prima di
+chi le referenzia.
+
+```
+import_geography.py  ──┐
+import_titoli.py       ├─→ import_vendors.py ─→ import_competenze.py
+import_documenttypes.py┘                        import_servizi.py
+                                                import_documenti.py
+                                                import_valutazioni.py
+                                                import_embyon_codes.py
+```
+
+---
+
+## Anagrafica fornitori
+
+### `import_vendors.py`
+
+Crea e aggiorna i fornitori (`Vendor`) con il relativo indirizzo (`Address`).
+
+```bash
+.venv/bin/python vendor_management_system/import_vendors.py -f Import.xlsx --dry-run
+.venv/bin/python vendor_management_system/import_vendors.py -f Import.xlsx
+```
+
+| Opzione | Default | Significato |
+|---|---|---|
+| `-f`, `--file` | `Import.xlsx` | file `.xlsx` o `.csv` |
+| `-s`, `--sheet` | `0` | indice o nome del foglio |
+| `--dry-run` | off | esegue e annulla tutto |
+
+**Chiave**: la colonna `old_code`. Lo script fa `update_or_create(old_code=...)`,
+quindi le righe senza `old_code` vengono saltate e quelle già presenti vengono
+**sovrascritte** — una colonna vuota nel file svuota il campo a database.
+
+**Riga excel Albo Fornitore.** Ogni fornitore importato porta con sé il numero di
+riga del foglio da cui arriva, nel campo `albo_excel_row` (etichetta *Riga excel
+Albo Fornitore*, visibile nel tab "Informazioni Base" dell'Admin Fornitore). Serve
+a ritrovare l'originale nell'Albo anche dopo che `old_code` è stato sostituito dal
+codice Embyon. Il numero è quello vero del foglio Excel — intestazione riga 1,
+primo fornitore riga 2 — oppure, se il file porta già una colonna `albo_excel_row`
+o `riga`, il valore di quella colonna. Il campo richiede la migrazione
+`vendors.0036`; senza, l'import si ferma con
+`Unknown column 'vendors_vendor.albo_excel_row' in 'field list'`.
+
+**Colonne attese** (nomi tecnici dei campi `Vendor`):
+
+```
+old_code, name, vat_number, email, phone, vendor_type, competences_zone,
+vendor_management_update, qualification_type, is_ico_consultant, albo_zucchetti,
+vendor_task_description, vendor_medical_service, mobile_device, ambulatory_service,
+laboratory_service, laboratory_independent, year_of_establishment,
+licensed_physician_year, other_medical_service, doctor_registration,
+doctor_cv, doctor_cv2, contractual_status, contractual_start_date,
+contractual_end_date, contractual_terms, reference_contact / reference_person,
+vendor_final_evaluation, review_notes,
+address.street_address, address.city, address.state_province,
+address.region, address.country
+```
+
+Note sulle colonne:
+
+- `reference_contact / reference_person` va scritta **esattamente così**, spazi compresi.
+- `year_of_establishment` finisce in `date_of_establishment`.
+- I booleani accettano `SI`, `YES`, `TRUE`, `1`, `X`, `Y`.
+- I valori devono rispettare le *choices* del modello: `contractual_status` sono i
+  codici `00`, `02`, `03`, `04`, `05`, `06`, `99`; `vendor_final_evaluation` è
+  `DA VALUTARE` / `NEGATIVO` / `POSITIVO` / `MOLTO POSITIVO`.
+
+**Attenzione**: l'import è in un'unica `transaction.atomic()` con `raise` sugli
+errori — se una riga fallisce, viene annullato **tutto**.
+
+---
+
+## Codice Embyon
+
+### `import_embyon_codes.py`
+
+Cerca i fornitori nell'anagrafica Embyon e scrive il `CODCONTO` trovato nel campo
+**Codice Embyon** (`old_code`), sostituendo il codice provvisorio assegnato
+dall'import Excel (`XLS0001`, `XLS0002`, ...).
+
+```bash
+.venv/bin/python vendor_management_system/import_embyon_codes.py --dry-run
+.venv/bin/python vendor_management_system/import_embyon_codes.py
+```
+
+| Opzione | Default | Significato |
+|---|---|---|
+| `-p`, `--prefix` | `XLS` | prefisso degli `old_code` da elaborare |
+| `--dry-run` | off | esegue e annulla tutto |
+| `--report` | `embyon_match_report.csv` | CSV con l'esito riga per riga |
+| `--prefer-ditta` | — | Società da preferire quando il fornitore esiste su più DITTA |
+| `--max-omocodie` | `3` | oltre questo numero di codici distinti non sceglie da solo |
+| `--fuzzy` | off | ripiego sulla ragione sociale per chi non aggancia su C.F./P.IVA |
+| `--fuzzy-threshold` | `0.90` | similarità minima (0..1) del match fuzzy |
+| `--fuzzy-province-required` | off | accetta il fuzzy solo con provincia nota e uguale sui due lati |
+| `--set-active` | off | aggiorna anche il flag "Attivo su Embyon" |
+| `--limit` | — | elabora solo i primi N fornitori (per prove) |
+
+**Società Embyon.** Insieme al codice viene salvata la Società (`embyon_company`,
+etichetta *Società Embyon*): lo stesso fornitore ha un `CODCONTO` diverso per
+ogni Società, quindi il codice da solo non lo identifica. I valori ammessi sono
+le `DITTA` presenti in `Embyon_Fornitori_T` — **CmaSrl, Evimed, GsProtec,
+Sicura** — elencati in `Vendor.EMBYON_COMPANY_CHOICES`. Se Embyon introduce una
+Società nuova lo script lo segnala in testa all'esecuzione: va aggiunta alle
+choices del modello, altrimenti il form dell'Admin rifiuta il valore. Il campo
+richiede la migrazione `vendors.0037`.
+
+**Sorgente**: `redmine_test.Embyon_Fornitori_T` filtrata per `TIPOCONTO='F'`, la
+stessa usata dal modal 🔍 del VendorAdmin; si cambia con
+`settings.EMBYON_FORNITORI_TABLE`. La provincia non esiste in quella tabella e
+viene recuperata in `LEFT JOIN` da `redmine_test.Account_Embyon_T`
+(`settings.EMBYON_ACCOUNT_TABLE`), che però copre solo ~3% delle righe.
+
+Il match è fatto in Python e non con una `JOIN` cross-schema perché `vms_db` e
+`redmine_test` hanno collation diverse e il confronto SQL diretto fallisce con
+`Illegal mix of collations`.
+
+**Ordine dei criteri** — il fuzzy è un ripiego, non un criterio parallelo:
+
+1. Codice Fiscale **e** Partita IVA
+2. Codice Fiscale
+3. Partita IVA
+4. *solo se i precedenti non trovano nulla e c'è `--fuzzy`*: somiglianza della
+   ragione sociale, con la provincia come vincolo quando è nota da entrambe le parti
+
+**Scelta del codice**: se il fornitore esiste su più Società con `CODCONTO`
+diversi (omocodie), viene preso quello con il **numero più alto dopo la F**, ma
+solo fino a `--max-omocodie` codici distinti; oltre quella soglia il fornitore
+resta `AMBIGUO` e va deciso a mano (è il caso dei gruppi con una P.IVA su decine
+di sedi). `old_code` è UNIQUE: se il codice è già su un altro fornitore l'esito è
+`COLLISIONE` e la riga viene saltata.
+
+**Esiti nel report**: `AGGIORNATO`, `AGGIORNATO_AMBIGUO` (più codici, preso il
+maggiore), `AGGIORNATO_FUZZY`, `AMBIGUO`, `COLLISIONE`, `NESSUN_MATCH`. Il CSV
+contiene il codice precedente accanto al nuovo, quindi funziona anche da
+tracciato per tornare indietro.
+
+Lo script **non tocca** `albo_excel_row`: il campo resta il riferimento al file di
+origine dopo la sostituzione di `old_code`, e viene riportato nella colonna
+`riga_albo` del CSV e a video sulle righe rimaste da sistemare
+(`AMBIGUO`, `COLLISIONE`, `NESSUN_MATCH`), così sono ricercabili nell'Albo.
+
+**Sul fuzzy**: a soglia 0.90 sui nomi di persona corti produce falsi positivi
+(`MARZI LUCA` → `MAGRI LUCA`, `LAV SERVICES` → `LDA SERVICE`). A soglia `1.0` i
+match sono affidabili, perché il lavoro utile lo fa la normalizzazione del nome
+(toglie `SRL`/`SPA`/`DOTT.`/punteggiatura) e non la tolleranza sulla distanza.
+Verifica sempre le colonne `nome_embyon` e `similarita` del report.
+
+---
+
+## Competenze e servizi
+
+### `import_competenze.py` / `import_servizi.py`
+
+Assegnano ai fornitori le competenze (`VendorCompetence`) e i servizi
+(`VendorService`) a partire da un file **a matrice**: un fornitore per riga, una
+competenza/servizio per colonna, con una `X` nelle celle da assegnare.
+
+```bash
+.venv/bin/python vendor_management_system/import_competenze.py -f import_competenze_assegnate.xlsx --dry-run
+.venv/bin/python vendor_management_system/import_servizi.py   -f import_servizi_assegnati.xlsx   --dry-run
+```
+
+| Opzione | Default | Significato |
+|---|---|---|
+| `-f`, `--file` | `import_competenze_assegnate.xlsx` / `import_servizi_assegnati.xlsx` | file `.xlsx` o `.csv` |
+| `-s`, `--sheet` | `0` | indice o nome del foglio |
+| `--dry-run` | off | esegue e annulla tutto |
+
+**Formato a doppia intestazione** — le prime due righe hanno ruoli diversi:
+
+| | codice | QUAL-001 | QUAL-002 |
+|---|---|---|---|
+| **riga 1** (descrizioni) | | Medico competente | Analisi di laboratorio |
+| **riga 2** (header vero) | codice | QUAL-001 | QUAL-002 |
+| riga 3 (dati) | F 7238 | X | |
+
+- La prima colonna si chiama **`codice`** (non `old_code`) e contiene il Codice
+  Embyon del fornitore.
+- L'intestazione della colonna è il **codice** della competenza/servizio; la
+  descrizione della prima riga viene usata come nome.
+- Competenze e `ServiceType` mancanti **vengono creati al volo** con
+  `get_or_create`: un codice sbagliato in intestazione crea un record spurio.
+- Le assegnazioni sono in `get_or_create`, quindi rilanciare non duplica nulla,
+  ma **non toglie** le assegnazioni non più presenti nel file.
+- Celle valide per l'assegnazione: `SI`, `YES`, `TRUE`, `1`, `X`, `Y`.
+
+I fornitori il cui `codice` non esiste a database vengono contati come
+"Vendor non trovati" e saltati.
+
+---
+
+## Documenti e valutazioni
+
+### `import_documenti.py`
+
+Crea/aggiorna i documenti (`Document`) dei fornitori. Anche qui il formato è a
+matrice: un fornitore per riga, un tipo documento per colonna.
+
+```bash
+.venv/bin/python vendor_management_system/import_documenti.py -f import_sa8000.xlsx --dry-run
+```
+
+| Opzione | Default | Significato |
+|---|---|---|
+| `-f`, `--file` | `import_sa8000.xlsx` | file `.xlsx` o `.csv` |
+| `-s`, `--sheet` | `0` | indice o nome del foglio |
+| `--dry-run` | off | esegue e annulla tutto |
+
+- Prima colonna: **`old_code`** (Codice Embyon).
+- Le altre colonne devono chiamarsi come il **`code` di un `DocumentType`**
+  esistente (confronto case-insensitive); i tipi sconosciuti vengono segnalati e
+  saltati, **non** creati. Per questo `import_documenttypes.py` va lanciato prima.
+- Il contenuto della cella decide lo stato: una data (`2026-05-31`, `31/05/2026`,
+  `31-05-2026`) diventa `expiry_date` con stato `APPROVED`; un booleano
+  (`SI`/`X`/...) dà `APPROVED` senza scadenza; qualsiasi altro testo dà
+  `SUBMITTED` e finisce nelle note. Le celle vuote vengono ignorate.
+
+### `import_valutazioni.py`
+
+Crea/aggiorna le valutazioni (`VendorEvaluation`), sempre a matrice.
+
+```bash
+.venv/bin/python vendor_management_system/import_valutazioni.py -f import_valutazioni.xlsx --dry-run
+```
+
+Stesse opzioni (`-f`, `-s`, `--dry-run`, default `import_valutazioni.xlsx`).
+
+- Prima colonna: **`old_code`**.
+- Le altre colonne devono corrispondere al **`code` di un `EvaluationCriterion`**
+  esistente (confrontato in maiuscolo); i criteri non trovati vengono saltati.
+- La cella contiene il punteggio; le celle non numeriche vengono ignorate.
+
+---
+
+## Tabelle di base (lookup)
+
+Vanno popolate **prima** degli import che le referenziano.
+
+### `import_titoli.py`
+
+Titoli di studio (`QualificationType`), referenziati da `Vendor.qualification_type`.
+
+```bash
+.venv/bin/python vendor_management_system/import_titoli.py -f titoli.xlsx --dry-run
+```
+
+Opzioni: `-f` (default `titoli.xlsx`), `-s`, `--dry-run`.
+Colonne: `code` (chiave), `name`, `description`, `level`, `sort_order`,
+`is_active`, `parent_code` (per la gerarchia).
+
+### `import_documenttypes.py`
+
+Tipi documento (`DocumentType`), referenziati dalle colonne di `import_documenti.py`.
+
+```bash
+.venv/bin/python import_documenttypes.py
+```
+
+Unico script **senza opzioni**: legge un percorso fisso,
+`vendor_management_system/documenttype.csv`, CSV con separatore `;` e queste
+colonne: `code`, `name`, `description`, `document_category`, `is_mandatory`,
+`requires_renewal`, `default_validity_days`, `alert_days_before_expiry`,
+`is_active`, `sort_order`, `updated_at`, `instructions`. Aggiorna per `code` se
+esiste, altrimenti crea.
+
+### `import_geography.py`
+
+Nazioni, regioni e province: **nessun file**, i dati sono nel sorgente. È l'unico
+che gira dentro la shell di Django:
+
+```bash
+.venv/bin/python manage.py shell < vendor_management_system/import_geography.py
+```
+
+---
+
+## Allineamento fra database
+
+### `sync_sets.py`
+
+Copia i Set dei **Requisiti Professionali** (`vendors.CompetenceSet`) e dei
+**Servizi** (`vendors.ServiceSet`), con le relative voci, da un database SRM a un
+altro — tipicamente da quello di sviluppo, dove i set vengono preparati, a una
+copia del database di produzione.
+
+```bash
+.venv/bin/python vendor_management_system/sync_sets.py --source vms_db --target vms_db_PROD --dry-run
+.venv/bin/python vendor_management_system/sync_sets.py --source vms_db --target vms_db_PROD --copy-missing-refs
+```
+
+| Opzione | Default | Significato |
+|---|---|---|
+| `--source` | *obbligatoria* | database sorgente (es. `vms_db`) |
+| `--target` | *obbligatoria* | database destinazione (es. `vms_db_PROD`) |
+| `--dry-run` | off | esegue e annulla tutto |
+| `--copy-missing-refs` | off | copia anche le competenze/servizi di anagrafica assenti sul destinazione |
+
+I due database devono stare **sulla stessa istanza MySQL**: lo script lavora con
+query cross-schema usando la connessione configurata in `.env`.
+
+Lo script non tocca `vendors_vendor`: i campi del fornitore, `albo_excel_row`
+compreso, non lo riguardano.
+
+**Controlli automatici prima di scrivere.** Lo script confronta le tabelle
+coinvolte (set, tabelle M2M, `vendors_category`, `vendors_competence`,
+`vendors_servicetype`) fra i due database e si ferma se una manca o se le colonne
+differiscono. Esempio di stop corretto:
+
+```
+❌ vms_db_PROD.vendors_competenceset: tabella assente — applica prima
+   `DB_NAME=vms_db_PROD python manage.py migrate vendors`
+Struttura non allineata: interrotto.
+```
+
+**Comportamento.** È idempotente: un set già presente sul destinazione (stesso
+nome e stessa Classificazione) viene aggiornato, non duplicato, e le sue voci
+vengono riallineate a quelle del sorgente. Le anagrafiche non vengono toccate: se
+una voce punta a una competenza o a un servizio che sul destinazione non esiste,
+la voce viene saltata e segnalata, a meno di `--copy-missing-refs`.
+
+Il travaso funziona senza rimappature solo perché le anagrafiche condividono gli
+stessi id fra i due database. Vale la pena verificarlo prima:
+
+```sql
+SELECT COUNT(*) FROM vms_db.vendors_category d
+  JOIN vms_db_PROD.vendors_category p ON d.id = p.id;   -- deve dare 30 su 30
+```
+
+### Puntare uno script a un altro database
+
+`config/settings.py` legge la configurazione dalle variabili d'ambiente e
+`load_dotenv()` **non** sovrascrive quelle già impostate: basta anteporre
+`DB_NAME` al comando.
+
+```bash
+DB_NAME=vms_db_PROD .venv/bin/python manage.py showmigrations vendors
+DB_NAME=vms_db_PROD .venv/bin/python manage.py migrate vendors
+```
+
+Vale per qualunque script del progetto. Verifica sempre dove sei finito:
+
+```bash
+DB_NAME=vms_db_PROD .venv/bin/python -c "
+import django, os; os.environ.setdefault('DJANGO_SETTINGS_MODULE','config.settings'); django.setup()
+from django.db import connection; print(connection.settings_dict['NAME'])"
+```
+
+### Collation: `utf8mb4_unicode_ci` ovunque
+
+**Regola di progetto: un database SRM e tutte le sue tabelle usano
+`utf8mb4_unicode_ci`.** Dentro un singolo database la collation deve essere
+uniforme, altrimenti qualsiasi JOIN fra due tabelle con collation diverse
+fallisce:
+
+```
+(1267, "Illegal mix of collations (utf8mb4_0900_ai_ci,IMPLICIT) and
+        (utf8mb4_unicode_ci,IMPLICIT) for operation '='")
+```
+
+Il caso tipico: un dump caricato in un database con default diverso da quello in
+cui era stato prodotto. Le tabelle del dump conservano la loro collation e
+convivono con quelle create dopo (dalle migrazioni), che ereditano il default del
+database. L'esito è un database misto, e si manifesta in due modi:
+
+- `migrate` fallisce creando una tabella con una FK verso una tabella di
+  collation diversa: `(3780, "Referencing column ... are incompatible")`;
+- oppure la migrazione passa e l'errore arriva a runtime, leggendo i dati:
+  `(1267, "Illegal mix of collations")`.
+
+**Come preparare un dump perché sia neutro.** Togli dal file le clausole di
+charset e collation in coda a ogni `CREATE TABLE`, così le tabelle ereditano
+quelle del database di destinazione:
+
+```bash
+cp dump.sql dump.sql.bak
+sed -i '' 's/ DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;/;/g' dump.sql
+```
+
+```sql
+-- prima
+) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+-- dopo
+) ENGINE=InnoDB AUTO_INCREMENT=9;
+```
+
+Non basta togliere il solo `COLLATE=`: se resta `DEFAULT CHARSET=utf8mb4`, MySQL
+applica la collation di default **del charset** (in MySQL 8 è
+`utf8mb4_0900_ai_ci`), non quella del database. Va rimossa l'intera clausola.
+
+**Ordine di ripristino:**
+
+```bash
+mysql -u root -p -e "CREATE DATABASE vms_db_PROD CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+mysql -u root -p vms_db_PROD < dump.sql     # tabelle tutte utf8mb4_unicode_ci
+DB_NAME=vms_db_PROD .venv/bin/python manage.py migrate
+```
+
+**Verifica** — la seconda query deve restituire una riga sola:
+
+```sql
+SELECT SCHEMA_NAME, DEFAULT_COLLATION_NAME FROM information_schema.SCHEMATA
+ WHERE SCHEMA_NAME IN ('vms_db','vms_db_PROD');
+
+SELECT TABLE_COLLATION, COUNT(*) FROM information_schema.TABLES
+ WHERE TABLE_SCHEMA = 'vms_db_PROD' GROUP BY TABLE_COLLATION;
+```
+
+**Fra database diversi** la collation può invece differire (`vms_db` di sviluppo
+è ancora `utf8mb4_0900_ai_ci`): `sync_sets.py` forza i confronti cross-schema a
+`utf8mb4_unicode_ci` — vedi `JOIN_COLLATE` — e in avvio segnala sia la differenza
+fra i due DB sia, come avviso, un database internamente non uniforme.
+
+**Se una migrazione è già fallita a metà**, le tabelle risultano create ma la
+migrazione non è registrata in `django_migrations`: al rilancio Django ritenta e
+si ferma con `(1050, "Table ... already exists")`. Se quelle tabelle sono **vuote**
+vanno rimosse e si rilancia `migrate`; se contengono già dati, conviene
+ricostruire il database dal dump neutro invece di rattopparle, perché restano
+senza foreign key e con la collation sbagliata.
+
+---
+
+## Manutenzione
+
+### `delete_vendors.py`
+
+Cancella fornitori e tutte le righe collegate (CASCADE su documenti, competenze,
+servizi, valutazioni, contratti; SET_NULL dove previsto). Mostra l'anteprima e
+chiede conferma.
+
+```bash
+python delete_vendors.py --ids 1024                      # un fornitore
+python delete_vendors.py --ids 1024,1030,1055            # più id
+python delete_vendors.py --from 1000 --to 1050           # range inclusivo
+python delete_vendors.py --from 1000 --to 1050 --dry-run # solo anteprima
+python delete_vendors.py --field vendor_code --ids A1B2C3D4E5
+```
+
+| Opzione | Default | Significato |
+|---|---|---|
+| `--field` | `old_code` | campo di selezione: `old_code` o `vendor_code` |
+| `--ids` | — | valori esatti separati da virgola |
+| `--from` / `--to` | — | estremi del range, inclusi |
+| `--dry-run` | off | mostra solo l'anteprima |
+| `--yes` | off | non chiede conferma |
+
+`old_code` è il Codice Embyon, l'unico numerato in modo ordinato; `vendor_code` è
+casuale e utile solo per valori esatti.
+
+### `migrate_existing_services.py`
+
+Una tantum: migra i servizi dal vecchio `Vendor.service_type` (ForeignKey) alla
+relazione `VendorService`. Nessuna opzione.
+
+```bash
+.venv/bin/python vendor_management_system/migrate_existing_services.py
+```
+
+### `fix_documentset_migration.py`
+
+Riallinea la migrazione `documents.0006_documentset` quando la tabella esiste già
+a database ma la migrazione non risulta applicata (`migrate` fallisce con
+*Table 'documents_documentset' already exists*). È idempotente e decide da solo
+tra `--fake`, drop della tabella vuota o stop per intervento manuale.
+
+```bash
+python fix_documentset_migration.py --dry-run   # solo diagnosi
+python fix_documentset_migration.py             # esegue
+```
+
+---
+
+## Problemi frequenti
+
+| Sintomo | Causa e rimedio |
+|---|---|
+| `ImportError: Pandas requires version '3.1.5' or newer of 'openpyxl'` | `pip install --upgrade "openpyxl>=3.1.5"` |
+| `❌ File non trovato. Percorso fornito: Import.xlsx` | il file non è in nessuna delle cartelle cercate: passa `-f /percorso/assoluto` |
+| `Vendor() got unexpected keyword arguments: 'xxx'` | lo script scrive un campo rimosso dal modello: confronta con `Vendor._meta.get_fields()` e togli la riga |
+| `❌ Vendor non trovato: <codice>` | la prima colonna non corrisponde a nessun `old_code` a database: l'anagrafica va importata prima, o i codici sono già stati sostituiti da `import_embyon_codes.py` |
+| `⚠️ Tipo documento XXX non trovato` | manca il `DocumentType`: lancia prima `import_documenttypes.py` |
+| `Illegal mix of collations` | confronto SQL diretto fra `vms_db` e `redmine_test`: vanno confrontati in Python, come fa `import_embyon_codes.py` |
+| L'import si annulla tutto per una riga sbagliata | è voluto: `import_vendors.py` usa una transazione unica. Correggi la riga e rilancia |
+| `(3780, "Referencing column ... are incompatible")` durante `migrate` | database con collation non uniformi: vedi [Collation](#collation-utf8mb4_unicode_ci-ovunque) |
+| `(1267, "Illegal mix of collations")` leggendo i dati | due tabelle dello stesso DB con collation diverse: vedi [Collation](#collation-utf8mb4_unicode_ci-ovunque) |
+| `(1050, "Table '...' already exists")` al rilancio di `migrate` | una migrazione precedente è fallita a metà: rimuovi le tabelle residue (vuote) e rilancia |
+| `Unknown column 'vendors_vendor.albo_excel_row'` | manca la migrazione del campo *Riga excel Albo Fornitore*: `python manage.py migrate vendors` |
+| `Unknown column 'vendors_vendor.embyon_company'` | manca la migrazione del campo *Società Embyon*: `python manage.py migrate vendors` |
+| Nel modal di ricerca la Società non finisce nel form | il campo `embyon_company` non è nel fieldset dell'Admin, oppure il valore trovato non è fra le `EMBYON_COMPANY_CHOICES` (il JS imposta una `<select>` solo se l'opzione esiste) |
+| `Struttura non allineata: interrotto.` da `sync_sets.py` | al database destinazione mancano tabelle o colonne: applica le migrazioni con `DB_NAME=<target> manage.py migrate` |

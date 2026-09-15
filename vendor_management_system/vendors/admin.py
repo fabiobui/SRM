@@ -636,12 +636,13 @@ class ServiceSetAdmin(admin.ModelAdmin):
 @admin.register(Vendor)
 class VendorAdmin(admin.ModelAdmin):
     list_display = [
-        'old_code', 'name', 'category', 'qualification_status', 'vendor_final_evaluation',
+        'old_code', 'embyon_company', 'name', 'category', 'qualification_status',
+        'vendor_final_evaluation',
         'embyon_active', 'qualification_score'
     ]
     list_filter = [
         'qualification_status', 'is_active', 'category',
-        'vendor_type', 'vendor_final_evaluation', 'embyon_active'
+        'vendor_type', 'vendor_final_evaluation', 'embyon_company', 'embyon_active'
     ]
     search_fields = ['vendor_code', 'old_code', 'name', 'vat_number', 'fiscal_code', 'email']
     readonly_fields = [
@@ -905,7 +906,8 @@ class VendorAdmin(admin.ModelAdmin):
     fieldsets = (
         (_('Informazioni Base'), {
             'fields': (
-                'vendor_code', 'old_code', 'managed_by', 'name', 'vendor_type',
+                'vendor_code', 'old_code', 'embyon_company', 'albo_excel_row',
+                'managed_by', 'name', 'vendor_type',
                 'vat_number', 'fiscal_code', 'qualification_type', 'category',
                 'competence_zones', 'vendor_final_evaluation', 'risk_level',
                 'embyon_active', 'is_active'

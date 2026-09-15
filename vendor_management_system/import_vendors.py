@@ -1,3 +1,16 @@
+"""
+Import dei fornitori (Vendor) e dei relativi indirizzi da file Excel/CSV.
+
+La chiave è la colonna ``old_code``; viene inoltre valorizzato il campo
+"Riga excel Albo Fornitore" (``albo_excel_row``) con il numero di riga del
+foglio da cui arriva il fornitore, così l'originale nell'Albo resta
+rintracciabile anche dopo che ``old_code`` è stato sostituito dal codice Embyon
+(vedi import_embyon_codes.py).
+
+Uso:
+    python vendor_management_system/import_vendors.py -f Import.xlsx --dry-run
+"""
+
 import os
 import sys
 import django
@@ -47,6 +60,28 @@ def safe_str(value):
     if pd.isna(value):
         return ""
     return str(value).strip()
+
+
+def parse_int(value):
+    """Intero da una cella; None se vuota o non numerica."""
+    if pd.isna(value):
+        return None
+    digits = "".join(ch for ch in str(value).strip() if ch.isdigit())
+    return int(digits) if digits else None
+
+
+def excel_row_number(index, row, header_rows=1):
+    """Numero di riga del foglio Excel per la riga corrente.
+
+    Se il file porta già la riga in una colonna dedicata (``albo_excel_row`` o
+    ``riga``) vince quella; altrimenti si calcola dall'indice del dataframe
+    tenendo conto delle righe di intestazione (Excel conta da 1).
+    """
+    for col in ("albo_excel_row", "riga"):
+        value = parse_int(row.get(col))
+        if value:
+            return value
+    return int(index) + header_rows + 1
 
 
 def get_or_none(model, **filters):
@@ -146,6 +181,11 @@ def import_vendors(file_path: str | Path | None = None, sheet_name=None, dry_run
                     print(colored(f"[{i+1}] ❌ Riga senza old_code, ignorata", "red"))
                     continue
 
+                # Riga del foglio Excel da cui arriva il fornitore: serve a
+                # ritrovare l'originale nell'Albo anche dopo che old_code è
+                # stato sostituito dal codice Embyon.
+                albo_row = excel_row_number(i, row)
+
                 # === Address ===
                 address = create_or_get_address(row)
 
@@ -154,6 +194,7 @@ def import_vendors(file_path: str | Path | None = None, sheet_name=None, dry_run
 
                 # === Vendor ===
                 defaults = dict(
+                    albo_excel_row=albo_row,
                     name=safe_str(row.get("name")),
                     vat_number=safe_str(row.get("vat_number")),
                     email=safe_str(row.get("email")),
@@ -165,7 +206,6 @@ def import_vendors(file_path: str | Path | None = None, sheet_name=None, dry_run
                     is_ico_consultant=parse_bool(row.get("is_ico_consultant")),
                     albo_zucchetti=safe_str(row.get("albo_zucchetti")),
                     vendor_task_description=safe_str(row.get("vendor_task_description")),
-                    begin_experience_date=parse_date(row.get("begin_experience_date")),
                     vendor_medical_service=safe_str(row.get("vendor_medical_service")),
                     mobile_device=parse_bool(row.get("mobile_device")),
                     ambulatory_service=safe_str(row.get("ambulatory_service")),
@@ -191,10 +231,10 @@ def import_vendors(file_path: str | Path | None = None, sheet_name=None, dry_run
 
                 if created:
                     created_count += 1
-                    print(colored(f"[{i+1}] ✅ Creato {vendor.name}", "green"))
+                    print(colored(f"[{i+1}] ✅ Creato {vendor.name} (riga Albo {albo_row})", "green"))
                 else:
                     updated_count += 1
-                    print(colored(f"[{i+1}] ♻️ Aggiornato {vendor.name}", "yellow"))
+                    print(colored(f"[{i+1}] ♻️ Aggiornato {vendor.name} (riga Albo {albo_row})", "yellow"))
 
             except Exception as e:
                 print(colored(f"[{i+1}] ❌ Errore su {row.get('old_code')}: {e}", "red"))

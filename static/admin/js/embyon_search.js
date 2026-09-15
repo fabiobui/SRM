@@ -342,6 +342,9 @@
         setFieldValue('id_email', row.email);
         setFieldValue('id_phone', row.phone);
         setSelectValue('id_vendor_type', row.vendor_type);
+        // Società Embyon (DITTA): lo stesso fornitore ha un CODCONTO diverso per
+        // ogni Società, quindi il codice scelto va accompagnato dalla sua.
+        setSelectValue('id_embyon_company', row.company);
         // Flag "Attivo su Embyon": spuntato solo se lo stato Embyon è "attivo".
         setCheckbox('id_embyon_active', !!row.embyon_active);
         closeModal();

@@ -1528,6 +1528,17 @@ class Vendor(models.Model):
         ('SOCIETA_SANITARIA', 'Società Infermieri-Medici-Assistenti sociali'),
     ]
 
+    # Società del gruppo presenti in Embyon (colonna DITTA di Embyon_Fornitori_T).
+    # I valori devono restare identici a quelli dell'anagrafica Embyon: sono la
+    # chiave con cui il CODCONTO viene identificato (lo stesso fornitore ha un
+    # codice diverso per ogni Società).
+    EMBYON_COMPANY_CHOICES = [
+        ('CmaSrl', 'CmaSrl'),
+        ('Evimed', 'Evimed'),
+        ('GsProtec', 'GsProtec'),
+        ('Sicura', 'Sicura'),
+    ]
+
     old_code = models.CharField(
         _("Codice Embyon"),
         max_length=10,
@@ -1535,6 +1546,17 @@ class Vendor(models.Model):
         blank=True,
         null=True,
         help_text=_("Codice Embyon (ex Vecchio codice fornitore)")
+    )
+
+    albo_excel_row = models.PositiveIntegerField(
+        _("Riga excel Albo Fornitore"),
+        blank=True,
+        null=True,
+        db_index=True,
+        help_text=_(
+            "Numero di riga del foglio Excel dell'Albo Fornitori da cui il "
+            "fornitore è stato importato (l'intestazione è la riga 1)"
+        )
     )
 
     managed_by = models.ForeignKey(
@@ -1762,6 +1784,13 @@ class Vendor(models.Model):
         _("Gestione aggiornamenti"),
         max_length=100,
         help_text=_("Gestione aggiornamenti del fornitore"),
+        blank=True, null=True
+    )
+    embyon_company = models.CharField(
+        _("Società Embyon"),
+        max_length=50,
+        choices=EMBYON_COMPANY_CHOICES,
+        help_text=_("Società Embyon (DITTA) presso cui il fornitore è censito"),
         blank=True, null=True
     )
     embyon_active = models.BooleanField(
