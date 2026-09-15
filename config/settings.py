@@ -5,7 +5,7 @@ from celery.schedules import crontab
 from urllib.parse import urlparse
 from dotenv import load_dotenv
 from django.utils.translation import gettext_lazy as _
-#from import_export.formats.base_formats import CSV, XLSX
+from import_export.formats.base_formats import CSV, XLSX
 
 load_dotenv()
 
@@ -104,6 +104,7 @@ THIRD_PARTY_APPS = [
     "corsheaders",
     "django_extensions",
     "drf_yasg",
+    "import_export",
 ]
 LOCAL_APPS = [
     "vendor_management_system.users",
@@ -112,9 +113,9 @@ LOCAL_APPS = [
     "vendor_management_system.purchase_orders",
     "vendor_management_system.historical_performances",
     "vendor_management_system.documents",  # ← NUOVO MODULO
+    "vendor_management_system.portal",     # ← Portale fornitore
 ]
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
-
 
 # AUTHENTICATION
 # ------------------------------------------------------------------------------
@@ -241,7 +242,7 @@ if USE_FORNITORI_PREFIX:
         "vendor_management_system.core.middleware.force_prefix.ForcePrefixMiddleware",
     )
 
-#IMPORT_EXPORT_FORMATS = [XLSX, CSV]  # ordine = priorità nel menu
+IMPORT_EXPORT_FORMATS = [XLSX, CSV]  # ordine = priorità nel menu
 
 # STATIC
 # ------------------------------------------------------------------------------
@@ -283,6 +284,83 @@ TEMPLATES = [
     },
 ]
 
+# Jazzmin configuration (controls admin look & icons)
+JAZZMIN_SETTINGS = {
+    "site_title": "VMS Admin",
+    "site_header": "Vendor Management",
+    "site_brand": "VMS",
+    "welcome_sign": "Benvenuto nell'area amministrativa",
+    "navigation_expanded": True,
+    "copyright": "Fabio Bui - Fulgard",
+    # Whether to display the side menu
+    "show_sidebar": True,
+    "default_icon_parents": "fas fa-folder-open",
+    "default_icon_children": "fas fa-file-alt",
+    "hide_apps": ["django_celery_beat", "purchase_orders", "historical_performances", "authtoken"],
+    "hide_models": [],
+    "topmenu_links": [
+        {"name": "Selezione",
+         "url": "/vendors/dashboard/" if not USE_FORNITORI_PREFIX else "/fornitori/vendors/dashboard/",
+         "icon": "fas fa-filter"
+        },
+    ],
+
+    "custom_links": {
+        "vendors": [{
+            "name": "Selezione",
+            "url": "/vendors/dashboard/" if not USE_FORNITORI_PREFIX else "/fornitori/vendors/dashboard/",
+            "icon": "fas fa-filter",
+            "order": 0,
+        }]
+    },
+
+    "order_with_respect_to": [
+        "vendors", "vendors.selezione", "vendors.vendor", "vendors.category", "vendors.address",
+        "vendors.servicetype", "vendors.evaluationcriterion",
+        "vendors.vendorevaluation", "historical_performances",
+         "vendors.document", "documenttype", "auth", "users",
+    ],
+
+    "icons": {
+        "auth": "fas fa-users-cog",
+        "auth.user": "fas fa-user",
+        "auth.group": "fas fa-user-shield",
+        "authtoken.tokenproxy": "fas fa-key",
+        "users.user": "fas fa-users",
+        "core": "fas fa-cogs",
+        "vendors": "fas fa-store",
+        "purchase_orders.purchaseorder": "fas fa-shopping-cart",
+        "historical_performances.historicalperformance": "fas fa-chart-line",
+        "documents.document": "fas fa-folder-open",
+        "django_celery_beat.clockedschedule": "fas fa-clock",
+        "django_celery_beat.crontabschedule": "fas fa-stopwatch",
+        "django_celery_beat.intervalschedule": "fas fa-tachometer-alt",
+        "django_celery_beat.periodictask": "fas fa-tasks",
+        "django_celery_beat.solarschedule": "fas fa-sun",
+        "vendors.vendor": "fas fa-truck",
+        "vendors.category": "fas fa-tags",
+        "vendors.address": "fas fa-map-marker-alt",
+        "vendors.document": "fas fa-file-alt",
+        "vendors.documenttype": "fas fa-file-signature",
+        "vendors.qualificationtype": "fas fa-graduation-cap",
+        "vendors.skill": "fas fa-tools",
+        "vendors.competence": "fas fa-toolbox",
+        "vendors.vendorcompetence": "fas fa-handshake",
+        "vendors.evaluationcriterion": "fas fa-star-half-alt",
+        "vendors.evaluation": "fas fa-star",
+        "vendors.assessment": "fas fa-clipboard-check",
+        "vendors.typology": "fas fa-shapes",
+        "vendors.servicetype": "fas fa-concierge-bell",
+        "vendors.typologyservice": "fas fa-layer-group",
+        "vendors.vendorevaluation": "fas fa-star",
+        "documents.document": "fas fa-file-alt",
+        "documents.documenttype": "fas fa-file-signature",
+        "documents.category": "fas fa-folder-tree",
+        "vendors.contract": "fas fa-file-contract",
+    },
+}
+
+
 
 # FIXTURES
 # ------------------------------------------------------------------------------
@@ -294,6 +372,15 @@ FIXTURE_DIRS = (str(BASE_DIR / "fixtures"),)
 SESSION_COOKIE_HTTPONLY = True
 CSRF_COOKIE_HTTPONLY = True
 X_FRAME_OPTIONS = "DENY"
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+
+# CSRF_TRUSTED_ORIGINS (obbligatorio da Django 4.0+ per richieste HTTPS)
+CSRF_TRUSTED_ORIGINS = [
+    f"https://{host.strip()}" for host in ALLOWED_HOSTS if host.strip() not in ('*', 'localhost', '127.0.0.1')
+] + [
+    "http://localhost",
+    "http://127.0.0.1",
+]
 
 
 # ADMIN

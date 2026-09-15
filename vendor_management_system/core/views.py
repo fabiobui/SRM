@@ -53,20 +53,26 @@ class QueryParamObtainAuthToken(ObtainAuthToken):
 @login_required
 def dashboard_redirect(request):
     """Reindirizza l'utente alla dashboard appropriata in base al ruolo"""
+    from vendor_management_system.vendors.models import Vendor
+
     user = request.user
-    
     # Controlla se l'utente ha il campo role (per compatibilità)
     if hasattr(user, 'role'):
         if user.role == 'admin' or user.is_superuser:
-            return redirect('/documents/admin/')
+            return redirect('/admin/')
         elif user.role == 'bo_user':
-            return redirect('/documents/backoffice/')
-        elif user.role == 'vendor' and hasattr(user, 'vendor') and user.vendor:
-            return redirect('/documents/portal/')
+            return redirect('/vendors/dashboard/')
+        elif user.role == 'vendor':
+            try:
+                vendor = user.vendor
+            except Vendor.DoesNotExist:
+                vendor = None
+            if vendor:
+                return redirect('/documents/portal/')
     
     # Fallback per utenti senza ruolo definito
     if user.is_superuser or user.is_staff:
-        return redirect('/documents/admin/')
+        return redirect('/admin/')
     else:
         messages.warning(request, "Il tuo account non ha un ruolo assegnato. Contatta l'amministratore.")
         logout_url = reverse('admin:logout')

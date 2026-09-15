@@ -1,0 +1,138 @@
+{% extends "portal/base_portal.html" %}
+
+{% block title %}{{ document.document_type.name }} — Portale Fornitore{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'portal:dashboard' %}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'portal:my-documents' %}">I miei documenti</a></li>
+        <li class="breadcrumb-item active">{{ document.document_type.name }}</li>
+    </ol>
+</nav>
+
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">{{ document.document_type.name }}</h5>
+        <span class="badge badge-status-{{ document.status }} fs-6">{{ document.get_status_display }}</span>
+    </div>
+    <div class="card-body">
+        <dl class="row mb-0">
+            {% if document.document_type.code %}
+            <dt class="col-sm-3">Codice</dt>
+            <dd class="col-sm-9">{{ document.document_type.code }}</dd>
+            {% endif %}
+
+            {% if document.document_type.description %}
+            <dt class="col-sm-3">Descrizione</dt>
+            <dd class="col-sm-9">{{ document.document_type.description }}</dd>
+            {% endif %}
+
+            <dt class="col-sm-3">Data caricamento</dt>
+            <dd class="col-sm-9">{{ document.uploaded_at|date:"d/m/Y H:i" }}</dd>
+
+            <dt class="col-sm-3">Data emissione</dt>
+            <dd class="col-sm-9">{{ document.issue_date|date:"d/m/Y"|default:"—" }}</dd>
+
+            <dt class="col-sm-3">Data scadenza</dt>
+            <dd class="col-sm-9">
+                {% if document.expiry_date %}
+                    {{ document.expiry_date|date:"d/m/Y" }}
+                    {% if document.is_expired %}
+                        <span class="badge bg-danger ms-2">Scaduto</span>
+                    {% elif document.is_expiring_soon %}
+                        <span class="badge bg-warning text-dark ms-2">In scadenza</span>
+                    {% endif %}
+                {% else %}—{% endif %}
+            </dd>
+
+            {% if document.reviewed_at %}
+            <dt class="col-sm-3">Esito revisione</dt>
+            <dd class="col-sm-9">
+                {{ document.reviewed_at|date:"d/m/Y H:i" }}
+                {% if document.reviewed_by %}da {{ document.reviewed_by.name|default:document.reviewed_by.email }}{% endif %}
+            </dd>
+            {% endif %}
+
+            {% if document.notes %}
+            <dt class="col-sm-3">Note del back-office</dt>
+            <dd class="col-sm-9">
+                <div class="alert {% if document.status == 'REJECTED' %}alert-danger{% else %}alert-light{% endif %} mb-0">
+                    {{ document.notes|linebreaksbr }}
+                </div>
+            </dd>
+            {% endif %}
+
+            <dt class="col-sm-3">File</dt>
+            <dd class="col-sm-9">
+                {% if document.file %}
+                    <a href="{{ document.file.url }}" class="btn btn-sm btn-outline-primary" target="_blank">
+                        <i class="fas fa-download"></i> Scarica
+                    </a>
+                {% else %}<span class="text-muted">Nessun file caricato</span>{% endif %}
+            </dd>
+        </dl>
+    </div>
+    <div class="card-footer">
+        <button type="button" class="btn btn-success"
+                data-bs-toggle="modal" data-bs-target="#uploadModal">
+            {% if document.status == 'PENDING' %}
+                <i class="fas fa-upload"></i> Carica file
+            {% else %}
+                <i class="fas fa-sync"></i> Aggiorna file
+            {% endif %}
+        </button>
+        <a href="{% url 'portal:my-documents' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Torna ai documenti
+        </a>
+    </div>
+</div>
+
+<!-- Modal Upload — action usa il pk del Document corrente -->
+<div class="modal fade" id="uploadModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <form method="post" action="{% url 'portal:my-document-upload' pk=document.pk %}" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        {% if document.status == 'PENDING' %}
+                            <i class="fas fa-upload"></i> Carica {{ document.document_type.name }}
+                        {% else %}
+                            <i class="fas fa-sync"></i> Aggiorna {{ document.document_type.name }}
+                        {% endif %}
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">File <span class="text-danger">*</span></label>
+                        <input type="file" name="file" class="form-control" required>
+                        <div class="form-text">Max 20 MB.</div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Data emissione</label>
+                            <input type="date" name="issue_date" class="form-control"
+                                   value="{{ document.issue_date|date:'Y-m-d' }}">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Data scadenza</label>
+                            <input type="date" name="expiry_date" class="form-control"
+                                   value="{{ document.expiry_date|date:'Y-m-d' }}">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Note</label>
+                        <textarea name="notes" rows="3" class="form-control">{{ document.notes }}</textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                    <button type="submit" class="btn btn-success"><i class="fas fa-upload"></i> Carica</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

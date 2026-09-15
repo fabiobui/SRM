@@ -1,0 +1,207 @@
+{% extends "portal/base_portal.html" %}
+
+{% block title %}I miei requisiti — Portale Fornitore{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h3 mb-1"><i class="fas fa-user-graduate text-success"></i> I miei requisiti professionali</h1>
+        <p class="text-muted mb-0">{{ vendor.name }} · {{ vendor.vendor_code }}</p>
+    </div>
+</div>
+
+<div class="alert alert-light border">
+    <i class="fas fa-info-circle text-muted"></i>
+    L'elenco dei requisiti professionali richiesti è definito dal back-office. Qui puoi caricare
+    il documento/attestato per ogni requisito già previsto per la tua qualifica. Per l'assegnazione
+    di un nuovo requisito, contatta il tuo referente.
+</div>
+
+{% if expiring_reqs %}
+<div class="alert alert-info">
+    <strong><i class="fas fa-clock"></i> In scadenza:</strong>
+    {% for r in expiring_reqs %}
+        <a href="{% url 'portal:my-requirement-detail' pk=r.pk %}" class="alert-link">{{ r.competence.name }}</a>
+        {% if r.expiry_date %}({{ r.expiry_date|date:"d/m/Y" }}){% endif %}{% if not forloop.last %}, {% endif %}
+    {% endfor %}
+</div>
+{% endif %}
+
+{% if pending_reqs %}
+<h5 class="text-danger mb-3"><i class="fas fa-cloud-upload-alt"></i> Da caricare ({{ pending_reqs|length }})</h5>
+<div class="row g-3 mb-4">
+    {% for r in pending_reqs %}
+    <div class="col-lg-6">
+        <div class="card doc-card h-100 border-danger">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div>
+                        <h6 class="mb-1">{{ r.competence.name }}</h6>
+                        {% if r.competence.code %}
+                        <small class="text-muted">{{ r.competence.code }}</small>
+                        {% endif %}
+                        <div class="my-2">
+                            <span class="badge badge-status-PENDING">Documento da caricare</span>
+                        </div>
+                        {% if r.competence.description %}
+                        <small class="text-muted d-block">{{ r.competence.description|truncatechars:120 }}</small>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="d-flex gap-2 flex-wrap">
+                    <button type="button" class="btn btn-sm btn-success"
+                            data-bs-toggle="modal" data-bs-target="#uploadModal"
+                            data-req-id="{{ r.pk }}"
+                            data-req-name="{{ r.competence.name }}"
+                            data-cert-number="{{ r.certification_number|default:'' }}"
+                            data-issue-date="{{ r.issue_date|date:'Y-m-d' }}"
+                            data-expiry-date="{{ r.expiry_date|date:'Y-m-d' }}"
+                            data-notes="{{ r.notes|default:'' }}">
+                        <i class="fas fa-upload"></i> Carica file
+                    </button>
+                    <a href="{% url 'portal:my-requirement-detail' pk=r.pk %}" class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-eye"></i> Dettaglio
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+{% if submitted_reqs %}
+<h5 class="text-muted mb-3"><i class="fas fa-list"></i> Requisiti documentati ({{ submitted_reqs|length }})</h5>
+<div class="row g-3">
+    {% for r in submitted_reqs %}
+    <div class="col-lg-6">
+        <div class="card doc-card h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div>
+                        <h6 class="mb-1">{{ r.competence.name }}</h6>
+                        {% if r.competence.code %}
+                        <small class="text-muted">{{ r.competence.code }}</small>
+                        {% endif %}
+                        <div class="my-2">
+                            {% if r.verified %}
+                                <span class="badge badge-status-APPROVED">Verificato</span>
+                            {% else %}
+                                <span class="badge badge-status-UPLOADED">Caricato - in verifica</span>
+                            {% endif %}
+                            {% if r.expiry_date %}
+                                <small class="text-muted ms-2">
+                                    Scadenza: {{ r.expiry_date|date:"d/m/Y" }}
+                                    {% if r.is_expired %}<span class="text-danger">(scaduto)</span>
+                                    {% elif r.expiry_status == 'EXPIRING_SOON' or r.expiry_status == 'EXPIRING' %}<span class="text-warning">(in scadenza)</span>
+                                    {% endif %}
+                                </small>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="d-flex gap-2 flex-wrap">
+                    <a href="{% url 'portal:my-requirement-detail' pk=r.pk %}" class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-eye"></i> Dettaglio
+                    </a>
+                    {% if r.document_file %}
+                    <a href="{{ r.document_file.url }}" class="btn btn-sm btn-outline-primary" target="_blank">
+                        <i class="fas fa-download"></i> Scarica
+                    </a>
+                    {% endif %}
+                    <button type="button" class="btn btn-sm btn-outline-success"
+                            data-bs-toggle="modal" data-bs-target="#uploadModal"
+                            data-req-id="{{ r.pk }}"
+                            data-req-name="{{ r.competence.name }}"
+                            data-cert-number="{{ r.certification_number|default:'' }}"
+                            data-issue-date="{{ r.issue_date|date:'Y-m-d' }}"
+                            data-expiry-date="{{ r.expiry_date|date:'Y-m-d' }}"
+                            data-notes="{{ r.notes|default:'' }}">
+                        <i class="fas fa-sync"></i> Aggiorna
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+{% if not pending_reqs and not submitted_reqs %}
+<div class="alert alert-info text-center">
+    <i class="fas fa-info-circle fa-2x mb-2"></i>
+    <p class="mb-0">Nessun requisito professionale è stato ancora assegnato al tuo fornitore dal back-office.</p>
+</div>
+{% endif %}
+
+<!-- Modal Upload (action impostata dinamicamente con il pk della VendorCompetence) -->
+<div class="modal fade" id="uploadModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <form id="uploadForm" method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-upload"></i> Carica documento</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">File <span class="text-danger">*</span></label>
+                        <input type="file" name="document_file" class="form-control" required>
+                        <div class="form-text">Max 20 MB. PDF/immagini consigliati.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Numero certificazione</label>
+                        <input type="text" name="certification_number" id="modalCertNumber" class="form-control">
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Data rilascio</label>
+                            <input type="date" name="issue_date" id="modalIssueDate" class="form-control">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Data scadenza</label>
+                            <input type="date" name="expiry_date" id="modalExpiryDate" class="form-control">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Note</label>
+                        <textarea name="notes" id="modalNotes" rows="3" class="form-control"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                    <button type="submit" class="btn btn-success"><i class="fas fa-upload"></i> Carica</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Imposta dinamicamente l'action del form e pre-popola i campi col valore esistente
+document.getElementById('uploadModal').addEventListener('show.bs.modal', function (event) {
+    const trigger = event.relatedTarget;
+    if (!trigger) return;
+    const reqId = trigger.getAttribute('data-req-id');
+    const reqName = trigger.getAttribute('data-req-name') || 'requisito';
+    const certNumber = trigger.getAttribute('data-cert-number') || '';
+    const issue = trigger.getAttribute('data-issue-date') || '';
+    const expiry = trigger.getAttribute('data-expiry-date') || '';
+    const notes = trigger.getAttribute('data-notes') || '';
+
+    // L'URL pattern è /portale/requisiti/<pk>/upload/
+    const form = document.getElementById('uploadForm');
+    form.action = `{% url 'portal:my-requirements' %}${reqId}/upload/`;
+
+    document.querySelector('#uploadModal .modal-title').innerHTML =
+        '<i class="fas fa-upload"></i> Carica: ' + reqName;
+    document.getElementById('modalCertNumber').value = certNumber;
+    document.getElementById('modalIssueDate').value = issue;
+    document.getElementById('modalExpiryDate').value = expiry;
+    document.getElementById('modalNotes').value = notes;
+});
+</script>
+{% endblock %}

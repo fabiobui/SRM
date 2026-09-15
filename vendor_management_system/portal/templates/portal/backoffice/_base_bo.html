@@ -1,0 +1,72 @@
+{% load static %}<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Back Office — Portale Fornitore{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    {% block extra_head %}{% endblock %}
+    <style>
+      body { background: #f6f8fa; }
+      .navbar-bo { background: linear-gradient(90deg, #0c4a6e 0%, #0369a1 100%); }
+      .badge-cr-PENDING  { background:#ffc107; color:#212529; }
+      .badge-cr-APPROVED { background:#198754; }
+      .badge-cr-REJECTED { background:#dc3545; }
+      .diff-table th { width: 25%; }
+      .diff-old { color: #6c757d; text-decoration: line-through; }
+      .diff-new { color: #0a58ca; font-weight: 600; }
+    </style>
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-dark navbar-bo">
+    <div class="container">
+        <a class="navbar-brand" href="{% url 'backoffice-dashboard' %}">
+            <i class="fas fa-briefcase"></i> Back Office
+        </a>
+        <div class="collapse navbar-collapse">
+            <ul class="navbar-nav me-auto">
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'backoffice-dashboard' %}">
+                        <i class="fas fa-tachometer-alt"></i> Dashboard
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link active" href="{% url 'portal:bo-change-requests' %}">
+                        <i class="fas fa-id-card"></i> Richieste anagrafica
+                    </a>
+                </li>
+            </ul>
+            <ul class="navbar-nav">
+                <li class="nav-item">
+                    <span class="navbar-text text-white-50 me-3">
+                        <i class="fas fa-user"></i> {{ user.name|default:user.email }}
+                    </span>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'logout' %}">
+                        <i class="fas fa-sign-out-alt"></i> Logout
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<main class="container py-4">
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    {% block content %}{% endblock %}
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

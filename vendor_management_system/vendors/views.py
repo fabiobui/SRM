@@ -1,9 +1,6 @@
-# Imports
-from django.shortcuts import get_object_or_404, redirect
-from django.contrib.auth.decorators import login_required
-from django.contrib import messages
-from django.http import HttpResponse
-from django.urls import reverse
+# API ViewSets - REST Framework
+from django.shortcuts import get_object_or_404
+from django.db.models import Count, Q, F
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import permissions, response, status, viewsets
@@ -15,7 +12,10 @@ from vendor_management_system.core.authentication import (
 )
 
 from vendor_management_system.core.serializers import QueryParamAuthTokenSerializer
-from vendor_management_system.vendors.models import Vendor, Address, Category
+from vendor_management_system.vendors.models import (
+    Vendor, Address, Category,
+    Country, Region, Province, CompetenceZone, CompetenceZoneRule
+)
 from vendor_management_system.vendors.serializers import (
     VendorCreateUpdateSerializer,
     VendorSerializer,
@@ -30,6 +30,13 @@ from vendor_management_system.vendors.serializers import (
     CategoryCompactSerializer,
     CategoryTreeSerializer,
     CategoryStatsSerializer,
+    CountrySerializer,
+    RegionSerializer,
+    ProvinceSerializer,
+    CountryTreeSerializer,
+    CompetenceZoneSerializer,
+    CompetenceZoneCompactSerializer,
+    CompetenceZoneCreateUpdateSerializer,
 )
 
 
@@ -1103,6 +1110,23 @@ class VendorViewSet(viewsets.ViewSet):
                                 }
                             )
                         ),
+                        "competence_missing_certification": openapi.Schema(
+                            type=openapi.TYPE_ARRAY,
+                            items=openapi.Schema(
+                                type=openapi.TYPE_OBJECT,
+                                properties={
+                                    "vendor_code": openapi.Schema(type=openapi.TYPE_STRING),
+                                    "name": openapi.Schema(type=openapi.TYPE_STRING),
+                                    "email": openapi.Schema(type=openapi.TYPE_STRING),
+                                    "phone": openapi.Schema(type=openapi.TYPE_STRING),
+                                    "category": openapi.Schema(type=openapi.TYPE_STRING),
+                                    "qualification_status": openapi.Schema(type=openapi.TYPE_STRING),
+                                    "risk_level": openapi.Schema(type=openapi.TYPE_STRING),
+                                    "is_qualified": openapi.Schema(type=openapi.TYPE_BOOLEAN),
+                                    "audit_overdue": openapi.Schema(type=openapi.TYPE_BOOLEAN),
+                                }
+                            )
+                        ),
                     }
                 )
             ),
@@ -1137,12 +1161,19 @@ class VendorViewSet(viewsets.ViewSet):
         # Get vendors without category assigned
         no_category = Vendor.objects.select_related('address').filter(category__isnull=True)
         
+        competence_missing_certification = Vendor.objects.select_related('category', 'address').filter(
+            vendor_competences__competence__requires_certification=True,
+            vendor_competences__has_competence=True,
+            vendor_competences__has_certification=False
+        ).distinct()
+        
         data = {
             'overdue_audits': VendorListSerializer(overdue_audits, many=True).data,
             'expired_qualifications': VendorListSerializer(expired_qualifications, many=True).data,
             'high_risk_vendors': VendorListSerializer(high_risk_vendors, many=True).data,
             'missing_certification': VendorListSerializer(missing_certification, many=True).data,
             'no_category': VendorListSerializer(no_category, many=True).data,
+            'competence_missing_certification': VendorListSerializer(competence_missing_certification, many=True).data,
         }
         
         return response.Response(data, status=status.HTTP_200_OK)
@@ -1339,25 +1370,189 @@ class QueryParamObtainAuthToken(ObtainAuthToken):
         return super().post(request, *args, **kwargs)
 
 
-@login_required
-def dashboard_redirect(request):
-    """Reindirizza l'utente alla dashboard appropriata in base al ruolo"""
-    user = request.user
-    
-    if user.is_admin():
-        return redirect('admin-dashboard')
-    elif user.is_bo_user():
-        return redirect('backoffice-dashboard')
-    elif user.is_vendor_user():
-        return redirect('vendor-portal')
-    else:
-        messages.warning(request, "Il tuo account non ha un ruolo assegnato. Contatta l'amministratore.")
-        logout_url = reverse('admin:logout')
-        return HttpResponse(f"""
-        <div style="padding: 20px; font-family: Arial;">
-            <h2>⚠️ Ruolo non assegnato</h2>
-            <p>Il tuo account non ha un ruolo configurato.</p>
-            <p>Contatta l'amministratore del sistema.</p>
-            <a href="{logout_url}">Logout</a>
-        </div>
-        """)
+# ============================================================================
+# ViewSets Geografici e Zone di Competenza
+# ============================================================================
+
+class CountryViewSet(viewsets.ViewSet):
+    """ViewSet per la gestione delle Nazioni"""
+    permission_classes = [permissions.IsAuthenticated]
+    authentication_classes = [QueryParameterTokenAuthentication]
+
+    @swagger_auto_schema(
+        operation_id="countries--list",
+        operation_description="Lista delle nazioni",
+        manual_parameters=[
+            openapi.Parameter(name="token", in_=openapi.IN_QUERY, type=openapi.TYPE_STRING, required=True),
+        ],
+        responses={status.HTTP_200_OK: CountrySerializer(many=True)},
+        tags=["Geography"],
+    )
+    def list(self, request):
+        countries = Country.objects.filter(is_active=True).order_by('sort_order', 'name')
+        serializer = CountrySerializer(countries, many=True)
+        return response.Response(serializer.data)
+
+    @swagger_auto_schema(
+        operation_id="countries--tree",
+        operation_description="Albero gerarchico Nazione → Regioni → Province",
+        manual_parameters=[
+            openapi.Parameter(name="token", in_=openapi.IN_QUERY, type=openapi.TYPE_STRING, required=True),
+        ],
+        responses={status.HTTP_200_OK: CountryTreeSerializer(many=True)},
+        tags=["Geography"],
+    )
+    @action(detail=False, methods=['get'], url_path='tree')
+    def tree(self, request):
+        countries = Country.objects.filter(is_active=True).order_by('sort_order', 'name')
+        serializer = CountryTreeSerializer(countries, many=True)
+        return response.Response(serializer.data)
+
+
+class RegionViewSet(viewsets.ViewSet):
+    """ViewSet per la gestione delle Regioni"""
+    permission_classes = [permissions.IsAuthenticated]
+    authentication_classes = [QueryParameterTokenAuthentication]
+
+    @swagger_auto_schema(
+        operation_id="regions--list",
+        operation_description="Lista delle regioni",
+        manual_parameters=[
+            openapi.Parameter(name="token", in_=openapi.IN_QUERY, type=openapi.TYPE_STRING, required=True),
+            openapi.Parameter(name="country", in_=openapi.IN_QUERY, type=openapi.TYPE_STRING, required=False, description="Filtra per ID nazione"),
+        ],
+        responses={status.HTTP_200_OK: RegionSerializer(many=True)},
+        tags=["Geography"],
+    )
+    def list(self, request):
+        regions = Region.objects.filter(is_active=True).select_related('country')
+        country_id = request.query_params.get('country')
+        if country_id:
+            regions = regions.filter(country__id=country_id)
+        serializer = RegionSerializer(regions.order_by('country__name', 'sort_order', 'name'), many=True)
+        return response.Response(serializer.data)
+
+
+class ProvinceViewSet(viewsets.ViewSet):
+    """ViewSet per la gestione delle Province"""
+    permission_classes = [permissions.IsAuthenticated]
+    authentication_classes = [QueryParameterTokenAuthentication]
+
+    @swagger_auto_schema(
+        operation_id="provinces--list",
+        operation_description="Lista delle province",
+        manual_parameters=[
+            openapi.Parameter(name="token", in_=openapi.IN_QUERY, type=openapi.TYPE_STRING, required=True),
+            openapi.Parameter(name="region", in_=openapi.IN_QUERY, type=openapi.TYPE_STRING, required=False, description="Filtra per ID regione"),
+            openapi.Parameter(name="country", in_=openapi.IN_QUERY, type=openapi.TYPE_STRING, required=False, description="Filtra per ID nazione"),
+        ],
+        responses={status.HTTP_200_OK: ProvinceSerializer(many=True)},
+        tags=["Geography"],
+    )
+    def list(self, request):
+        provinces = Province.objects.filter(is_active=True).select_related('region', 'region__country')
+        region_id = request.query_params.get('region')
+        if region_id:
+            provinces = provinces.filter(region__id=region_id)
+        country_id = request.query_params.get('country')
+        if country_id:
+            provinces = provinces.filter(region__country__id=country_id)
+        serializer = ProvinceSerializer(provinces.order_by('region__name', 'sort_order', 'name'), many=True)
+        return response.Response(serializer.data)
+
+
+class CompetenceZoneViewSet(viewsets.ViewSet):
+    """ViewSet per la gestione delle Zone di Competenza"""
+    permission_classes = [permissions.IsAuthenticated]
+    authentication_classes = [QueryParameterTokenAuthentication]
+
+    @swagger_auto_schema(
+        operation_id="competence-zones--list",
+        operation_description="Lista delle zone di competenza",
+        manual_parameters=[
+            openapi.Parameter(name="token", in_=openapi.IN_QUERY, type=openapi.TYPE_STRING, required=True),
+            openapi.Parameter(name="is_active", in_=openapi.IN_QUERY, type=openapi.TYPE_BOOLEAN, required=False),
+        ],
+        responses={status.HTTP_200_OK: CompetenceZoneSerializer(many=True)},
+        tags=["Competence Zones"],
+    )
+    def list(self, request):
+        zones = CompetenceZone.objects.prefetch_related('rules', 'rules__country', 'rules__region', 'rules__province').all()
+        is_active = request.query_params.get('is_active')
+        if is_active is not None:
+            zones = zones.filter(is_active=is_active.lower() == 'true')
+        serializer = CompetenceZoneSerializer(zones.order_by('name'), many=True)
+        return response.Response(serializer.data)
+
+    @swagger_auto_schema(
+        operation_id="competence-zones--create",
+        operation_description="Crea una nuova zona di competenza con regole",
+        manual_parameters=[
+            openapi.Parameter(name="token", in_=openapi.IN_QUERY, type=openapi.TYPE_STRING, required=True),
+        ],
+        request_body=CompetenceZoneCreateUpdateSerializer,
+        responses={status.HTTP_201_CREATED: CompetenceZoneSerializer},
+        tags=["Competence Zones"],
+    )
+    def create(self, request):
+        serializer = CompetenceZoneCreateUpdateSerializer(data=request.data)
+        if serializer.is_valid():
+            zone = serializer.save()
+            response_serializer = CompetenceZoneSerializer(zone)
+            return response.Response(response_serializer.data, status=status.HTTP_201_CREATED)
+        return response.Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @swagger_auto_schema(
+        operation_id="competence-zones--retrieve",
+        operation_description="Dettaglio zona di competenza",
+        manual_parameters=[
+            openapi.Parameter(name="token", in_=openapi.IN_QUERY, type=openapi.TYPE_STRING, required=True),
+        ],
+        responses={status.HTTP_200_OK: CompetenceZoneSerializer},
+        tags=["Competence Zones"],
+    )
+    def retrieve(self, request, zone_id=None):
+        zone = get_object_or_404(
+            CompetenceZone.objects.prefetch_related('rules', 'rules__country', 'rules__region', 'rules__province'),
+            id=zone_id
+        )
+        serializer = CompetenceZoneSerializer(zone)
+        return response.Response(serializer.data)
+
+    @swagger_auto_schema(
+        operation_id="competence-zones--update",
+        operation_description="Aggiorna una zona di competenza",
+        manual_parameters=[
+            openapi.Parameter(name="token", in_=openapi.IN_QUERY, type=openapi.TYPE_STRING, required=True),
+        ],
+        request_body=CompetenceZoneCreateUpdateSerializer,
+        responses={status.HTTP_200_OK: CompetenceZoneSerializer},
+        tags=["Competence Zones"],
+    )
+    def update(self, request, zone_id=None):
+        zone = get_object_or_404(CompetenceZone, id=zone_id)
+        serializer = CompetenceZoneCreateUpdateSerializer(zone, data=request.data, partial=True)
+        if serializer.is_valid():
+            zone = serializer.save()
+            response_serializer = CompetenceZoneSerializer(zone)
+            return response.Response(response_serializer.data)
+        return response.Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @swagger_auto_schema(
+        operation_id="competence-zones--destroy",
+        operation_description="Elimina una zona di competenza",
+        manual_parameters=[
+            openapi.Parameter(name="token", in_=openapi.IN_QUERY, type=openapi.TYPE_STRING, required=True),
+        ],
+        responses={status.HTTP_204_NO_CONTENT: "Zona eliminata"},
+        tags=["Competence Zones"],
+    )
+    def destroy(self, request, zone_id=None):
+        zone = get_object_or_404(CompetenceZone, id=zone_id)
+        if zone.vendors.exists():
+            return response.Response(
+                {"detail": "Impossibile eliminare una zona assegnata a dei fornitori."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        zone.delete()
+        return response.Response(status=status.HTTP_204_NO_CONTENT)

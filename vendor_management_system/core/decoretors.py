@@ -39,8 +39,16 @@ def require_roles(*roles):
                 # Reindirizza alla pagina appropriata in base al ruolo dell'utente
                 if 'Fornitore' in user_groups:
                     return redirect('/documents/portal/')
+                elif 'Admin' in user_groups or 'Revisore' in user_groups:
+                    return redirect('/vendors/dashboard/')
                 else:
-                    return redirect('/documents/dashboard/')
+                    messages.warning(
+                        request,
+                        'Nessun ruolo assegnato. Contatta l\'amministratore.'
+                    )
+                    return redirect('/vendors/dashboard/')
+
+
         
         return _wrapped_view
     return decorator
@@ -101,8 +109,14 @@ class RoleRequiredMixin:
             # Reindirizza alla pagina appropriata
             if 'Fornitore' in user_groups:
                 return redirect('/documents/portal/')
+            elif 'Admin' in user_groups or 'Revisore' in user_groups:
+                return redirect('/vendors/dashboard/')
             else:
-                return redirect('/documents/dashboard/')
+                messages.warning(
+                    request,
+                    'Nessun ruolo assegnato. Contatta l\'amministratore.'
+                )
+                return redirect('/vendors/dashboard/')
 
 
 class AdminOrReviewerMixin(RoleRequiredMixin):

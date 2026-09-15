@@ -1,0 +1,188 @@
+.stats-card {
+    background: #fff;
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border-left: 4px solid #007bff;
+    margin-bottom: 1rem;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.stats-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.stats-card.warning { border-left-color: #ffc107; }
+.stats-card.danger { border-left-color: #dc3545; }
+.stats-card.success { border-left-color: #28a745; }
+.stats-card.info { border-left-color: #17a2b8; }
+
+.stats-number {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #333;
+}
+
+.chart-container {
+    background: #fff;
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin-bottom: 1rem;
+    position: relative;
+    height: 350px;
+}
+
+.vendor-table {
+    background: #fff;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.filter-chip {
+    display: inline-block;
+    padding: 0.4rem 0.8rem;
+    margin: 0.2rem;
+    background: #e9ecef;
+    border-radius: 20px;
+    font-size: 0.9rem;
+}
+
+.filter-chip .remove {
+    cursor: pointer;
+    margin-left: 0.5rem;
+    color: #dc3545;
+}
+
+.status-badge {
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.status-approved { background: #d4edda; color: #155724; }
+.status-pending { background: #fff3cd; color: #856404; }
+.status-rejected { background: #f8d7da; color: #721c24; }
+
+.export-btn {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    z-index: 1000;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.chart-clickable {
+    cursor: pointer;
+}
+
+.loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255,255,255,0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    display: none;
+}
+
+.loading-overlay.show {
+    display: flex;
+}
+
+/* Advanced Filters Styles */
+.advanced-filters-card {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    border: 1px solid #dee2e6;
+}
+
+.advanced-filters-card .card-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+    cursor: pointer;
+}
+
+.filter-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 5px;
+    margin-bottom: 10px;
+    transition: all 0.2s;
+}
+
+.filter-row:hover {
+    background: #e9ecef;
+}
+
+.filter-row select,
+.filter-row input {
+    flex: 1;
+    min-width: 150px;
+}
+
+.filter-row .btn-remove {
+    flex-shrink: 0;
+}
+
+.filter-field-select {
+    min-width: 200px;
+}
+
+.filter-operator-select {
+    min-width: 180px;
+}
+
+.filter-value-input {
+    min-width: 250px;
+}
+
+.applied-filter-badge {
+    display: inline-block;
+    padding: 0.5rem 1rem;
+    margin: 0.25rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 25px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.applied-filter-badge .filter-label {
+    font-weight: 600;
+    margin-right: 5px;
+}
+
+.applied-filter-badge .remove {
+    cursor: pointer;
+    margin-left: 10px;
+    opacity: 0.8;
+    font-weight: bold;
+    transition: opacity 0.2s;
+}
+
+.applied-filter-badge .remove:hover {
+    opacity: 1;
+}
+
+#applied-filters-count {
+    font-size: 0.85rem;
+    padding: 0.25rem 0.5rem;
+}
+
+.filter-row-label {
+    font-weight: 500;
+    color: #495057;
+    min-width: 60px;
+}

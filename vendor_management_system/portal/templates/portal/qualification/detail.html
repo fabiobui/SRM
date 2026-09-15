@@ -1,0 +1,104 @@
+{% extends "portal/base_portal.html" %}
+
+{% block title %}Stato qualifica — Portale Fornitore{% endblock %}
+
+{% block content %}
+<h1 class="h3 mb-4"><i class="fas fa-award text-success"></i> Stato qualifica</h1>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <div class="text-muted mb-1">Stato qualifica</div>
+                {% if vendor.qualification_status == 'APPROVED' %}
+                    <h3><span class="badge bg-success">{{ vendor.get_qualification_status_display }}</span></h3>
+                {% elif vendor.qualification_status == 'REJECTED' %}
+                    <h3><span class="badge bg-danger">{{ vendor.get_qualification_status_display }}</span></h3>
+                {% else %}
+                    <h3><span class="badge bg-secondary">{{ vendor.get_qualification_status_display|default:"In attesa" }}</span></h3>
+                {% endif %}
+                {% if vendor.is_qualified %}
+                    <div class="text-success mt-2"><i class="fas fa-check-circle"></i> Qualificato e in corso di validità</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <div class="text-muted mb-1">Punteggio qualifica</div>
+                <h3 class="mb-0">
+                    {% if vendor.qualification_score is not None %}
+                        {{ vendor.qualification_score|floatformat:1 }}<small class="text-muted">/100</small>
+                    {% else %}—{% endif %}
+                </h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <div class="text-muted mb-1">Livello di rischio</div>
+                {% if vendor.risk_level == 'LOW' %}
+                    <h3><span class="badge bg-success">{{ vendor.get_risk_level_display }}</span></h3>
+                {% elif vendor.risk_level == 'HIGH' %}
+                    <h3><span class="badge bg-danger">{{ vendor.get_risk_level_display }}</span></h3>
+                {% elif vendor.risk_level == 'MEDIUM' %}
+                    <h3><span class="badge bg-warning text-dark">{{ vendor.get_risk_level_display }}</span></h3>
+                {% else %}
+                    <h3><span class="badge bg-secondary">—</span></h3>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header"><strong>Dettagli qualifica</strong></div>
+    <div class="card-body">
+        <dl class="row mb-0">
+            <dt class="col-sm-4">Data qualifica</dt>
+            <dd class="col-sm-8">{{ vendor.qualification_date|date:"d/m/Y"|default:"—" }}</dd>
+
+            <dt class="col-sm-4">Scadenza qualifica</dt>
+            <dd class="col-sm-8">
+                {% if vendor.qualification_expiry %}
+                    {{ vendor.qualification_expiry|date:"d/m/Y" }}
+                    {% if not vendor.is_qualified and vendor.qualification_status == 'APPROVED' %}
+                        <span class="badge bg-danger ms-2">Scaduta</span>
+                    {% endif %}
+                {% else %}—{% endif %}
+            </dd>
+
+            <dt class="col-sm-4">Categoria</dt>
+            <dd class="col-sm-8">{{ vendor.category|default:"—" }}</dd>
+
+            <dt class="col-sm-4">Ultimo audit</dt>
+            <dd class="col-sm-8">{{ vendor.last_audit_date|date:"d/m/Y"|default:"—" }}</dd>
+
+            <dt class="col-sm-4">Prossimo audit previsto</dt>
+            <dd class="col-sm-8">
+                {% if vendor.next_audit_due %}
+                    {{ vendor.next_audit_due|date:"d/m/Y" }}
+                    {% if vendor.audit_overdue %}
+                        <span class="badge bg-danger ms-2">In ritardo</span>
+                    {% endif %}
+                {% else %}—{% endif %}
+            </dd>
+
+            <dt class="col-sm-4">Certificazioni ISO</dt>
+            <dd class="col-sm-8">{{ vendor.iso_certifications|linebreaksbr|default:"—" }}</dd>
+
+            {% if vendor.review_notes %}
+            <dt class="col-sm-4">Note di revisione</dt>
+            <dd class="col-sm-8">{{ vendor.review_notes|linebreaksbr }}</dd>
+            {% endif %}
+        </dl>
+    </div>
+</div>
+
+<div class="alert alert-light border">
+    <i class="fas fa-info-circle text-muted"></i>
+    Lo stato qualifica e l'audit sono gestiti dal back-office. Per chiarimenti contatta il tuo referente.
+</div>
+{% endblock %}

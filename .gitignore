@@ -279,3 +279,8 @@ vendor_management_system/media/
 .env
 .envs/*
 !.envs/.local/
+
+template_fulgard
+template_fulgard/*
+
+docs/.obsidian/

@@ -1,0 +1,156 @@
+[
+  {
+    "model": "vendors.competencezone",
+    "pk": "30000000-0000-0000-0000-000000000001",
+    "fields": {
+      "name": "Tutta l'Italia",
+      "description": "Copertura su tutto il territorio nazionale italiano",
+      "is_active": true,
+      "created_at": "2026-04-17T00:00:00",
+      "updated_at": "2026-04-17T00:00:00"
+    }
+  },
+  {
+    "model": "vendors.competencezonerule",
+    "pk": "40000000-0000-0000-0000-000000000001",
+    "fields": {
+      "zone": "30000000-0000-0000-0000-000000000001",
+      "rule_type": "INCLUDE",
+      "country": "00000000-0000-0000-0000-000000000001",
+      "region": null,
+      "province": null
+    }
+  },
+  {
+    "model": "vendors.competencezone",
+    "pk": "30000000-0000-0000-0000-000000000002",
+    "fields": {
+      "name": "Italia escluse le isole",
+      "description": "Tutto il territorio italiano escluse Sicilia e Sardegna",
+      "is_active": true,
+      "created_at": "2026-04-17T00:00:00",
+      "updated_at": "2026-04-17T00:00:00"
+    }
+  },
+  {
+    "model": "vendors.competencezonerule",
+    "pk": "40000000-0000-0000-0000-000000000002",
+    "fields": {
+      "zone": "30000000-0000-0000-0000-000000000002",
+      "rule_type": "INCLUDE",
+      "country": "00000000-0000-0000-0000-000000000001",
+      "region": null,
+      "province": null
+    }
+  },
+  {
+    "model": "vendors.competencezonerule",
+    "pk": "40000000-0000-0000-0000-000000000003",
+    "fields": {
+      "zone": "30000000-0000-0000-0000-000000000002",
+      "rule_type": "EXCLUDE",
+      "country": null,
+      "region": "10000000-0000-0000-0000-000000000019",
+      "province": null
+    }
+  },
+  {
+    "model": "vendors.competencezonerule",
+    "pk": "40000000-0000-0000-0000-000000000004",
+    "fields": {
+      "zone": "30000000-0000-0000-0000-000000000002",
+      "rule_type": "EXCLUDE",
+      "country": null,
+      "region": "10000000-0000-0000-0000-000000000020",
+      "province": null
+    }
+  },
+  {
+    "model": "vendors.competencezone",
+    "pk": "30000000-0000-0000-0000-000000000003",
+    "fields": {
+      "name": "Lombardia",
+      "description": "Solo regione Lombardia",
+      "is_active": true,
+      "created_at": "2026-04-17T00:00:00",
+      "updated_at": "2026-04-17T00:00:00"
+    }
+  },
+  {
+    "model": "vendors.competencezonerule",
+    "pk": "40000000-0000-0000-0000-000000000005",
+    "fields": {
+      "zone": "30000000-0000-0000-0000-000000000003",
+      "rule_type": "INCLUDE",
+      "country": null,
+      "region": "10000000-0000-0000-0000-000000000003",
+      "province": null
+    }
+  },
+  {
+    "model": "vendors.competencezone",
+    "pk": "30000000-0000-0000-0000-000000000004",
+    "fields": {
+      "name": "Lombardia e Veneto",
+      "description": "Regioni Lombardia e Veneto",
+      "is_active": true,
+      "created_at": "2026-04-17T00:00:00",
+      "updated_at": "2026-04-17T00:00:00"
+    }
+  },
+  {
+    "model": "vendors.competencezonerule",
+    "pk": "40000000-0000-0000-0000-000000000006",
+    "fields": {
+      "zone": "30000000-0000-0000-0000-000000000004",
+      "rule_type": "INCLUDE",
+      "country": null,
+      "region": "10000000-0000-0000-0000-000000000003",
+      "province": null
+    }
+  },
+  {
+    "model": "vendors.competencezonerule",
+    "pk": "40000000-0000-0000-0000-000000000007",
+    "fields": {
+      "zone": "30000000-0000-0000-0000-000000000004",
+      "rule_type": "INCLUDE",
+      "country": null,
+      "region": "10000000-0000-0000-0000-000000000005",
+      "province": null
+    }
+  },
+  {
+    "model": "vendors.competencezone",
+    "pk": "30000000-0000-0000-0000-000000000005",
+    "fields": {
+      "name": "Lombardia e Ravenna",
+      "description": "Regione Lombardia e Provincia di Ravenna",
+      "is_active": true,
+      "created_at": "2026-04-17T00:00:00",
+      "updated_at": "2026-04-17T00:00:00"
+    }
+  },
+  {
+    "model": "vendors.competencezonerule",
+    "pk": "40000000-0000-0000-0000-000000000008",
+    "fields": {
+      "zone": "30000000-0000-0000-0000-000000000005",
+      "rule_type": "INCLUDE",
+      "country": null,
+      "region": "10000000-0000-0000-0000-000000000003",
+      "province": null
+    }
+  },
+  {
+    "model": "vendors.competencezonerule",
+    "pk": "40000000-0000-0000-0000-000000000009",
+    "fields": {
+      "zone": "30000000-0000-0000-0000-000000000005",
+      "rule_type": "INCLUDE",
+      "country": null,
+      "region": null,
+      "province": "20000000-0000-0000-0000-000000000045"
+    }
+  }
+]

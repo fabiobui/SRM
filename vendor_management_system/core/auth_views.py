@@ -50,6 +50,7 @@ class CustomLoginView(View):
             
             if user is not None:
                 login(request, user)
+                request.session.set_expiry(0)  # La sessione scade alla chiusura del browser
                 messages.success(request, f'Benvenuto, {user.name or user.email}!')
                 
                 # Reindirizza basato sul ruolo
@@ -60,27 +61,37 @@ class CustomLoginView(View):
         return render(request, self.template_name, {'form': form})
     
     def redirect_by_role(self, user):
-        """Reindirizza l'utente basato sui suoi gruppi/ruoli"""
-        
+        """Reindirizza l'utente basato sul campo role del modello User"""
+        from vendor_management_system.vendors.models import Vendor
+
         # Verifica se è superuser
         if user.is_superuser:
-            return redirect('/documents/dashboard/')
-        
-        # Ottieni i nomi dei gruppi dell'utente
-        user_groups = user.groups.values_list('name', flat=True)
-        
-        # Reindirizzamento basato sui ruoli
-        if 'Admin' in user_groups or 'Revisore' in user_groups:
-            return redirect('/documents/dashboard/')
-        elif 'Fornitore' in user_groups:
-            return redirect('/documents/portal/')
-        else:
-            # Utente senza ruolo specifico - vai alla dashboard admin di default
+            return redirect('/admin/')
+
+        # Reindirizzamento basato sul ruolo dell'utente
+        if user.role == 'admin':
+            return redirect('/admin/')
+        elif user.role == 'bo_user':
+            return redirect('/admin/')
+        elif user.role == 'vendor':
+            try:
+                vendor = user.vendor
+            except Vendor.DoesNotExist:
+                vendor = None
+            if vendor:
+                return redirect('/documents/portal/')
             messages.warning(
-                self.request if hasattr(self, 'request') else None,
+                self.request,
+                'Il tuo account fornitore non è collegato a nessuna anagrafica. Contatta l\'amministratore.'
+            )
+            return redirect('login')
+        else:
+            # Utente senza ruolo specifico
+            messages.warning(
+                self.request,
                 'Nessun ruolo assegnato. Contatta l\'amministratore.'
             )
-            return redirect('/documents/dashboard/')
+            return redirect('/admin/')
 
 
 # In vendor_management_system/core/auth_views.py
