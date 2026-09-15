@@ -209,12 +209,12 @@ Verifica sempre le colonne `nome_embyon` e `similarita` del report.
 
 ### `import_competenze.py` / `import_servizi.py`
 
-Assegnano ai fornitori le competenze (`VendorCompetence`) e i servizi
-(`VendorService`) a partire da un file **a matrice**: un fornitore per riga, una
-competenza/servizio per colonna, con una `X` nelle celle da assegnare.
+Assegnano ai fornitori i requisiti professionali (`VendorCompetence`) e i servizi
+(`VendorService`) a partire da un file **a matrice**: un fornitore per riga, un
+requisito/servizio per colonna, con una `X` nelle celle da assegnare.
 
 ```bash
-.venv/bin/python vendor_management_system/import_competenze.py -f import_competenze_assegnate.xlsx --dry-run
+.venv/bin/python vendor_management_system/import_competenze.py -f ImportCompetenzaAssegnate.xlsx --dry-run
 .venv/bin/python vendor_management_system/import_servizi.py   -f import_servizi_assegnati.xlsx   --dry-run
 ```
 
@@ -223,27 +223,100 @@ competenza/servizio per colonna, con una `X` nelle celle da assegnare.
 | `-f`, `--file` | `import_competenze_assegnate.xlsx` / `import_servizi_assegnati.xlsx` | file `.xlsx` o `.csv` |
 | `-s`, `--sheet` | `0` | indice o nome del foglio |
 | `--dry-run` | off | esegue e annulla tutto |
+| `--alias COL=CATALOGO` | — | *(solo competenze)* aggancia una colonna a un requisito a catalogo; ripetibile |
+| `--create-missing` | off | *(solo competenze)* crea a catalogo i requisiti non riconosciuti |
+| `--reset-except-company X` | — | *(solo competenze)* cancella le assegnazioni dei fornitori con Società Embyon diversa da X, prima dell'import |
+| `--key` | `auto` | come agganciare il fornitore: `auto`, `albo_row`, `old_code` |
 
 **Formato a doppia intestazione** — le prime due righe hanno ruoli diversi:
 
-| | codice | QUAL-001 | QUAL-002 |
+| | codice | QUAL-001 | COMP-001 |
 |---|---|---|---|
-| **riga 1** (descrizioni) | | Medico competente | Analisi di laboratorio |
-| **riga 2** (header vero) | codice | QUAL-001 | QUAL-002 |
-| riga 3 (dati) | F 7238 | X | |
+| **riga 1** (descrizioni) | | Qualifica RSPP | Qualifica RSPP |
+| **riga 2** (header vero) | codice | QUAL-001 | COMP-001 |
+| riga 3 (dati) | XLS0004 | X | |
 
-- La prima colonna si chiama **`codice`** (non `old_code`) e contiene il Codice
-  Embyon del fornitore.
-- L'intestazione della colonna è il **codice** della competenza/servizio; la
-  descrizione della prima riga viene usata come nome.
-- Competenze e `ServiceType` mancanti **vengono creati al volo** con
-  `get_or_create`: un codice sbagliato in intestazione crea un record spurio.
-- Le assegnazioni sono in `get_or_create`, quindi rilanciare non duplica nulla,
-  ma **non toglie** le assegnazioni non più presenti nel file.
+- La prima colonna si chiama **`codice`** e contiene il codice provvisorio
+  dell'Albo (`XLS0001`, `XLS0002`, …).
 - Celle valide per l'assegnazione: `SI`, `YES`, `TRUE`, `1`, `X`, `Y`.
+- I fornitori non trovati vengono contati come "Vendor non trovati" e saltati.
 
-I fornitori il cui `codice` non esiste a database vengono contati come
-"Vendor non trovati" e saltati.
+**Come viene trovato il fornitore.** Il codice della prima colonna finisce in
+`old_code`, che però `import_embyon_codes.py` **sostituisce** con il codice
+Embyon (`XLS0001` → `F 7238`): da quel momento un aggancio per `old_code` non
+troverebbe più nulla. Lo script usa quindi la *Riga excel Albo Fornitore*, che
+non cambia mai, sfruttando il fatto che i codici XLS sono progressivi sulle righe
+del file:
+
+```
+XLS0001 → riga 2      XLS0002 → riga 3      XLSnnnn → riga nnnn + 1
+```
+
+(verificato su tutti i 1135 fornitori dell'Albo, nessuna eccezione). Con `--key`:
+
+| Valore | Comportamento |
+|---|---|
+| `auto` *(default)* | per i codici `XLS*` usa la riga Albo, altrimenti il Codice Embyon |
+| `albo_row` | solo riga Albo |
+| `old_code` | solo Codice Embyon (comportamento precedente) |
+
+Se la prima colonna contiene un numero, viene interpretato direttamente come
+riga. **La stessa logica e la stessa opzione `--key` valgono per
+`import_servizi.py`, `import_documenti.py` e `import_valutazioni.py`.** In
+esecuzione ogni script dichiara il criterio usato riga per riga:
+
+```
+➡️ 1. Vendor: 21 MANAGEMENT DI BARONCINI DAVIDE [XLS0001 → riga Albo 2]
+```
+
+**Il prefisso della colonna è il tipo, non il requisito.** Nel file lo stesso
+requisito compare sotto più codici: `QUAL-001` e `COMP-001` sono entrambi
+"Qualifica RSPP". Il prefisso dice con quale ruolo il requisito viene assegnato
+al fornitore, e finisce nei flag di `VendorCompetence`:
+
+| Prefisso | Flag |
+|---|---|
+| `QUAL-` | `is_qualifica` |
+| `COMP-` | `is_competenza` |
+| `ISCR-` | `is_iscrizione_albo` |
+
+Su quei flag filtrano le dashboard e il portale fornitore: un'assegnazione senza
+tipo esiste a database ma non compare da nessuna parte. Se lo stesso fornitore
+arriva sia da `QUAL-001` sia da `COMP-001`, la riga resta **una sola** con
+entrambi i flag.
+
+**L'aggancio al catalogo avviene per nome**, con il codice come conferma. Serve
+perché i codici del file sono storici (`QUAL-*`, `COMP-*`) mentre a catalogo i
+requisiti hanno codici diversi (`REQ-*`, `MDL-*`, `ISCR-*`, `SOA`, `F-GAS`, …).
+Un requisito non riconosciuto viene **segnalato e la colonna ignorata**: crearlo
+al volo produrrebbe doppioni del catalogo (è quello che faceva la versione
+precedente dello script). Quando la descrizione nel file non coincide con il nome
+a catalogo si usa `--alias`:
+
+```bash
+--alias QUAL-003=REQ-003    # Qualifica Coord. Sicurezza Cantieri -> Coordinatore Sicurezza Cantieri (CSP-CSE)
+--alias QUAL-004=REQ-004    # Consul. Merci Pericolose            -> Consul. ADR
+```
+
+Gli alias ricorrenti si possono fissare nel dizionario `ALIASES` in testa allo
+script. In avvio lo script stampa quante colonne ha riconosciuto
+(`Requisiti riconosciuti a catalogo: 19/19`): **controlla quel numero prima di
+lanciare senza `--dry-run`.**
+
+**Ricaricare le assegnazioni.** `--reset-except-company` cancella le assegnazioni
+esistenti prima di importare, tenendo solo quelle dei fornitori di una Società:
+
+```bash
+.venv/bin/python vendor_management_system/import_competenze.py \
+    -f ImportCompetenzaAssegnate.xlsx --reset-except-company Sicura --dry-run
+```
+
+I fornitori **senza** Società Embyon rientrano nella cancellazione. La
+cancellazione sta nella stessa transazione dell'import, quindi con `--dry-run`
+viene annullata insieme al resto.
+
+`import_servizi.py` mantiene invece il comportamento originale: aggancia il
+`ServiceType` per codice di colonna e lo **crea se manca**.
 
 ---
 
@@ -263,8 +336,11 @@ matrice: un fornitore per riga, un tipo documento per colonna.
 | `-f`, `--file` | `import_sa8000.xlsx` | file `.xlsx` o `.csv` |
 | `-s`, `--sheet` | `0` | indice o nome del foglio |
 | `--dry-run` | off | esegue e annulla tutto |
+| `--key` | `auto` | come agganciare il fornitore: `auto`, `albo_row`, `old_code` |
 
-- Prima colonna: **`old_code`** (Codice Embyon).
+- Prima colonna: **`old_code`**, con lo stesso aggancio degli altri import — vedi
+  [Come viene trovato il fornitore](#competenze-e-servizi): i codici `XLS*`
+  passano per la Riga excel Albo, che sopravvive a `import_embyon_codes.py`.
 - Le altre colonne devono chiamarsi come il **`code` di un `DocumentType`**
   esistente (confronto case-insensitive); i tipi sconosciuti vengono segnalati e
   saltati, **non** creati. Per questo `import_documenttypes.py` va lanciato prima.
@@ -281,9 +357,10 @@ Crea/aggiorna le valutazioni (`VendorEvaluation`), sempre a matrice.
 .venv/bin/python vendor_management_system/import_valutazioni.py -f import_valutazioni.xlsx --dry-run
 ```
 
-Stesse opzioni (`-f`, `-s`, `--dry-run`, default `import_valutazioni.xlsx`).
+Stesse opzioni (`-f`, `-s`, `--dry-run`, `--key`; default `import_valutazioni.xlsx`).
 
-- Prima colonna: **`old_code`**.
+- Prima colonna: **`old_code`**, agganciata come sopra (Riga excel Albo per i
+  codici `XLS*`).
 - Le altre colonne devono corrispondere al **`code` di un `EvaluationCriterion`**
   esistente (confrontato in maiuscolo); i criteri non trovati vengono saltati.
 - La cella contiene il punteggio; le celle non numeriche vengono ignorate.
@@ -534,8 +611,10 @@ python fix_documentset_migration.py             # esegue
 | `ImportError: Pandas requires version '3.1.5' or newer of 'openpyxl'` | `pip install --upgrade "openpyxl>=3.1.5"` |
 | `❌ File non trovato. Percorso fornito: Import.xlsx` | il file non è in nessuna delle cartelle cercate: passa `-f /percorso/assoluto` |
 | `Vendor() got unexpected keyword arguments: 'xxx'` | lo script scrive un campo rimosso dal modello: confronta con `Vendor._meta.get_fields()` e togli la riga |
-| `❌ Vendor non trovato: <codice>` | la prima colonna non corrisponde a nessun `old_code` a database: l'anagrafica va importata prima, o i codici sono già stati sostituiti da `import_embyon_codes.py` |
+| `❌ Vendor non trovato: <codice>` | l'anagrafica non è stata importata, oppure stai usando `--key old_code` dopo che `import_embyon_codes.py` ha sostituito i codici: lascia `--key auto`, che aggancia per Riga excel Albo |
 | `⚠️ Tipo documento XXX non trovato` | manca il `DocumentType`: lancia prima `import_documenttypes.py` |
+| `import_competenze` dice `non è a catalogo` e salta la colonna | la descrizione nel file non coincide con nessun nome a catalogo: aggancia con `--alias COL=CODICE_CATALOGO` |
+| Le competenze importate non si vedono nelle dashboard | assegnazioni senza tipo (`is_competenza`/`is_qualifica`/`is_iscrizione_albo` tutti `False`): reimporta con la versione aggiornata dello script, che ricava il tipo dal prefisso della colonna |
 | `Illegal mix of collations` | confronto SQL diretto fra `vms_db` e `redmine_test`: vanno confrontati in Python, come fa `import_embyon_codes.py` |
 | L'import si annulla tutto per una riga sbagliata | è voluto: `import_vendors.py` usa una transazione unica. Correggi la riga e rilancia |
 | `(3780, "Referencing column ... are incompatible")` durante `migrate` | database con collation non uniformi: vedi [Collation](#collation-utf8mb4_unicode_ci-ovunque) |
