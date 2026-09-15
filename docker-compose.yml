@@ -1,7 +1,6 @@
 # Define named volumes for persistent data storage
 volumes:
-    local_postgres_data: {} # Volume for PostgreSQL data
-    local_postgres_data_backups: {} # Volume for PostgreSQL data backups
+    local_mysql_data: {} # Volume for MySQL data
     local_redis_data: {} # Volume for Redis data
 
 # Define services
@@ -13,30 +12,27 @@ services:
             dockerfile: ./compose/django/Dockerfile
         container_name: vendor_management_system_django
         depends_on:
-            - postgres
+            - mysql
             - redis
         volumes:
             - .:/app:z # Mount the current directory to /app in the container
         env_file:
             - ./.envs/.django.env
-            - ./.envs/.postgres.env # Load Django and PostgreSQL environment variables
+            - ./.envs/.mysql.env # Load Django and MySQL environment variables
         ports:
             - 8000:8000 # Map container port 8000 to host port 8000
         command: /start # Start command for Django
 
-    # PostgreSQL service
-    postgres:
-        build:
-            context: .
-            dockerfile: ./compose/postgres/Dockerfile
-        container_name: vendor_management_system_local_postgres
+    # MySQL service
+    mysql:
+        image: mysql:8.0
+        container_name: vendor_management_system_local_mysql
         volumes:
-            - local_postgres_data:/var/lib/postgresql/data # Mount volume for PostgreSQL data
-            - local_postgres_data_backups:/backups # Mount volume for PostgreSQL backups
+            - local_mysql_data:/var/lib/mysql # Mount volume for MySQL data
         env_file:
-            - ./.envs/.postgres.env # Load PostgreSQL environment variables
+            - ./.envs/.mysql.env # Load MySQL environment variables
         ports:
-            - 5432:5432 # Map container port 5432 to host port 5432
+            - 13306:3306 # Host 13306 -> container 3306 (3306 is taken locally by another project's stack)
 
     # Redis service
     redis:
@@ -45,7 +41,7 @@ services:
         volumes:
             - local_redis_data:/data # Mount volume for Redis data
         ports:
-            - 6379:6379 # Map container port 6379 to host port 6379
+            - 16379:6379 # Host 16379 -> container 6379 (6379 is taken locally by another project's stack)
 
     # Celery worker service
     celeryworker:
