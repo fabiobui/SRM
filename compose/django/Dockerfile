@@ -10,8 +10,13 @@ FROM python as python-build-stage
 RUN apt-get update && apt-get install --no-install-recommends -y \
   # Dependencies for building Python packages.
   build-essential \
-  # Dependencies for psycopg (PostgreSQL adapter).
-  libpq-dev
+  pkg-config \
+  # Dependencies for mysqlclient (MySQL adapter).
+  default-libmysqlclient-dev \
+  # Dependencies for python-ldap.
+  libldap2-dev \
+  libsasl2-dev \
+  libssl-dev
 
 
 # Copy the requirements file to the image.
@@ -40,8 +45,12 @@ WORKDIR ${APP_HOME}
 
 # Install required system dependencies.
 RUN apt-get update && apt-get install --no-install-recommends -y \
-  # psycopg dependencies.
-  libpq-dev \
+  # mysqlclient runtime dependency.
+  default-libmysqlclient-dev \
+  # python-ldap runtime dependencies.
+  libldap2-dev \
+  libsasl2-dev \
+  libssl-dev \
   # Translations dependencies.
   gettext \
   # Clean up unused files to reduce image size.

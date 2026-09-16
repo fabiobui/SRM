@@ -14,22 +14,26 @@ scollegate (il campo messo a NULL), non cancellate.
 Di default è SICURO: mostra l'anteprima di cosa verrà eliminato e chiede
 conferma. Usa --dry-run per non toccare nulla, --yes per saltare la conferma.
 
-ESEMPI (sul server, dentro la venv):
+ESEMPI (dalla root del repo, dentro la venv):
     # singolo id (Codice Embyon)
-    python delete_vendors.py --ids 1024
+    python data_migration_scripts/delete_vendors.py --ids 1024
     # più id espliciti
-    python delete_vendors.py --ids 1024,1030,1055
+    python data_migration_scripts/delete_vendors.py --ids 1024,1030,1055
     # range inclusivo
-    python delete_vendors.py --from 1000 --to 1050
+    python data_migration_scripts/delete_vendors.py --from 1000 --to 1050
     # per chiave primaria (vendor_code), valori esatti
-    python delete_vendors.py --field vendor_code --ids A1B2C3D4E5
+    python data_migration_scripts/delete_vendors.py \
+        --field vendor_code --ids A1B2C3D4E5
     # solo anteprima
-    python delete_vendors.py --from 1000 --to 1050 --dry-run
+    python data_migration_scripts/delete_vendors.py \
+        --from 1000 --to 1050 --dry-run
 """
+
 import argparse
 import os
 import sys
 
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
 
 import django  # noqa: E402
@@ -46,24 +50,36 @@ ALLOWED_FIELDS = ("old_code", "vendor_code")
 
 def parse_args():
     p = argparse.ArgumentParser(
-        description="Cancella fornitori e righe collegate per id singolo o range."
+        description="Cancella fornitori e righe collegate per id o range."
     )
     p.add_argument(
-        "--field", choices=ALLOWED_FIELDS, default="old_code",
+        "--field",
+        choices=ALLOWED_FIELDS,
+        default="old_code",
         help="Campo su cui filtrare (default: old_code = Codice Embyon).",
     )
     p.add_argument(
         "--ids",
         help="Uno o più valori esatti separati da virgola (es. 1024,1030).",
     )
-    p.add_argument("--from", dest="range_from",
-                   help="Estremo iniziale del range (incluso).")
-    p.add_argument("--to", dest="range_to",
-                   help="Estremo finale del range (incluso).")
-    p.add_argument("--dry-run", action="store_true",
-                   help="Mostra solo l'anteprima, non cancella nulla.")
-    p.add_argument("--yes", action="store_true",
-                   help="Non chiede conferma (cancella subito dopo l'anteprima).")
+    p.add_argument(
+        "--from",
+        dest="range_from",
+        help="Estremo iniziale del range (incluso).",
+    )
+    p.add_argument(
+        "--to", dest="range_to", help="Estremo finale del range (incluso)."
+    )
+    p.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Mostra solo l'anteprima, non cancella nulla.",
+    )
+    p.add_argument(
+        "--yes",
+        action="store_true",
+        help="Non chiede conferma (cancella subito dopo l'anteprima).",
+    )
     return p.parse_args()
 
 
@@ -104,7 +120,7 @@ def select_vendors(field, ids, range_from, range_to):
 
 
 def build_preview(vendors):
-    """Usa il Collector di Django per elencare cosa verrà eliminato/scollegato."""
+    """Usa il Collector di Django per elencare cosa verrà eliminato."""
     collector = Collector(using="default")
     collector.collect(list(vendors))
 
@@ -149,15 +165,21 @@ def build_preview(vendors):
 
 def main():
     args = parse_args()
-    vendors = select_vendors(args.field, args.ids, args.range_from, args.range_to)
+    vendors = select_vendors(
+        args.field, args.ids, args.range_from, args.range_to
+    )
 
     count = vendors.count()
     if count == 0:
-        print("Nessun fornitore corrisponde ai criteri indicati. Niente da fare.")
+        print(
+            "Nessun fornitore corrisponde ai criteri indicati. Niente da fare."
+        )
         return 0
 
     print(f"Fornitori selezionati ({count}) [campo: {args.field}]:")
-    for pk, old_code, name in vendors.values_list("pk", "old_code", "name")[:200]:
+    for pk, old_code, name in vendors.values_list("pk", "old_code", "name")[
+        :200
+    ]:
         print(f"  - {pk}  (old_code={old_code})  {name}")
     if count > 200:
         print(f"  ... e altri {count - 200}")
@@ -171,7 +193,9 @@ def main():
 
     if to_nullify:
         print("\nRighe che verranno SCOLLEGATE (SET_NULL, non cancellate):")
-        for label, n in sorted(to_nullify.items(), key=lambda x: (-x[1], x[0])):
+        for label, n in sorted(
+            to_nullify.items(), key=lambda x: (-x[1], x[0])
+        ):
             print(f"  {n:>6}  {label}")
 
     if args.dry_run:
@@ -179,7 +203,7 @@ def main():
         return 0
 
     if not args.yes:
-        print(f"\nStai per ELIMINARE {count} fornitori e le righe collegate qui sopra.")
+        print(f"\nStai per ELIMINARE {count} fornitori e le righe qui sopra.")
         resp = input("Digita 'CANCELLA' per confermare: ").strip()
         if resp != "CANCELLA":
             print("Annullato: nessuna modifica effettuata.")

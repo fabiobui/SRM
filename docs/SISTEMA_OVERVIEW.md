@@ -966,9 +966,9 @@ POST   /api/purchase-orders/{id}/deliver/     # Consegna ordine
 ## 📞 Supporto e Documentazione
 
 ### Documentazione Tecnica
-- 📘 **Architecture Guide**: `/docs/README.md`
+- 📘 **Architecture Guide**: `/README.md`
 - 🔧 **API Documentation**: `/swagger/` `/redoc/`
-- 🚀 **Installation Guide**: `/INSTALLATION_INSTRUCTIONS.md`
+- 🚀 **Installation Guide**: `/docs/PROJECT_OVERVIEW_AND_LOCAL_SETUP.md`
 - 👥 **Contributors**: `/contributors.txt`
 
 ### Manuali Utente

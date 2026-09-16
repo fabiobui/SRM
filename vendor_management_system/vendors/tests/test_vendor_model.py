@@ -3,6 +3,8 @@ import pytest
 from django.core.exceptions import ValidationError
 from django.db.utils import IntegrityError
 
+from vendor_management_system.vendors.models import Address
+
 
 # Test the Vendor object creation
 @pytest.mark.django_db
@@ -25,15 +27,20 @@ def test_vendor_model_fields(db, vendor_factory):
         assert isinstance(vendor.vendor_code, str)
         assert isinstance(vendor.name, str)
         assert isinstance(vendor.contact_details, str)
-        assert isinstance(vendor.address, str)
+        assert isinstance(vendor.address, Address)
         assert isinstance(vendor.on_time_delivery_rate, float)
         assert isinstance(vendor.quality_rating_avg, float)
         assert isinstance(vendor.average_response_time, float)
         assert isinstance(vendor.fulfillment_rate, float)
 
         # Check the Vendor object field values
-        assert vendor.on_time_delivery_rate >= 0 and vendor.on_time_delivery_rate <= 100
-        assert vendor.quality_rating_avg >= 0 and vendor.quality_rating_avg <= 5
+        assert (
+            vendor.on_time_delivery_rate >= 0
+            and vendor.on_time_delivery_rate <= 100
+        )
+        assert (
+            vendor.quality_rating_avg >= 0 and vendor.quality_rating_avg <= 5
+        )
         assert vendor.average_response_time >= 0
         assert vendor.fulfillment_rate >= 0 and vendor.fulfillment_rate <= 100
 

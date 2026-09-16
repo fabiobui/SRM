@@ -1,10 +1,10 @@
 # Imports
 import os
 from pathlib import Path
+
 from celery.schedules import crontab
-from urllib.parse import urlparse
-from dotenv import load_dotenv
 from django.utils.translation import gettext_lazy as _
+from dotenv import load_dotenv
 from import_export.formats.base_formats import CSV, XLSX
 
 load_dotenv()
@@ -15,12 +15,12 @@ DEBUG = os.getenv("DEBUG", "False") == "True"
 ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
 
 USE_X_FORWARDED_HOST = True
-SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 # Configurazione prefisso URL per il deployment
 # In produzione usa /fornitori, in sviluppo usa la root /
 USE_FORNITORI_PREFIX = os.getenv("USE_FORNITORI_PREFIX", "False") == "True"
-FORCE_SCRIPT_NAME = '/fornitori' if USE_FORNITORI_PREFIX else None
+FORCE_SCRIPT_NAME = "/fornitori" if USE_FORNITORI_PREFIX else None
 
 LANGUAGE_CODE = os.getenv("LANGUAGE_CODE", "it")
 USE_I18N = os.getenv("USE_I18N", "True") == "True"
@@ -40,7 +40,7 @@ APPS_DIR = BASE_DIR / "vendor_management_system"
 
 
 # CACHES
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
@@ -54,25 +54,31 @@ CACHES = {
 
 
 # DATABASES
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 DATABASE_URL = os.getenv("DATABASE_URL", "")
 if DATABASE_URL.startswith("sqlite"):
-    DATABASES = {"default": {"ENGINE": "django.db.backends.sqlite3",
-                             "NAME": DATABASE_URL.split("sqlite:///")[1]}}
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": DATABASE_URL.split("sqlite:///")[1],
+        }
+    }
 else:
-    DATABASES = {"default": {
-        "ENGINE": os.getenv("DB_ENGINE"),
-        "NAME": os.getenv("DB_NAME"),
-        "USER": os.getenv("DB_USER"),
-        "PASSWORD": os.getenv("DB_PASSWORD"),
-        "HOST": os.getenv("DB_HOST"),
-        "PORT": os.getenv("DB_PORT"),
-        "OPTIONS": {
-            "charset": "utf8mb4",
-            "init_command": "SET sql_mode='STRICT_TRANS_TABLES'",
-        },
-        "CONN_MAX_AGE": 60,
-    }}
+    DATABASES = {
+        "default": {
+            "ENGINE": os.getenv("DB_ENGINE"),
+            "NAME": os.getenv("DB_NAME"),
+            "USER": os.getenv("DB_USER"),
+            "PASSWORD": os.getenv("DB_PASSWORD"),
+            "HOST": os.getenv("DB_HOST"),
+            "PORT": os.getenv("DB_PORT"),
+            "OPTIONS": {
+                "charset": "utf8mb4",
+                "init_command": "SET sql_mode='STRICT_TRANS_TABLES'",
+            },
+            "CONN_MAX_AGE": 60,
+        }
+    }
 
 
 # DATABASES["default"]["ATOMIC_REQUESTS"] = True
@@ -80,13 +86,13 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 
 # URLS
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 ROOT_URLCONF = "config.urls"
 WSGI_APPLICATION = "config.wsgi.application"
 
 
 # APPS
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 DJANGO_APPS = [
     "jazzmin",
     "django.contrib.auth",
@@ -113,98 +119,127 @@ LOCAL_APPS = [
     "vendor_management_system.purchase_orders",
     "vendor_management_system.historical_performances",
     "vendor_management_system.documents",  # ← NUOVO MODULO
-    "vendor_management_system.portal",     # ← Portale fornitore
+    "vendor_management_system.portal",  # ← Portale fornitore
 ]
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
 # AUTHENTICATION
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 AUTH_USER_MODEL = "users.User"
 AUTHENTICATION_BACKENDS = [
     "vendor_management_system.core.simple_ldap_backend.HybridAuthBackend",
     "django.contrib.auth.backends.ModelBackend",
 ]
 
-# LDAP CONFIGURATION
-# ------------------------------------------------------------------------------
-import ldap
-import ssl
-from django_auth_ldap.config import LDAPSearch, ActiveDirectoryGroupType
-
-# Supporto per più formati di env vars: LDAP_SERVER/LDAP_PORT oppure LDAP_SERVER_URI
-LDAP_SERVER = os.getenv("LDAP_SERVER")
-LDAP_PORT = os.getenv("LDAP_PORT")
-LDAP_USE_SSL = os.getenv("USE_SSL", os.getenv("LDAP_USE_SSL", "False")) == "True"
-
-# Costruisco l'URI se sono forniti server/porta; altrimenti prendo LDAP_SERVER_URI
-if LDAP_SERVER:
-    scheme = "ldaps" if LDAP_USE_SSL else "ldap"
-    port = LDAP_PORT or ("636" if LDAP_USE_SSL else "389")
-    AUTH_LDAP_SERVER_URI = os.getenv("LDAP_SERVER_URI", f"{scheme}://{LDAP_SERVER}:{port}")
-else:
-    AUTH_LDAP_SERVER_URI = os.getenv("LDAP_SERVER_URI", "ldap://ldap.example.com")
-
-# Bind DN / password (supporta sia LDAP_USER/LDAP_PASSWORD che LDAP_BIND_DN/LDAP_BIND_PASSWORD)
-AUTH_LDAP_BIND_DN = os.getenv("LDAP_BIND_DN", os.getenv("LDAP_USER", "cn=admin,dc=example,dc=com"))
-AUTH_LDAP_BIND_PASSWORD = os.getenv("LDAP_BIND_PASSWORD", os.getenv("LDAP_PASSWORD", ""))
-
-# StartTLS (usa LDAPS se LDAP_USE_SSL=True)
-AUTH_LDAP_START_TLS = os.getenv("LDAP_START_TLS", "False") == "True"
-
-# Se è richiesto disabilitare la validazione del certificato (es. ambiente di test)
-# usare LDAP_TLS_VALIDATE=False nel file .env. In produzione lasciare True.
-if os.getenv("LDAP_TLS_VALIDATE", "True") in ("False", "false", "0"):
-    # Disabilita la validazione del certificato per python-ldap
-    try:
-        ldap.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_NEVER)
-    except Exception:
-        # Non bloccare l'avvio se l'opzione non è supportata dall'ambiente
-        pass
-
-# Ricerca utenti
-AUTH_LDAP_USER_SEARCH = LDAPSearch(
-    os.getenv("LDAP_USER_BASE_DN", "ou=users,dc=example,dc=com"),
-    ldap.SCOPE_SUBTREE,
-    os.getenv("LDAP_USER_FILTER", "(mail=%(user)s)")
-)
-
-# Mappatura attributi utente
-AUTH_LDAP_USER_ATTR_MAP = {
-    "name": "displayName",
-    "email": "mail",
-}
-
-# Configurazione gruppi LDAP per Active Directory
-AUTH_LDAP_GROUP_SEARCH = LDAPSearch(
-    os.getenv("LDAP_GROUP_BASE_DN", "ou=groups,dc=example,dc=com"),
-    ldap.SCOPE_SUBTREE,
-    "(objectClass=group)"
-)
-AUTH_LDAP_GROUP_TYPE = ActiveDirectoryGroupType()
-
-# Mappatura gruppi LDAP -> ruoli applicazione
-LDAP_GROUP_ROLE_MAPPING = {
-    'vms_administrators': 'admin',
-    'vms_backoffice': 'bo_user',
-    'vms_vendors': 'vendor',
-}
-
-# Opzioni LDAP
-AUTH_LDAP_ALWAYS_UPDATE_USER = True
-AUTH_LDAP_FIND_GROUP_PERMS = True
-AUTH_LDAP_CACHE_TIMEOUT = 3600
-
 # Abilita/disabilita autenticazione LDAP
 LDAP_ENABLED = os.getenv("LDAP_ENABLED", "False") == "True"
 
-# Variabili per il comando di test (replicate dalle configurazioni sopra)
-LDAP_USER_BASE_DN = os.getenv("LDAP_USER_BASE_DN", "ou=users,dc=example,dc=com")
-LDAP_GROUP_BASE_DN = os.getenv("LDAP_GROUP_BASE_DN", "ou=groups,dc=example,dc=com")
+# Variabili lette anche quando LDAP è disabilitato: i comandi diagnostici
+# (test_ldap*, vedi vendor_management_system/*/management/commands/) e il
+# backend realmente usato (HybridAuthBackend/ldap3, sotto) le leggono con
+# getattr()/fallback, quindi non serve il pacchetto python-ldap per averle.
+LDAP_GROUP_ROLE_MAPPING = {
+    "vms_administrators": "admin",
+    "vms_backoffice": "bo_user",
+    "vms_vendors": "vendor",
+}
+LDAP_USER_BASE_DN = os.getenv(
+    "LDAP_USER_BASE_DN", "ou=users,dc=example,dc=com"
+)
+LDAP_GROUP_BASE_DN = os.getenv(
+    "LDAP_GROUP_BASE_DN", "ou=groups,dc=example,dc=com"
+)
 LDAP_TLS_VALIDATE = os.getenv("LDAP_TLS_VALIDATE", "True") != "False"
+
+# LDAP CONFIGURATION (solo se LDAP_ENABLED=True)
+# -----------------------------------------------------------------------------
+# python-ldap/django-auth-ldap richiedono compilazione nativa (OpenLDAP SDK),
+# non disponibile su Windows nativo senza toolchain dedicata - vedi
+# docs/PROJECT_OVERVIEW_AND_LOCAL_SETUP.md paragrafo 7.2. Importarli solo
+# quando LDAP e' davvero abilitato evita di doverli installare per lavorare in
+# locale (LDAP_ENABLED=False, il default di sviluppo). Le impostazioni
+# AUTH_LDAP_* costruite qui sotto, in particolare, sono gia' dead code oggi:
+# il backend realmente registrato in AUTHENTICATION_BACKENDS
+# (HybridAuthBackend, sopra) usa ldap3 e legge
+# AUTH_LDAP_SERVER_URI/BIND_DN/BIND_PASSWORD come semplici stringhe via
+# getattr(), senza mai toccare gli oggetti LDAPSearch qui sotto.
+if LDAP_ENABLED:
+    import ldap
+    from django_auth_ldap.config import ActiveDirectoryGroupType, LDAPSearch
+
+    # Supporto per più formati di env vars: LDAP_SERVER/LDAP_PORT oppure
+    # LDAP_SERVER_URI
+    LDAP_SERVER = os.getenv("LDAP_SERVER")
+    LDAP_PORT = os.getenv("LDAP_PORT")
+    LDAP_USE_SSL = (
+        os.getenv("USE_SSL", os.getenv("LDAP_USE_SSL", "False")) == "True"
+    )
+
+    # Costruisco l'URI se sono forniti server/porta; altrimenti prendo
+    # LDAP_SERVER_URI
+    if LDAP_SERVER:
+        scheme = "ldaps" if LDAP_USE_SSL else "ldap"
+        port = LDAP_PORT or ("636" if LDAP_USE_SSL else "389")
+        AUTH_LDAP_SERVER_URI = os.getenv(
+            "LDAP_SERVER_URI", f"{scheme}://{LDAP_SERVER}:{port}"
+        )
+    else:
+        AUTH_LDAP_SERVER_URI = os.getenv(
+            "LDAP_SERVER_URI", "ldap://ldap.example.com"
+        )
+
+    # Bind DN / password (supporta sia LDAP_USER/LDAP_PASSWORD che
+    # LDAP_BIND_DN/LDAP_BIND_PASSWORD)
+    AUTH_LDAP_BIND_DN = os.getenv(
+        "LDAP_BIND_DN", os.getenv("LDAP_USER", "cn=admin,dc=example,dc=com")
+    )
+    AUTH_LDAP_BIND_PASSWORD = os.getenv(
+        "LDAP_BIND_PASSWORD", os.getenv("LDAP_PASSWORD", "")
+    )
+
+    # StartTLS (usa LDAPS se LDAP_USE_SSL=True)
+    AUTH_LDAP_START_TLS = os.getenv("LDAP_START_TLS", "False") == "True"
+
+    # Se è richiesto disabilitare la validazione del certificato (es.
+    # ambiente di test) usare LDAP_TLS_VALIDATE=False nel file .env. In
+    # produzione lasciare True.
+    if os.getenv("LDAP_TLS_VALIDATE", "True") in ("False", "false", "0"):
+        # Disabilita la validazione del certificato per python-ldap
+        try:
+            ldap.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_NEVER)
+        except Exception:
+            # Non bloccare l'avvio se l'opzione non è supportata dall'ambiente
+            pass
+
+    # Ricerca utenti
+    AUTH_LDAP_USER_SEARCH = LDAPSearch(
+        os.getenv("LDAP_USER_BASE_DN", "ou=users,dc=example,dc=com"),
+        ldap.SCOPE_SUBTREE,
+        os.getenv("LDAP_USER_FILTER", "(mail=%(user)s)"),
+    )
+
+    # Mappatura attributi utente
+    AUTH_LDAP_USER_ATTR_MAP = {
+        "name": "displayName",
+        "email": "mail",
+    }
+
+    # Configurazione gruppi LDAP per Active Directory
+    AUTH_LDAP_GROUP_SEARCH = LDAPSearch(
+        os.getenv("LDAP_GROUP_BASE_DN", "ou=groups,dc=example,dc=com"),
+        ldap.SCOPE_SUBTREE,
+        "(objectClass=group)",
+    )
+    AUTH_LDAP_GROUP_TYPE = ActiveDirectoryGroupType()
+
+    # Opzioni LDAP
+    AUTH_LDAP_ALWAYS_UPDATE_USER = True
+    AUTH_LDAP_FIND_GROUP_PERMS = True
+    AUTH_LDAP_CACHE_TIMEOUT = 3600
 
 
 # PASSWORDS
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 PASSWORD_HASHERS = [
     "django.contrib.auth.hashers.Argon2PasswordHasher",
     "django.contrib.auth.hashers.PBKDF2PasswordHasher",
@@ -213,19 +248,25 @@ PASSWORD_HASHERS = [
 ]
 AUTH_PASSWORD_VALIDATORS = [
     {
-        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",  # noqa: E501
     },
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
-    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
-    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
+    {
+        "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"  # noqa: E501
+    },
+    {
+        "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"  # noqa: E501
+    },
 ]
 
 
 # MIDDLEWARE
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
-    "corsheaders.middleware.CorsMiddleware",  # deve stare subito dopo SecurityMiddleware
+    # corsheaders.middleware.CorsMiddleware deve stare subito dopo
+    # SecurityMiddleware
+    "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.locale.LocaleMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -236,7 +277,8 @@ MIDDLEWARE = [
 ]
 
 if USE_FORNITORI_PREFIX:
-    # Inserisci il middleware personalizzato in posizione logica, dopo CommonMiddleware
+    # Inserisci il middleware personalizzato in posizione logica, dopo
+    # CommonMiddleware
     MIDDLEWARE.insert(
         MIDDLEWARE.index("django.middleware.common.CommonMiddleware") + 1,
         "vendor_management_system.core.middleware.force_prefix.ForcePrefixMiddleware",
@@ -245,7 +287,7 @@ if USE_FORNITORI_PREFIX:
 IMPORT_EXPORT_FORMATS = [XLSX, CSV]  # ordine = priorità nel menu
 
 # STATIC
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Static & Media
 STATIC_URL = "/fornitori/static/" if USE_FORNITORI_PREFIX else "/static/"
 # 1) DOVE METTI I TUOI FILE SORGENTE (versionati in git)
@@ -255,18 +297,20 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 
 
 # MEDIA
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 MEDIA_ROOT = str(BASE_DIR / "media")
 MEDIA_URL = "/fornitori/media/" if USE_FORNITORI_PREFIX else "/media/"
 
 
 # TEMPLATES
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        'DIRS': [
-            BASE_DIR / 'vendor_management_system' / 'templates',  # ← IMPORTANTE
+        "DIRS": [
+            BASE_DIR
+            / "vendor_management_system"
+            / "templates",  # ← IMPORTANTE
         ],
         "APP_DIRS": True,
         "OPTIONS": {
@@ -296,31 +340,49 @@ JAZZMIN_SETTINGS = {
     "show_sidebar": True,
     "default_icon_parents": "fas fa-folder-open",
     "default_icon_children": "fas fa-file-alt",
-    "hide_apps": ["django_celery_beat", "purchase_orders", "historical_performances", "authtoken"],
+    "hide_apps": [
+        "django_celery_beat",
+        "purchase_orders",
+        "historical_performances",
+        "authtoken",
+    ],
     "hide_models": [],
     "topmenu_links": [
-        {"name": "Selezione",
-         "url": "/vendors/dashboard/" if not USE_FORNITORI_PREFIX else "/fornitori/vendors/dashboard/",
-         "icon": "fas fa-filter"
+        {
+            "name": "Selezione",
+            "url": "/vendors/dashboard/"
+            if not USE_FORNITORI_PREFIX
+            else "/fornitori/vendors/dashboard/",
+            "icon": "fas fa-filter",
         },
     ],
-
     "custom_links": {
-        "vendors": [{
-            "name": "Selezione",
-            "url": "/vendors/dashboard/" if not USE_FORNITORI_PREFIX else "/fornitori/vendors/dashboard/",
-            "icon": "fas fa-filter",
-            "order": 0,
-        }]
+        "vendors": [
+            {
+                "name": "Selezione",
+                "url": "/vendors/dashboard/"
+                if not USE_FORNITORI_PREFIX
+                else "/fornitori/vendors/dashboard/",
+                "icon": "fas fa-filter",
+                "order": 0,
+            }
+        ]
     },
-
     "order_with_respect_to": [
-        "vendors", "vendors.selezione", "vendors.vendor", "vendors.category", "vendors.address",
-        "vendors.servicetype", "vendors.evaluationcriterion",
-        "vendors.vendorevaluation", "historical_performances",
-         "vendors.document", "documenttype", "auth", "users",
+        "vendors",
+        "vendors.selezione",
+        "vendors.vendor",
+        "vendors.category",
+        "vendors.address",
+        "vendors.servicetype",
+        "vendors.evaluationcriterion",
+        "vendors.vendorevaluation",
+        "historical_performances",
+        "vendors.document",
+        "documenttype",
+        "auth",
+        "users",
     ],
-
     "icons": {
         "auth": "fas fa-users-cog",
         "auth.user": "fas fa-user",
@@ -331,7 +393,6 @@ JAZZMIN_SETTINGS = {
         "vendors": "fas fa-store",
         "purchase_orders.purchaseorder": "fas fa-shopping-cart",
         "historical_performances.historicalperformance": "fas fa-chart-line",
-        "documents.document": "fas fa-folder-open",
         "django_celery_beat.clockedschedule": "fas fa-clock",
         "django_celery_beat.crontabschedule": "fas fa-stopwatch",
         "django_celery_beat.intervalschedule": "fas fa-tachometer-alt",
@@ -361,14 +422,13 @@ JAZZMIN_SETTINGS = {
 }
 
 
-
 # FIXTURES
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 FIXTURE_DIRS = (str(BASE_DIR / "fixtures"),)
 
 
 # SECURITY
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 SESSION_COOKIE_HTTPONLY = True
 CSRF_COOKIE_HTTPONLY = True
 X_FRAME_OPTIONS = "DENY"
@@ -376,7 +436,9 @@ SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 
 # CSRF_TRUSTED_ORIGINS (obbligatorio da Django 4.0+ per richieste HTTPS)
 CSRF_TRUSTED_ORIGINS = [
-    f"https://{host.strip()}" for host in ALLOWED_HOSTS if host.strip() not in ('*', 'localhost', '127.0.0.1')
+    f"https://{host.strip()}"
+    for host in ALLOWED_HOSTS
+    if host.strip() not in ("*", "localhost", "127.0.0.1")
 ] + [
     "http://localhost",
     "http://127.0.0.1",
@@ -384,29 +446,32 @@ CSRF_TRUSTED_ORIGINS = [
 
 
 # ADMIN
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 ADMIN_URL = "admin/"
 ADMINS = [("""Fabio Bui""", "fabio-bui@fulgard.com")]
 MANAGERS = ADMINS
 
 # URL di autenticazione condizionali
 if USE_FORNITORI_PREFIX:
-    LOGIN_URL = '/fornitori/auth/login/'
-    LOGIN_REDIRECT_URL = '/fornitori'
-    LOGOUT_REDIRECT_URL = '/fornitori/auth/login/'
+    LOGIN_URL = "/fornitori/auth/login/"
+    LOGIN_REDIRECT_URL = "/fornitori"
+    LOGOUT_REDIRECT_URL = "/fornitori/auth/login/"
 else:
-    LOGIN_URL = '/auth/login/'
-    LOGIN_REDIRECT_URL = '/'
-    LOGOUT_REDIRECT_URL = '/auth/login/'
+    LOGIN_URL = "/auth/login/"
+    LOGIN_REDIRECT_URL = "/"
+    LOGOUT_REDIRECT_URL = "/auth/login/"
 
 # LOGGING
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
     "formatters": {
         "verbose": {
-            "format": "%(levelname)s %(asctime)s %(module)s %(process)d %(thread)d %(message)s",
+            "format": (
+                "%(levelname)s %(asctime)s %(module)s %(process)d "
+                "%(thread)d %(message)s"
+            ),
         },
     },
     "handlers": {
@@ -421,7 +486,7 @@ LOGGING = {
 
 
 # Celery
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 if USE_TZ:
     CELERY_TIMEZONE = TIME_ZONE
 CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL")
@@ -440,24 +505,26 @@ CELERY_TASK_SEND_SENT_EVENT = True
 CELERY_TASK_EAGER_PROPAGATES = True
 CELERY_BEAT_SCHEDULE = {
     "record_historical_performance": {
-        "task": "vendor_management_system.historical_performances.tasks.record_historical_performance",
+        "task": "vendor_management_system.historical_performances.tasks.record_historical_performance",  # noqa: E501
         "schedule": crontab(hour="*/6"),  # Run every 6 hours
     },
 }
 
 
 # django-rest-framework
-# -------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "vendor_management_system.core.authentication.QueryParameterTokenAuthentication",
     ),
-    "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
+    "DEFAULT_PERMISSION_CLASSES": (
+        "rest_framework.permissions.IsAuthenticated",
+    ),
 }
 
 
 # django-cors-headers
-# -------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 CORS_URLS_REGEX = r"^/api/.*$"
 
 print("💡 USE_FORNITORI_PREFIX:", USE_FORNITORI_PREFIX)

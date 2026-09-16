@@ -19,24 +19,26 @@ Lo script è IDEMPOTENTE e non distruttivo salvo un caso esplicito e sicuro
   - 0006 non applicata, solo la
     tabella principale con DATI    -> si ferma e chiede intervento manuale.
 
-Uso (sul server, dentro la venv):
-    python fix_documentset_migration.py            # esegue
-    python fix_documentset_migration.py --dry-run  # mostra solo la diagnosi
+Uso (dalla root del repo, dentro la venv; --dry-run mostra solo la diagnosi):
+    python data_migration_scripts/fix_documentset_migration.py
+    python data_migration_scripts/fix_documentset_migration.py --dry-run
 
 Dopo l'esecuzione lancia comunque:
     python manage.py migrate
 """
+
 import os
 import sys
 
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
 
 import django  # noqa: E402
 
 django.setup()
 
-from django.db import connection  # noqa: E402
 from django.core.management import call_command  # noqa: E402
+from django.db import connection  # noqa: E402
 from django.db.migrations.recorder import MigrationRecorder  # noqa: E402
 
 APP = "documents"
@@ -68,9 +70,12 @@ def table_is_empty(name):
 
 
 def main():
-    log(f"DB: {connection.settings_dict.get('NAME')} @ "
-        f"{connection.settings_dict.get('HOST') or 'localhost'}")
-    log(f"Modalità: {'DRY-RUN (nessuna modifica)' if DRY_RUN else 'ESECUZIONE'}")
+    log(
+        f"DB: {connection.settings_dict.get('NAME')} @ "
+        f"{connection.settings_dict.get('HOST') or 'localhost'}"
+    )
+    modalita = "DRY-RUN (nessuna modifica)" if DRY_RUN else "ESECUZIONE"
+    log(f"Modalità: {modalita}")
 
     applied = migration_applied()
     has_main = table_exists(MAIN_TABLE)
@@ -85,13 +90,17 @@ def main():
         return 0
 
     if not has_main and not has_m2m:
-        log("Nessuna tabella presente: nessun intervento, "
-            "`manage.py migrate` la creerà normalmente.")
+        log(
+            "Nessuna tabella presente: nessun intervento, "
+            "`manage.py migrate` la creerà normalmente."
+        )
         return 0
 
     if has_main and has_m2m:
-        log("Schema già completo nel DB ma migrazione non registrata "
-            "=> segno la 0006 come applicata (--fake).")
+        log(
+            "Schema già completo nel DB ma migrazione non registrata "
+            "=> segno la 0006 come applicata (--fake)."
+        )
         if DRY_RUN:
             log("DRY-RUN: avrei eseguito `migrate documents 0006 --fake`.")
             return 0
@@ -101,19 +110,27 @@ def main():
 
     if has_main and not has_m2m:
         empty = table_is_empty(MAIN_TABLE)
-        log(f"Solo tabella principale presente (creazione parziale). "
-            f"Tabella vuota: {empty}")
+        log(
+            f"Solo tabella principale presente (creazione parziale). "
+            f"Tabella vuota: {empty}"
+        )
         if not empty:
-            log("STOP: la tabella contiene dati e manca la tabella ponte M2M. "
+            log(
+                "STOP: la tabella contiene dati e manca la tabella ponte M2M. "
                 "Non eseguo DROP automatico. Serve intervento manuale "
                 "(fake 0006 + creazione manuale di "
-                f"{M2M_TABLE}). Contatta lo sviluppatore.")
+                f"{M2M_TABLE}). Contatta lo sviluppatore."
+            )
             return 2
-        log("Tabella vuota: elimino la tabella parziale così `migrate` "
-            "ricrea tabella e tabella ponte correttamente.")
+        log(
+            "Tabella vuota: elimino la tabella parziale così `migrate` "
+            "ricrea tabella e tabella ponte correttamente."
+        )
         if DRY_RUN:
-            log(f"DRY-RUN: avrei eseguito `DROP TABLE {MAIN_TABLE}` + "
-                f"`migrate {APP}`.")
+            log(
+                f"DRY-RUN: avrei eseguito `DROP TABLE {MAIN_TABLE}` + "
+                f"`migrate {APP}`."
+            )
             return 0
         with connection.cursor() as cur:
             cur.execute(f"DROP TABLE `{MAIN_TABLE}`")
@@ -123,8 +140,10 @@ def main():
         return 0
 
     # Caso residuo: solo tabella ponte senza principale (anomalo).
-    log("Stato anomalo (solo tabella ponte presente). Intervento manuale "
-        "necessario.")
+    log(
+        "Stato anomalo (solo tabella ponte presente). "
+        "Intervento manuale necessario."
+    )
     return 2
 
 

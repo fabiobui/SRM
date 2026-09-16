@@ -15,39 +15,29 @@ set -o nounset
 export CELERY_BROKER_URL="${REDIS_URL}"
 
 
-# Set default values for PostgreSQL user if not provided
-if [ -z "${POSTGRES_USER}" ]; then
-    base_postgres_image_default_user='postgres'
-    export POSTGRES_USER="${base_postgres_image_default_user}"
-fi
-
-
-# Set the DATABASE_URL using the provided PostgreSQL connection details
-export DATABASE_URL="postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}"
-
-
-# Use Python to wait for PostgreSQL to become available before proceeding
+# Use Python to wait for MySQL to become available before proceeding.
+# Connection details come from the DB_* variables consumed by config/settings.py.
 python << END
 import sys
 import time
 
-import psycopg
+import MySQLdb
 
 suggest_unrecoverable_after = 30
 start = time.time()
 
 while True:
     try:
-        psycopg.connect(
-            dbname="${POSTGRES_DB}",
-            user="${POSTGRES_USER}",
-            password="${POSTGRES_PASSWORD}",
-            host="${POSTGRES_HOST}",
-            port="${POSTGRES_PORT}",
+        MySQLdb.connect(
+            db="${DB_NAME}",
+            user="${DB_USER}",
+            passwd="${DB_PASSWORD}",
+            host="${DB_HOST}",
+            port=int("${DB_PORT}"),
         )
         break
-    except psycopg.OperationalError as error:
-        sys.stderr.write("Waiting for PostgreSQL to become available...\n")
+    except MySQLdb.OperationalError as error:
+        sys.stderr.write("Waiting for MySQL to become available...\n")
 
         if time.time() - start > suggest_unrecoverable_after:
             sys.stderr.write("  This is taking longer than expected. The following exception may be indicative of an unrecoverable error: '{}'\n".format(error))
@@ -56,8 +46,8 @@ while True:
 END
 
 
-# Inform that PostgreSQL is available
->&2 echo 'PostgreSQL is available'
+# Inform that MySQL is available
+>&2 echo 'MySQL is available'
 
 
 # Execute the provided command

@@ -4,11 +4,23 @@ import uuid
 import factory
 from faker import Faker
 
-from vendor_management_system.vendors.models import Vendor
-
+from vendor_management_system.vendors.models import Address, Vendor
 
 # Initialize the Faker library
 faker = Faker()
+
+
+# Factory to create an Address object
+class AddressFactory(factory.django.DjangoModelFactory):
+    # Set the Address model
+    class Meta:
+        model = Address
+
+    # Set the fields for the Address model
+    street_address = factory.LazyFunction(faker.street_address)
+    city = factory.LazyFunction(faker.city)
+    state_province = factory.LazyFunction(faker.state_abbr)
+    postal_code = factory.LazyFunction(faker.postcode)
 
 
 # Factory to create a Vendor object
@@ -25,7 +37,7 @@ class VendorFactory(factory.django.DjangoModelFactory):
     contact_details = factory.LazyFunction(
         lambda: f"{faker.email()}, {faker.phone_number()}"
     )
-    address = factory.LazyFunction(faker.address)
+    address = factory.SubFactory(AddressFactory)
     on_time_delivery_rate = factory.LazyFunction(
         lambda: faker.pyfloat(min_value=0, max_value=100, right_digits=4)
     )
