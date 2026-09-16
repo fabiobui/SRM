@@ -11,7 +11,7 @@ una normale app Django su `/`. Un'unica impostazione permette di passare dall'un
 ```python
 # config/settings.py
 USE_FORNITORI_PREFIX = os.getenv("USE_FORNITORI_PREFIX", "False") == "True"
-FORCE_SCRIPT_NAME = '/fornitori' if USE_FORNITORI_PREFIX else None
+FORCE_SCRIPT_NAME = "/fornitori" if USE_FORNITORI_PREFIX else None
 ```
 
 | | `USE_FORNITORI_PREFIX=False` (dev, default) | `USE_FORNITORI_PREFIX=True` (prod) |
@@ -76,8 +76,8 @@ Output atteso in modalità prod-like (`USE_FORNITORI_PREFIX=True`):
    - Configura il web server per gestire il prefisso
 ```
 
-C'è anche `test_urls.py` nella root del repo, uno script standalone che esercita la generazione degli URL in
-entrambe le modalità senza bisogno di un server in esecuzione.
+C'è anche `tests/test_urls.py`, un test pytest che verifica la generazione degli URL principali senza bisogno
+di un server in esecuzione (fa parte della suite eseguita con `pytest`).
 
 ## Risoluzione problemi
 

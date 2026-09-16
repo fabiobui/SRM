@@ -30,7 +30,7 @@ ImportError: Pandas requires version '3.1.5' or newer of 'openpyxl'
 
 Gli script scrivono sul DB configurato in `.env` (`DB_NAME`, `DB_HOST`, ...).
 **Controlla sempre di puntare al database giusto prima di un'esecuzione reale**:
-non c'è nessuna conferma interattiva, a parte in `delete_vendors.py`.
+non c'è nessuna conferma interattiva, a parte in `data_migration_scripts/delete_vendors.py`.
 
 ### Dry run
 
@@ -144,7 +144,7 @@ dall'import Excel (`XLS0001`, `XLS0002`, ...).
 |---|---|---|
 | `-p`, `--prefix` | `XLS` | prefisso degli `old_code` da elaborare |
 | `--dry-run` | off | esegue e annulla tutto |
-| `--report` | `embyon_match_report.csv` | CSV con l'esito riga per riga |
+| `--report` | `data_migration_scripts/reports/embyon_match_report.csv` | CSV con l'esito riga per riga (cartella non servita da Django, a differenza di `static/`) |
 | `--prefer-ditta` | — | Società da preferire quando il fornitore esiste su più DITTA |
 | `--max-omocodie` | `3` | oltre questo numero di codici distinti non sceglie da solo |
 | `--fuzzy` | off | ripiego sulla ragione sociale per chi non aggancia su C.F./P.IVA |
@@ -343,7 +343,7 @@ matrice: un fornitore per riga, un tipo documento per colonna.
   passano per la Riga excel Albo, che sopravvive a `import_embyon_codes.py`.
 - Le altre colonne devono chiamarsi come il **`code` di un `DocumentType`**
   esistente (confronto case-insensitive); i tipi sconosciuti vengono segnalati e
-  saltati, **non** creati. Per questo `import_documenttypes.py` va lanciato prima.
+  saltati, **non** creati. Per questo `data_migration_scripts/import_documenttypes.py` va lanciato prima.
 - Il contenuto della cella decide lo stato: una data (`2026-05-31`, `31/05/2026`,
   `31-05-2026`) diventa `expiry_date` con stato `APPROVED`; un booleano
   (`SI`/`X`/...) dà `APPROVED` senza scadenza; qualsiasi altro testo dà
@@ -383,12 +383,12 @@ Opzioni: `-f` (default `titoli.xlsx`), `-s`, `--dry-run`.
 Colonne: `code` (chiave), `name`, `description`, `level`, `sort_order`,
 `is_active`, `parent_code` (per la gerarchia).
 
-### `import_documenttypes.py`
+### `data_migration_scripts/import_documenttypes.py`
 
 Tipi documento (`DocumentType`), referenziati dalle colonne di `import_documenti.py`.
 
 ```bash
-.venv/bin/python import_documenttypes.py
+.venv/bin/python data_migration_scripts/import_documenttypes.py
 ```
 
 Unico script **senza opzioni**: legge un percorso fisso,
@@ -556,18 +556,18 @@ senza foreign key e con la collation sbagliata.
 
 ## Manutenzione
 
-### `delete_vendors.py`
+### `data_migration_scripts/delete_vendors.py`
 
 Cancella fornitori e tutte le righe collegate (CASCADE su documenti, competenze,
 servizi, valutazioni, contratti; SET_NULL dove previsto). Mostra l'anteprima e
 chiede conferma.
 
 ```bash
-python delete_vendors.py --ids 1024                      # un fornitore
-python delete_vendors.py --ids 1024,1030,1055            # più id
-python delete_vendors.py --from 1000 --to 1050           # range inclusivo
-python delete_vendors.py --from 1000 --to 1050 --dry-run # solo anteprima
-python delete_vendors.py --field vendor_code --ids A1B2C3D4E5
+python data_migration_scripts/delete_vendors.py --ids 1024                      # un fornitore
+python data_migration_scripts/delete_vendors.py --ids 1024,1030,1055            # più id
+python data_migration_scripts/delete_vendors.py --from 1000 --to 1050           # range inclusivo
+python data_migration_scripts/delete_vendors.py --from 1000 --to 1050 --dry-run # solo anteprima
+python data_migration_scripts/delete_vendors.py --field vendor_code --ids A1B2C3D4E5
 ```
 
 | Opzione | Default | Significato |
@@ -590,7 +590,7 @@ relazione `VendorService`. Nessuna opzione.
 .venv/bin/python vendor_management_system/migrate_existing_services.py
 ```
 
-### `fix_documentset_migration.py`
+### `data_migration_scripts/fix_documentset_migration.py`
 
 Riallinea la migrazione `documents.0006_documentset` quando la tabella esiste già
 a database ma la migrazione non risulta applicata (`migrate` fallisce con
@@ -598,8 +598,8 @@ a database ma la migrazione non risulta applicata (`migrate` fallisce con
 tra `--fake`, drop della tabella vuota o stop per intervento manuale.
 
 ```bash
-python fix_documentset_migration.py --dry-run   # solo diagnosi
-python fix_documentset_migration.py             # esegue
+python data_migration_scripts/fix_documentset_migration.py --dry-run   # solo diagnosi
+python data_migration_scripts/fix_documentset_migration.py             # esegue
 ```
 
 ---
@@ -612,7 +612,7 @@ python fix_documentset_migration.py             # esegue
 | `❌ File non trovato. Percorso fornito: Import.xlsx` | il file non è in nessuna delle cartelle cercate: passa `-f /percorso/assoluto` |
 | `Vendor() got unexpected keyword arguments: 'xxx'` | lo script scrive un campo rimosso dal modello: confronta con `Vendor._meta.get_fields()` e togli la riga |
 | `❌ Vendor non trovato: <codice>` | l'anagrafica non è stata importata, oppure stai usando `--key old_code` dopo che `import_embyon_codes.py` ha sostituito i codici: lascia `--key auto`, che aggancia per Riga excel Albo |
-| `⚠️ Tipo documento XXX non trovato` | manca il `DocumentType`: lancia prima `import_documenttypes.py` |
+| `⚠️ Tipo documento XXX non trovato` | manca il `DocumentType`: lancia prima `data_migration_scripts/import_documenttypes.py` |
 | `import_competenze` dice `non è a catalogo` e salta la colonna | la descrizione nel file non coincide con nessun nome a catalogo: aggancia con `--alias COL=CODICE_CATALOGO` |
 | Le competenze importate non si vedono nelle dashboard | assegnazioni senza tipo (`is_competenza`/`is_qualifica`/`is_iscrizione_albo` tutti `False`): reimporta con la versione aggiornata dello script, che ricava il tipo dal prefisso della colonna |
 | `Illegal mix of collations` | confronto SQL diretto fra `vms_db` e `redmine_test`: vanno confrontati in Python, come fa `import_embyon_codes.py` |

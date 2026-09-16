@@ -5,7 +5,8 @@
 > esistenti in `docs/` (`SISTEMA_OVERVIEW.md` = panoramica funzionale in italiano, `MANUALE_UTENTE_ADMIN.md` =
 > manuale utente admin, `ANALISI_AREA_FORNITORE.md`, `COMPETENZE_DOCUMENTI.md` = note su feature specifiche,
 > `VENDOR_DASHBOARD.md` = la dashboard di analytics fornitori, `LDAP.md` = autenticazione LDAP/AD,
-> `URL_PREFIX_CONFIG.md` = il prefisso `/fornitori`, `SCRIPT_IMPORT.md` = gli script di import/manutenzione dati).
+> `URL_PREFIX_CONFIG.md` = il prefisso `/fornitori`, `SCRIPT_IMPORT.md` = gli script di import/manutenzione dati,
+> `PRE_COMMIT.md` = installazione e funzionamento di pre-commit).
 > Questo file si concentra su: **cos'è il progetto**, **come è organizzato**, **quali portali web esistono**, e
 > **come farlo girare su una macchina locale**, incluse le lacune trovate nei docs/config esistenti e come
 > puntarlo su una copia di dati reali invece che su un database vuoto/seedato (§11).
@@ -141,10 +142,14 @@ assunzioni precedenti in questo documento.
 2. **`requirements.txt` era fondamentalmente rotto — ora corretto e verificato contro la produzione
    (2026-09-15).** `config/settings.py` esegue incondizionatamente:
    ```python
-   from dotenv import load_dotenv       # needs python-dotenv
+   from dotenv import load_dotenv  # needs python-dotenv
+
    ...
-   import ldap                          # needs python-ldap
-   from django_auth_ldap.config import LDAPSearch, ActiveDirectoryGroupType  # needs django-auth-ldap
+   import ldap  # needs python-ldap
+   from django_auth_ldap.config import (
+       LDAPSearch,
+       ActiveDirectoryGroupType,
+   )  # needs django-auth-ldap
    ```
    Una versione precedente di questo documento affermava che `python-dotenv`, `python-ldap`, `django-auth-ldap`, e
    `ldap3` fossero tutti "fissati in `requirements.txt`" — **non era vero.** Quello che era effettivamente
@@ -190,7 +195,7 @@ assunzioni precedenti in questo documento.
    Python 3.12.7, tramite un venv in `/home/redmine/SRM/.venv` — non `/home/fabio/SRM` come dice
    `INSTALLATION_INSTRUCTIONS.md` (obsoleto; la directory del progetto/utente proprietario è cambiata a un certo
    punto). Viene servita da **Apache + `mod_wsgi`**, che integra l'app direttamente nei processi worker di Apache —
-   non c'è un processo `gunicorn` né `runserver_plus` in produzione (`start_django.sh` nella root del repo, che
+   non c'è un processo `gunicorn` né `runserver_plus` in produzione (`shell_scripts/start_django.sh`, che
    esegue `runserver_plus` sulla `:8088`, sembra essere uno script residuo per dev/test manuale, non ciò che è
    effettivamente in esecuzione). MySQL è un **server MySQL 8.0 separato e remoto** (non colocato sulla VM
    dell'app). Redis 7.0 gira localmente sulla VM con una password impostata (`requirepass`), usato sia per la
@@ -200,7 +205,7 @@ assunzioni precedenti in questo documento.
    LDAPS (porta 636, `LDAP_TLS_VALIDATE=False`). Nulla di tutto ciò cambia il setup Docker locale (LDAP resta
    disabilitato localmente secondo la tua preferenza — vedi §8 — e MySQL/Redis sono comunque container locali in
    entrambi i casi), ma corregge la tabella dello stack tecnologico in §2 e spiega perché
-   `start_django.sh`/`INSTALLATION_INSTRUCTIONS.md` non corrispondono alla realtà.
+   `shell_scripts/start_django.sh`/`INSTALLATION_INSTRUCTIONS.md` non corrispondono alla realtà.
 8. **Rilevante per la sicurezza, non un blocco per il setup locale, ma da segnalare a chi gestisce la VM.** Il
    `.env` di produzione ha `DEBUG=True` e una `SECRET_KEY` debole e non casuale. Nessuno dei due influisce sullo
    sviluppo locale (localmente si usano sempre valori propri solo per dev — vedi §8, A2), ma entrambi meritano una

@@ -82,6 +82,7 @@ invece di un database vuoto (§11).
 | [SCRIPT_IMPORT.md](docs/SCRIPT_IMPORT.md) | Ogni script di import/manutenzione dati: cosa fa, opzioni, ordine di esecuzione |
 | [LDAP.md](docs/LDAP.md) | Autenticazione LDAP/Active Directory: configurazione, admin UI, comandi di test |
 | [URL_PREFIX_CONFIG.md](docs/URL_PREFIX_CONFIG.md) | Prefisso URL `/fornitori`: sviluppo vs. produzione, configurazione reverse-proxy |
+| [PRE_COMMIT.md](docs/PRE_COMMIT.md) | Pre-commit: installazione, hook configurati, dove/quando gira (git commit + hook Claude Code) |
 | [CHANGES.md](docs/CHANGES.md) | Log delle modifiche richieste dagli stakeholder |
 
 ## Scopo del progetto e panoramica architetturale
@@ -218,12 +219,16 @@ Le metriche di performance vengono ricalcolate automaticamente quando gli ordini
 ```python
 # Triggered on order delivery
 def calculate_on_time_delivery_rate(vendor):
-    total_delivered = vendor.orders.filter(status='DELIVERED').count()
+    total_delivered = vendor.orders.filter(status="DELIVERED").count()
     on_time_delivered = vendor.orders.filter(
-        status='DELIVERED',
-        actual_delivery_date__lte=F('expected_delivery_date')
+        status="DELIVERED",
+        actual_delivery_date__lte=F("expected_delivery_date"),
     ).count()
-    return (on_time_delivered / total_delivered) * 100 if total_delivered > 0 else 0
+    return (
+        (on_time_delivered / total_delivered) * 100
+        if total_delivered > 0
+        else 0
+    )
 ```
 
 ### Flusso di gestione documentale
@@ -302,8 +307,8 @@ Vendor (1) ←→ (*) VendorDocument
 class User(AbstractUser):
     id = CharField(primary_key=True, default=uuid.uuid4, max_length=36)
     name = CharField(max_length=255)  # Replaces first_name/last_name
-    email = EmailField(unique=True)   # Primary authentication field
-    role = CharField(max_length=20, choices=ROLE_CHOICES, default='bo_user')
+    email = EmailField(unique=True)  # Primary authentication field
+    role = CharField(max_length=20, choices=ROLE_CHOICES, default="bo_user")
     vendor = ForeignKey("vendors.Vendor", null=True, blank=True)
 ```
 
@@ -330,12 +335,12 @@ class Vendor(models.Model):
     name = CharField(max_length=255)
     contact_details = TextField()
     address = TextField()
-    
+
     # Performance Metrics (auto-calculated)
-    on_time_delivery_rate = FloatField(0-100, null=True)
-    quality_rating_avg = FloatField(0-5, null=True)  
+    on_time_delivery_rate = FloatField(0 - 100, null=True)
+    quality_rating_avg = FloatField(0 - 5, null=True)
     average_response_time = FloatField(min=0, null=True)  # Hours
-    fulfillment_rate = FloatField(0-100, null=True)
+    fulfillment_rate = FloatField(0 - 100, null=True)
 ```
 
 **Regole di business:**
@@ -356,10 +361,10 @@ class PurchaseOrder(models.Model):
     order_date = DateTimeField(default=timezone.now)
     expected_delivery_date = DateTimeField(null=True)  # Auto-calculated
     actual_delivery_date = DateTimeField(null=True)    # Set on delivery
-    
+
     items = JSONField()  # Product details and quantities
     quantity = IntegerField(min=1)  # Total quantity (auto-calculated)
-    
+
     # Workflow fields
     status = CharField(choices=STATUS_CHOICES, default='PENDING')
     issue_date = DateTimeField(null=True)           # Set via signal
@@ -390,12 +395,12 @@ class HistoricalPerformance(models.Model):
     id = CharField(max_length=10, primary_key=True)  # Auto-generated
     vendor = ForeignKey("vendors.Vendor", on_delete=CASCADE)
     date = DateTimeField(default=timezone.now)
-    
+
     # Snapshot of vendor metrics at capture time
-    on_time_delivery_rate = FloatField(0-100, null=True)
-    quality_rating_avg = FloatField(0-5, null=True)
+    on_time_delivery_rate = FloatField(0 - 100, null=True)
+    quality_rating_avg = FloatField(0 - 5, null=True)
     average_response_time = FloatField(min=0, null=True)
-    fulfillment_rate = FloatField(0-100, null=True)
+    fulfillment_rate = FloatField(0 - 100, null=True)
 ```
 
 **Automazione:**
@@ -422,10 +427,10 @@ class VendorDocument(models.Model):
     id = CharField(max_length=10, primary_key=True)
     vendor = ForeignKey("vendors.Vendor")
     document_type = ForeignKey("DocumentType")
-    file = FileField(upload_to='vendor_documents/')
-    
+    file = FileField(upload_to="vendor_documents/")
+
     # Workflow fields
-    status = CharField(choices=STATUS_CHOICES, default='PENDING')
+    status = CharField(choices=STATUS_CHOICES, default="PENDING")
     uploaded_date = DateTimeField(auto_now_add=True)
     expiry_date = DateTimeField(null=True)
     approved_date = DateTimeField(null=True)
@@ -449,7 +454,7 @@ vendor = ForeignKey("vendors.Vendor", null=True, blank=True, related_name="users
 
 **2. Vendor ↔ PurchaseOrder (One-to-Many)**
 ```python
-# PurchaseOrder model  
+# PurchaseOrder model
 vendor = ForeignKey("vendors.Vendor", on_delete=SET_NULL, null=True)
 
 # Business Logic:
@@ -491,7 +496,7 @@ CHECK (quality_rating_avg >= 0 AND quality_rating_avg <= 5)
 CHECK (average_response_time >= 0)
 CHECK (fulfillment_rate >= 0 AND fulfillment_rate <= 100)
 
--- Purchase order quantity validation  
+-- Purchase order quantity validation
 CHECK (quantity >= 1)
 
 -- Date consistency
@@ -504,13 +509,13 @@ CHECK (expected_delivery_date IS NULL OR expected_delivery_date >= order_date)
 # Custom validation in models and serializers
 def clean(self):
     # Purchase Order validation
-    if self.status == 'DELIVERED' and not self.quality_rating:
+    if self.status == "DELIVERED" and not self.quality_rating:
         raise ValidationError("Quality rating required for delivered orders")
-    
+
     # User-Vendor consistency
-    if self.role == 'vendor' and not self.vendor:
+    if self.role == "vendor" and not self.vendor:
         raise ValidationError("Vendor role requires vendor association")
-    
+
     # Document expiry logic
     if self.expiry_date and self.expiry_date < timezone.now().date():
         raise ValidationError("Document has expired")
@@ -522,7 +527,7 @@ def clean(self):
 
 **Indici primari:**
 - `vendor_code` (Primary Key, unique, B-tree)
-- `po_number` (Primary Key, unique, B-tree)  
+- `po_number` (Primary Key, unique, B-tree)
 - `user.email` (Unique, B-tree)
 
 **Indici di performance:**
@@ -544,11 +549,11 @@ def set_status_dates(sender, instance, **kwargs):
     try:
         old_instance = sender.objects.get(pk=instance.pk)
         if old_instance.status != instance.status:
-            if instance.status == 'ISSUED':
+            if instance.status == "ISSUED":
                 instance.issue_date = timezone.now()
-            elif instance.status == 'ACKNOWLEDGED':  
+            elif instance.status == "ACKNOWLEDGED":
                 instance.acknowledgment_date = timezone.now()
-            elif instance.status == 'DELIVERED':
+            elif instance.status == "DELIVERED":
                 instance.actual_delivery_date = timezone.now()
     except sender.DoesNotExist:
         pass  # New instance, no action needed
@@ -699,40 +704,47 @@ sequenceDiagram
 
 1. **On-Time Delivery Rate**
    ```python
-   delivered_orders = vendor.purchase_orders.filter(status='DELIVERED')
+   delivered_orders = vendor.purchase_orders.filter(status="DELIVERED")
    on_time = delivered_orders.filter(
-       actual_delivery_date__lte=F('expected_delivery_date')
+       actual_delivery_date__lte=F("expected_delivery_date")
    ).count()
-   rate = (on_time / delivered_orders.count()) * 100 if delivered_orders.count() > 0 else 0
+   rate = (
+       (on_time / delivered_orders.count()) * 100
+       if delivered_orders.count() > 0
+       else 0
+   )
    ```
 
 2. **Quality Rating Average**
    ```python
    rated_orders = vendor.purchase_orders.filter(
-       status='DELIVERED', 
-       quality_rating__isnull=False
+       status="DELIVERED", quality_rating__isnull=False
    )
-   avg_rating = rated_orders.aggregate(Avg('quality_rating'))['quality_rating__avg'] or 0
+   avg_rating = (
+       rated_orders.aggregate(Avg("quality_rating"))["quality_rating__avg"] or 0
+   )
    ```
 
 3. **Average Response Time**
    ```python
    acknowledged_orders = vendor.purchase_orders.filter(
-       status__in=['ACKNOWLEDGED', 'DELIVERED'],
+       status__in=["ACKNOWLEDGED", "DELIVERED"],
        issue_date__isnull=False,
-       acknowledgment_date__isnull=False
+       acknowledgment_date__isnull=False,
    )
    response_times = [
        (order.acknowledgment_date - order.issue_date).total_seconds() / 3600
        for order in acknowledged_orders
    ]
-   avg_response = sum(response_times) / len(response_times) if response_times else 0
+   avg_response = (
+       sum(response_times) / len(response_times) if response_times else 0
+   )
    ```
 
 4. **Fulfillment Rate**
    ```python
-   total_orders = vendor.purchase_orders.exclude(status='PENDING').count()
-   delivered_orders = vendor.purchase_orders.filter(status='DELIVERED').count()
+   total_orders = vendor.purchase_orders.exclude(status="PENDING").count()
+   delivered_orders = vendor.purchase_orders.filter(status="DELIVERED").count()
    rate = (delivered_orders / total_orders) * 100 if total_orders > 0 else 0
    ```
 
@@ -803,24 +815,35 @@ sequenceDiagram
 ```python
 # Permission Matrix
 PERMISSIONS = {
-    'admin': {
-        'vendors': ['create', 'read', 'update', 'delete'],
-        'purchase_orders': ['create', 'read', 'update', 'delete', 'issue', 'cancel'],
-        'documents': ['read', 'approve', 'reject'],
-        'users': ['create', 'read', 'update', 'delete']
+    "admin": {
+        "vendors": ["create", "read", "update", "delete"],
+        "purchase_orders": [
+            "create",
+            "read",
+            "update",
+            "delete",
+            "issue",
+            "cancel",
+        ],
+        "documents": ["read", "approve", "reject"],
+        "users": ["create", "read", "update", "delete"],
     },
-    'bo_user': {
-        'vendors': ['create', 'read', 'update'],
-        'purchase_orders': ['create', 'read', 'update', 'issue'],
-        'documents': ['read', 'approve', 'reject'],
-        'users': ['read']
+    "bo_user": {
+        "vendors": ["create", "read", "update"],
+        "purchase_orders": ["create", "read", "update", "issue"],
+        "documents": ["read", "approve", "reject"],
+        "users": ["read"],
     },
-    'vendor': {
-        'vendors': ['read'],  # Own vendor only
-        'purchase_orders': ['read', 'acknowledge', 'deliver'],  # Own orders only
-        'documents': ['create', 'read', 'update'],  # Own documents only
-        'users': []
-    }
+    "vendor": {
+        "vendors": ["read"],  # Own vendor only
+        "purchase_orders": [
+            "read",
+            "acknowledge",
+            "deliver",
+        ],  # Own orders only
+        "documents": ["create", "read", "update"],  # Own documents only
+        "users": [],
+    },
 }
 ```
 
@@ -868,13 +891,13 @@ CELERY_TIMEZONE = "Europe/Rome"
 
 # Periodic Task Schedule
 CELERY_BEAT_SCHEDULE = {
-    'record-historical-performance': {
-        'task': 'vendor_management_system.historical_performances.tasks.record_historical_performance',
-        'schedule': crontab(minute=0, hour='*/6'),  # Every 6 hours
+    "record-historical-performance": {
+        "task": "vendor_management_system.historical_performances.tasks.record_historical_performance",
+        "schedule": crontab(minute=0, hour="*/6"),  # Every 6 hours
     },
-    'check-document-expiry': {
-        'task': 'vendor_management_system.documents.tasks.check_expiring_documents',
-        'schedule': crontab(minute=0, hour=9),  # Daily at 9 AM
+    "check-document-expiry": {
+        "task": "vendor_management_system.documents.tasks.check_expiring_documents",
+        "schedule": crontab(minute=0, hour=9),  # Daily at 9 AM
     },
 }
 ```
@@ -901,16 +924,16 @@ def record_historical_performance():
 
 **2. Monitoraggio della scadenza documenti:**
 ```python
-@shared_task  
+@shared_task
 def check_expiring_documents():
     """Check for documents expiring within warning period"""
     warning_date = timezone.now().date() + timedelta(days=30)
     expiring_docs = VendorDocument.objects.filter(
-        status='APPROVED',
+        status="APPROVED",
         expiry_date__lte=warning_date,
-        expiry_date__gte=timezone.now().date()
+        expiry_date__gte=timezone.now().date(),
     )
-    
+
     for doc in expiring_docs:
         send_expiry_warning_email.delay(doc.id)
 ```
@@ -947,18 +970,23 @@ def check_expiring_documents():
 ```python
 class IsVendorUser(BasePermission):
     """Permission class for vendor users - access only to own data"""
+
     def has_permission(self, request, view):
-        return request.user.role == 'vendor' and request.user.vendor is not None
-    
+        return (
+            request.user.role == "vendor" and request.user.vendor is not None
+        )
+
     def has_object_permission(self, request, view, obj):
-        if hasattr(obj, 'vendor'):
+        if hasattr(obj, "vendor"):
             return obj.vendor == request.user.vendor
         return False
 
+
 class IsBackOfficeOrAdmin(BasePermission):
     """Permission class for back office and admin users"""
+
     def has_permission(self, request, view):
-        return request.user.role in ['admin', 'bo_user']
+        return request.user.role in ["admin", "bo_user"]
 ```
 
 ### Misure di protezione dei dati
