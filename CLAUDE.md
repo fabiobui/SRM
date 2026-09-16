@@ -60,8 +60,13 @@ l'overview completa e il setup locale (Docker o nativo).
   produce un diff enorme e fuori scopo. Vale anche per i `.md`: `ruff-format` riformatta pure i blocchi
   ` ```python ` incorporati nella documentazione (es. gli esempi di codice in `README.md`), non solo i file
   `.py`. Per una modifica chirurgica a un file del genere, applicala con uno script (es. `python -c "..."` via
-  Bash) invece che con `Write`/`Edit`, così l'hook non scatta e il diff resta minimo; oppure accetta il reformat
-  ma mettilo in un commit dedicato, separato dal cambio funzionale.
+  Bash) invece che con `Write`/`Edit`, così l'hook non scatta e il diff resta minimo. Se invece emergono
+  violazioni `ruff-check` non auto-fixabili (tipicamente E501 su file mai passati da ruff prima), **sistemale
+  subito, nello stesso giro di modifiche** — non rimandarle a un commit "solo formattazione" separato: una volta
+  che il file è stato toccato anche una sola volta da `Write`/`Edit` i numeri di riga cambiano rispetto
+  all'ultimo commit, quindi a posteriori non è più possibile isolare in modo pulito un commit di solo reformat
+  che si applichi sulla versione originale (serve riscrivere la cronologia, non praticabile su un branch già
+  pushato).
 - Installa il git hook una volta: `pre-commit install` (così gira anche su ogni `git commit`).
 - Un hook Claude Code (`.claude/settings.json` → `PostToolUse` su `Write|Edit`) esegue già
   `pre-commit run --files <file>` automaticamente dopo ogni modifica di Claude, segnalando in chat quello che non
