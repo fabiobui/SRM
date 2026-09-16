@@ -4,18 +4,27 @@ import pytest
 from vendor_management_system.historical_performances.tests.factories import (
     HistoricalPerformanceFactory,
 )
-
 from vendor_management_system.purchase_orders.tests.factories import (
     PurchaseOrderFactory,
 )
-
-from vendor_management_system.vendors.tests.factories import VendorFactory
+from vendor_management_system.vendors.tests.factories import (
+    VendorFactory,
+    VendorOperationalAttributesFactory,
+)
 
 
 # Set the fixture for the VendorFactory
 @pytest.fixture()
 def vendor_factory(db) -> VendorFactory:
     return VendorFactory
+
+
+# Set the fixture for the VendorOperationalAttributesFactory
+@pytest.fixture()
+def vendor_operational_attributes_factory(
+    db,
+) -> VendorOperationalAttributesFactory:
+    return VendorOperationalAttributesFactory
 
 
 # Set the fixture for the PurchaseOrderFactory

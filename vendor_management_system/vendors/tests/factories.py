@@ -4,7 +4,11 @@ import uuid
 import factory
 from faker import Faker
 
-from vendor_management_system.vendors.models import Address, Vendor
+from vendor_management_system.vendors.models import (
+    Address,
+    Vendor,
+    VendorOperationalAttributes,
+)
 
 # Initialize the Faker library
 faker = Faker()
@@ -50,3 +54,13 @@ class VendorFactory(factory.django.DjangoModelFactory):
     fulfillment_rate = factory.LazyFunction(
         lambda: faker.pyfloat(min_value=0, max_value=100, right_digits=4)
     )
+
+
+# Factory to create a VendorOperationalAttributes object
+class VendorOperationalAttributesFactory(factory.django.DjangoModelFactory):
+    # Set the VendorOperationalAttributes model
+    class Meta:
+        model = VendorOperationalAttributes
+
+    # Set the fields for the VendorOperationalAttributes model
+    vendor = factory.SubFactory(VendorFactory)
