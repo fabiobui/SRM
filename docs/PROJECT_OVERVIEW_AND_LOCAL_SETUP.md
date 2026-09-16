@@ -594,6 +594,19 @@ $path = "<path to my.ini>"
 Restart-Service <ServiceName>
 ```
 
+> **Non è solo per il cambio di porta iniziale — riguarda ogni sessione.** Avviare/fermare il servizio MySQL
+> nativo (es. `MySQL80`) richiede sempre una PowerShell **elevata** (Amministratore), non solo la prima volta che
+> ne cambi la porta:
+> ```powershell
+> Start-Service MySQL80   # prima di lavorare
+> Stop-Service MySQL80    # a fine sessione, se vuoi liberare la porta/risorse
+> Get-Service MySQL80 | Select-Object Name, Status   # per controllare lo stato
+> ```
+> Se stai facendo eseguire questi comandi a un agente/assistente senza accesso admin (com'è il caso di un
+> ambiente di sviluppo assistito da AI tipico), questi due comandi vanno lanciati manualmente **a ogni avvio e
+> arresto** della sessione di lavoro, non solo durante il setup iniziale di §11.1 — insieme all'avvio di Docker
+> Desktop stesso (§8, A1), che pure va fatto manualmente se non è già in esecuzione.
+
 **Fai prima un backup dei dati.** `compose/django/start` esegue `python manage.py makemigrations` e `migrate`
 **automaticamente ogni volta che il container `django` si avvia** — contro qualsiasi database sia attualmente
 configurato. Se la copia a cui ti stai collegando non è già allo stato di migrazione esatto di questo branch

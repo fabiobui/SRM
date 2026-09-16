@@ -59,7 +59,9 @@ def test_historical_performance_model_fields(
 
 # Test for valid Historical Performance ID format
 @pytest.mark.django_db
-def test_historical_performance_id_format(db, historical_performance_factory):
+def test_historical_performance_id_format(
+    db, historical_performance_factory, vendor_factory
+):
     # Lists specifying valid and invalid historical performance IDs
     invalid_ids = [
         "hpr001",
@@ -69,10 +71,21 @@ def test_historical_performance_id_format(db, historical_performance_factory):
         "HPR@005",
     ]
 
+    # Reuse one saved Vendor so full_clean() doesn't fail on an unrelated FK
+    # check; build() (not create()) keeps each invalid record OUT of the DB,
+    # since MySQL's case-insensitive collation would otherwise treat
+    # "hpr001"/"Hpr001" as the same primary key and raise IntegrityError on
+    # insert before full_clean() ever runs (this only shows up against real
+    # MySQL, not the SQLite used by the fast pre-commit suite - see
+    # CLAUDE.md, sezione Test).
+    vendor = vendor_factory()
+
     # Check all invalid historical performance IDs raise a ValidationError
     for invalid_id in invalid_ids:
         with pytest.raises(ValidationError):
-            historical_performance = historical_performance_factory(id=invalid_id)
+            historical_performance = historical_performance_factory.build(
+                id=invalid_id, vendor=vendor
+            )
             historical_performance.full_clean()
 
 
@@ -82,7 +95,7 @@ def test_unique_historical_performance_id(db, historical_performance_factory):
     # Create a HistoricalPerformance object with a historical performance ID
     historical_performance = historical_performance_factory()
 
-    # Check that creating another HistoricalPerformance object with the same Historical Performance ID raises an IntegrityError
+    # Creating another object with the same ID must raise an IntegrityError
     with pytest.raises(IntegrityError):
         historical_performance_duplicate = historical_performance_factory(
             id=historical_performance.id
