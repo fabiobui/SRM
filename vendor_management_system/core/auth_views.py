@@ -1,116 +1,126 @@
 # vendor_management_system/core/auth_views.py
 
-from django.contrib.auth import authenticate, login
-from django.contrib.auth.views import LoginView
-from django.shortcuts import redirect, render
-from django.contrib import messages
-from django.urls import reverse
-from django.views.generic import View
 from django import forms
+from django.contrib import messages
+from django.contrib.auth import authenticate, login
+from django.shortcuts import redirect, render
+from django.views.generic import View
 
 
 class LoginForm(forms.Form):
     email = forms.EmailField(
         label="Email",
-        widget=forms.EmailInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Inserisci la tua email'
-        })
+        widget=forms.EmailInput(
+            attrs={
+                "class": "form-control",
+                "placeholder": "Inserisci la tua email",
+            }
+        ),
     )
     password = forms.CharField(
         label="Password",
-        widget=forms.PasswordInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Inserisci la password'
-        })
+        widget=forms.PasswordInput(
+            attrs={
+                "class": "form-control",
+                "placeholder": "Inserisci la password",
+            }
+        ),
     )
 
 
 class CustomLoginView(View):
-    template_name = 'auth/login.html'
+    template_name = "auth/login.html"
     form_class = LoginForm
-    
+
     def get(self, request):
         # Se l'utente è già loggato, reindirizza subito
         if request.user.is_authenticated:
             return self.redirect_by_role(request.user)
-        
+
         form = self.form_class()
-        return render(request, self.template_name, {'form': form})
-    
+        return render(request, self.template_name, {"form": form})
+
     def post(self, request):
         form = self.form_class(request.POST)
-        
+
         if form.is_valid():
-            email = form.cleaned_data['email']
-            password = form.cleaned_data['password']
-            
+            email = form.cleaned_data["email"]
+            password = form.cleaned_data["password"]
+
             # Autentica l'utente
             user = authenticate(request, username=email, password=password)
-            
+
             if user is not None:
                 login(request, user)
-                request.session.set_expiry(0)  # La sessione scade alla chiusura del browser
-                messages.success(request, f'Benvenuto, {user.name or user.email}!')
-                
+                request.session.set_expiry(
+                    0
+                )  # La sessione scade alla chiusura del browser
+                messages.success(
+                    request, f"Benvenuto, {user.name or user.email}!"
+                )
+
                 # Reindirizza basato sul ruolo
                 return self.redirect_by_role(user)
             else:
-                messages.error(request, 'Email o password non corrette.')
-        
-        return render(request, self.template_name, {'form': form})
-    
+                messages.error(request, "Email o password non corrette.")
+
+        return render(request, self.template_name, {"form": form})
+
     def redirect_by_role(self, user):
         """Reindirizza l'utente basato sul campo role del modello User"""
         from vendor_management_system.vendors.models import Vendor
 
         # Verifica se è superuser
         if user.is_superuser:
-            return redirect('/admin/')
+            return redirect("/admin/")
 
         # Reindirizzamento basato sul ruolo dell'utente
-        if user.role == 'admin':
-            return redirect('/admin/')
-        elif user.role == 'bo_user':
-            return redirect('/admin/')
-        elif user.role == 'vendor':
+        if user.role == "admin":
+            return redirect("/admin/")
+        elif user.role == "bo_user":
+            # bo_user atterra sulla dashboard consolidata back-office;
+            # admin resta su /admin/, invariato.
+            return redirect("/portale/backoffice/dashboard/")
+        elif user.role == "vendor":
             try:
                 vendor = user.vendor
             except Vendor.DoesNotExist:
                 vendor = None
             if vendor:
-                return redirect('/documents/portal/')
+                return redirect("/documents/portal/")
             messages.warning(
                 self.request,
-                'Il tuo account fornitore non è collegato a nessuna anagrafica. Contatta l\'amministratore.'
+                "Il tuo account fornitore non è collegato a nessuna "
+                "anagrafica. Contatta l'amministratore.",
             )
-            return redirect('login')
+            return redirect("login")
         else:
             # Utente senza ruolo specifico
             messages.warning(
                 self.request,
-                'Nessun ruolo assegnato. Contatta l\'amministratore.'
+                "Nessun ruolo assegnato. Contatta l'amministratore.",
             )
-            return redirect('/admin/')
+            return redirect("/admin/")
 
 
 # In vendor_management_system/core/auth_views.py
 
+
 class CustomLogoutView(View):
     def get(self, request):
-        from django.contrib.auth import logout
         from django.contrib import messages
-        
+        from django.contrib.auth import logout
+
         # Pulisci tutti i messaggi esistenti
         storage = messages.get_messages(request)
-        for message in storage:
+        for _message in storage:
             pass  # Questo consuma tutti i messaggi
         storage.used = True
-        
+
         # Effettua logout
         logout(request)
-        
+
         # Aggiungi solo il messaggio di logout
-        messages.success(request, 'Logout effettuato con successo.')
-        
-        return redirect('login')
+        messages.success(request, "Logout effettuato con successo.")
+
+        return redirect("login")

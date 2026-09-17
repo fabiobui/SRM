@@ -19,6 +19,8 @@ URL_NAMES = [
     "vendor-portal",
     "admin-dashboard",
     "backoffice-dashboard",
+    "portal:bo-dashboard",
+    "portal:bo-documents",
     "document-upload",
     "schema-swagger-ui",
     "admin:vendors_vendor_add",

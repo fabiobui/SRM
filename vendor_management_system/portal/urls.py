@@ -99,4 +99,42 @@ urlpatterns = [
         views.BoChangeRequestReviewView.as_view(),
         name="bo-change-request-review",
     ),
+    # Area BO — gestione requisiti professionali
+    path(
+        "backoffice/requisiti/",
+        views.BoRequirementListView.as_view(),
+        name="bo-requirements",
+    ),
+    path(
+        "backoffice/requisiti/<uuid:pk>/",
+        views.BoRequirementDetailView.as_view(),
+        name="bo-requirement-detail",
+    ),
+    path(
+        "backoffice/requisiti/<uuid:pk>/review/",
+        views.BoRequirementReviewView.as_view(),
+        name="bo-requirement-review",
+    ),
+    # Area BO — gestione documenti
+    path(
+        "backoffice/documenti/",
+        views.BoDocumentListView.as_view(),
+        name="bo-documents",
+    ),
+    path(
+        "backoffice/documenti/<str:pk>/",
+        views.BoDocumentDetailView.as_view(),
+        name="bo-document-detail",
+    ),
+    path(
+        "backoffice/documenti/<str:pk>/review/",
+        views.BoDocumentReviewView.as_view(),
+        name="bo-document-review",
+    ),
+    # Area BO — dashboard consolidata
+    path(
+        "backoffice/dashboard/",
+        views.BoDashboardView.as_view(),
+        name="bo-dashboard",
+    ),
 ]
