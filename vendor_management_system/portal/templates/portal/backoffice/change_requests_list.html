@@ -23,6 +23,7 @@
                 <tr>
                     <th>Data invio</th>
                     <th>Fornitore</th>
+                    <th>Tipo</th>
                     <th>Richiesta da</th>
                     <th>N. campi</th>
                     <th>Stato</th>
@@ -36,6 +37,13 @@
                     <td>
                         <strong>{{ r.vendor.name }}</strong><br>
                         <small class="text-muted">{{ r.vendor.vendor_code }}</small>
+                    </td>
+                    <td>
+                        {% if r.vendor_service %}
+                            Servizio: {{ r.vendor_service.service_type.name }}
+                        {% else %}
+                            Anagrafica
+                        {% endif %}
                     </td>
                     <td>
                         {% if r.requested_by %}

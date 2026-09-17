@@ -1074,6 +1074,7 @@ class VendorAdmin(admin.ModelAdmin):
         "vendor_final_evaluation",
         "embyon_company",
         "embyon_active",
+        "managed_by",
     ]
     search_fields = [
         "vendor_code",

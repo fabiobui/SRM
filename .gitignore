@@ -275,7 +275,8 @@ tags
 dump.rdb
 
 ### Project template
-vendor_management_system/media/
+# MEDIA_ROOT (config/settings.py) è <root>/media/, non vendor_management_system/media/
+/media/
 
 .pytest_cache/
 .ipython/

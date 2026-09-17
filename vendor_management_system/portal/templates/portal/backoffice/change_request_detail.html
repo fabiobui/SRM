@@ -20,6 +20,14 @@
     </div>
     <div class="card-body">
         <dl class="row mb-0">
+            <dt class="col-sm-3">Tipo</dt>
+            <dd class="col-sm-9">
+                {% if change_request.vendor_service %}
+                    Servizio: {{ change_request.vendor_service.service_type.name }}
+                {% else %}
+                    Anagrafica
+                {% endif %}
+            </dd>
             <dt class="col-sm-3">Richiesta da</dt>
             <dd class="col-sm-9">
                 {% if change_request.requested_by %}

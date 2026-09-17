@@ -20,6 +20,7 @@
             <thead class="table-light">
                 <tr>
                     <th>Data invio</th>
+                    <th>Tipo</th>
                     <th>Stato</th>
                     <th>Campi modificati</th>
                     <th>Esito</th>
@@ -30,6 +31,13 @@
                 {% for r in requests %}
                 <tr>
                     <td>{{ r.created_at|date:"d/m/Y H:i" }}</td>
+                    <td>
+                        {% if r.vendor_service %}
+                            Servizio: {{ r.vendor_service.service_type.name }}
+                        {% else %}
+                            Anagrafica
+                        {% endif %}
+                    </td>
                     <td>
                         {% if r.status == 'PENDING' %}
                             <span class="badge bg-warning text-dark">In attesa</span>
