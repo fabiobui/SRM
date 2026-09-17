@@ -15,6 +15,7 @@
    - 3.4 [Indirizzo (Sede)](#34-indirizzo-sede)
    - 3.5 [Servizi Medici](#35-servizi-medici)
    - 3.6 [Qualifica e Audit](#36-qualifica-e-audit)
+   - 3.7 [Attributi Operativi](#37-attributi-operativi)
 4. [Lista Fornitori — ricerca e filtri](#4-lista-fornitori--ricerca-e-filtri)
 5. [Azioni massive sui fornitori](#5-azioni-massive-sui-fornitori)
 6. [Servizi del Fornitore](#6-servizi-del-fornitore)
@@ -209,6 +210,38 @@ Questa sezione gestisce il processo di qualificazione e gli audit periodici.
 | **Note di Revisione** | Sì | Annotazioni sulla revisione |
 
 <!-- 📸 SCREENSHOT: Sezione "Qualifica e Audit" -->
+
+---
+
+### 3.7 Attributi Operativi
+
+Questa sezione raccoglie gli attributi operativi del fornitore (capacità, mezzi e attrezzature proprie,
+condizioni economiche, disponibilità e livello di autonomia), utili per la pianificazione delle attività
+sul campo. All'interno della tab è organizzata in riquadri per gruppo tematico.
+
+| Gruppo | Campo | Descrizione |
+|--------|-------|-------------|
+| Capacità Operativa | **Numero Totale Operatori** | Numero intero di operatori disponibili |
+| Mezzi e Attrezzature Proprie | **Furgoni attrezzati (carrofficina)** | Sì/No |
+| Mezzi e Attrezzature Proprie | **Piattaforme - PLE** | Sì/No, con nota libera (tipologia, altezza, portata) |
+| Mezzi e Attrezzature Proprie | **Ponteggio mobile** | Sì/No, con nota libera (tipologia, altezza) |
+| Mezzi e Attrezzature Proprie | **Mezzo attrezzato** (revisione/collaudi sul posto) | Sì/No |
+| Mezzi e Attrezzature Proprie | **Mezzi di sollevamento** (camion gru/carrello elevatore) | Sì/No, con nota libera (tipologia, altezza, portata) |
+| Mezzi e Attrezzature Proprie | **Strumentazione ATEX** | Sì/No |
+| Condizioni Economiche | **Costo Orario Standard Manodopera** | Valore in € |
+| Condizioni Economiche | **Costo Trasferta** | Valore in € |
+| Condizioni Economiche | **Rimborso Chilometrico** | Sì/No + valore opzionale in €/km |
+| Condizioni Economiche | **Fornitura Materiali di consumo** (tubo, cavo, ecc.) | Sì/No |
+| Condizioni Economiche | **Fornitura materiale specialistico** | Sì/No |
+| Disponibilità Operative | **Disponibilità Sopralluoghi per Sicura** | Sì/No |
+| Disponibilità Operative | **Disponibilità Trasferte** | Sì/No |
+| Disp. Fermata Impianto/Weekend | **Weekend/festivi** | Sì/No |
+| Disp. Fermata Impianto/Weekend | **Notturno** | Sì/No |
+| Disp. Commissioning/Avviamenti | **Supporto commissioning/collaudi** | Sì/No |
+| Livello Autonomia | **Categoria Autonomia** | Scelta tra: *Solo Manodopera* (serve capocantiere + PM Sicura), *Autonomia limitata* (serve PM Sicura), *Totale autonomia* |
+| Esperienza Settori Specifici | **Logistica, Data center, Industria/manufatturiero, Terziario/uffici/alberghiero, Alimentare/farmaceutico, Ospedaliero, Retail, Oil & Gas, Pubblica Amministrazione** | Sì/No per ciascun settore |
+
+<!-- 📸 SCREENSHOT: Sezione "Attributi Operativi" -->
 
 ---
 

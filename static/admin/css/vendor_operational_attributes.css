@@ -1,0 +1,9 @@
+/* Rende scorrevole verticalmente la tab "Attributi Operativi" nella scheda
+   fornitore, così la si può scorrere senza dover scorrere l'intera pagina.
+   L'id corrisponde allo slug generato da Jazzmin per il nome dell'inline
+   (VendorOperationalAttributesInline.verbose_name_plural). */
+#attributi-operativi-tab {
+    max-height: 65vh;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
