@@ -52,9 +52,21 @@
                     </a>
                 </li>
                 <li class="nav-item">
+                    <a class="nav-link {% if 'service' in request.resolver_match.url_name %}active{% endif %}"
+                       href="{% url 'portal:my-services' %}">
+                        <i class="fas fa-concierge-bell"></i> Servizi
+                    </a>
+                </li>
+                <li class="nav-item">
                     <a class="nav-link {% if 'profile' in request.resolver_match.url_name or 'change-requests' in request.resolver_match.url_name %}active{% endif %}"
                        href="{% url 'portal:my-profile' %}">
                         <i class="fas fa-id-card"></i> Anagrafica
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if 'operational-attributes' in request.resolver_match.url_name %}active{% endif %}"
+                       href="{% url 'portal:my-operational-attributes' %}">
+                        <i class="fas fa-tools"></i> Attributi operativi
                     </a>
                 </li>
             </ul>

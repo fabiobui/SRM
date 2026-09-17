@@ -1,22 +1,34 @@
 """Form del portale fornitore.
 
 I form definiti qui sono usati dalle view dell'area /portale/. Il pattern è:
-- `DocumentUploadForm`: upload file + metadati documento; usato da MyDocumentUploadView.
-- `VendorProfileChangeForm`: anagrafica del proprio Vendor con whitelist di campi
-  modificabili. Non salva direttamente il Vendor — il diff finisce in una
-  VendorChangeRequest che il back-office deve approvare.
+- `DocumentUploadForm`: upload file + metadati documento; usato da
+  MyDocumentUploadView.
+- `VendorProfileChangeForm`: anagrafica del proprio Vendor con whitelist di
+  campi modificabili. Non salva direttamente il Vendor — il diff finisce in
+  una VendorChangeRequest che il back-office deve approvare.
+- `VendorServiceChangeForm`: campi descrittivi di un proprio VendorService
+  (prezzo/contratto restano BO-only). Stesso pattern: il diff finisce in una
+  VendorChangeRequest legata al servizio.
+- `VendorOperationalAttributesForm`: attributi operativi del proprio Vendor.
+  A differenza dei form precedenti salva direttamente (nessuna approvazione).
 """
 
 from django import forms
 from django.utils.translation import gettext_lazy as _
 
 from vendor_management_system.documents.models import Document
-from vendor_management_system.vendors.models import Vendor, VendorCompetence
-
+from vendor_management_system.vendors.models import (
+    Vendor,
+    VendorCompetence,
+    VendorOperationalAttributes,
+    VendorService,
+)
 
 # Whitelist server-side: solo questi campi sono modificabili dal fornitore via
 # richiesta di modifica anagrafica. Campi identificativi/qualificativi/audit
-# restano sotto il controllo del back-office.
+# restano sotto il controllo del back-office. `address` non è qui: è una FK a
+# un modello strutturato (Address), gestita a parte come testo libero (vedi
+# `VendorProfileChangeForm.address_text`).
 EDITABLE_VENDOR_FIELDS = (
     "name",
     "email",
@@ -27,6 +39,30 @@ EDITABLE_VENDOR_FIELDS = (
     "contact_details",
     "vendor_task_description",
 )
+
+# Whitelist server-side per i servizi: prezzo orario (hourly_rate) e
+# contratto collegato (contract) restano di sola competenza back-office, non
+# sono mai esposti in un form fornitore.
+EDITABLE_VENDOR_SERVICE_FIELDS = (
+    "is_primary",
+    "start_date",
+    "end_date",
+    "notes",
+)
+
+
+def format_address(address) -> str:
+    """Formatta un Address come singola stringa per il campo testo libero."""
+    if not address:
+        return ""
+    parts = [
+        address.street_address,
+        address.street_address_2,
+        address.postal_code,
+        address.city,
+        address.state_province,
+    ]
+    return ", ".join(p for p in parts if p)
 
 
 class DocumentUploadForm(forms.ModelForm):
@@ -50,7 +86,11 @@ class DocumentUploadForm(forms.ModelForm):
                 attrs={"class": "form-control", "type": "date"}
             ),
             "notes": forms.Textarea(
-                attrs={"class": "form-control", "rows": 3, "placeholder": "Note opzionali"}
+                attrs={
+                    "class": "form-control",
+                    "rows": 3,
+                    "placeholder": "Note opzionali",
+                }
             ),
         }
 
@@ -69,12 +109,13 @@ class DocumentUploadForm(forms.ModelForm):
 
 
 class CompetenceDocumentUploadForm(forms.ModelForm):
-    """Form upload del documento/attestato di un requisito professionale assegnato.
+    """Form upload del documento/attestato di un requisito assegnato.
 
-    La `VendorCompetence` è già stata creata dal BO (con `competence` definita).
-    Il fornitore carica solo il file (`document_file`) e, opzionalmente, aggiorna
-    numero certificazione, date e note. La view identifica il record dal `pk` in
-    URL e applica `vendor=request.user.vendor` come filtro per evitare IDOR.
+    La `VendorCompetence` è già stata creata dal BO (con `competence`
+    definita). Il fornitore carica solo il file (`document_file`) e,
+    opzionalmente, aggiorna numero certificazione, date e note. La view
+    identifica il record dal `pk` in URL e applica
+    `vendor=request.user.vendor` come filtro per evitare IDOR.
     """
 
     class Meta:
@@ -87,8 +128,12 @@ class CompetenceDocumentUploadForm(forms.ModelForm):
             "notes",
         )
         widgets = {
-            "document_file": forms.ClearableFileInput(attrs={"class": "form-control"}),
-            "certification_number": forms.TextInput(attrs={"class": "form-control"}),
+            "document_file": forms.ClearableFileInput(
+                attrs={"class": "form-control"}
+            ),
+            "certification_number": forms.TextInput(
+                attrs={"class": "form-control"}
+            ),
             "issue_date": forms.DateInput(
                 attrs={"class": "form-control", "type": "date"}
             ),
@@ -96,7 +141,11 @@ class CompetenceDocumentUploadForm(forms.ModelForm):
                 attrs={"class": "form-control", "type": "date"}
             ),
             "notes": forms.Textarea(
-                attrs={"class": "form-control", "rows": 3, "placeholder": "Note opzionali"}
+                attrs={
+                    "class": "form-control",
+                    "rows": 3,
+                    "placeholder": "Note opzionali",
+                }
             ),
         }
 
@@ -117,8 +166,10 @@ class CompetenceDocumentUploadForm(forms.ModelForm):
 class VendorProfileChangeForm(forms.ModelForm):
     """Form modifica anagrafica fornitore.
 
-    Espone solo i campi in `EDITABLE_VENDOR_FIELDS`. La view `VendorChangeRequestCreateView`
-    NON salva il Vendor: usa `compute_diff()` per generare la `VendorChangeRequest`.
+    Espone i campi in `EDITABLE_VENDOR_FIELDS` più `address_text` (testo
+    libero per l'indirizzo). La view `VendorChangeRequestCreateView` NON
+    salva il Vendor: usa `compute_diff()` per generare la
+    `VendorChangeRequest`.
     """
 
     class Meta:
@@ -129,28 +180,117 @@ class VendorProfileChangeForm(forms.ModelForm):
             "email": forms.EmailInput(attrs={"class": "form-control"}),
             "phone": forms.TextInput(attrs={"class": "form-control"}),
             "website": forms.URLInput(attrs={"class": "form-control"}),
-            "reference_contact": forms.TextInput(attrs={"class": "form-control"}),
-            "reference_person": forms.TextInput(attrs={"class": "form-control"}),
-            "contact_details": forms.Textarea(attrs={"class": "form-control", "rows": 3}),
+            "reference_contact": forms.TextInput(
+                attrs={"class": "form-control"}
+            ),
+            "reference_person": forms.TextInput(
+                attrs={"class": "form-control"}
+            ),
+            "contact_details": forms.Textarea(
+                attrs={"class": "form-control", "rows": 3}
+            ),
             "vendor_task_description": forms.Textarea(
                 attrs={"class": "form-control", "rows": 3}
             ),
         }
 
-    def compute_diff(self) -> dict:
-        """Calcola il diff fra il valore corrente sul DB e il nuovo valore proposto.
+    address_text = forms.CharField(
+        label=_("Indirizzo"),
+        required=False,
+        widget=forms.Textarea(attrs={"class": "form-control", "rows": 2}),
+        help_text=_(
+            "Testo libero: via, CAP, città, provincia. Nessuna "
+            "normalizzazione automatica in questa fase."
+        ),
+    )
 
-        Ritorna {field: {"old": ..., "new": ...}} solo per i campi effettivamente cambiati.
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Snapshot PRIMA di is_valid(): il _post_clean() di Django muta
+        # self.instance coi valori nuovi (vedi ModelForm.construct_instance),
+        # quindi leggere self.instance dopo is_valid() confronterebbe il
+        # nuovo valore con se stesso. Va salvato qui, non in compute_diff().
+        self._old_values = {
+            field: getattr(self.instance, field, None)
+            for field in EDITABLE_VENDOR_FIELDS
+        }
+        self._old_address = format_address(self.instance.address)
+        self.fields["address_text"].initial = self._old_address
+
+    def compute_diff(self) -> dict:
+        """Calcola il diff fra il valore originale e quello proposto.
+
+        Ritorna {field: {"old": ..., "new": ...}} solo per i campi
+        effettivamente cambiati. `address` è gestito a parte perché non è
+        un campo del `ModelForm` (vedi `EDITABLE_VENDOR_FIELDS`).
         """
         if not self.is_valid():
             return {}
 
         diff = {}
-        original = self.instance  # il vendor originale (immutato)
         for field in EDITABLE_VENDOR_FIELDS:
             new_value = self.cleaned_data.get(field)
-            old_value = getattr(original, field, None)
+            old_value = self._old_values.get(field)
             # Confronto stringhe per evitare differenze su None vs ""
+            old_norm = "" if old_value is None else old_value
+            new_norm = "" if new_value is None else new_value
+            if old_norm != new_norm:
+                diff[field] = {"old": old_value, "new": new_value}
+
+        new_address = self.cleaned_data.get("address_text", "").strip()
+        if self._old_address != new_address:
+            diff["address"] = {"old": self._old_address, "new": new_address}
+
+        return diff
+
+
+class VendorServiceChangeForm(forms.ModelForm):
+    """Form modifica di un servizio del fornitore.
+
+    Espone solo `EDITABLE_VENDOR_SERVICE_FIELDS`: prezzo orario e contratto
+    collegato restano di sola competenza back-office. Non salva il
+    `VendorService` — usa `compute_diff()` per generare la
+    `VendorChangeRequest` (legata al servizio, non al vendor).
+    """
+
+    class Meta:
+        model = VendorService
+        fields = EDITABLE_VENDOR_SERVICE_FIELDS
+        widgets = {
+            "start_date": forms.DateInput(
+                attrs={"class": "form-control", "type": "date"}
+            ),
+            "end_date": forms.DateInput(
+                attrs={"class": "form-control", "type": "date"}
+            ),
+            "notes": forms.Textarea(
+                attrs={"class": "form-control", "rows": 3}
+            ),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Snapshot PRIMA di is_valid(): vedi il commento in
+        # VendorProfileChangeForm.__init__ — _post_clean() di Django muta
+        # self.instance coi valori nuovi prima che compute_diff() li legga.
+        self._old_values = {
+            field: getattr(self.instance, field, None)
+            for field in EDITABLE_VENDOR_SERVICE_FIELDS
+        }
+
+    def compute_diff(self) -> dict:
+        """Calcola il diff sui soli campi descrittivi del servizio.
+
+        Stessa logica di `VendorProfileChangeForm.compute_diff()`, ristretta
+        a `EDITABLE_VENDOR_SERVICE_FIELDS`.
+        """
+        if not self.is_valid():
+            return {}
+
+        diff = {}
+        for field in EDITABLE_VENDOR_SERVICE_FIELDS:
+            new_value = self.cleaned_data.get(field)
+            old_value = self._old_values.get(field)
             old_norm = "" if old_value is None else old_value
             new_norm = "" if new_value is None else new_value
             if old_norm != new_norm:
@@ -158,14 +298,41 @@ class VendorProfileChangeForm(forms.ModelForm):
         return diff
 
 
+class VendorOperationalAttributesForm(forms.ModelForm):
+    """Form attributi operativi del fornitore.
+
+    A differenza degli altri form del portale salva direttamente il
+    `VendorOperationalAttributes` (nessuna approvazione back-office): sono
+    dati puramente descrittivi/operativi, senza impatto su compliance o
+    audit.
+    """
+
+    class Meta:
+        model = VendorOperationalAttributes
+        exclude = ("id", "vendor")
+        widgets = {
+            "aerial_platforms_notes": forms.Textarea(
+                attrs={"class": "form-control", "rows": 2}
+            ),
+            "mobile_scaffolding_notes": forms.Textarea(
+                attrs={"class": "form-control", "rows": 2}
+            ),
+            "lifting_equipment_notes": forms.Textarea(
+                attrs={"class": "form-control", "rows": 2}
+            ),
+        }
+
+
 class VendorChangeReviewForm(forms.Form):
-    """Form usato dal back-office per approvare/rifiutare una richiesta anagrafica."""
+    """Form BO per approvare/rifiutare una richiesta di modifica."""
 
     ACTION_CHOICES = [
         ("approve", _("Approva")),
         ("reject", _("Rifiuta")),
     ]
-    action = forms.ChoiceField(choices=ACTION_CHOICES, widget=forms.HiddenInput())
+    action = forms.ChoiceField(
+        choices=ACTION_CHOICES, widget=forms.HiddenInput()
+    )
     review_notes = forms.CharField(
         label=_("Note di revisione"),
         required=False,

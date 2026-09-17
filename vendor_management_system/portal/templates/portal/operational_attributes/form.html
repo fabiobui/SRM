@@ -1,0 +1,62 @@
+{% extends "portal/base_portal.html" %}
+
+{% block title %}Attributi operativi — Portale Fornitore{% endblock %}
+
+{% block content %}
+<h1 class="h3 mb-3"><i class="fas fa-tools text-success"></i> Attributi operativi</h1>
+
+<div class="alert alert-info">
+    <i class="fas fa-info-circle"></i>
+    Queste informazioni (capacità operativa, mezzi, disponibilità, esperienza) vengono
+    salvate immediatamente: non richiedono approvazione da parte del back-office.
+</div>
+
+<form method="post" novalidate>
+    {% csrf_token %}
+    <div class="card">
+        <div class="card-body">
+            {% if form.non_field_errors %}
+                <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+            {% endif %}
+
+            <div class="row">
+            {% for field in form %}
+                {% if field.field.widget.input_type != "checkbox" %}
+                <div class="col-md-6 mb-3">
+                    <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+                    {{ field }}
+                    {% if field.help_text %}
+                        <div class="form-text">{{ field.help_text }}</div>
+                    {% endif %}
+                    {% if field.errors %}
+                        <div class="invalid-feedback d-block">{{ field.errors|join:", " }}</div>
+                    {% endif %}
+                </div>
+                {% endif %}
+            {% endfor %}
+            </div>
+
+            <hr>
+
+            <div class="row">
+            {% for field in form %}
+                {% if field.field.widget.input_type == "checkbox" %}
+                <div class="col-md-4 mb-2 form-check">
+                    {{ field }}
+                    <label for="{{ field.id_for_label }}" class="form-check-label">{{ field.label }}</label>
+                </div>
+                {% endif %}
+            {% endfor %}
+            </div>
+        </div>
+        <div class="card-footer d-flex gap-2 justify-content-end">
+            <a href="{% url 'portal:dashboard' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-times"></i> Annulla
+            </a>
+            <button type="submit" class="btn btn-success">
+                <i class="fas fa-save"></i> Salva
+            </button>
+        </div>
+    </div>
+</form>
+{% endblock %}

@@ -7,11 +7,14 @@ from django.utils.translation import gettext_lazy as _
 
 
 class VendorChangeRequest(models.Model):
-    """Richiesta di modifica dell'anagrafica fornitore proposta dal fornitore stesso.
+    """Richiesta di modifica dell'anagrafica (o di un servizio) proposta dal
+    fornitore stesso.
 
-    Il fornitore non modifica direttamente il record `Vendor`: invia una richiesta
-    in stato PENDING che il back-office approva o rifiuta. Alla approvazione,
-    le modifiche memorizzate in `changes` (JSON) vengono applicate al `Vendor`.
+    Il fornitore non modifica direttamente il record `Vendor`/`VendorService`:
+    invia una richiesta in stato PENDING che il back-office approva o
+    rifiuta. Alla approvazione, le modifiche memorizzate in `changes` (JSON)
+    vengono applicate al target (`vendor_service` se valorizzato, altrimenti
+    `vendor`).
     """
 
     STATUS_PENDING = "PENDING"
@@ -34,6 +37,18 @@ class VendorChangeRequest(models.Model):
         verbose_name=_("Fornitore"),
         related_name="change_requests",
     )
+    vendor_service = models.ForeignKey(
+        "vendors.VendorService",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        verbose_name=_("Servizio fornitore"),
+        related_name="change_requests",
+        help_text=_(
+            "Se valorizzato, le modifiche si applicano a questo servizio "
+            "invece che all'anagrafica del fornitore."
+        ),
+    )
     requested_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -46,7 +61,9 @@ class VendorChangeRequest(models.Model):
     changes = models.JSONField(
         _("Modifiche proposte"),
         default=dict,
-        help_text=_("Mappa {campo: {'old': valore_attuale, 'new': valore_proposto}}"),
+        help_text=_(
+            "Mappa {campo: {'old': valore_attuale, 'new': valore_proposto}}"
+        ),
     )
     status = models.CharField(
         _("Stato"),
@@ -55,7 +72,9 @@ class VendorChangeRequest(models.Model):
         default=STATUS_PENDING,
     )
     created_at = models.DateTimeField(_("Creata il"), auto_now_add=True)
-    reviewed_at = models.DateTimeField(_("Revisionata il"), null=True, blank=True)
+    reviewed_at = models.DateTimeField(
+        _("Revisionata il"), null=True, blank=True
+    )
     reviewed_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -76,28 +95,50 @@ class VendorChangeRequest(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.vendor.name} — {self.get_status_display()} ({self.created_at:%d/%m/%Y})"
+        return (
+            f"{self.vendor.name} — {self.get_status_display()} "
+            f"({self.created_at:%d/%m/%Y})"
+        )
 
     @property
     def is_pending(self):
         return self.status == self.STATUS_PENDING
 
-    def apply_to_vendor(self, reviewer, notes: str = ""):
-        """Applica le modifiche al Vendor e marca la richiesta APPROVED.
+    @property
+    def target(self):
+        """Oggetto su cui va applicato il diff: il servizio se la richiesta
+        riguarda un `VendorService`, altrimenti il `Vendor` stesso."""
+        return self.vendor_service or self.vendor
 
-        I campi accettati sono solo quelli presenti come attributi del modello Vendor.
-        Eventuali campi sconosciuti vengono ignorati per sicurezza.
+    def apply_to_vendor(self, reviewer, notes: str = ""):
+        """Applica le modifiche al target e marca la richiesta APPROVED.
+
+        I campi accettati sono solo quelli presenti come attributi del
+        modello target (`vendor_service` se valorizzato, altrimenti
+        `vendor`). Eventuali campi sconosciuti vengono ignorati per
+        sicurezza. Il campo "address" è un caso speciale solo quando il
+        target è il `Vendor`: `Vendor.address` è una FK a un modello
+        strutturato, quindi il testo libero proposto viene scritto
+        sull'`Address` collegato (creandolo se assente) invece di un
+        `setattr` diretto.
         """
         if self.status != self.STATUS_PENDING:
-            raise ValueError("Solo richieste in stato PENDING possono essere approvate.")
+            raise ValueError(
+                "Solo richieste in stato PENDING possono essere approvate."
+            )
 
-        vendor = self.vendor
+        target = self.target
         for field, payload in (self.changes or {}).items():
-            if not hasattr(vendor, field):
+            new_value = (
+                payload.get("new") if isinstance(payload, dict) else payload
+            )
+            if field == "address" and target is self.vendor:
+                self._apply_address(new_value)
                 continue
-            new_value = payload.get("new") if isinstance(payload, dict) else payload
-            setattr(vendor, field, new_value)
-        vendor.save()
+            if not hasattr(target, field):
+                continue
+            setattr(target, field, new_value)
+        target.save()
 
         self.status = self.STATUS_APPROVED
         self.reviewed_at = timezone.now()
@@ -105,9 +146,30 @@ class VendorChangeRequest(models.Model):
         self.review_notes = notes or self.review_notes
         self.save()
 
+    def _apply_address(self, new_text):
+        """Scrive il testo libero proposto sull'Address collegato al vendor.
+
+        Nessuna normalizzazione (via API esterne) in questa fase: il testo
+        libero sostituisce interamente `street_address`; gli altri campi
+        strutturati dell'indirizzo (città, CAP, ...) restano quelli già
+        presenti.
+        """
+        from vendor_management_system.vendors.models import Address
+
+        vendor = self.vendor
+        if vendor.address_id:
+            vendor.address.street_address = new_text or ""
+            vendor.address.save()
+        else:
+            vendor.address = Address.objects.create(
+                street_address=new_text or ""
+            )
+
     def reject(self, reviewer, notes: str = ""):
         if self.status != self.STATUS_PENDING:
-            raise ValueError("Solo richieste in stato PENDING possono essere rifiutate.")
+            raise ValueError(
+                "Solo richieste in stato PENDING possono essere rifiutate."
+            )
         self.status = self.STATUS_REJECTED
         self.reviewed_at = timezone.now()
         self.reviewed_by = reviewer

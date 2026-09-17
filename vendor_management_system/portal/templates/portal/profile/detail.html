@@ -72,10 +72,8 @@
             <dt class="col-sm-3">Descrizione attività</dt>
             <dd class="col-sm-9">{{ vendor.vendor_task_description|linebreaksbr|default:"—" }}</dd>
 
-            {% if vendor.address %}
             <dt class="col-sm-3">Indirizzo</dt>
-            <dd class="col-sm-9">{{ vendor.address }} <small class="text-muted">(modifiche tramite BO)</small></dd>
-            {% endif %}
+            <dd class="col-sm-9">{{ vendor.address|default:"—" }}</dd>
         </dl>
     </div>
 </div>

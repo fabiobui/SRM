@@ -24,6 +24,11 @@ l'overview completa e il setup locale (Docker o nativo).
   trasversale/di configurazione (vedi sezione Test più sotto). Non consegnare codice nuovo senza test.
 - **La documentazione va sempre scritta o aggiornata in italiano** (README, `docs/*.md`, `CLAUDE.md`, commenti e
   docstring destinati a chi mantiene il progetto) — coerente con lo stile già usato in tutto il repo.
+- **Se stai testando su Docker (Track A) e modifichi codice Python mentre il container `django` è già in
+  esecuzione, fai `docker compose restart django` prima di verificare la modifica nel browser.** Il container
+  gira `runserver_plus` (Werkzeug), che in teoria fa autoreload, ma su Docker Desktop per Windows con bind mount
+  (`.:/app` in `docker-compose.yml`) le modifiche fatte da fuori al container spesso non vengono rilevate in
+  modo affidabile: il refresh del browser da solo non basta.
 
 ## Ambiente Python
 

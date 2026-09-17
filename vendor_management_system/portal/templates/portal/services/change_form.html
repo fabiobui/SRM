@@ -1,0 +1,57 @@
+{% extends "portal/base_portal.html" %}
+
+{% block title %}Modifica servizio — Portale Fornitore{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'portal:dashboard' %}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'portal:my-services' %}">Servizi</a></li>
+        <li class="breadcrumb-item active">{{ service.service_type.name }}</li>
+    </ol>
+</nav>
+
+<h1 class="h3 mb-3"><i class="fas fa-edit text-success"></i> Proponi modifiche — {{ service.service_type.name }}</h1>
+
+<div class="alert alert-info">
+    <i class="fas fa-info-circle"></i>
+    Le modifiche vengono inviate al back-office per approvazione. Prezzo orario e
+    contratto restano di sola competenza back-office e non sono modificabili da qui.
+</div>
+
+<form method="post" novalidate>
+    {% csrf_token %}
+    <div class="card">
+        <div class="card-body">
+            {% if form.non_field_errors %}
+                <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+            {% endif %}
+
+            {% for field in form %}
+                <div class="mb-3 row">
+                    <label for="{{ field.id_for_label }}" class="col-sm-3 col-form-label">
+                        {{ field.label }}
+                    </label>
+                    <div class="col-sm-9">
+                        {{ field }}
+                        {% if field.help_text %}
+                            <div class="form-text">{{ field.help_text }}</div>
+                        {% endif %}
+                        {% if field.errors %}
+                            <div class="invalid-feedback d-block">{{ field.errors|join:", " }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+        <div class="card-footer d-flex gap-2 justify-content-end">
+            <a href="{% url 'portal:my-services' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-times"></i> Annulla
+            </a>
+            <button type="submit" class="btn btn-success">
+                <i class="fas fa-paper-plane"></i> Invia richiesta
+            </button>
+        </div>
+    </div>
+</form>
+{% endblock %}

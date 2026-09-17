@@ -1,22 +1,21 @@
-"""View del portale fornitore (area /portale/) e gestione BO delle richieste anagrafica.
+"""View del portale fornitore (area /portale/) e gestione BO delle
+richieste anagrafica/servizi.
 
 Convenzioni:
-- Tutte le view "fornitore" filtrano sempre i queryset su `request.user.vendor`.
+- Tutte le view "fornitore" filtrano sempre i queryset su
+  `request.user.vendor`.
 - Per le DetailView/UpdateView dei singoli oggetti del fornitore si usa
   `VendorOwnerRequiredMixin` per impedire IDOR.
 - Le view BO ricavano i permessi da `BackOfficeRequiredMixin`.
 """
 
 from django.contrib import messages
-from django.core.exceptions import PermissionDenied
 from django.db.models import Q
 from django.http import HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
-from django.utils import timezone
 from django.views import View
 from django.views.generic import (
-    CreateView,
     DetailView,
     ListView,
     TemplateView,
@@ -27,31 +26,41 @@ from vendor_management_system.core.permissions import (
     VendorRequiredMixin,
 )
 from vendor_management_system.documents.models import Document
-from vendor_management_system.vendors.models import VendorCompetence
+from vendor_management_system.vendors.models import (
+    VendorCompetence,
+    VendorOperationalAttributes,
+    VendorService,
+)
 
 from .forms import (
     CompetenceDocumentUploadForm,
     DocumentUploadForm,
     VendorChangeReviewForm,
+    VendorOperationalAttributesForm,
     VendorProfileChangeForm,
+    VendorServiceChangeForm,
 )
 from .models import VendorChangeRequest
 
-
 # --- helper -----------------------------------------------------------------
+
 
 def _vendor_documents_qs(vendor):
     """Queryset documenti del vendor, con select_related per evitare N+1.
 
-    I `Document` sono pre-creati dal back-office tramite il `DocumentInline` di
-    VendorAdmin. L'elenco di "documenti che il fornitore deve caricare" è
-    dunque l'insieme dei `Document` con stato `PENDING`. Il fornitore non sceglie
-    i tipi: lavora solo sui record già esistenti per il proprio vendor.
+    I `Document` sono pre-creati dal back-office tramite il
+    `DocumentInline` di VendorAdmin. L'elenco di "documenti che il
+    fornitore deve caricare" è dunque l'insieme dei `Document` con stato
+    `PENDING`. Il fornitore non sceglie i tipi: lavora solo sui record già
+    esistenti per il proprio vendor.
     """
-    return Document.objects.filter(vendor=vendor).select_related("document_type")
+    return Document.objects.filter(vendor=vendor).select_related(
+        "document_type"
+    )
 
 
 # --- area fornitore ---------------------------------------------------------
+
 
 class PortalDashboardView(VendorRequiredMixin, TemplateView):
     """Home del portale fornitore: KPI sintetici e link rapidi alle aree."""
@@ -63,7 +72,8 @@ class PortalDashboardView(VendorRequiredMixin, TemplateView):
         vendor = self.request.user.vendor
         documents = _vendor_documents_qs(vendor)
 
-        # "Da caricare": Document con status PENDING (pre-creati dal BO, file vuoto).
+        # "Da caricare": Document con status PENDING (pre-creati dal BO,
+        # file vuoto).
         to_upload_count = documents.filter(status="PENDING").count()
 
         expiring_count = sum(
@@ -76,8 +86,12 @@ class PortalDashboardView(VendorRequiredMixin, TemplateView):
         approved_count = documents.filter(status="APPROVED").count()
         rejected_count = documents.filter(status="REJECTED").count()
 
+        # Solo le richieste anagrafica (non quelle sui servizi): il badge
+        # KPI vive sotto la card "Anagrafica" del dashboard.
         pending_change_requests = VendorChangeRequest.objects.filter(
-            vendor=vendor, status=VendorChangeRequest.STATUS_PENDING
+            vendor=vendor,
+            vendor_service__isnull=True,
+            status=VendorChangeRequest.STATUS_PENDING,
         ).count()
 
         # Requisiti professionali assegnati senza documento caricato.
@@ -152,13 +166,14 @@ class MyDocumentsView(VendorRequiredMixin, ListView):
 class MyDocumentUploadView(VendorRequiredMixin, View):
     """POST upload/aggiornamento di un singolo Document già esistente.
 
-    L'URL contiene `pk` del Document. La view filtra su `vendor=request.user.vendor`
-    per evitare IDOR: un fornitore non può caricare file su documenti di altri
-    fornitori cambiando l'ID nell'URL.
+    L'URL contiene `pk` del Document. La view filtra su
+    `vendor=request.user.vendor` per evitare IDOR: un fornitore non può
+    caricare file su documenti di altri fornitori cambiando l'ID nell'URL.
 
-    Stato risultante: il documento passa sempre a `UPLOADED`, anche se prima
-    era REJECTED o EXPIRED, perché il fornitore ha riproposto il file. Eventuali
-    revisioni precedenti vengono resettate (`reviewed_by`/`reviewed_at` a None).
+    Stato risultante: il documento passa sempre a `UPLOADED`, anche se
+    prima era REJECTED o EXPIRED, perché il fornitore ha riproposto il
+    file. Eventuali revisioni precedenti vengono resettate
+    (`reviewed_by`/`reviewed_at` a None).
     """
 
     http_method_names = ["post"]
@@ -167,7 +182,9 @@ class MyDocumentUploadView(VendorRequiredMixin, View):
         document = get_object_or_404(
             Document, pk=pk, vendor=request.user.vendor
         )
-        form = DocumentUploadForm(request.POST, request.FILES, instance=document)
+        form = DocumentUploadForm(
+            request.POST, request.FILES, instance=document
+        )
         if not form.is_valid():
             for field, errs in form.errors.items():
                 for err in errs:
@@ -182,7 +199,8 @@ class MyDocumentUploadView(VendorRequiredMixin, View):
 
         messages.success(
             request,
-            f"Documento '{document.document_type.name}' caricato correttamente.",
+            f"Documento '{document.document_type.name}' "
+            "caricato correttamente.",
         )
         return redirect("portal:my-document-detail", pk=document.pk)
 
@@ -190,8 +208,9 @@ class MyDocumentUploadView(VendorRequiredMixin, View):
 class MyDocumentDetailView(VendorRequiredMixin, DetailView):
     """Dettaglio di un singolo documento del proprio vendor.
 
-    Filtro queryset su `vendor=request.user.vendor` per evitare IDOR: un fornitore
-    non può accedere a documenti di altri fornitori cambiando l'ID nell'URL.
+    Filtro queryset su `vendor=request.user.vendor` per evitare IDOR: un
+    fornitore non può accedere a documenti di altri fornitori cambiando
+    l'ID nell'URL.
     """
 
     template_name = "portal/documents/detail.html"
@@ -203,6 +222,7 @@ class MyDocumentDetailView(VendorRequiredMixin, DetailView):
 
 # --- requisiti professionali ------------------------------------------------
 
+
 def _vendor_competences_qs(vendor):
     """Queryset dei requisiti professionali assegnati al vendor.
 
@@ -211,7 +231,9 @@ def _vendor_competences_qs(vendor):
     requisiti: carica solo il file (`document_file`) sui record già esistenti
     per il proprio vendor.
     """
-    return VendorCompetence.objects.filter(vendor=vendor).select_related("competence")
+    return VendorCompetence.objects.filter(vendor=vendor).select_related(
+        "competence"
+    )
 
 
 class MyRequirementsView(VendorRequiredMixin, ListView):
@@ -259,8 +281,8 @@ class MyRequirementUploadView(VendorRequiredMixin, View):
     """POST upload/aggiornamento del documento di un requisito già assegnato.
 
     L'URL contiene `pk` della VendorCompetence. La view filtra su
-    `vendor=request.user.vendor` per evitare IDOR: un fornitore non può caricare
-    file su requisiti di altri fornitori cambiando l'ID nell'URL.
+    `vendor=request.user.vendor` per evitare IDOR: un fornitore non può
+    caricare file su requisiti di altri fornitori cambiando l'ID nell'URL.
 
     Caricando un nuovo file la verifica precedente viene resettata
     (`verified=False`), perché il documento va rivalutato dal back-office.
@@ -309,7 +331,169 @@ class MyRequirementDetailView(VendorRequiredMixin, DetailView):
         return _vendor_competences_qs(self.request.user.vendor)
 
 
+# --- servizi fornitori -------------------------------------------------------
+
+
+def _vendor_services_qs(vendor):
+    """Queryset dei servizi assegnati al vendor.
+
+    I `VendorService` sono pre-creati dal back-office (singolarmente o in
+    blocco tramite `ServiceSet`, vedi `vendors/admin.py`). Il fornitore non
+    sceglie i servizi che eroga: può solo proporre modifiche ai campi
+    descrittivi (vedi `EDITABLE_VENDOR_SERVICE_FIELDS`) sui record già
+    assegnati al proprio vendor.
+    """
+    return VendorService.objects.filter(vendor=vendor).select_related(
+        "service_type", "contract"
+    )
+
+
+class MyServicesView(VendorRequiredMixin, ListView):
+    """Lista dei servizi assegnati al proprio fornitore.
+
+    Prezzo orario e contratto collegato sono mostrati in sola lettura
+    (badge "gestito dal back-office"): non sono mai esposti in scrittura al
+    fornitore, vedi `VendorServiceChangeForm`.
+    """
+
+    template_name = "portal/services/list.html"
+    context_object_name = "services"
+
+    def get_queryset(self):
+        return _vendor_services_qs(self.request.user.vendor).order_by(
+            "-is_primary", "service_type__name"
+        )
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["vendor"] = self.request.user.vendor
+        ctx["pending_service_ids"] = set(
+            VendorChangeRequest.objects.filter(
+                vendor_service__vendor=self.request.user.vendor,
+                status=VendorChangeRequest.STATUS_PENDING,
+            ).values_list("vendor_service_id", flat=True)
+        )
+        return ctx
+
+
+class VendorServiceChangeRequestCreateView(VendorRequiredMixin, View):
+    """Form modifica di un servizio → genera VendorChangeRequest PENDING.
+
+    Vincolo: una sola richiesta pendente alla volta per ciascun servizio
+    (indipendente dalle richieste sugli altri servizi o sull'anagrafica).
+    """
+
+    template_name = "portal/services/change_form.html"
+
+    def _get_service(self, request, pk):
+        return get_object_or_404(
+            VendorService, pk=pk, vendor=request.user.vendor
+        )
+
+    def _has_pending(self, vendor_service):
+        return VendorChangeRequest.objects.filter(
+            vendor_service=vendor_service,
+            status=VendorChangeRequest.STATUS_PENDING,
+        ).exists()
+
+    def get(self, request, pk, *args, **kwargs):
+        service = self._get_service(request, pk)
+        if self._has_pending(service):
+            messages.warning(
+                request,
+                "Hai già una richiesta di modifica in attesa per questo "
+                "servizio. Attendi l'esito prima di inviarne un'altra.",
+            )
+            return redirect("portal:my-services")
+        form = VendorServiceChangeForm(instance=service)
+        from django.shortcuts import render
+
+        return render(
+            request, self.template_name, {"form": form, "service": service}
+        )
+
+    def post(self, request, pk, *args, **kwargs):
+        service = self._get_service(request, pk)
+        if self._has_pending(service):
+            messages.warning(request, "Hai già una richiesta in attesa.")
+            return redirect("portal:my-services")
+
+        form = VendorServiceChangeForm(request.POST, instance=service)
+        if not form.is_valid():
+            from django.shortcuts import render
+
+            return render(
+                request,
+                self.template_name,
+                {"form": form, "service": service},
+            )
+
+        diff = form.compute_diff()
+        if not diff:
+            messages.info(request, "Nessuna modifica rilevata.")
+            return redirect("portal:my-services")
+
+        VendorChangeRequest.objects.create(
+            vendor=service.vendor,
+            vendor_service=service,
+            requested_by=request.user,
+            changes=diff,
+        )
+        messages.success(
+            request,
+            "Richiesta di modifica inviata. "
+            "Il back-office la valuterà a breve.",
+        )
+        return redirect("portal:my-change-requests")
+
+
+# --- attributi operativi -----------------------------------------------------
+
+
+class MyOperationalAttributesView(VendorRequiredMixin, View):
+    """Attributi operativi del proprio fornitore: scrittura diretta.
+
+    A differenza dell'anagrafica e dei servizi, qui non c'è approvazione
+    BO: sono dati puramente descrittivi/operativi (capacità, mezzi,
+    disponibilità), senza impatto su compliance/audit. Il record è un
+    OneToOne col vendor e può non esistere ancora: viene creato al primo
+    accesso (`get_or_create`).
+    """
+
+    template_name = "portal/operational_attributes/form.html"
+
+    def get(self, request, *args, **kwargs):
+        attributes, _created = (
+            VendorOperationalAttributes.objects.get_or_create(
+                vendor=request.user.vendor
+            )
+        )
+        form = VendorOperationalAttributesForm(instance=attributes)
+        from django.shortcuts import render
+
+        return render(request, self.template_name, {"form": form})
+
+    def post(self, request, *args, **kwargs):
+        attributes, _created = (
+            VendorOperationalAttributes.objects.get_or_create(
+                vendor=request.user.vendor
+            )
+        )
+        form = VendorOperationalAttributesForm(
+            request.POST, instance=attributes
+        )
+        if not form.is_valid():
+            from django.shortcuts import render
+
+            return render(request, self.template_name, {"form": form})
+
+        form.save()
+        messages.success(request, "Attributi operativi aggiornati.")
+        return redirect("portal:my-operational-attributes")
+
+
 # --- anagrafica & qualifica (Fase 2) ---------------------------------------
+
 
 class MyVendorProfileView(VendorRequiredMixin, TemplateView):
     """Visualizzazione anagrafica del proprio fornitore (sola lettura)."""
@@ -320,7 +504,9 @@ class MyVendorProfileView(VendorRequiredMixin, TemplateView):
         ctx = super().get_context_data(**kwargs)
         vendor = self.request.user.vendor
         pending = VendorChangeRequest.objects.filter(
-            vendor=vendor, status=VendorChangeRequest.STATUS_PENDING
+            vendor=vendor,
+            vendor_service__isnull=True,
+            status=VendorChangeRequest.STATUS_PENDING,
         ).first()
         ctx.update({"vendor": vendor, "pending_change_request": pending})
         return ctx
@@ -329,14 +515,19 @@ class MyVendorProfileView(VendorRequiredMixin, TemplateView):
 class VendorChangeRequestCreateView(VendorRequiredMixin, View):
     """Form modifica anagrafica → genera VendorChangeRequest in stato PENDING.
 
-    Vincolo: una sola richiesta pendente alla volta per ciascun fornitore.
+    Vincolo: una sola richiesta anagrafica pendente alla volta per ciascun
+    fornitore (indipendente da eventuali richieste pendenti sui servizi,
+    che sono scoped sul singolo `VendorService` — vedi
+    `VendorServiceChangeRequestCreateView._has_pending()`).
     """
 
     template_name = "portal/profile/change_form.html"
 
     def _has_pending(self, vendor):
         return VendorChangeRequest.objects.filter(
-            vendor=vendor, status=VendorChangeRequest.STATUS_PENDING
+            vendor=vendor,
+            vendor_service__isnull=True,
+            status=VendorChangeRequest.STATUS_PENDING,
         ).exists()
 
     def get(self, request, *args, **kwargs):
@@ -351,7 +542,9 @@ class VendorChangeRequestCreateView(VendorRequiredMixin, View):
         form = VendorProfileChangeForm(instance=vendor)
         from django.shortcuts import render
 
-        return render(request, self.template_name, {"form": form, "vendor": vendor})
+        return render(
+            request, self.template_name, {"form": form, "vendor": vendor}
+        )
 
     def post(self, request, *args, **kwargs):
         vendor = request.user.vendor
@@ -379,7 +572,8 @@ class VendorChangeRequestCreateView(VendorRequiredMixin, View):
         )
         messages.success(
             request,
-            "Richiesta di modifica inviata. Il back-office la valuterà a breve.",
+            "Richiesta di modifica inviata. "
+            "Il back-office la valuterà a breve.",
         )
         return redirect("portal:my-change-requests")
 
@@ -410,6 +604,7 @@ class MyQualificationView(VendorRequiredMixin, TemplateView):
 
 # --- area BO (gestione richieste anagrafica) -------------------------------
 
+
 class BoChangeRequestListView(BackOfficeRequiredMixin, ListView):
     """Lista richieste anagrafica per il back-office, default solo PENDING."""
 
@@ -421,7 +616,9 @@ class BoChangeRequestListView(BackOfficeRequiredMixin, ListView):
         qs = VendorChangeRequest.objects.select_related(
             "vendor", "requested_by", "reviewed_by"
         )
-        status = self.request.GET.get("status", VendorChangeRequest.STATUS_PENDING)
+        status = self.request.GET.get(
+            "status", VendorChangeRequest.STATUS_PENDING
+        )
         if status in dict(VendorChangeRequest.STATUS_CHOICES):
             qs = qs.filter(status=status)
         return qs
@@ -449,14 +646,16 @@ class BoChangeRequestDetailView(BackOfficeRequiredMixin, DetailView):
 
 
 class BoChangeRequestReviewView(BackOfficeRequiredMixin, View):
-    """POST: approva o rifiuta una richiesta. Action e note arrivano dal form."""
+    """POST: approva o rifiuta una richiesta. Action/note dal form."""
 
     http_method_names = ["post"]
 
     def post(self, request, pk, *args, **kwargs):
         change_request = get_object_or_404(VendorChangeRequest, pk=pk)
         if not change_request.is_pending:
-            messages.warning(request, "La richiesta non è più in stato 'in attesa'.")
+            messages.warning(
+                request, "La richiesta non è più in stato 'in attesa'."
+            )
             return redirect("portal:bo-change-request-detail", pk=pk)
 
         form = VendorChangeReviewForm(request.POST)
@@ -471,7 +670,8 @@ class BoChangeRequestReviewView(BackOfficeRequiredMixin, View):
             change_request.apply_to_vendor(reviewer=request.user, notes=notes)
             messages.success(
                 request,
-                f"Modifiche applicate al fornitore {change_request.vendor.name}.",
+                f"Modifiche applicate al fornitore "
+                f"{change_request.vendor.name}.",
             )
         else:
             change_request.reject(reviewer=request.user, notes=notes)
@@ -483,6 +683,7 @@ class BoChangeRequestReviewView(BackOfficeRequiredMixin, View):
 
 
 # --- retro-compatibilità ----------------------------------------------------
+
 
 class LegacyPortalRedirectView(View):
     """Redirect 301 da /documents/portal/ alla nuova dashboard /portale/."""
