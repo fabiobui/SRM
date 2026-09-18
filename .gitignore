@@ -288,3 +288,6 @@ template_fulgard
 template_fulgard/*
 
 docs/.obsidian/
+
+# Scratch output from Playwright MCP (browser snapshots/console logs during manual verification)
+.playwright-mcp/
