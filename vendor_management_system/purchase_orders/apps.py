@@ -12,4 +12,4 @@ class PurchaseOrderConfig(AppConfig):
     # Ready method
     def ready(self):
         # Import the signals module
-        import vendor_management_system.purchase_orders.signals
+        pass

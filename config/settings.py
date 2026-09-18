@@ -119,6 +119,11 @@ LOCAL_APPS = [
     "vendor_management_system.purchase_orders",
     "vendor_management_system.historical_performances",
     "vendor_management_system.documents",  # ← NUOVO MODULO
+    # Sezioni admin "Services"/"Vendor Professional Competences": solo
+    # modelli proxy sui modelli reali di vendors (vedi services/models.py e
+    # competences/models.py), nessuna tabella propria.
+    "vendor_management_system.services",
+    "vendor_management_system.competences",
     "vendor_management_system.portal",  # ← Portale fornitore
 ]
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -346,7 +351,23 @@ JAZZMIN_SETTINGS = {
         "historical_performances",
         "authtoken",
     ],
-    "hide_models": [],
+    # I modelli "vendors" qui sotto sono ora esposti anche (con altro nome/
+    # URL) dalle sezioni "Services"/"Vendor Professional Competences" (vedi
+    # vendor_management_system/services/ e /competences/, modelli proxy):
+    # nascondiamo le voci originali per evitare doppioni nel menu, i
+    # ModelAdmin restano registrati e funzionanti (usati anche dagli inline
+    # nel form Vendor).
+    "hide_models": [
+        "vendors.vendorservice",
+        "vendors.servicetype",
+        "vendors.serviceset",
+        "vendors.competence",
+        "vendors.vendorcompetence",
+        "vendors.competenceset",
+        # Sezione "Back office portal": solo il link "Dashboard" (sotto),
+        # il modello resta registrato solo per far esistere la sezione.
+        "portal.vendorchangerequest",
+    ],
     "topmenu_links": [
         {
             "name": "Selezione",
@@ -366,7 +387,15 @@ JAZZMIN_SETTINGS = {
                 "icon": "fas fa-filter",
                 "order": 0,
             }
-        ]
+        ],
+        "portal": [
+            {
+                "name": "Dashboard",
+                "url": "/portale/backoffice/dashboard/",
+                "icon": "fas fa-tachometer-alt",
+                "order": 0,
+            }
+        ],
     },
     "order_with_respect_to": [
         "vendors",
@@ -374,14 +403,15 @@ JAZZMIN_SETTINGS = {
         "vendors.vendor",
         "vendors.category",
         "vendors.address",
-        "vendors.servicetype",
         "vendors.evaluationcriterion",
         "vendors.vendorevaluation",
         "historical_performances",
-        "vendors.document",
-        "documenttype",
+        "documents",
+        "services",
+        "competences",
         "auth",
         "users",
+        "portal",
     ],
     "icons": {
         "auth": "fas fa-users-cog",
@@ -414,10 +444,26 @@ JAZZMIN_SETTINGS = {
         "vendors.servicetype": "fas fa-concierge-bell",
         "vendors.typologyservice": "fas fa-layer-group",
         "vendors.vendorevaluation": "fas fa-star",
-        "documents.document": "fas fa-file-alt",
-        "documents.documenttype": "fas fa-file-signature",
+        # Icone uniformi tra i 3 gruppi di sezioni Documents/Services/
+        # Competences, per famiglia di voce (stesso significato = stessa
+        # icona): Catalogo (fa-concierge-bell, già di "Tipologie e
+        # Servizi"), Registro (fa-handshake, già di "Registro Requisiti
+        # professionali"), Set (fa-clipboard-list, già di "Set Requisiti
+        # Professionali").
+        "documents.document": "fas fa-handshake",
+        "documents.documentcatalog": "fas fa-concierge-bell",
+        "documents.documentset": "fas fa-clipboard-list",
         "documents.category": "fas fa-folder-tree",
         "vendors.contract": "fas fa-file-contract",
+        "services": "fas fa-concierge-bell",
+        "services.service": "fas fa-handshake",
+        "services.servicecatalog": "fas fa-concierge-bell",
+        "services.serviceset": "fas fa-clipboard-list",
+        "competences": "fas fa-user-graduate",
+        "competences.competence": "fas fa-handshake",
+        "competences.competencecatalog": "fas fa-concierge-bell",
+        "competences.competenceset": "fas fa-clipboard-list",
+        "portal": "fas fa-building",
     },
 }
 

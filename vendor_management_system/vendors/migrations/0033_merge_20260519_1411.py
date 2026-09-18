@@ -4,11 +4,9 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('vendors', '0032_alter_vendorevaluation_evaluation_frequency'),
-        ('vendors', '0032_vendor_admin_changes'),
+        ("vendors", "0032_alter_vendorevaluation_evaluation_frequency"),
+        ("vendors", "0032_vendor_admin_changes"),
     ]
 
-    operations = [
-    ]
+    operations = []

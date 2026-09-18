@@ -1,6 +1,5 @@
 # Imports
 from django.shortcuts import get_object_or_404
-from django.utils import timezone
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import permissions, response, status, viewsets
@@ -8,7 +7,6 @@ from rest_framework import permissions, response, status, viewsets
 from vendor_management_system.core.authentication import (
     QueryParameterTokenAuthentication,
 )
-
 from vendor_management_system.purchase_orders.models import PurchaseOrder
 from vendor_management_system.purchase_orders.serializers import (
     PurchaseOrderCreateUpdateSerializer,
@@ -17,7 +15,6 @@ from vendor_management_system.purchase_orders.serializers import (
     PurchaseOrderSerializer,
     PurchaseOrderSetQualityRatingSerializer,
 )
-
 from vendor_management_system.vendors.models import Vendor
 
 
@@ -43,7 +40,8 @@ class PurchaseOrderViewSet(viewsets.ViewSet):
         ],
         responses={
             status.HTTP_200_OK: openapi.Response(
-                "List of all purchase orders", schema=PurchaseOrderSerializer(many=True)
+                "List of all purchase orders",
+                schema=PurchaseOrderSerializer(many=True),
             ),
             status.HTTP_401_UNAUTHORIZED: "Unauthorized",
         },
@@ -85,16 +83,21 @@ class PurchaseOrderViewSet(viewsets.ViewSet):
     )
     def create(self, request):
         # Deserialize and validate the data
-        order_create_serializer = PurchaseOrderCreateUpdateSerializer(data=request.data)
+        order_create_serializer = PurchaseOrderCreateUpdateSerializer(
+            data=request.data
+        )
 
         # If the provided data is valid
         if order_create_serializer.is_valid():
             # Get the data from order_create_serializer
-            order_create_serializer_data = order_create_serializer.validated_data
+            order_create_serializer_data = (
+                order_create_serializer.validated_data
+            )
 
             # Update the quantity
             order_create_serializer_data["quantity"] = sum(
-                item["quantity"] for item in order_create_serializer_data["items"]
+                item["quantity"]
+                for item in order_create_serializer_data["items"]
             )
 
             # Create a new PurchaseOrder instance
@@ -106,7 +109,9 @@ class PurchaseOrderViewSet(viewsets.ViewSet):
             serializer = PurchaseOrderSerializer(purchase_order)
 
             # Return the success response
-            return response.Response(serializer.data, status=status.HTTP_201_CREATED)
+            return response.Response(
+                serializer.data, status=status.HTTP_201_CREATED
+            )
 
         # Return the error response
         return response.Response(
@@ -132,7 +137,9 @@ class PurchaseOrderViewSet(viewsets.ViewSet):
                 in_=openapi.IN_PATH,
                 type=openapi.TYPE_STRING,
                 required=True,
-                description="The purchase order number for the order to retrieve",
+                description=(
+                    "The purchase order number for the order to retrieve"
+                ),
             ),
         ],
         responses={
@@ -203,7 +210,9 @@ class PurchaseOrderViewSet(viewsets.ViewSet):
 
             # Get the vendor and serialize the data
             if "vendor" in validated_data:
-                vendor = get_object_or_404(Vendor, vendor_code=validated_data["vendor"])
+                vendor = get_object_or_404(
+                    Vendor, vendor_code=validated_data["vendor"]
+                )
             else:
                 vendor = order.vendor
 
@@ -222,7 +231,9 @@ class PurchaseOrderViewSet(viewsets.ViewSet):
             serializer = PurchaseOrderSerializer(order)
 
             # Return the success response
-            return response.Response(serializer.data, status=status.HTTP_200_OK)
+            return response.Response(
+                serializer.data, status=status.HTTP_200_OK
+            )
 
         # Return the error response
         return response.Response(
@@ -271,7 +282,9 @@ class PurchaseOrderViewSet(viewsets.ViewSet):
     # Method to update the purchase order and set the status to "ISSUED"
     @swagger_auto_schema(
         operation_id="purchase_orders--issue-order",
-        operation_description="Issue an order to a vendor and set the status to 'ISSUED'",
+        operation_description=(
+            "Issue an order to a vendor and set the status to 'ISSUED'"
+        ),
         manual_parameters=[
             openapi.Parameter(
                 name="token",
@@ -306,7 +319,12 @@ class PurchaseOrderViewSet(viewsets.ViewSet):
         order = get_object_or_404(PurchaseOrder, po_number=po_number)
 
         # If the order is already issued
-        if order.status in ["ISSUED", "ACKNOWLEDGED", "DELIVERED", "CANCELLED"]:
+        if order.status in [
+            "ISSUED",
+            "ACKNOWLEDGED",
+            "DELIVERED",
+            "CANCELLED",
+        ]:
             return response.Response(
                 {"status": "This order is already processed"},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -335,7 +353,9 @@ class PurchaseOrderViewSet(viewsets.ViewSet):
             serializer = PurchaseOrderSerializer(order)
 
             # Return the success response
-            return response.Response(serializer.data, status=status.HTTP_200_OK)
+            return response.Response(
+                serializer.data, status=status.HTTP_200_OK
+            )
 
         # Return the error response
         return response.Response(
@@ -345,7 +365,10 @@ class PurchaseOrderViewSet(viewsets.ViewSet):
     # Method to update the purchase order and set the status to "ACKNOWLEDGED"
     @swagger_auto_schema(
         operation_id="purchase_orders--acknowledge-order",
-        operation_description="Acknowledge an order from a vendor and set the status to 'ACKNOWLEDGED'",
+        operation_description=(
+            "Acknowledge an order from a vendor and set the status to "
+            "'ACKNOWLEDGED'"
+        ),
         manual_parameters=[
             openapi.Parameter(
                 name="token",
@@ -393,17 +416,24 @@ class PurchaseOrderViewSet(viewsets.ViewSet):
             )
 
         # Deserialize and validate the data
-        acknowledge_serializer = PurchaseOrderOnlyVendorSerializer(data=request.data)
+        acknowledge_serializer = PurchaseOrderOnlyVendorSerializer(
+            data=request.data
+        )
 
         # If the provided data is valid
         if acknowledge_serializer.is_valid():
-            # Check if the order issued vendor is the same as the acknowledged vendor
+            # Check if the order issued vendor is the same as the
+            # acknowledged vendor
             if (
                 order.vendor.vendor_code
                 != acknowledge_serializer.validated_data["vendor"]
             ):
                 return response.Response(
-                    {"vendor": "This vendor is not the same as the issued vendor"},
+                    {
+                        "vendor": (
+                            "This vendor is not the same as the issued vendor"
+                        )
+                    },
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
@@ -417,7 +447,9 @@ class PurchaseOrderViewSet(viewsets.ViewSet):
             serializer = PurchaseOrderSerializer(order)
 
             # Return the success response
-            return response.Response(serializer.data, status=status.HTTP_200_OK)
+            return response.Response(
+                serializer.data, status=status.HTTP_200_OK
+            )
 
         # Return the error response
         return response.Response(
@@ -427,7 +459,9 @@ class PurchaseOrderViewSet(viewsets.ViewSet):
     # Method to update the purchase order and set the status to "DELIVERED"
     @swagger_auto_schema(
         operation_id="purchase_orders--deliver-order",
-        operation_description="Deliver an order to a vendor and set the status to 'DELIVERED'",
+        operation_description=(
+            "Deliver an order to a vendor and set the status to 'DELIVERED'"
+        ),
         manual_parameters=[
             openapi.Parameter(
                 name="token",
@@ -475,15 +509,24 @@ class PurchaseOrderViewSet(viewsets.ViewSet):
             )
 
         # Deserialize and validate the data
-        deliver_serializer = PurchaseOrderOnlyVendorSerializer(data=request.data)
+        deliver_serializer = PurchaseOrderOnlyVendorSerializer(
+            data=request.data
+        )
 
         # If the provided data is valid
         if deliver_serializer.is_valid():
-            # Check if the order acknowledged vendor is the same as the delivered vendor
-            if order.vendor.vendor_code != deliver_serializer.validated_data["vendor"]:
+            # Check if the order acknowledged vendor is the same as the
+            # delivered vendor
+            if (
+                order.vendor.vendor_code
+                != deliver_serializer.validated_data["vendor"]
+            ):
                 return response.Response(
                     {
-                        "vendor": "This vendor is not the same as the acknowledged vendor"
+                        "vendor": (
+                            "This vendor is not the same as the "
+                            "acknowledged vendor"
+                        )
                     },
                     status=status.HTTP_400_BAD_REQUEST,
                 )
@@ -498,7 +541,9 @@ class PurchaseOrderViewSet(viewsets.ViewSet):
             serializer = PurchaseOrderSerializer(order)
 
             # Return the success response
-            return response.Response(serializer.data, status=status.HTTP_200_OK)
+            return response.Response(
+                serializer.data, status=status.HTTP_200_OK
+            )
 
         # Return the error response
         return response.Response(
@@ -508,7 +553,9 @@ class PurchaseOrderViewSet(viewsets.ViewSet):
     # Method to update the purchase order and set the status to "CANCELLED"
     @swagger_auto_schema(
         operation_id="purchase_orders--cancel-order",
-        operation_description="Cancel an order and set the status to 'CANCELLED'",
+        operation_description=(
+            "Cancel an order and set the status to 'CANCELLED'"
+        ),
         manual_parameters=[
             openapi.Parameter(
                 name="token",
@@ -549,14 +596,24 @@ class PurchaseOrderViewSet(viewsets.ViewSet):
             )
 
         # Deserialize and validate the data
-        cancel_serializer = PurchaseOrderOnlyVendorSerializer(data=request.data)
+        cancel_serializer = PurchaseOrderOnlyVendorSerializer(
+            data=request.data
+        )
 
         # If the provided data is valid
         if cancel_serializer.is_valid():
-            # Check if the order issued vendor is the same as the cancelled vendor
-            if order.vendor.vendor_code != cancel_serializer.validated_data["vendor"]:
+            # Check if the order issued vendor is the same as the
+            # cancelled vendor
+            if (
+                order.vendor.vendor_code
+                != cancel_serializer.validated_data["vendor"]
+            ):
                 return response.Response(
-                    {"vendor": "This vendor is not the same as the issued vendor"},
+                    {
+                        "vendor": (
+                            "This vendor is not the same as the issued vendor"
+                        )
+                    },
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
@@ -570,7 +627,9 @@ class PurchaseOrderViewSet(viewsets.ViewSet):
             serializer = PurchaseOrderSerializer(order)
 
             # Return the success response
-            return response.Response(serializer.data, status=status.HTTP_200_OK)
+            return response.Response(
+                serializer.data, status=status.HTTP_200_OK
+            )
 
         # Return the error response
         return response.Response(
@@ -654,7 +713,9 @@ class PurchaseOrderViewSet(viewsets.ViewSet):
             serializer = PurchaseOrderSerializer(order)
 
             # Return the success response
-            return response.Response(serializer.data, status=status.HTTP_200_OK)
+            return response.Response(
+                serializer.data, status=status.HTTP_200_OK
+            )
 
         # Return the error response
         return response.Response(

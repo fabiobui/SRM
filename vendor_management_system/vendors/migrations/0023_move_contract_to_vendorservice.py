@@ -5,19 +5,26 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('vendors', '0022_add_contract_model'),
+        ("vendors", "0022_add_contract_model"),
     ]
 
     operations = [
         migrations.RemoveField(
-            model_name='contract',
-            name='services',
+            model_name="contract",
+            name="services",
         ),
         migrations.AddField(
-            model_name='vendorservice',
-            name='contract',
-            field=models.ForeignKey(blank=True, help_text='Contratto associato a questo servizio', null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='contract_services', to='vendors.contract', verbose_name='Contratto'),
+            model_name="vendorservice",
+            name="contract",
+            field=models.ForeignKey(
+                blank=True,
+                help_text="Contratto associato a questo servizio",
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="contract_services",
+                to="vendors.contract",
+                verbose_name="Contratto",
+            ),
         ),
     ]

@@ -44,7 +44,8 @@ class PurchaseOrderSerializer(ModelSerializer):
         # Get the list of fields provided in the input data
         received_fields = set(self.initial_data.keys())
 
-        # Calculate the extra fields by subtracting allowed fields from received fields
+        # Calculate the extra fields by subtracting allowed fields from
+        # received fields
         extra_fields = received_fields - allowed_fields
 
         # If there are extra fields, raise a validation error
@@ -98,7 +99,8 @@ class PurchaseOrderListSerializer(ModelSerializer):
         # Get the list of fields provided in the input data
         received_fields = set(self.initial_data.keys())
 
-        # Calculate the extra fields by subtracting allowed fields from received fields
+        # Calculate the extra fields by subtracting allowed fields from
+        # received fields
         extra_fields = received_fields - allowed_fields
 
         # If there are extra fields, raise a validation error

@@ -1,6 +1,7 @@
 """
 Management command per testare l'autenticazione LDAP di un utente specifico.
 """
+
 import getpass
 import ssl
 import time
@@ -16,45 +17,68 @@ except ImportError:
 
 
 class Command(BaseCommand):
-    help = "Testa l'autenticazione LDAP di un utente: ricerca + bind con le sue credenziali."
+    help = (
+        "Testa l'autenticazione LDAP di un utente: ricerca + bind con "
+        "le sue credenziali."
+    )
 
     def add_arguments(self, parser):
-        parser.add_argument("username", help="Username (email/UPN) dell'utente da autenticare")
+        parser.add_argument(
+            "username", help="Username (email/UPN) dell'utente da autenticare"
+        )
         parser.add_argument(
             "--password",
             dest="password",
             default=None,
-            help="Password dell'utente (se non fornita, verrà chiesta interattivamente)",
+            help=(
+                "Password dell'utente (se non fornita, verrà chiesta "
+                "interattivamente)"
+            ),
         )
         parser.add_argument(
             "--server-uri",
             dest="server_uri",
             default=None,
-            help="URI del server LDAP (default: AUTH_LDAP_SERVER_URI dal settings)",
+            help=(
+                "URI del server LDAP (default: AUTH_LDAP_SERVER_URI "
+                "dal settings)"
+            ),
         )
         parser.add_argument(
             "--bind-dn",
             dest="bind_dn",
             default=None,
-            help="DN dell'account di servizio (default: AUTH_LDAP_BIND_DN dal settings)",
+            help=(
+                "DN dell'account di servizio (default: "
+                "AUTH_LDAP_BIND_DN dal settings)"
+            ),
         )
         parser.add_argument(
             "--bind-password",
             dest="bind_password",
             default=None,
-            help="Password dell'account di servizio (default: AUTH_LDAP_BIND_PASSWORD dal settings)",
+            help=(
+                "Password dell'account di servizio (default: "
+                "AUTH_LDAP_BIND_PASSWORD dal settings)"
+            ),
         )
         parser.add_argument(
             "--search-base",
             dest="search_base",
             default=None,
-            help="Base DN per la ricerca utente (default: LDAP_USER_BASE_DN dal settings)",
+            help=(
+                "Base DN per la ricerca utente (default: "
+                "LDAP_USER_BASE_DN dal settings)"
+            ),
         )
         parser.add_argument(
             "--search-filter",
             dest="search_filter",
             default=None,
-            help="Filtro di ricerca LDAP. Usa {username} come placeholder (default: (userPrincipalName={username}))",
+            help=(
+                "Filtro di ricerca LDAP. Usa {username} come "
+                "placeholder (default: (userPrincipalName={username}))"
+            ),
         )
         parser.add_argument(
             "--timeout",
@@ -71,24 +95,46 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         if ldap3 is None:
-            raise CommandError("Il pacchetto 'ldap3' non è installato. Esegui: pip install ldap3")
+            raise CommandError(
+                "Il pacchetto 'ldap3' non è installato. "
+                "Esegui: pip install ldap3"
+            )
 
         username = options["username"]
         password = options["password"]
-        server_uri = options["server_uri"] or getattr(settings, "AUTH_LDAP_SERVER_URI", "")
-        bind_dn = options["bind_dn"] or getattr(settings, "AUTH_LDAP_BIND_DN", "")
-        bind_password = options["bind_password"] or getattr(settings, "AUTH_LDAP_BIND_PASSWORD", "")
-        search_base = options["search_base"] or getattr(settings, "LDAP_USER_BASE_DN", "")
-        search_filter_tpl = options["search_filter"] or "(userPrincipalName={username})"
+        server_uri = options["server_uri"] or getattr(
+            settings, "AUTH_LDAP_SERVER_URI", ""
+        )
+        bind_dn = options["bind_dn"] or getattr(
+            settings, "AUTH_LDAP_BIND_DN", ""
+        )
+        bind_password = options["bind_password"] or getattr(
+            settings, "AUTH_LDAP_BIND_PASSWORD", ""
+        )
+        search_base = options["search_base"] or getattr(
+            settings, "LDAP_USER_BASE_DN", ""
+        )
+        search_filter_tpl = (
+            options["search_filter"] or "(userPrincipalName={username})"
+        )
         timeout = options["timeout"]
         show_attrs = options["show_attrs"]
 
         if not server_uri:
-            raise CommandError("Nessun server URI configurato. Usa --server-uri o imposta AUTH_LDAP_SERVER_URI.")
+            raise CommandError(
+                "Nessun server URI configurato. Usa --server-uri o "
+                "imposta AUTH_LDAP_SERVER_URI."
+            )
         if not bind_dn or not bind_password:
-            raise CommandError("Bind DN e password di servizio obbligatori per la ricerca utente.")
+            raise CommandError(
+                "Bind DN e password di servizio obbligatori per la "
+                "ricerca utente."
+            )
         if not search_base:
-            raise CommandError("Search base non configurata. Usa --search-base o imposta LDAP_USER_BASE_DN.")
+            raise CommandError(
+                "Search base non configurata. Usa --search-base o "
+                "imposta LDAP_USER_BASE_DN."
+            )
 
         # Chiedi la password in modo interattivo se non fornita
         if not password:
@@ -96,7 +142,9 @@ class Command(BaseCommand):
             if not password:
                 raise CommandError("Password non fornita.")
 
-        self.stdout.write(self.style.MIGRATE_HEADING("=== Test autenticazione LDAP ==="))
+        self.stdout.write(
+            self.style.MIGRATE_HEADING("=== Test autenticazione LDAP ===")
+        )
         self.stdout.write(f"  Server URI   : {server_uri}")
         self.stdout.write(f"  Bind DN      : {bind_dn}")
         self.stdout.write(f"  Search Base  : {search_base}")
@@ -108,7 +156,9 @@ class Command(BaseCommand):
         tls_config = None
         if use_ssl:
             validate_cert = getattr(settings, "LDAP_TLS_VALIDATE", True)
-            tls_config = Tls(validate=ssl.CERT_REQUIRED if validate_cert else ssl.CERT_NONE)
+            tls_config = Tls(
+                validate=ssl.CERT_REQUIRED if validate_cert else ssl.CERT_NONE
+            )
 
         try:
             server = ldap3.Server(
@@ -119,7 +169,9 @@ class Command(BaseCommand):
                 connect_timeout=timeout,
             )
         except Exception as exc:
-            raise CommandError(f"Impossibile connettersi al server: {exc}")
+            raise CommandError(
+                f"Impossibile connettersi al server: {exc}"
+            ) from exc
 
         # --- 1. Bind di servizio ---
         self.stdout.write("1) Bind con account di servizio...")
@@ -133,15 +185,20 @@ class Command(BaseCommand):
             )
             self.stdout.write(self.style.SUCCESS("   OK"))
         except Exception as exc:
-            raise CommandError(f"Bind di servizio fallito: {exc}")
+            raise CommandError(f"Bind di servizio fallito: {exc}") from exc
 
         # --- 2. Ricerca utente ---
         search_filter = search_filter_tpl.replace("{username}", username)
         self.stdout.write(f"2) Ricerca utente con filtro: {search_filter}")
 
         search_attrs = [
-            "userPrincipalName", "displayName", "mail", "cn",
-            "sAMAccountName", "memberOf", "distinguishedName",
+            "userPrincipalName",
+            "displayName",
+            "mail",
+            "cn",
+            "sAMAccountName",
+            "memberOf",
+            "distinguishedName",
         ]
         if show_attrs:
             search_attrs = ldap3.ALL_ATTRIBUTES
@@ -155,15 +212,19 @@ class Command(BaseCommand):
             )
         except Exception as exc:
             service_conn.unbind()
-            raise CommandError(f"Errore nella ricerca: {exc}")
+            raise CommandError(f"Errore nella ricerca: {exc}") from exc
 
         if not success or not service_conn.entries:
             service_conn.unbind()
-            raise CommandError(f"Utente '{username}' non trovato nella directory LDAP.")
+            raise CommandError(
+                f"Utente '{username}' non trovato nella directory LDAP."
+            )
 
         user_entry = service_conn.entries[0]
         user_dn = str(user_entry.entry_dn)
-        self.stdout.write(self.style.SUCCESS(f"   OK - Utente trovato: {user_dn}"))
+        self.stdout.write(
+            self.style.SUCCESS(f"   OK - Utente trovato: {user_dn}")
+        )
 
         # Mostra attributi
         self.stdout.write("   Attributi:")
@@ -202,18 +263,36 @@ class Command(BaseCommand):
                 )
                 elapsed = time.monotonic() - t0
                 if user_conn.bound:
-                    self.stdout.write(self.style.SUCCESS(f"   OK - Autenticazione riuscita con {fmt_name} ({elapsed:.2f}s)"))
+                    self.stdout.write(
+                        self.style.SUCCESS(
+                            f"   OK - Autenticazione riuscita con "
+                            f"{fmt_name} ({elapsed:.2f}s)"
+                        )
+                    )
                     user_conn.unbind()
                     authenticated = True
                     break
                 user_conn.unbind()
             except ldap3.core.exceptions.LDAPBindError:
-                self.stdout.write(self.style.WARNING(f"   FAIL - Credenziali rifiutate con {fmt_name}"))
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"   FAIL - Credenziali rifiutate con {fmt_name}"
+                    )
+                )
             except Exception as exc:
-                self.stdout.write(self.style.WARNING(f"   FAIL - Errore con {fmt_name}: {exc}"))
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"   FAIL - Errore con {fmt_name}: {exc}"
+                    )
+                )
 
         self.stdout.write("")
         if authenticated:
-            self.stdout.write(self.style.SUCCESS("=== Autenticazione LDAP riuscita ==="))
+            self.stdout.write(
+                self.style.SUCCESS("=== Autenticazione LDAP riuscita ===")
+            )
         else:
-            raise CommandError("Autenticazione fallita con tutti i formati di bind. Verifica la password.")
+            raise CommandError(
+                "Autenticazione fallita con tutti i formati di bind. "
+                "Verifica la password."
+            )

@@ -64,12 +64,12 @@
                         <h3>Sistema Gestione Fornitori</h3>
                         <p class="mb-0">Accedi al tuo account</p>
                     </div>
-                    
+
                     <div class="login-body">
                         <!-- Messages con auto-dismiss -->
                         {% if messages %}
                             {% for message in messages %}
-                                <div class="alert alert-{{ message.tags }} alert-dismissible fade show message-alert" role="alert" 
+                                <div class="alert alert-{{ message.tags }} alert-dismissible fade show message-alert" role="alert"
                                      data-message-type="{{ message.tags }}">
                                     {% if message.tags == 'success' %}
                                         <i class="fas fa-check-circle"></i>
@@ -85,10 +85,10 @@
                                 </div>
                             {% endfor %}
                         {% endif %}
-                        
+
                         <form method="post">
                             {% csrf_token %}
-                            
+
                             <div class="mb-3">
                                 <label for="{{ form.email.id_for_label }}" class="form-label">
                                     <i class="fas fa-envelope me-2"></i>Email
@@ -100,7 +100,7 @@
                                     </div>
                                 {% endif %}
                             </div>
-                            
+
                             <div class="mb-4">
                                 <label for="{{ form.password.id_for_label }}" class="form-label">
                                     <i class="fas fa-lock me-2"></i>Password
@@ -112,7 +112,7 @@
                                     </div>
                                 {% endif %}
                             </div>
-                            
+
                             <div class="d-grid">
                                 <button type="submit" class="btn btn-primary btn-lg">
                                     <i class="fas fa-sign-in-alt me-2"></i>
@@ -120,7 +120,7 @@
                                 </button>
                             </div>
                         </form>
-                        
+
                         <div class="text-center mt-4">
                             <small class="text-muted">
                                 <i class="fas fa-info-circle me-1"></i>
@@ -138,11 +138,11 @@
         // Auto-dismiss dei messaggi dopo alcuni secondi
         document.addEventListener('DOMContentLoaded', function() {
             const alerts = document.querySelectorAll('.message-alert');
-            
+
             alerts.forEach(function(alert) {
                 const messageType = alert.getAttribute('data-message-type');
                 let timeout = 5000; // default 5 secondi
-                
+
                 // Tempi diversi per tipi di messaggio diversi
                 if (messageType === 'success') {
                     timeout = 3000; // 3 secondi per messaggi di successo
@@ -151,12 +151,12 @@
                 } else if (messageType === 'warning') {
                     timeout = 6000; // 6 secondi per warning
                 }
-                
+
                 // Auto-dismiss dopo il timeout
                 setTimeout(function() {
                     // Aggiungi classe per transizione
                     alert.classList.add('fade-out');
-                    
+
                     // Rimuovi completamente dopo la transizione
                     setTimeout(function() {
                         if (alert.parentNode) {
@@ -166,7 +166,7 @@
                 }, timeout);
             });
         });
-        
+
         // Rimuovi messaggi old quando si clicca sul form
         document.querySelector('form').addEventListener('click', function() {
             const alerts = document.querySelectorAll('.alert');

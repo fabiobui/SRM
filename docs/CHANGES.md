@@ -10,7 +10,7 @@ Ecco l'elenco delle modifiche richieste.
 **TAB Informazioni di base**
 
 - Label `Vecchio codice fornitore` -> `Codice Embyon`
-- Aggiungere un campo `Utente gestione fornitore`che è una lookup sugli users che fanno parte dei gruppi 'BO User' o 'Admin' 
+- Aggiungere un campo `Utente gestione fornitore`che è una lookup sugli users che fanno parte dei gruppi 'BO User' o 'Admin'
 
 **TAB Stato Contrattuale**
 
@@ -44,4 +44,3 @@ Nella lista degli 'Stati di qualifica' aggiungere 'Da Revisionare'
 #### PORTALE FORNITORI
 
 Togliamo il menù 'Stato Qualifica' e mettiamo nella 'Home' **solo** lo 'stato qualifica' come era nel menù 'Stato qualifica ': ![[Pasted image 20260519155016.png]]
-

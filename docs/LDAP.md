@@ -18,9 +18,9 @@ Gli utenti LDAP ottengono una password Django inutilizzabile, vengono ri-sincron
 
 ```python
 LDAP_GROUP_ROLE_MAPPING = {
-    'vms_administrators': 'admin',
-    'vms_backoffice': 'bo_user',
-    'vms_vendors': 'vendor',
+    "vms_administrators": "admin",
+    "vms_backoffice": "bo_user",
+    "vms_vendors": "vendor",
 }
 ```
 

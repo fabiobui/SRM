@@ -26,7 +26,9 @@ class UserManager(DjangoUserManager):
         return user
 
     # Method to create a normal user
-    def create_user(self, email: str, password: str | None = None, **extra_fields):
+    def create_user(
+        self, email: str, password: str | None = None, **extra_fields
+    ):
         # Set default values for is_staff and is_superuser
         extra_fields.setdefault("is_staff", False)
         extra_fields.setdefault("is_superuser", False)
@@ -41,13 +43,17 @@ class UserManager(DjangoUserManager):
         return self._create_user(email, password, **extra_fields)
 
     # Method to create a superuser
-    def create_superuser(self, email: str, password: str | None = None, **extra_fields):
+    def create_superuser(
+        self, email: str, password: str | None = None, **extra_fields
+    ):
         # Set default values for is_staff and is_superuser
         extra_fields.setdefault("is_staff", True)
         extra_fields.setdefault("is_superuser", True)
 
         # Ensure is_staff and is_superuser are set to True for superusers
-        if not extra_fields.get("is_staff") or not extra_fields.get("is_superuser"):
+        if not extra_fields.get("is_staff") or not extra_fields.get(
+            "is_superuser"
+        ):
             raise ValueError(
                 "Superuser must have is_staff and is_superuser set to True."
             )

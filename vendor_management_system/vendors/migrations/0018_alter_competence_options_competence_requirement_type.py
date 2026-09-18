@@ -4,19 +4,30 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('vendors', '0017_vendor_vendor_documents'),
+        ("vendors", "0017_vendor_vendor_documents"),
     ]
 
     operations = [
         migrations.AlterModelOptions(
-            name='competence',
-            options={'ordering': ['competence_category', 'sort_order', 'name'], 'verbose_name': 'Requisito Professionale', 'verbose_name_plural': 'Catalogo Requisiti Professionali'},
+            name="competence",
+            options={
+                "ordering": ["competence_category", "sort_order", "name"],
+                "verbose_name": "Requisito Professionale",
+                "verbose_name_plural": "Catalogo Requisiti Professionali",
+            },
         ),
         migrations.AddField(
-            model_name='competence',
-            name='requirement_type',
-            field=models.CharField(blank=True, choices=[('competenza', 'Competenza'), ('qualifica', 'Qualifica')], max_length=20, null=True),
+            model_name="competence",
+            name="requirement_type",
+            field=models.CharField(
+                blank=True,
+                choices=[
+                    ("competenza", "Competenza"),
+                    ("qualifica", "Qualifica"),
+                ],
+                max_length=20,
+                null=True,
+            ),
         ),
     ]

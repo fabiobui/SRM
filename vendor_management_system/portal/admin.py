@@ -3,6 +3,14 @@ from django.utils.html import format_html, format_html_join
 
 from .models import VendorChangeRequest
 
+# Registrato ma nascosto dal menu (JAZZMIN_SETTINGS["hide_models"] in
+# config/settings.py): senza almeno un modello registrato, Django non
+# costruisce affatto la sezione app "portal" in /admin, quindi il
+# custom_link "Dashboard" (verso /portale/backoffice/dashboard/, la vera
+# area di gestione delle richieste di modifica anagrafica) non avrebbe
+# nessuna sezione a cui aggrapparsi. Stesso pattern già usato per i
+# modelli "vendors" spostati in Services/Competences.
+
 
 @admin.register(VendorChangeRequest)
 class VendorChangeRequestAdmin(admin.ModelAdmin):

@@ -1,5 +1,4 @@
 # Imports
-import time
 import warnings
 
 from celery import shared_task
@@ -9,7 +8,6 @@ from django.utils import timezone
 from vendor_management_system.historical_performances.models import (
     HistoricalPerformance,
 )
-
 from vendor_management_system.vendors.models import Vendor
 
 

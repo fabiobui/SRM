@@ -46,9 +46,11 @@ pre-commit run                  # solo i file staged
 pre-commit run <hook-id>        # un singolo hook, es. `pre-commit run ruff-check`
 ```
 
-> **Prima esecuzione su `--all-files`**: ruff non ha mai visto gran parte di questo codice legacy, quindi la
-> prima volta riformatterà/segnalerà molto più che nei run successivi (che toccano solo i file davvero
-> modificati). È normale — valuta di farlo in un commit dedicato invece che mischiarlo a un cambio funzionale.
+> **Stato attuale**: l'intero repo è già stato passato da `ruff-check`/`ruff-format` (pulizia lint/formattazione
+> completa, AIDEV-42), quindi `pre-commit run --all-files` produce ora diff minimi, limitati ai file davvero
+> modificati. Se in futuro un file viene escluso/riesumato dalla configurazione di ruff, o è stato creato prima
+> di questa pulizia, la prima esecuzione su di esso può ancora riformattare/segnalare molto — in quel caso vale
+> la pena farlo in un commit dedicato invece che mischiarlo a un cambio funzionale.
 
 ## Cosa controlla (`.pre-commit-config.yaml`)
 
@@ -70,5 +72,5 @@ pre-commit run <hook-id>        # un singolo hook, es. `pre-commit run ruff-chec
 |---|---|---|
 | `pre-commit: comando non trovato` | Il venv con `pre-commit` installato non è attivo | `.venv\Scripts\Activate.ps1` prima di lanciare `pre-commit`/`git commit` |
 | L'hook `pytest-fast` fallisce con `ImproperlyConfigured: Missing connections string` | Non dovrebbe succedere: `scripts/run_fast_tests.py` imposta già un `REDIS_URL` placeholder | Verifica di non aver sovrascritto `REDIS_URL` con una stringa vuota nell'ambiente |
-| Il primo `pre-commit run --all-files` riformatta decine di file | Normale, vedi sopra | Fallo in un commit dedicato |
+| `pre-commit run --all-files` riformatta decine di file | Stai toccando un file mai passato da ruff prima (nuovo, o escluso in passato dalla configurazione) | Fallo in un commit dedicato, vedi nota sopra |
 | `pip install -r requirements.txt` fallisce compilando `mysqlclient`/`python-ldap` | Stai usando una versione di Python diversa da 3.12, oppure un OS/architettura non coperti dalle wheel disponibili su PyPI per i pin in `requirements.txt` | Usa Python 3.12 (`py install 3.12`); se il problema persiste, vedi i commenti in testa a `requirements.txt` |

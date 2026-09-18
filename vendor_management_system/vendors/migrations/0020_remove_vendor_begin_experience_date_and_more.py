@@ -8,22 +8,29 @@ def remove_fields_if_exist(apps, schema_editor):
     Rimuovi i campi solo se esistono nel database
     """
     from django.db import connection
-    
+
     with connection.cursor() as cursor:
         # Ottieni le colonne esistenti nella tabella vendors_vendor
         cursor.execute("""
-            SELECT COLUMN_NAME 
-            FROM INFORMATION_SCHEMA.COLUMNS 
-            WHERE TABLE_SCHEMA = DATABASE() 
+            SELECT COLUMN_NAME
+            FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE()
             AND TABLE_NAME = 'vendors_vendor'
         """)
         existing_columns = [row[0] for row in cursor.fetchall()]
-        
+
         # Rimuovi solo le colonne che esistono
-        fields_to_remove = ['begin_experience_date', 'service_additional', 'service_note', 'service_type']
+        fields_to_remove = [
+            "begin_experience_date",
+            "service_additional",
+            "service_note",
+            "service_type",
+        ]
         for field in fields_to_remove:
             if field in existing_columns:
-                cursor.execute(f"ALTER TABLE vendors_vendor DROP COLUMN {field}")
+                cursor.execute(
+                    f"ALTER TABLE vendors_vendor DROP COLUMN {field}"
+                )
 
 
 def reverse_remove_fields(apps, schema_editor):
@@ -34,32 +41,33 @@ def reverse_remove_fields(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('vendors', '0019_alter_vendorcompetence_options_and_more'),
+        ("vendors", "0019_alter_vendorcompetence_options_and_more"),
     ]
 
     operations = [
         migrations.SeparateDatabaseAndState(
             database_operations=[
-                migrations.RunPython(remove_fields_if_exist, reverse_remove_fields),
+                migrations.RunPython(
+                    remove_fields_if_exist, reverse_remove_fields
+                ),
             ],
             state_operations=[
                 migrations.RemoveField(
-                    model_name='vendor',
-                    name='begin_experience_date',
+                    model_name="vendor",
+                    name="begin_experience_date",
                 ),
                 migrations.RemoveField(
-                    model_name='vendor',
-                    name='service_additional',
+                    model_name="vendor",
+                    name="service_additional",
                 ),
                 migrations.RemoveField(
-                    model_name='vendor',
-                    name='service_note',
+                    model_name="vendor",
+                    name="service_note",
                 ),
                 migrations.RemoveField(
-                    model_name='vendor',
-                    name='service_type',
+                    model_name="vendor",
+                    name="service_type",
                 ),
             ],
         ),

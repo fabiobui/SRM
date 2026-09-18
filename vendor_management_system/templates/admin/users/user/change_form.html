@@ -14,7 +14,7 @@ document.addEventListener('DOMContentLoaded', function() {
         badge.textContent = isLdap ? 'LDAP' : 'Locale';
         userTypeField.appendChild(badge);
     }
-    
+
     // Aggiungi informazioni sui gruppi LDAP se disponibili
     {% if object.is_ldap_user %}
     const groupsSection = document.querySelector('.field-groups');
@@ -38,7 +38,7 @@ document.addEventListener('DOMContentLoaded', function() {
 {% if object.is_ldap_user %}
 <div class="submit-row">
     <p class="ldap-user-info">
-        <strong>{% trans "Utente LDAP" %}:</strong> 
+        <strong>{% trans "Utente LDAP" %}:</strong>
         {% trans "Questo utente è autenticato tramite LDAP. Alcune informazioni vengono sincronizzate automaticamente dal server LDAP." %}
     </p>
 </div>

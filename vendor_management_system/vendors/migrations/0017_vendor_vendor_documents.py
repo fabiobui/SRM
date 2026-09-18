@@ -4,16 +4,21 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('documents', '0005_alter_documenttype_options'),
-        ('vendors', '0016_remove_vendordocument_document_type_and_more'),
+        ("documents", "0005_alter_documenttype_options"),
+        ("vendors", "0016_remove_vendordocument_document_type_and_more"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='vendor',
-            name='vendor_documents',
-            field=models.ManyToManyField(blank=True, help_text='Documenti associati al fornitore', related_name='vendors', to='documents.document', verbose_name='Documenti'),
+            model_name="vendor",
+            name="vendor_documents",
+            field=models.ManyToManyField(
+                blank=True,
+                help_text="Documenti associati al fornitore",
+                related_name="vendors",
+                to="documents.document",
+                verbose_name="Documenti",
+            ),
         ),
     ]

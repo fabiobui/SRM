@@ -4,15 +4,18 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('vendors', '0004_alter_vendor_address'),
+        ("vendors", "0004_alter_vendor_address"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='vendor',
-            name='is_active',
-            field=models.BooleanField(default=True, help_text='Fornitore attivo', verbose_name='Is Active'),
+            model_name="vendor",
+            name="is_active",
+            field=models.BooleanField(
+                default=True,
+                help_text="Fornitore attivo",
+                verbose_name="Is Active",
+            ),
         ),
     ]

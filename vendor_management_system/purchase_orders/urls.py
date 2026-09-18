@@ -3,7 +3,6 @@ from django.urls import path
 
 from vendor_management_system.purchase_orders.views import PurchaseOrderViewSet
 
-
 # Define the URL patterns for the purchase_orders app
 urlpatterns = [
     path(

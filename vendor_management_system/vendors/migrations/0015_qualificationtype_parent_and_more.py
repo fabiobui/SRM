@@ -5,20 +5,34 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('vendors', '0014_alter_competence_options_and_more'),
+        ("vendors", "0014_alter_competence_options_and_more"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='qualificationtype',
-            name='parent',
-            field=models.ForeignKey(blank=True, help_text="Titolo/Qualifica padre (es. 'Laurea' per 'Laurea triennale', 'Laurea magistrale', ecc.)", null=True, on_delete=django.db.models.deletion.CASCADE, related_name='sub_qualifications', to='vendors.qualificationtype', verbose_name='Titolo/Qualifica Padre'),
+            model_name="qualificationtype",
+            name="parent",
+            field=models.ForeignKey(
+                blank=True,
+                help_text=(
+                    "Titolo/Qualifica padre (es. 'Laurea' per 'Laurea "
+                    "triennale', 'Laurea magistrale', ecc.)"
+                ),
+                null=True,
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="sub_qualifications",
+                to="vendors.qualificationtype",
+                verbose_name="Titolo/Qualifica Padre",
+            ),
         ),
         migrations.AlterField(
-            model_name='qualificationtype',
-            name='is_active',
-            field=models.BooleanField(default=True, help_text='Titolo/Qualifica attivo e selezionabile', verbose_name='È Attivo'),
+            model_name="qualificationtype",
+            name="is_active",
+            field=models.BooleanField(
+                default=True,
+                help_text="Titolo/Qualifica attivo e selezionabile",
+                verbose_name="È Attivo",
+            ),
         ),
     ]

@@ -6,14 +6,14 @@ document.addEventListener('DOMContentLoaded', function() {
     // Inizializza la visibilità dei campi al caricamento della pagina
     const userTypeField = document.getElementById('id_user_type');
     const roleField = document.getElementById('id_role');
-    
+
     if (userTypeField) {
         togglePasswordFields(userTypeField.value);
         userTypeField.addEventListener('change', function() {
             togglePasswordFields(this.value);
         });
     }
-    
+
     if (roleField) {
         toggleVendorField(roleField.value);
         roleField.addEventListener('change', function() {
@@ -30,27 +30,27 @@ function togglePasswordFields(userType) {
     const password2Row = document.querySelector('.field-password2');
     const password1Field = document.getElementById('id_password1');
     const password2Field = document.getElementById('id_password2');
-    
+
     if (userType === 'ldap') {
         // Nasconde i campi password per utenti LDAP
         if (password1Row) password1Row.style.display = 'none';
         if (password2Row) password2Row.style.display = 'none';
-        
+
         // Rimuove la validazione required
         if (password1Field) password1Field.required = false;
         if (password2Field) password2Field.required = false;
-        
+
         // Mostra un messaggio informativo
         showLdapInfo();
     } else {
         // Mostra i campi password per utenti locali
         if (password1Row) password1Row.style.display = 'block';
         if (password2Row) password2Row.style.display = 'block';
-        
+
         // Aggiunge la validazione required
         if (password1Field) password1Field.required = true;
         if (password2Field) password2Field.required = true;
-        
+
         // Nasconde il messaggio informativo
         hideLdapInfo();
     }
@@ -62,7 +62,7 @@ function togglePasswordFields(userType) {
 function toggleVendorField(role) {
     const vendorRow = document.querySelector('.field-vendor');
     const vendorField = document.getElementById('id_vendor');
-    
+
     if (role === 'vendor') {
         // Mostra il campo vendor per utenti vendor
         if (vendorRow) {
@@ -89,7 +89,7 @@ function toggleVendorField(role) {
 function showLdapInfo() {
     // Rimuove il messaggio esistente se presente
     hideLdapInfo();
-    
+
     const userTypeRow = document.querySelector('.field-user_type');
     if (userTypeRow) {
         const infoDiv = document.createElement('div');
@@ -101,7 +101,7 @@ function showLdapInfo() {
         infoDiv.style.backgroundColor = '#e7f3ff';
         infoDiv.style.border = '1px solid #b3d9ff';
         infoDiv.style.borderRadius = '4px';
-        
+
         userTypeRow.appendChild(infoDiv);
     }
 }
@@ -126,7 +126,7 @@ document.addEventListener('submit', function(e) {
         const role = document.getElementById('id_role');
         const vendor = document.getElementById('id_vendor');
         const password1 = document.getElementById('id_password1');
-        
+
         // Validazione per utenti locali
         if (userType && userType.value === 'local') {
             if (!password1 || !password1.value.trim()) {
@@ -135,7 +135,7 @@ document.addEventListener('submit', function(e) {
                 return false;
             }
         }
-        
+
         // Validazione per utenti vendor
         if (role && role.value === 'vendor') {
             if (!vendor || !vendor.value) {

@@ -1,7 +1,14 @@
 # Imports
 from django.urls import path
-from vendor_management_system.core.views import QueryParamObtainAuthToken, dashboard_redirect
-from vendor_management_system.core.test_views import TestUrlConfigView, SimpleTestView
+
+from vendor_management_system.core.test_views import (
+    SimpleTestView,
+    TestUrlConfigView,
+)
+from vendor_management_system.core.views import (
+    QueryParamObtainAuthToken,
+    dashboard_redirect,
+)
 
 # Add the URL patterns for the core app
 urlpatterns = [

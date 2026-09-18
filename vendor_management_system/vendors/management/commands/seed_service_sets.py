@@ -19,12 +19,17 @@ semplicemente collegato al set.
 
 Uso: python manage.py seed_service_sets
 """
+
 import re
 
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
-from vendor_management_system.vendors.models import Category, ServiceSet, ServiceType
+from vendor_management_system.vendors.models import (
+    Category,
+    ServiceSet,
+    ServiceType,
+)
 
 
 def _norm(code):
@@ -78,40 +83,127 @@ SERVICE_SETS = [
     },
     {
         "name": "SUB. SERVICE ANTINCENDIO",
-        "description": "Servizi di manutenzione antincendio per subappaltatori.",
+        "description": (
+            "Servizi di manutenzione antincendio per subappaltatori."
+        ),
         "category_code": "105",
         "parent": ("SERVICE ANTINCENDIO", "SERVICE ANTINCENDIO", 510),
         "services": [
-            ("EST.-MAN", "MANUTENZIONE ESTINTORI (CONTROLLO, REVISIONE, COLLAUDO)", 511),
+            (
+                "EST.-MAN",
+                "MANUTENZIONE ESTINTORI (CONTROLLO, REVISIONE, COLLAUDO)",
+                511,
+            ),
             ("IDRANTI-MAN", "MANUTENZIONE IDRANTI SEMESTRALE E ANNUALE", 512),
-            ("SERR.-MAN", "MANUTENZIONE SERRAMENTI TAGLIAFUOCO E DISPOSITIVI DI SICUREZZA", 513),
+            (
+                "SERR.-MAN",
+                "MANUTENZIONE SERRAMENTI TAGLIAFUOCO E DISPOSITIVI DI "
+                "SICUREZZA",
+                513,
+            ),
             ("CASS. MEDICA-MAN", "CASSETTA MEDICA CONTROLLO SEMESTRALE", 514),
             ("ARMADI DPI-MAN", "ARMADI DPI CONTROLLO SEMESTRALE", 515),
             ("AUTORESP.-MAN", "CONTROLLO AUTORESPIRATORI", 516),
-            ("DOCCE LAVAOCCHI-MAN", "DOCCE LAVAOCCHI CONTROLLO SEMESTRALE", 517),
+            (
+                "DOCCE LAVAOCCHI-MAN",
+                "DOCCE LAVAOCCHI CONTROLLO SEMESTRALE",
+                517,
+            ),
             ("EFC - MAN.", "EFC MANUTENZIONE SEMESTRALE", 521),
             ("EFC- PROVA REALE", "EFC PROVA REALE", 522),
             ("EFC - INST.", "EFC INSTALLAZIONE", 523),
             ("LUCI EMERG.-MAN", "LAMPADE EMERGENZA CONTR. SEM.", 524),
-            ("G.P. UNI 12845 -MAN", "CONTROLLO STAZIONE DI POMPAGGIO UNI12845 (SETTIMANALE, MENSILE, TRIMESTRALE)", 525),
-            ("G.P. NFPA -MAN", "CONTROLLO STAZIONE DI POMPAGGIO NFPA (SETTIMANALE, MENSILE, TRIMESTRALE)", 526),
-            ("G.P. UNI 12845 -SEMEST.", "CONTROLLO SEMESTRALE STAZIONE DI POMPAGGIO ELETTROPOMPA+MOTOPOMPA UNI12845", 527),
-            ("G.P. NFPA -SEMEST.", "CONTROLLO SEMESTRALE STAZIONE DI POMPAGGIO ELETTROPOMPA+MOTOPOMPA NFPA", 528),
-            ("G.P RIS. IDRICA FT", "CONTR. RISERVA IDRICA FUORI TERRA (SEMESTRALE, TIRENNALE, DECENNALE)", 529),
-            ("G.P. RIS. IDRICA INT.", "CONTR. SEM RISERVA IDRICA INTERRATA (SEMESTRALE, TIRENNALE, DECENNALE)", 530),
-            ("IMP. SPK UNI - MAN", "CONTROLLO IMPIANTO SPRINKLER UNI (MENSILE, TRIMESTRALE, SEMESTRALE)", 531),
-            ("IMP. SPK NFPA- MAN", "CONTROLLO IMPIANTO SPRINKLER NFPA (MENSILE, TRIMESTRALE, SEMESTRALE)", 532),
-            ("IMP. SCHIUMA-PREMES.", "IMP. SCHIUMA PREMESCOLATORE MANUTENZIONE SEMESTRALE", 533),
-            ("IMP. SCHIUMA-FIREDOS", "IMP. SCHIUMA FIREDOS MANUTENZIONE SEMESTRALE", 534),
-            ("IMP. SCHIUMA-MONITORI", "IMP. SCHIUMA MAN. MONITORI FISSI/A BRANDEGGIO", 535),
+            (
+                "G.P. UNI 12845 -MAN",
+                "CONTROLLO STAZIONE DI POMPAGGIO UNI12845 (SETTIMANALE, "
+                "MENSILE, TRIMESTRALE)",
+                525,
+            ),
+            (
+                "G.P. NFPA -MAN",
+                "CONTROLLO STAZIONE DI POMPAGGIO NFPA (SETTIMANALE, "
+                "MENSILE, TRIMESTRALE)",
+                526,
+            ),
+            (
+                "G.P. UNI 12845 -SEMEST.",
+                "CONTROLLO SEMESTRALE STAZIONE DI POMPAGGIO "
+                "ELETTROPOMPA+MOTOPOMPA UNI12845",
+                527,
+            ),
+            (
+                "G.P. NFPA -SEMEST.",
+                "CONTROLLO SEMESTRALE STAZIONE DI POMPAGGIO "
+                "ELETTROPOMPA+MOTOPOMPA NFPA",
+                528,
+            ),
+            (
+                "G.P RIS. IDRICA FT",
+                "CONTR. RISERVA IDRICA FUORI TERRA (SEMESTRALE, "
+                "TIRENNALE, DECENNALE)",
+                529,
+            ),
+            (
+                "G.P. RIS. IDRICA INT.",
+                "CONTR. SEM RISERVA IDRICA INTERRATA (SEMESTRALE, "
+                "TIRENNALE, DECENNALE)",
+                530,
+            ),
+            (
+                "IMP. SPK UNI - MAN",
+                "CONTROLLO IMPIANTO SPRINKLER UNI (MENSILE, "
+                "TRIMESTRALE, SEMESTRALE)",
+                531,
+            ),
+            (
+                "IMP. SPK NFPA- MAN",
+                "CONTROLLO IMPIANTO SPRINKLER NFPA (MENSILE, "
+                "TRIMESTRALE, SEMESTRALE)",
+                532,
+            ),
+            (
+                "IMP. SCHIUMA-PREMES.",
+                "IMP. SCHIUMA PREMESCOLATORE MANUTENZIONE SEMESTRALE",
+                533,
+            ),
+            (
+                "IMP. SCHIUMA-FIREDOS",
+                "IMP. SCHIUMA FIREDOS MANUTENZIONE SEMESTRALE",
+                534,
+            ),
+            (
+                "IMP. SCHIUMA-MONITORI",
+                "IMP. SCHIUMA MAN. MONITORI FISSI/A BRANDEGGIO",
+                535,
+            ),
             ("CARRI SCHIUMA-MAN", "CARRI MOBILI SCHIUMA MANUTENZIONE", 536),
-            ("IMP. RIL. INC.-MAN", "IMPIANTO RILEVAZIONE INCENDIO MANUTENZIONE", 537),
-            ("IMP. RIL. GAS-MAN", "IMPIANTO RILEVAZIONE GAS CONTROLLO SEMESTRALE", 538),
-            ("IMP. SPEG. GAS-MAN", "IMPIANTO SPEGNIMENTO GAS MANUTENZIONE", 539),
+            (
+                "IMP. RIL. INC.-MAN",
+                "IMPIANTO RILEVAZIONE INCENDIO MANUTENZIONE",
+                537,
+            ),
+            (
+                "IMP. RIL. GAS-MAN",
+                "IMPIANTO RILEVAZIONE GAS CONTROLLO SEMESTRALE",
+                538,
+            ),
+            (
+                "IMP. SPEG. GAS-MAN",
+                "IMPIANTO SPEGNIMENTO GAS MANUTENZIONE",
+                539,
+            ),
             ("IMP. SPEG. GAS-DFT", "IMP. SPEG. GAS ESECUZIONE DFT", 540),
-            ("IMP. SPEG. GAS -COLL.", "IMP. SPEG. GAS ESECUZIONE COLLAUDI DECENNALI", 541),
+            (
+                "IMP. SPEG. GAS -COLL.",
+                "IMP. SPEG. GAS ESECUZIONE COLLAUDI DECENNALI",
+                541,
+            ),
             ("IMP. EVAC-MAN.", "IMPIANTO EVAC CONTROLLO SEMESTRALE", 542),
-            ("IMP. EVAC-PROVA INT.", "IMPIANTO EVAC PROVA INTELLEGIBILITA'", 543),
+            (
+                "IMP. EVAC-PROVA INT.",
+                "IMPIANTO EVAC PROVA INTELLEGIBILITA'",
+                543,
+            ),
         ],
     },
     {
@@ -125,7 +217,11 @@ SERVICE_SETS = [
             ("AD.MACC-INST.", "INST. PROTEZIONI", 553),
             ("AD. MACC-QUADRI", "QUADRI ELETTRICI", 554),
             ("AD. MACC-CONS.", "DOCUMENTI-CONSULENZA", 555),
-            ("AD. MACC-PNEUMATICA", "INTERVENTI DI PNEUMATICA/OLEODINAMICA", 556),
+            (
+                "AD. MACC-PNEUMATICA",
+                "INTERVENTI DI PNEUMATICA/OLEODINAMICA",
+                556,
+            ),
         ],
     },
     {
@@ -141,20 +237,47 @@ SERVICE_SETS = [
             ("S.T. VAL. PROG.", "VALIDAZIONE SU PROGETTI TERZI", 565),
             ("S.T. CERT. IMP.", "CERTIFICAZIONI IMPIANTI", 566),
             ("S.T. CONSULENZA", "CONSULENZA PRATICHE EDILIZIE", 567),
-            ("S.T. PROG. INTER.LE", "PROGETTAZIONE SU STANDARD INTERNAZIONALI", 568),
-            ("S.T. PPA", "PROGETTAZIONE PROTEZIONE PASSIVA/ANALISI SU STRUTTURE ESISTENTI", 569),
+            (
+                "S.T. PROG. INTER.LE",
+                "PROGETTAZIONE SU STANDARD INTERNAZIONALI",
+                568,
+            ),
+            (
+                "S.T. PPA",
+                "PROGETTAZIONE PROTEZIONE PASSIVA/ANALISI SU "
+                "STRUTTURE ESISTENTI",
+                569,
+            ),
         ],
     },
     {
         "name": "SUB. INSTALLAZIONE IMP. ANTINCENDIO",
-        "description": "Servizi di installazione impianti antincendio per subappaltatori.",
+        "description": (
+            "Servizi di installazione impianti antincendio per subappaltatori."
+        ),
         "category_code": "105",
         "parent": ("ANTINCENDIO INST. IMP.", "INST. IMP. ANTINCENDIO", 570),
         "services": [
-            ("INST. ELET. RIL E ALLARME", "INST. ELET. RILEVAZIONE E ALLARME INCENDI", 571),
-            ("INST. ELET. EVAC", "INST. ELET. EVAC/DIFFUSIONE SONORA EMERGENZA", 572),
-            ("INST. ELET. SUPERVISIONE", "INST. ELET. SUPERVISIONE E INTEGRAZIONE", 573),
-            ("INST. ELET. CENTRALI", "INST. ELET. PROGRAMMAZIONE CENTRALI", 574),
+            (
+                "INST. ELET. RIL E ALLARME",
+                "INST. ELET. RILEVAZIONE E ALLARME INCENDI",
+                571,
+            ),
+            (
+                "INST. ELET. EVAC",
+                "INST. ELET. EVAC/DIFFUSIONE SONORA EMERGENZA",
+                572,
+            ),
+            (
+                "INST. ELET. SUPERVISIONE",
+                "INST. ELET. SUPERVISIONE E INTEGRAZIONE",
+                573,
+            ),
+            (
+                "INST. ELET. CENTRALI",
+                "INST. ELET. PROGRAMMAZIONE CENTRALI",
+                574,
+            ),
             ("INST. MEC. SPRINKLER", "INST. MECC. IMPIANTI SPRINKLER", 581),
             ("INST. MEC. IDRANTI", "INST. MECC. IMPIANTI IDRANTI", 582),
             ("INST. MEC. SCHIUMA", "INST. MECC. IMPIANTI SCHIUMA", 583),
@@ -165,7 +288,9 @@ SERVICE_SETS = [
     },
     {
         "name": "SUB. PROTEZIONE PASSIVA ANTINCENDIO",
-        "description": "Servizi di protezione passiva antincendio per subappaltatori.",
+        "description": (
+            "Servizi di protezione passiva antincendio per subappaltatori."
+        ),
         "category_code": "105",
         "parent": ("PPA", "PPA", 590),
         "services": [
@@ -182,22 +307,31 @@ SERVICE_SETS = [
 
 
 class Command(BaseCommand):
-    help = "Popola il catalogo Servizi e i Set Servizi usati nel tab Servizi del fornitore"
+    help = (
+        "Popola il catalogo Servizi e i Set Servizi usati nel tab "
+        "Servizi del fornitore"
+    )
 
     def add_arguments(self, parser):
         parser.add_argument(
             "--update-catalog",
             action="store_true",
-            help=("Riallinea al file anche nome e ordinamento dei servizi già a "
-                  "catalogo. Di default i servizi esistenti non vengono toccati."),
+            help=(
+                "Riallinea al file anche nome e ordinamento dei servizi già a "
+                "catalogo. Di default i servizi esistenti non vengono toccati."
+            ),
         )
 
     @transaction.atomic
     def handle(self, *args, **options):
-        self.stdout.write(self.style.NOTICE("Inizio popolamento Set Servizi..."))
+        self.stdout.write(
+            self.style.NOTICE("Inizio popolamento Set Servizi...")
+        )
 
         update = options["update_catalog"]
-        by_norm = {_norm(s.code): s for s in ServiceType.objects.all() if s.code}
+        by_norm = {
+            _norm(s.code): s for s in ServiceType.objects.all() if s.code
+        }
         categories = {c.code: c for c in Category.objects.all()}
 
         for order, spec in enumerate(SERVICE_SETS, start=1):
@@ -208,18 +342,29 @@ class Command(BaseCommand):
             ]
             self._sync_set(spec, order, resolved, categories)
 
-        self.stdout.write(self.style.NOTICE("Popolamento Set Servizi completato."))
+        self.stdout.write(
+            self.style.NOTICE("Popolamento Set Servizi completato.")
+        )
 
     def _resolve_parent(self, spec, by_norm, update):
-        """ServiceType categoria (senza padre) del blocco, creato se assente."""
+        """ServiceType categoria (senza padre) del blocco, creato se
+        assente."""
         code, name, sort_order = spec
         parent = by_norm.get(_norm(code))
         if parent is None:
             parent = ServiceType.objects.create(
-                code=code, name=name, sort_order=sort_order, is_active=True, parent=None
+                code=code,
+                name=name,
+                sort_order=sort_order,
+                is_active=True,
+                parent=None,
             )
             by_norm[_norm(code)] = parent
-            self.stdout.write(self.style.SUCCESS(f"  Creata categoria servizi '{code}' - {name}."))
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f"  Creata categoria servizi '{code}' - {name}."
+                )
+            )
         elif update:
             parent.name = name
             parent.sort_order = sort_order
@@ -233,10 +378,16 @@ class Command(BaseCommand):
         service = by_norm.get(_norm(code))
         if service is None:
             service = ServiceType.objects.create(
-                code=code, name=name, sort_order=sort_order, is_active=True, parent=parent
+                code=code,
+                name=name,
+                sort_order=sort_order,
+                is_active=True,
+                parent=parent,
             )
             by_norm[_norm(code)] = service
-            self.stdout.write(self.style.SUCCESS(f"  Creato servizio '{code}' - {name}."))
+            self.stdout.write(
+                self.style.SUCCESS(f"  Creato servizio '{code}' - {name}.")
+            )
         elif update:
             # Il padre non viene mai riassegnato: un servizio già classificato
             # altrove (es. gli EFC sotto la categoria EFC) resta dov'è.
@@ -251,10 +402,14 @@ class Command(BaseCommand):
         if spec["category_code"]:
             category = categories.get(spec["category_code"])
             if category is None:
-                self.stdout.write(self.style.WARNING(
-                    f"  ⚠ Classificazione '{spec['category_code']}' non trovata: "
-                    f"il set '{spec['name']}' resta senza classificazione."
-                ))
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"  ⚠ Classificazione "
+                        f"'{spec['category_code']}' non trovata: "
+                        f"il set '{spec['name']}' resta senza "
+                        f"classificazione."
+                    )
+                )
 
         service_set, created = ServiceSet.objects.get_or_create(
             name=spec["name"],
@@ -270,11 +425,21 @@ class Command(BaseCommand):
             service_set.category = category
             service_set.is_active = True
             service_set.sort_order = order
-            service_set.save(update_fields=["description", "category", "is_active", "sort_order"])
+            service_set.save(
+                update_fields=[
+                    "description",
+                    "category",
+                    "is_active",
+                    "sort_order",
+                ]
+            )
 
         service_set.service_types.set(services)
 
         verb = "Creato" if created else "Aggiornato"
-        self.stdout.write(self.style.SUCCESS(
-            f"{verb} set '{service_set.name}': {len(services)} servizi collegati."
-        ))
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"{verb} set '{service_set.name}': {len(services)} "
+                f"servizi collegati."
+            )
+        )

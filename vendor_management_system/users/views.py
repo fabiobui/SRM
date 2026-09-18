@@ -7,7 +7,6 @@ from rest_framework import permissions, response, status, viewsets
 from vendor_management_system.core.authentication import (
     QueryParameterTokenAuthentication,
 )
-
 from vendor_management_system.users.models import User
 from vendor_management_system.users.serializers import UserSerializer
 
@@ -73,7 +72,9 @@ class UserViewSet(viewsets.ViewSet):
             ),
         ],
         responses={
-            status.HTTP_200_OK: openapi.Response("The user", schema=UserSerializer()),
+            status.HTTP_200_OK: openapi.Response(
+                "The user", schema=UserSerializer()
+            ),
             status.HTTP_401_UNAUTHORIZED: "Unauthorized",
             status.HTTP_404_NOT_FOUND: "User not found",
         },

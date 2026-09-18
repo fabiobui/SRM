@@ -1,9 +1,11 @@
 """
 WSGI config pulito per sviluppo locale senza middleware del prefisso
 """
+
 import os
 import sys
 from pathlib import Path
+
 from django.core.wsgi import get_wsgi_application
 from dotenv import load_dotenv
 
