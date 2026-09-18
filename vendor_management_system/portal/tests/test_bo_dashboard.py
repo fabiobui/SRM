@@ -46,6 +46,12 @@ class TestBoDashboardPermissions:
         response = client.get(reverse("portal:bo-dashboard"))
         assert response.status_code == 200
 
+    def test_navbar_links_back_to_admin(self, client):
+        """AIDEV-45: la navbar deve avere un link per tornare a /admin/."""
+        _login_as_bo(client)
+        response = client.get(reverse("portal:bo-dashboard"))
+        assert reverse("admin:index").encode() in response.content
+
 
 @pytest.mark.django_db
 class TestBoDashboardGlobalKpis:
