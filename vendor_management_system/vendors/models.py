@@ -7,8 +7,8 @@ from django.db import models
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
-# Import DocumentType and Document from documents app
-from vendor_management_system.documents.models import Document, DocumentType
+# Import DocumentCatalog and Document from documents app
+from vendor_management_system.documents.models import Document, DocumentCatalog
 
 # ============================================================================
 # Modelli Geografici (Nazione, Regione, Provincia)
@@ -2140,9 +2140,9 @@ class Vendor(models.Model):
         """Ritorna i documenti obbligatori mancanti per la categoria del
         fornitore"""
         if not self.category:
-            return DocumentType.objects.none()
+            return DocumentCatalog.objects.none()
 
-        required = DocumentType.objects.filter(is_required=True)
+        required = DocumentCatalog.objects.filter(is_required=True)
 
         submitted_ids = self.vendor_documents.filter(
             status__in=["APPROVED", "UPLOADED"]

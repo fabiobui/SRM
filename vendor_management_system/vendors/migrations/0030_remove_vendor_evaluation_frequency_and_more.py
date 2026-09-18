@@ -5,19 +5,25 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('vendors', '0029_evaluationfrequency_vendor_evaluation_frequency'),
+        ("vendors", "0029_evaluationfrequency_vendor_evaluation_frequency"),
     ]
 
     operations = [
         migrations.RemoveField(
-            model_name='vendor',
-            name='evaluation_frequency',
+            model_name="vendor",
+            name="evaluation_frequency",
         ),
         migrations.AddField(
-            model_name='vendorevaluation',
-            name='evaluation_frequency',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='evaluations', to='vendors.evaluationfrequency', verbose_name='Frequenza di Valutazione'),
+            model_name="vendorevaluation",
+            name="evaluation_frequency",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="evaluations",
+                to="vendors.evaluationfrequency",
+                verbose_name="Frequenza di Valutazione",
+            ),
         ),
     ]

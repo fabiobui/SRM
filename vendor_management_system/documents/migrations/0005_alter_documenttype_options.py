@@ -4,14 +4,20 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('documents', '0004_alter_document_options_alter_document_document_type_and_more'),
+        (
+            "documents",
+            "0004_alter_document_options_alter_document_document_type_and_more",
+        ),
     ]
 
     operations = [
         migrations.AlterModelOptions(
-            name='documenttype',
-            options={'ordering': ['document_category', 'sort_order', 'name'], 'verbose_name': 'Tipo di Documento', 'verbose_name_plural': 'Tipi di Documento'},
+            name="documenttype",
+            options={
+                "ordering": ["document_category", "sort_order", "name"],
+                "verbose_name": "Tipo di Documento",
+                "verbose_name_plural": "Tipi di Documento",
+            },
         ),
     ]

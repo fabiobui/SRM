@@ -27,7 +27,9 @@ class QueryParamAuthTokenSerializer(AuthTokenSerializer):
         if email and password:
             # Authenticate the user
             user = authenticate(
-                request=self.context.get("request"), username=email, password=password
+                request=self.context.get("request"),
+                username=email,
+                password=password,
             )
 
             # If the user is not found

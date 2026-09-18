@@ -11,15 +11,15 @@ Uso:
     python vendor_management_system/import_vendors.py -f Import.xlsx --dry-run
 """
 
+import argparse
 import os
 import sys
+from pathlib import Path
+
 import django
 import pandas as pd
-from datetime import datetime
 from django.db import transaction
 from termcolor import colored
-from pathlib import Path
-import argparse
 
 # --- Individua la root del progetto SRM ---
 CURRENT_DIR = Path(__file__).resolve().parent
@@ -30,8 +30,11 @@ sys.path.append(str(BASE_DIR))
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
 django.setup()
 
-from vendor_management_system.vendors.models import Vendor, Address, QualificationType
-
+from vendor_management_system.vendors.models import (  # noqa: E402
+    Address,
+    QualificationType,
+    Vendor,
+)
 
 # === CONFIG ===
 FILE_PATH = "Import.xlsx"  # percorso file Excel o CSV
@@ -98,7 +101,9 @@ def resolve_fk(model, name_field, value):
     value = str(value).strip()
     obj = model.objects.filter(**{f"{name_field}__iexact": value}).first()
     if not obj:
-        obj = model.objects.filter(**{f"{name_field}__icontains": value}).first()
+        obj = model.objects.filter(
+            **{f"{name_field}__icontains": value}
+        ).first()
     return obj
 
 
@@ -141,7 +146,11 @@ def resolve_file_path(path: str | Path) -> Path | None:
 
 # === MAIN IMPORT FUNCTION ===
 @transaction.atomic
-def import_vendors(file_path: str | Path | None = None, sheet_name=None, dry_run: bool | None = None):
+def import_vendors(
+    file_path: str | Path | None = None,
+    sheet_name=None,
+    dry_run: bool | None = None,
+):
     file_path = file_path if file_path is not None else FILE_PATH
     sheet_name = sheet_name if sheet_name is not None else SHEET_NAME
     dry_run = dry_run if dry_run is not None else DRY_RUN
@@ -152,9 +161,17 @@ def import_vendors(file_path: str | Path | None = None, sheet_name=None, dry_run
 
     resolved_path = resolve_file_path(file_path)
     if not resolved_path:
-        print(colored("❌ File non trovato. Percorso fornito: ", "red"), end="")
+        print(
+            colored("❌ File non trovato. Percorso fornito: ", "red"), end=""
+        )
         print(colored(str(file_path), "red", attrs=["bold"]))
-        print(colored("Prova a specificare un percorso assoluto o usa l'opzione -f/--file.", "yellow"))
+        print(
+            colored(
+                "Prova a specificare un percorso assoluto o usa "
+                "l'opzione -f/--file.",
+                "yellow",
+            )
+        )
         print(colored(f"Cartella corrente: {Path.cwd()}", "yellow"))
         print(colored(f"Cartella script:   {CURRENT_DIR}", "yellow"))
         print(colored(f"Cartella progetto: {BASE_DIR}", "yellow"))
@@ -167,8 +184,16 @@ def import_vendors(file_path: str | Path | None = None, sheet_name=None, dry_run
         df = pd.read_excel(resolved_path, sheet_name=sheet_name, dtype=str)
 
     print(colored(f"\n📦 Importazione avviata da: {resolved_path}", "cyan"))
-    print(colored(f"   Foglio: {sheet_name} | DRY_RUN: {dry_run}", "cyan", attrs=["bold"]))
-    print(colored(f"   Fornitori trovati: {len(df)}\n", "cyan", attrs=["bold"]))
+    print(
+        colored(
+            f"   Foglio: {sheet_name} | DRY_RUN: {dry_run}",
+            "cyan",
+            attrs=["bold"],
+        )
+    )
+    print(
+        colored(f"   Fornitori trovati: {len(df)}\n", "cyan", attrs=["bold"])
+    )
 
     created_count = updated_count = 0
 
@@ -178,7 +203,12 @@ def import_vendors(file_path: str | Path | None = None, sheet_name=None, dry_run
             try:
                 old_code = safe_str(row.get("old_code"))
                 if not old_code:
-                    print(colored(f"[{i+1}] ❌ Riga senza old_code, ignorata", "red"))
+                    print(
+                        colored(
+                            f"[{i + 1}] ❌ Riga senza old_code, ignorata",
+                            "red",
+                        )
+                    )
                     continue
 
                 # Riga del foglio Excel da cui arriva il fornitore: serve a
@@ -190,7 +220,9 @@ def import_vendors(file_path: str | Path | None = None, sheet_name=None, dry_run
                 address = create_or_get_address(row)
 
                 # === ForeignKey resolution ===
-                qualification = resolve_fk(QualificationType, "name", row.get("qualification_type"))
+                qualification = resolve_fk(
+                    QualificationType, "name", row.get("qualification_type")
+                )
 
                 # === Vendor ===
                 defaults = dict(
@@ -201,58 +233,137 @@ def import_vendors(file_path: str | Path | None = None, sheet_name=None, dry_run
                     phone=safe_str(row.get("phone")),
                     vendor_type=safe_str(row.get("vendor_type")),
                     competences_zone=safe_str(row.get("competences_zone")),
-                    vendor_management_update=safe_str(row.get("vendor_management_update")),
+                    vendor_management_update=safe_str(
+                        row.get("vendor_management_update")
+                    ),
                     qualification_type=qualification,
                     is_ico_consultant=parse_bool(row.get("is_ico_consultant")),
                     albo_zucchetti=safe_str(row.get("albo_zucchetti")),
-                    vendor_task_description=safe_str(row.get("vendor_task_description")),
-                    vendor_medical_service=safe_str(row.get("vendor_medical_service")),
+                    vendor_task_description=safe_str(
+                        row.get("vendor_task_description")
+                    ),
+                    vendor_medical_service=safe_str(
+                        row.get("vendor_medical_service")
+                    ),
                     mobile_device=parse_bool(row.get("mobile_device")),
                     ambulatory_service=safe_str(row.get("ambulatory_service")),
-                    laboratory_service=parse_bool(row.get("laboratory_service")),
-                    laboratory_independent=parse_bool(row.get("laboratory_independent")),
-                    date_of_establishment=parse_date(row.get("year_of_establishment")),
-                    licensed_physician_year=row.get("licensed_physician_year") if not pd.isna(row.get("licensed_physician_year")) else None,
-                    other_medical_service=safe_str(row.get("other_medical_service")),
-                    doctor_registration=safe_str(row.get("doctor_registration")),
+                    laboratory_service=parse_bool(
+                        row.get("laboratory_service")
+                    ),
+                    laboratory_independent=parse_bool(
+                        row.get("laboratory_independent")
+                    ),
+                    date_of_establishment=parse_date(
+                        row.get("year_of_establishment")
+                    ),
+                    licensed_physician_year=row.get("licensed_physician_year")
+                    if not pd.isna(row.get("licensed_physician_year"))
+                    else None,
+                    other_medical_service=safe_str(
+                        row.get("other_medical_service")
+                    ),
+                    doctor_registration=safe_str(
+                        row.get("doctor_registration")
+                    ),
                     doctor_cv=parse_bool(row.get("doctor_cv")),
                     doctor_cv2=parse_bool(row.get("doctor_cv2")),
-                    contractual_status=safe_str(row.get("contractual_status"))[:2],
-                    contractual_start_date=parse_date(row.get("contractual_start_date")),
-                    contractual_end_date=parse_date(row.get("contractual_end_date")),
+                    contractual_status=safe_str(row.get("contractual_status"))[
+                        :2
+                    ],
+                    contractual_start_date=parse_date(
+                        row.get("contractual_start_date")
+                    ),
+                    contractual_end_date=parse_date(
+                        row.get("contractual_end_date")
+                    ),
                     contractual_terms=safe_str(row.get("contractual_terms")),
-                    reference_contact=safe_str(row.get("reference_contact / reference_person")),
-                    vendor_final_evaluation=safe_str(row.get("vendor_final_evaluation")),
+                    reference_contact=safe_str(
+                        row.get("reference_contact / reference_person")
+                    ),
+                    vendor_final_evaluation=safe_str(
+                        row.get("vendor_final_evaluation")
+                    ),
                     review_notes=safe_str(row.get("review_notes")),
                     address=address,
                 )
 
-                vendor, created = Vendor.objects.update_or_create(old_code=old_code, defaults=defaults)
+                vendor, created = Vendor.objects.update_or_create(
+                    old_code=old_code, defaults=defaults
+                )
 
                 if created:
                     created_count += 1
-                    print(colored(f"[{i+1}] ✅ Creato {vendor.name} (riga Albo {albo_row})", "green"))
+                    print(
+                        colored(
+                            f"[{i + 1}] ✅ Creato {vendor.name} "
+                            f"(riga Albo {albo_row})",
+                            "green",
+                        )
+                    )
                 else:
                     updated_count += 1
-                    print(colored(f"[{i+1}] ♻️ Aggiornato {vendor.name} (riga Albo {albo_row})", "yellow"))
+                    print(
+                        colored(
+                            f"[{i + 1}] ♻️ Aggiornato {vendor.name} "
+                            f"(riga Albo {albo_row})",
+                            "yellow",
+                        )
+                    )
 
             except Exception as e:
-                print(colored(f"[{i+1}] ❌ Errore su {row.get('old_code')}: {e}", "red"))
+                print(
+                    colored(
+                        f"[{i + 1}] ❌ Errore su {row.get('old_code')}: {e}",
+                        "red",
+                    )
+                )
                 raise  # fa rollback di tutta la transazione
 
         if dry_run:
-            print(colored("\n🧪 DRY RUN attivo: annullo tutte le modifiche...", "yellow", attrs=["bold"]))
+            print(
+                colored(
+                    "\n🧪 DRY RUN attivo: annullo tutte le modifiche...",
+                    "yellow",
+                    attrs=["bold"],
+                )
+            )
             transaction.set_rollback(True)
 
-    print(colored(f"\n✅ Importazione completata", "cyan", attrs=["bold"]))
-    print(colored(f"   Nuovi: {created_count} | Aggiornati: {updated_count}", "green"))
+    print(colored("\n✅ Importazione completata", "cyan", attrs=["bold"]))
+    print(
+        colored(
+            f"   Nuovi: {created_count} | Aggiornati: {updated_count}", "green"
+        )
+    )
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Import fornitori da file Excel/CSV")
-    parser.add_argument("-f", "--file", dest="file_path", default=FILE_PATH, help="Percorso file (assoluto o relativo)")
-    parser.add_argument("-s", "--sheet", dest="sheet_name", default=SHEET_NAME, help="Indice (int) o nome (str) del foglio")
-    parser.add_argument("--dry-run", action="store_true", help="Esegue senza salvare le modifiche")
+    parser = argparse.ArgumentParser(
+        description="Import fornitori da file Excel/CSV"
+    )
+    parser.add_argument(
+        "-f",
+        "--file",
+        dest="file_path",
+        default=FILE_PATH,
+        help="Percorso file (assoluto o relativo)",
+    )
+    parser.add_argument(
+        "-s",
+        "--sheet",
+        dest="sheet_name",
+        default=SHEET_NAME,
+        help="Indice (int) o nome (str) del foglio",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Esegue senza salvare le modifiche",
+    )
     args = parser.parse_args()
 
-    import_vendors(file_path=args.file_path, sheet_name=args.sheet_name, dry_run=args.dry_run)
+    import_vendors(
+        file_path=args.file_path,
+        sheet_name=args.sheet_name,
+        dry_run=args.dry_run,
+    )

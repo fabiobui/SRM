@@ -4,14 +4,13 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('vendors', '0026_migrate_requirement_types_data'),
+        ("vendors", "0026_migrate_requirement_types_data"),
     ]
 
     operations = [
         migrations.RemoveField(
-            model_name='competence',
-            name='requirement_type',
+            model_name="competence",
+            name="requirement_type",
         ),
     ]

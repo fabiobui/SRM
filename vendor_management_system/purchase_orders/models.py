@@ -3,7 +3,6 @@ import uuid
 
 from django.core import validators
 from django.db import models
-
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
@@ -21,7 +20,9 @@ class PurchaseOrder(models.Model):
         validators=[
             validators.RegexValidator(
                 regex=r"^[A-Z0-9]+$",
-                message=_("Purchase Order Number must be uppercase alphanumeric"),
+                message=_(
+                    "Purchase Order Number must be uppercase alphanumeric"
+                ),
             )
         ],
     )
@@ -51,7 +52,10 @@ class PurchaseOrder(models.Model):
         blank=True,
     )
     items = models.JSONField(
-        _("Items"), help_text=_("Items in Purchase Order"), null=False, blank=False
+        _("Items"),
+        help_text=_("Items in Purchase Order"),
+        null=False,
+        blank=False,
     )
     quantity = models.IntegerField(
         _("Quantity"),
@@ -109,7 +113,9 @@ class PurchaseOrder(models.Model):
         # If the expected delivery date is not specified
         if not self.expected_delivery_date:
             # Calculate the expected delivery date
-            self.expected_delivery_date = self.order_date + timezone.timedelta(days=21)
+            self.expected_delivery_date = self.order_date + timezone.timedelta(
+                days=21
+            )
 
         # Save the model
-        super(PurchaseOrder, self).save(*args, **kwargs)
+        super().save(*args, **kwargs)

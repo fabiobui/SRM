@@ -1,11 +1,12 @@
+import argparse
 import os
 import sys
+from pathlib import Path
+
 import django
 import pandas as pd
-from pathlib import Path
 from django.db import transaction
 from termcolor import colored
-import argparse
 
 # --- Setup Django ---
 CURRENT_DIR = Path(__file__).resolve().parent
@@ -14,7 +15,9 @@ sys.path.append(str(BASE_DIR))
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
 django.setup()
 
-from vendor_management_system.vendors.models import QualificationType
+from vendor_management_system.vendors.models import (  # noqa: E402
+    QualificationType,
+)
 
 # === CONFIG DEFAULT ===
 FILE_PATH = "titoli.xlsx"
@@ -80,7 +83,13 @@ def import_qualification_types(file_path=None, sheet_name=None, dry_run=None):
         df = pd.read_excel(resolved_path, sheet_name=sheet_name, dtype=str)
 
     print(colored(f"\n📘 Import Titoli da: {resolved_path}", "cyan"))
-    print(colored(f"   Foglio: {sheet_name} | DRY_RUN: {dry_run}", "cyan", attrs=["bold"]))
+    print(
+        colored(
+            f"   Foglio: {sheet_name} | DRY_RUN: {dry_run}",
+            "cyan",
+            attrs=["bold"],
+        )
+    )
     print(colored(f"   Righe: {len(df)}\n", "cyan", attrs=["bold"]))
 
     # Normalizza nomi colonne
@@ -88,19 +97,26 @@ def import_qualification_types(file_path=None, sheet_name=None, dry_run=None):
 
     required_columns = {"code", "name"}
     if not required_columns.issubset(df.columns):
-        print(colored(f"❌ Mancano colonne obbligatorie: {required_columns - set(df.columns)}", "red"))
+        print(
+            colored(
+                f"❌ Mancano colonne obbligatorie: "
+                f"{required_columns - set(df.columns)}",
+                "red",
+            )
+        )
         sys.exit(1)
 
     created_count = updated_count = skipped = 0
 
     with transaction.atomic():
-
         for i, row in df.iterrows():
             row = {k.lower(): v for k, v in row.items()}
 
             code = safe_str(row.get("code"))
             if not code:
-                print(colored(f"[{i+1}] ⚠️ Riga senza CODE, saltata", "yellow"))
+                print(
+                    colored(f"[{i + 1}] ⚠️ Riga senza CODE, saltata", "yellow")
+                )
                 skipped += 1
                 continue
 
@@ -115,9 +131,16 @@ def import_qualification_types(file_path=None, sheet_name=None, dry_run=None):
             parent_obj = None
 
             if parent_code:
-                parent_obj = QualificationType.objects.filter(code=parent_code).first()
+                parent_obj = QualificationType.objects.filter(
+                    code=parent_code
+                ).first()
                 if not parent_obj:
-                    print(colored(f"[{i+1}] ❌ Parent non trovato: {parent_code}", "red"))
+                    print(
+                        colored(
+                            f"[{i + 1}] ❌ Parent non trovato: {parent_code}",
+                            "red",
+                        )
+                    )
                     skipped += 1
                     continue
 
@@ -137,13 +160,23 @@ def import_qualification_types(file_path=None, sheet_name=None, dry_run=None):
 
             if created:
                 created_count += 1
-                print(colored(f"[{i+1}] ✅ Creato: {code} - {name}", "green"))
+                print(
+                    colored(f"[{i + 1}] ✅ Creato: {code} - {name}", "green")
+                )
             else:
                 updated_count += 1
-                print(colored(f"[{i+1}] ♻️ Aggiornato: {code} - {name}", "yellow"))
+                print(
+                    colored(
+                        f"[{i + 1}] ♻️ Aggiornato: {code} - {name}", "yellow"
+                    )
+                )
 
         if dry_run:
-            print(colored("\n🧪 DRY RUN: rollback attivato", "yellow", attrs=["bold"]))
+            print(
+                colored(
+                    "\n🧪 DRY RUN: rollback attivato", "yellow", attrs=["bold"]
+                )
+            )
             transaction.set_rollback(True)
 
     print(colored("\n🎉 IMPORT COMPLETATO", "cyan", attrs=["bold"]))
@@ -154,10 +187,26 @@ def import_qualification_types(file_path=None, sheet_name=None, dry_run=None):
 
 # === CLI ===
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Import Titoli di Studio (QualificationType)")
-    parser.add_argument("-f", "--file", dest="file_path", default=FILE_PATH, help="File XLSX o CSV")
-    parser.add_argument("-s", "--sheet", dest="sheet_name", default=SHEET_NAME, help="Foglio XLSX")
-    parser.add_argument("--dry-run", action="store_true", help="Simula senza salvare")
+    parser = argparse.ArgumentParser(
+        description="Import Titoli di Studio (QualificationType)"
+    )
+    parser.add_argument(
+        "-f",
+        "--file",
+        dest="file_path",
+        default=FILE_PATH,
+        help="File XLSX o CSV",
+    )
+    parser.add_argument(
+        "-s",
+        "--sheet",
+        dest="sheet_name",
+        default=SHEET_NAME,
+        help="Foglio XLSX",
+    )
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Simula senza salvare"
+    )
     args = parser.parse_args()
 
     import_qualification_types(

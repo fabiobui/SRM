@@ -1,48 +1,52 @@
 # API ViewSets - REST Framework
 from django.shortcuts import get_object_or_404
-from django.db.models import Count, Q, F
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import permissions, response, status, viewsets
-from rest_framework.decorators import action
 from rest_framework.authtoken.views import ObtainAuthToken
+from rest_framework.decorators import action
 
 from vendor_management_system.core.authentication import (
     QueryParameterTokenAuthentication,
 )
-
-from vendor_management_system.core.serializers import QueryParamAuthTokenSerializer
+from vendor_management_system.core.serializers import (
+    QueryParamAuthTokenSerializer,
+)
 from vendor_management_system.vendors.models import (
-    Vendor, Address, Category,
-    Country, Region, Province, CompetenceZone, CompetenceZoneRule
+    Address,
+    Category,
+    CompetenceZone,
+    Country,
+    Province,
+    Region,
+    Vendor,
 )
 from vendor_management_system.vendors.serializers import (
-    VendorCreateUpdateSerializer,
-    VendorSerializer,
-    VendorListSerializer,
-    VendorQualificationSerializer,
-    VendorAuditSerializer,
-    VendorPerformanceSerializer,
-    AddressSerializer,
     AddressManagementSerializer,
-    CategorySerializer,
+    AddressSerializer,
     CategoryManagementSerializer,
-    CategoryCompactSerializer,
-    CategoryTreeSerializer,
+    CategorySerializer,
     CategoryStatsSerializer,
-    CountrySerializer,
-    RegionSerializer,
-    ProvinceSerializer,
-    CountryTreeSerializer,
-    CompetenceZoneSerializer,
-    CompetenceZoneCompactSerializer,
+    CategoryTreeSerializer,
     CompetenceZoneCreateUpdateSerializer,
+    CompetenceZoneSerializer,
+    CountrySerializer,
+    CountryTreeSerializer,
+    ProvinceSerializer,
+    RegionSerializer,
+    VendorAuditSerializer,
+    VendorCreateUpdateSerializer,
+    VendorListSerializer,
+    VendorPerformanceSerializer,
+    VendorQualificationSerializer,
+    VendorSerializer,
 )
 
 
 # ViewSet per Address
 class AddressViewSet(viewsets.ViewSet):
     """ViewSet for managing addresses independently"""
+
     permission_classes = [permissions.IsAuthenticated]
     authentication_classes = [QueryParameterTokenAuthentication]
 
@@ -92,17 +96,17 @@ class AddressViewSet(viewsets.ViewSet):
     )
     def list(self, request):
         addresses = Address.objects.filter(is_active=True)
-        
+
         # Apply filters
-        country = request.query_params.get('country')
+        country = request.query_params.get("country")
         if country:
             addresses = addresses.filter(country__icontains=country)
-            
-        city = request.query_params.get('city')
+
+        city = request.query_params.get("city")
         if city:
             addresses = addresses.filter(city__icontains=city)
-            
-        address_type = request.query_params.get('address_type')
+
+        address_type = request.query_params.get("address_type")
         if address_type:
             addresses = addresses.filter(address_type=address_type)
 
@@ -230,6 +234,7 @@ class AddressViewSet(viewsets.ViewSet):
 # ViewSet per Category
 class CategoryViewSet(viewsets.ViewSet):
     """ViewSet for managing categories"""
+
     permission_classes = [permissions.IsAuthenticated]
     authentication_classes = [QueryParameterTokenAuthentication]
 
@@ -278,23 +283,29 @@ class CategoryViewSet(viewsets.ViewSet):
         tags=["Categories"],
     )
     def list(self, request):
-        categories = Category.objects.all().order_by('sort_order', 'name')
-        
+        categories = Category.objects.all().order_by("sort_order", "name")
+
         # Apply filters
-        is_active = request.query_params.get('is_active')
+        is_active = request.query_params.get("is_active")
         if is_active is not None:
-            categories = categories.filter(is_active=is_active.lower() == 'true')
-            
-        parent = request.query_params.get('parent')
+            categories = categories.filter(
+                is_active=is_active.lower() == "true"
+            )
+
+        parent = request.query_params.get("parent")
         if parent:
-            if parent.lower() == 'null':
+            if parent.lower() == "null":
                 categories = categories.filter(parent__isnull=True)
             else:
                 categories = categories.filter(parent__id=parent)
-                
-        requires_certification = request.query_params.get('requires_certification')
+
+        requires_certification = request.query_params.get(
+            "requires_certification"
+        )
         if requires_certification is not None:
-            categories = categories.filter(requires_certification=requires_certification.lower() == 'true')
+            categories = categories.filter(
+                requires_certification=requires_certification.lower() == "true"
+            )
 
         serializer = CategorySerializer(categories, many=True)
         return response.Response(serializer.data, status=status.HTTP_200_OK)
@@ -414,21 +425,32 @@ class CategoryViewSet(viewsets.ViewSet):
     )
     def destroy(self, request, category_id=None):
         category = get_object_or_404(Category, id=category_id)
-        
+
         # Check if category has vendors
         if category.vendors.exists():
             return response.Response(
-                {"detail": "Cannot delete category that has vendors assigned. Please reassign vendors first."},
-                status=status.HTTP_400_BAD_REQUEST
+                {
+                    "detail": (
+                        "Cannot delete category that has vendors "
+                        "assigned. Please reassign vendors first."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
             )
-        
+
         # Check if category has subcategories
         if category.subcategories.exists():
             return response.Response(
-                {"detail": "Cannot delete category that has subcategories. Please delete subcategories first."},
-                status=status.HTTP_400_BAD_REQUEST
+                {
+                    "detail": (
+                        "Cannot delete category that has "
+                        "subcategories. Please delete subcategories "
+                        "first."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
             )
-        
+
         category.delete()
         return response.Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -452,14 +474,13 @@ class CategoryViewSet(viewsets.ViewSet):
         },
         tags=["Categories"],
     )
-    @action(detail=False, methods=['get'], url_path='tree')
+    @action(detail=False, methods=["get"], url_path="tree")
     def tree(self, request):
         # Get only root categories (without parent)
         root_categories = Category.objects.filter(
-            parent__isnull=True, 
-            is_active=True
-        ).order_by('sort_order', 'name')
-        
+            parent__isnull=True, is_active=True
+        ).order_by("sort_order", "name")
+
         serializer = CategoryTreeSerializer(root_categories, many=True)
         return response.Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -478,14 +499,17 @@ class CategoryViewSet(viewsets.ViewSet):
         ],
         responses={
             status.HTTP_200_OK: openapi.Response(
-                "Category statistics", schema=CategoryStatsSerializer(many=True)
+                "Category statistics",
+                schema=CategoryStatsSerializer(many=True),
             ),
         },
         tags=["Categories"],
     )
-    @action(detail=False, methods=['get'], url_path='stats')
+    @action(detail=False, methods=["get"], url_path="stats")
     def stats(self, request):
-        categories = Category.objects.filter(is_active=True).order_by('sort_order', 'name')
+        categories = Category.objects.filter(is_active=True).order_by(
+            "sort_order", "name"
+        )
         serializer = CategoryStatsSerializer(categories, many=True)
         return response.Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -517,19 +541,22 @@ class CategoryViewSet(viewsets.ViewSet):
         },
         tags=["Categories"],
     )
-    @action(detail=True, methods=['get'], url_path='vendors')
+    @action(detail=True, methods=["get"], url_path="vendors")
     def vendors(self, request, category_id=None):
         category = get_object_or_404(Category, id=category_id)
-        include_subcategories = request.query_params.get('include_subcategories', 'false').lower() == 'true'
-        
+        include_subcategories = (
+            request.query_params.get("include_subcategories", "false").lower()
+            == "true"
+        )
+
         if include_subcategories:
             # Get all descendant categories
             categories = [category] + category.get_descendants()
             vendors = Vendor.objects.filter(category__in=categories)
         else:
             vendors = category.vendors.all()
-        
-        vendors = vendors.order_by('name')
+
+        vendors = vendors.order_by("name")
         serializer = VendorListSerializer(vendors, many=True)
         return response.Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -537,6 +564,7 @@ class CategoryViewSet(viewsets.ViewSet):
 # ViewSet per Vendor
 class VendorViewSet(viewsets.ViewSet):
     """ViewSet for managing vendors"""
+
     permission_classes = [permissions.IsAuthenticated]
     authentication_classes = [QueryParameterTokenAuthentication]
 
@@ -558,7 +586,10 @@ class VendorViewSet(viewsets.ViewSet):
                 in_=openapi.IN_QUERY,
                 type=openapi.TYPE_STRING,
                 required=False,
-                description="Filter by qualification status (PENDING, APPROVED, REJECTED)",
+                description=(
+                    "Filter by qualification status "
+                    "(PENDING, APPROVED, REJECTED)"
+                ),
             ),
             openapi.Parameter(
                 name="risk_level",
@@ -603,29 +634,34 @@ class VendorViewSet(viewsets.ViewSet):
     )
     def list(self, request):
         # Get all vendors con select_related per ottimizzare
-        vendors = Vendor.objects.select_related('category', 'address').all()
-        
+        vendors = Vendor.objects.select_related("category", "address").all()
+
         # Apply existing filters
-        qualification_status = request.query_params.get('qualification_status')
+        qualification_status = request.query_params.get("qualification_status")
         if qualification_status:
             vendors = vendors.filter(qualification_status=qualification_status)
-            
-        risk_level = request.query_params.get('risk_level')
+
+        risk_level = request.query_params.get("risk_level")
         if risk_level:
             vendors = vendors.filter(risk_level=risk_level)
-        
+
         # New category filters
-        category = request.query_params.get('category')
+        category = request.query_params.get("category")
         if category:
             vendors = vendors.filter(category__id=category)
-            
-        category_code = request.query_params.get('category_code')
+
+        category_code = request.query_params.get("category_code")
         if category_code:
             vendors = vendors.filter(category__code__iexact=category_code)
-            
-        requires_certification = request.query_params.get('requires_certification')
+
+        requires_certification = request.query_params.get(
+            "requires_certification"
+        )
         if requires_certification is not None:
-            vendors = vendors.filter(category__requires_certification=requires_certification.lower() == 'true')
+            vendors = vendors.filter(
+                category__requires_certification=requires_certification.lower()
+                == "true"
+            )
 
         # Serialize the vendors using lightweight serializer
         serializer = VendorListSerializer(vendors, many=True)
@@ -658,7 +694,9 @@ class VendorViewSet(viewsets.ViewSet):
     )
     def create(self, request):
         # Deserialize and validate the request data
-        vendor_create_serializer = VendorCreateUpdateSerializer(data=request.data)
+        vendor_create_serializer = VendorCreateUpdateSerializer(
+            data=request.data
+        )
 
         # If the provided data is valid
         if vendor_create_serializer.is_valid():
@@ -771,7 +809,9 @@ class VendorViewSet(viewsets.ViewSet):
             serializer = VendorSerializer(vendor)
 
             # Return the response
-            return response.Response(serializer.data, status=status.HTTP_200_OK)
+            return response.Response(
+                serializer.data, status=status.HTTP_200_OK
+            )
 
         # Return the error response
         return response.Response(
@@ -818,7 +858,7 @@ class VendorViewSet(viewsets.ViewSet):
 
     # Custom action for qualification management
     @swagger_auto_schema(
-        methods=['get'],
+        methods=["get"],
         operation_id="vendors--get-qualification",
         operation_description="Get vendor qualification details",
         manual_parameters=[
@@ -833,13 +873,14 @@ class VendorViewSet(viewsets.ViewSet):
         ],
         responses={
             status.HTTP_200_OK: openapi.Response(
-                "Vendor qualification details", schema=VendorQualificationSerializer
+                "Vendor qualification details",
+                schema=VendorQualificationSerializer,
             ),
         },
         tags=["Vendor Qualification"],
     )
     @swagger_auto_schema(
-        methods=['patch'],
+        methods=["patch"],
         operation_id="vendors--update-qualification",
         operation_description="Update vendor qualification",
         manual_parameters=[
@@ -860,28 +901,32 @@ class VendorViewSet(viewsets.ViewSet):
         },
         tags=["Vendor Qualification"],
     )
-    @action(detail=True, methods=['get', 'patch'], url_path='qualification')
+    @action(detail=True, methods=["get", "patch"], url_path="qualification")
     def qualification(self, request, vendor_code=None):
         vendor = get_object_or_404(Vendor, vendor_code=vendor_code)
-        
-        if request.method == 'GET':
+
+        if request.method == "GET":
             serializer = VendorQualificationSerializer(vendor)
-            return response.Response(serializer.data, status=status.HTTP_200_OK)
-        
-        elif request.method == 'PATCH':
+            return response.Response(
+                serializer.data, status=status.HTTP_200_OK
+            )
+
+        elif request.method == "PATCH":
             serializer = VendorQualificationSerializer(
                 vendor, data=request.data, partial=True
             )
             if serializer.is_valid():
                 serializer.save()
-                return response.Response(serializer.data, status=status.HTTP_200_OK)
+                return response.Response(
+                    serializer.data, status=status.HTTP_200_OK
+                )
             return response.Response(
                 serializer.errors, status=status.HTTP_400_BAD_REQUEST
             )
 
     # Custom action for audit management
     @swagger_auto_schema(
-        methods=['get'],
+        methods=["get"],
         operation_id="vendors--get-audit",
         operation_description="Get vendor audit details",
         manual_parameters=[
@@ -902,7 +947,7 @@ class VendorViewSet(viewsets.ViewSet):
         tags=["Vendor Audit"],
     )
     @swagger_auto_schema(
-        methods=['patch'],
+        methods=["patch"],
         operation_id="vendors--update-audit",
         operation_description="Update vendor audit information",
         manual_parameters=[
@@ -923,28 +968,32 @@ class VendorViewSet(viewsets.ViewSet):
         },
         tags=["Vendor Audit"],
     )
-    @action(detail=True, methods=['get', 'patch'], url_path='audit')
+    @action(detail=True, methods=["get", "patch"], url_path="audit")
     def audit(self, request, vendor_code=None):
         vendor = get_object_or_404(Vendor, vendor_code=vendor_code)
-        
-        if request.method == 'GET':
+
+        if request.method == "GET":
             serializer = VendorAuditSerializer(vendor)
-            return response.Response(serializer.data, status=status.HTTP_200_OK)
-        
-        elif request.method == 'PATCH':
+            return response.Response(
+                serializer.data, status=status.HTTP_200_OK
+            )
+
+        elif request.method == "PATCH":
             serializer = VendorAuditSerializer(
                 vendor, data=request.data, partial=True
             )
             if serializer.is_valid():
                 serializer.save()
-                return response.Response(serializer.data, status=status.HTTP_200_OK)
+                return response.Response(
+                    serializer.data, status=status.HTTP_200_OK
+                )
             return response.Response(
                 serializer.errors, status=status.HTTP_400_BAD_REQUEST
             )
 
     # Custom action for performance management
     @swagger_auto_schema(
-        methods=['get'],
+        methods=["get"],
         operation_id="vendors--get-performance",
         operation_description="Get vendor performance metrics",
         manual_parameters=[
@@ -959,13 +1008,14 @@ class VendorViewSet(viewsets.ViewSet):
         ],
         responses={
             status.HTTP_200_OK: openapi.Response(
-                "Vendor performance metrics", schema=VendorPerformanceSerializer
+                "Vendor performance metrics",
+                schema=VendorPerformanceSerializer,
             ),
         },
         tags=["Vendor Performance"],
     )
     @swagger_auto_schema(
-        methods=['patch'],
+        methods=["patch"],
         operation_id="vendors--update-performance",
         operation_description="Update vendor performance metrics",
         manual_parameters=[
@@ -981,26 +1031,31 @@ class VendorViewSet(viewsets.ViewSet):
         request_body=VendorPerformanceSerializer,
         responses={
             status.HTTP_200_OK: openapi.Response(
-                "Updated performance metrics", schema=VendorPerformanceSerializer
+                "Updated performance metrics",
+                schema=VendorPerformanceSerializer,
             ),
         },
         tags=["Vendor Performance"],
     )
-    @action(detail=True, methods=['get', 'patch'], url_path='performance')
+    @action(detail=True, methods=["get", "patch"], url_path="performance")
     def performance(self, request, vendor_code=None):
         vendor = get_object_or_404(Vendor, vendor_code=vendor_code)
-        
-        if request.method == 'GET':
+
+        if request.method == "GET":
             serializer = VendorPerformanceSerializer(vendor)
-            return response.Response(serializer.data, status=status.HTTP_200_OK)
-        
-        elif request.method == 'PATCH':
+            return response.Response(
+                serializer.data, status=status.HTTP_200_OK
+            )
+
+        elif request.method == "PATCH":
             serializer = VendorPerformanceSerializer(
                 vendor, data=request.data, partial=True
             )
             if serializer.is_valid():
                 serializer.save()
-                return response.Response(serializer.data, status=status.HTTP_200_OK)
+                return response.Response(
+                    serializer.data, status=status.HTTP_200_OK
+                )
             return response.Response(
                 serializer.errors, status=status.HTTP_400_BAD_REQUEST
             )
@@ -1008,7 +1063,10 @@ class VendorViewSet(viewsets.ViewSet):
     # Custom action to get vendors requiring attention
     @swagger_auto_schema(
         operation_id="vendors--get-alerts",
-        operation_description="Get vendors requiring attention (overdue audits, expired qualifications, etc.)",
+        operation_description=(
+            "Get vendors requiring attention (overdue audits, "
+            "expired qualifications, etc.)"
+        ),
         manual_parameters=[
             openapi.Parameter(
                 name="token",
@@ -1021,7 +1079,7 @@ class VendorViewSet(viewsets.ViewSet):
         ],
         responses={
             status.HTTP_200_OK: openapi.Response(
-                "Vendors requiring attention", 
+                "Vendors requiring attention",
                 schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
@@ -1030,157 +1088,292 @@ class VendorViewSet(viewsets.ViewSet):
                             items=openapi.Schema(
                                 type=openapi.TYPE_OBJECT,
                                 properties={
-                                    "vendor_code": openapi.Schema(type=openapi.TYPE_STRING),
-                                    "name": openapi.Schema(type=openapi.TYPE_STRING),
-                                    "email": openapi.Schema(type=openapi.TYPE_STRING),
-                                    "phone": openapi.Schema(type=openapi.TYPE_STRING),
-                                    "category": openapi.Schema(type=openapi.TYPE_STRING),
-                                    "qualification_status": openapi.Schema(type=openapi.TYPE_STRING),
-                                    "risk_level": openapi.Schema(type=openapi.TYPE_STRING),
-                                    "is_qualified": openapi.Schema(type=openapi.TYPE_BOOLEAN),
-                                    "audit_overdue": openapi.Schema(type=openapi.TYPE_BOOLEAN),
-                                }
-                            )
+                                    "vendor_code": openapi.Schema(
+                                        type=openapi.TYPE_STRING
+                                    ),
+                                    "name": openapi.Schema(
+                                        type=openapi.TYPE_STRING
+                                    ),
+                                    "email": openapi.Schema(
+                                        type=openapi.TYPE_STRING
+                                    ),
+                                    "phone": openapi.Schema(
+                                        type=openapi.TYPE_STRING
+                                    ),
+                                    "category": openapi.Schema(
+                                        type=openapi.TYPE_STRING
+                                    ),
+                                    "qualification_status": openapi.Schema(
+                                        type=openapi.TYPE_STRING
+                                    ),
+                                    "risk_level": openapi.Schema(
+                                        type=openapi.TYPE_STRING
+                                    ),
+                                    "is_qualified": openapi.Schema(
+                                        type=openapi.TYPE_BOOLEAN
+                                    ),
+                                    "audit_overdue": openapi.Schema(
+                                        type=openapi.TYPE_BOOLEAN
+                                    ),
+                                },
+                            ),
                         ),
                         "expired_qualifications": openapi.Schema(
                             type=openapi.TYPE_ARRAY,
                             items=openapi.Schema(
                                 type=openapi.TYPE_OBJECT,
                                 properties={
-                                    "vendor_code": openapi.Schema(type=openapi.TYPE_STRING),
-                                    "name": openapi.Schema(type=openapi.TYPE_STRING),
-                                    "email": openapi.Schema(type=openapi.TYPE_STRING),
-                                    "phone": openapi.Schema(type=openapi.TYPE_STRING),
-                                    "category": openapi.Schema(type=openapi.TYPE_STRING),
-                                    "qualification_status": openapi.Schema(type=openapi.TYPE_STRING),
-                                    "risk_level": openapi.Schema(type=openapi.TYPE_STRING),
-                                    "is_qualified": openapi.Schema(type=openapi.TYPE_BOOLEAN),
-                                    "audit_overdue": openapi.Schema(type=openapi.TYPE_BOOLEAN),
-                                }
-                            )
+                                    "vendor_code": openapi.Schema(
+                                        type=openapi.TYPE_STRING
+                                    ),
+                                    "name": openapi.Schema(
+                                        type=openapi.TYPE_STRING
+                                    ),
+                                    "email": openapi.Schema(
+                                        type=openapi.TYPE_STRING
+                                    ),
+                                    "phone": openapi.Schema(
+                                        type=openapi.TYPE_STRING
+                                    ),
+                                    "category": openapi.Schema(
+                                        type=openapi.TYPE_STRING
+                                    ),
+                                    "qualification_status": openapi.Schema(
+                                        type=openapi.TYPE_STRING
+                                    ),
+                                    "risk_level": openapi.Schema(
+                                        type=openapi.TYPE_STRING
+                                    ),
+                                    "is_qualified": openapi.Schema(
+                                        type=openapi.TYPE_BOOLEAN
+                                    ),
+                                    "audit_overdue": openapi.Schema(
+                                        type=openapi.TYPE_BOOLEAN
+                                    ),
+                                },
+                            ),
                         ),
                         "high_risk_vendors": openapi.Schema(
                             type=openapi.TYPE_ARRAY,
                             items=openapi.Schema(
                                 type=openapi.TYPE_OBJECT,
                                 properties={
-                                    "vendor_code": openapi.Schema(type=openapi.TYPE_STRING),
-                                    "name": openapi.Schema(type=openapi.TYPE_STRING),
-                                    "email": openapi.Schema(type=openapi.TYPE_STRING),
-                                    "phone": openapi.Schema(type=openapi.TYPE_STRING),
-                                    "category": openapi.Schema(type=openapi.TYPE_STRING),
-                                    "qualification_status": openapi.Schema(type=openapi.TYPE_STRING),
-                                    "risk_level": openapi.Schema(type=openapi.TYPE_STRING),
-                                    "is_qualified": openapi.Schema(type=openapi.TYPE_BOOLEAN),
-                                    "audit_overdue": openapi.Schema(type=openapi.TYPE_BOOLEAN),
-                                }
-                            )
+                                    "vendor_code": openapi.Schema(
+                                        type=openapi.TYPE_STRING
+                                    ),
+                                    "name": openapi.Schema(
+                                        type=openapi.TYPE_STRING
+                                    ),
+                                    "email": openapi.Schema(
+                                        type=openapi.TYPE_STRING
+                                    ),
+                                    "phone": openapi.Schema(
+                                        type=openapi.TYPE_STRING
+                                    ),
+                                    "category": openapi.Schema(
+                                        type=openapi.TYPE_STRING
+                                    ),
+                                    "qualification_status": openapi.Schema(
+                                        type=openapi.TYPE_STRING
+                                    ),
+                                    "risk_level": openapi.Schema(
+                                        type=openapi.TYPE_STRING
+                                    ),
+                                    "is_qualified": openapi.Schema(
+                                        type=openapi.TYPE_BOOLEAN
+                                    ),
+                                    "audit_overdue": openapi.Schema(
+                                        type=openapi.TYPE_BOOLEAN
+                                    ),
+                                },
+                            ),
                         ),
                         "missing_certification": openapi.Schema(
                             type=openapi.TYPE_ARRAY,
                             items=openapi.Schema(
                                 type=openapi.TYPE_OBJECT,
                                 properties={
-                                    "vendor_code": openapi.Schema(type=openapi.TYPE_STRING),
-                                    "name": openapi.Schema(type=openapi.TYPE_STRING),
-                                    "email": openapi.Schema(type=openapi.TYPE_STRING),
-                                    "phone": openapi.Schema(type=openapi.TYPE_STRING),
-                                    "category": openapi.Schema(type=openapi.TYPE_STRING),
-                                    "qualification_status": openapi.Schema(type=openapi.TYPE_STRING),
-                                    "risk_level": openapi.Schema(type=openapi.TYPE_STRING),
-                                    "is_qualified": openapi.Schema(type=openapi.TYPE_BOOLEAN),
-                                    "audit_overdue": openapi.Schema(type=openapi.TYPE_BOOLEAN),
-                                }
-                            )
+                                    "vendor_code": openapi.Schema(
+                                        type=openapi.TYPE_STRING
+                                    ),
+                                    "name": openapi.Schema(
+                                        type=openapi.TYPE_STRING
+                                    ),
+                                    "email": openapi.Schema(
+                                        type=openapi.TYPE_STRING
+                                    ),
+                                    "phone": openapi.Schema(
+                                        type=openapi.TYPE_STRING
+                                    ),
+                                    "category": openapi.Schema(
+                                        type=openapi.TYPE_STRING
+                                    ),
+                                    "qualification_status": openapi.Schema(
+                                        type=openapi.TYPE_STRING
+                                    ),
+                                    "risk_level": openapi.Schema(
+                                        type=openapi.TYPE_STRING
+                                    ),
+                                    "is_qualified": openapi.Schema(
+                                        type=openapi.TYPE_BOOLEAN
+                                    ),
+                                    "audit_overdue": openapi.Schema(
+                                        type=openapi.TYPE_BOOLEAN
+                                    ),
+                                },
+                            ),
                         ),
                         "no_category": openapi.Schema(
                             type=openapi.TYPE_ARRAY,
                             items=openapi.Schema(
                                 type=openapi.TYPE_OBJECT,
                                 properties={
-                                    "vendor_code": openapi.Schema(type=openapi.TYPE_STRING),
-                                    "name": openapi.Schema(type=openapi.TYPE_STRING),
-                                    "email": openapi.Schema(type=openapi.TYPE_STRING),
-                                    "phone": openapi.Schema(type=openapi.TYPE_STRING),
-                                    "category": openapi.Schema(type=openapi.TYPE_STRING),
-                                    "qualification_status": openapi.Schema(type=openapi.TYPE_STRING),
-                                    "risk_level": openapi.Schema(type=openapi.TYPE_STRING),
-                                    "is_qualified": openapi.Schema(type=openapi.TYPE_BOOLEAN),
-                                    "audit_overdue": openapi.Schema(type=openapi.TYPE_BOOLEAN),
-                                }
-                            )
+                                    "vendor_code": openapi.Schema(
+                                        type=openapi.TYPE_STRING
+                                    ),
+                                    "name": openapi.Schema(
+                                        type=openapi.TYPE_STRING
+                                    ),
+                                    "email": openapi.Schema(
+                                        type=openapi.TYPE_STRING
+                                    ),
+                                    "phone": openapi.Schema(
+                                        type=openapi.TYPE_STRING
+                                    ),
+                                    "category": openapi.Schema(
+                                        type=openapi.TYPE_STRING
+                                    ),
+                                    "qualification_status": openapi.Schema(
+                                        type=openapi.TYPE_STRING
+                                    ),
+                                    "risk_level": openapi.Schema(
+                                        type=openapi.TYPE_STRING
+                                    ),
+                                    "is_qualified": openapi.Schema(
+                                        type=openapi.TYPE_BOOLEAN
+                                    ),
+                                    "audit_overdue": openapi.Schema(
+                                        type=openapi.TYPE_BOOLEAN
+                                    ),
+                                },
+                            ),
                         ),
                         "competence_missing_certification": openapi.Schema(
                             type=openapi.TYPE_ARRAY,
                             items=openapi.Schema(
                                 type=openapi.TYPE_OBJECT,
                                 properties={
-                                    "vendor_code": openapi.Schema(type=openapi.TYPE_STRING),
-                                    "name": openapi.Schema(type=openapi.TYPE_STRING),
-                                    "email": openapi.Schema(type=openapi.TYPE_STRING),
-                                    "phone": openapi.Schema(type=openapi.TYPE_STRING),
-                                    "category": openapi.Schema(type=openapi.TYPE_STRING),
-                                    "qualification_status": openapi.Schema(type=openapi.TYPE_STRING),
-                                    "risk_level": openapi.Schema(type=openapi.TYPE_STRING),
-                                    "is_qualified": openapi.Schema(type=openapi.TYPE_BOOLEAN),
-                                    "audit_overdue": openapi.Schema(type=openapi.TYPE_BOOLEAN),
-                                }
-                            )
+                                    "vendor_code": openapi.Schema(
+                                        type=openapi.TYPE_STRING
+                                    ),
+                                    "name": openapi.Schema(
+                                        type=openapi.TYPE_STRING
+                                    ),
+                                    "email": openapi.Schema(
+                                        type=openapi.TYPE_STRING
+                                    ),
+                                    "phone": openapi.Schema(
+                                        type=openapi.TYPE_STRING
+                                    ),
+                                    "category": openapi.Schema(
+                                        type=openapi.TYPE_STRING
+                                    ),
+                                    "qualification_status": openapi.Schema(
+                                        type=openapi.TYPE_STRING
+                                    ),
+                                    "risk_level": openapi.Schema(
+                                        type=openapi.TYPE_STRING
+                                    ),
+                                    "is_qualified": openapi.Schema(
+                                        type=openapi.TYPE_BOOLEAN
+                                    ),
+                                    "audit_overdue": openapi.Schema(
+                                        type=openapi.TYPE_BOOLEAN
+                                    ),
+                                },
+                            ),
                         ),
-                    }
-                )
+                    },
+                ),
             ),
         },
         tags=["Vendor Alerts"],
     )
-    @action(detail=False, methods=['get'], url_path='alerts')
+    @action(detail=False, methods=["get"], url_path="alerts")
     def alerts(self, request):
         from django.utils import timezone
+
         today = timezone.now().date()
-        
+
         # Get vendors with overdue audits
-        overdue_audits = Vendor.objects.select_related('category', 'address').filter(
-            next_audit_due__lt=today
-        ).exclude(next_audit_due__isnull=True)
-        
-        # Get vendors with expired qualifications
-        expired_qualifications = Vendor.objects.select_related('category', 'address').filter(
-            qualification_expiry__lt=today,
-            qualification_status='APPROVED'
-        ).exclude(qualification_expiry__isnull=True)
-        
-        # Get high risk vendors
-        high_risk_vendors = Vendor.objects.select_related('category', 'address').filter(risk_level='HIGH')
-        
-        # Get vendors in categories requiring certification but without proper status
-        missing_certification = Vendor.objects.select_related('category', 'address').filter(
-            category__requires_certification=True,
-            qualification_status__in=['PENDING', 'REJECTED']
+        overdue_audits = (
+            Vendor.objects.select_related("category", "address")
+            .filter(next_audit_due__lt=today)
+            .exclude(next_audit_due__isnull=True)
         )
-        
+
+        # Get vendors with expired qualifications
+        expired_qualifications = (
+            Vendor.objects.select_related("category", "address")
+            .filter(
+                qualification_expiry__lt=today, qualification_status="APPROVED"
+            )
+            .exclude(qualification_expiry__isnull=True)
+        )
+
+        # Get high risk vendors
+        high_risk_vendors = Vendor.objects.select_related(
+            "category", "address"
+        ).filter(risk_level="HIGH")
+
+        # Get vendors in categories requiring certification but
+        # without proper status
+        missing_certification = Vendor.objects.select_related(
+            "category", "address"
+        ).filter(
+            category__requires_certification=True,
+            qualification_status__in=["PENDING", "REJECTED"],
+        )
+
         # Get vendors without category assigned
-        no_category = Vendor.objects.select_related('address').filter(category__isnull=True)
-        
-        competence_missing_certification = Vendor.objects.select_related('category', 'address').filter(
-            vendor_competences__competence__requires_certification=True,
-            vendor_competences__has_competence=True,
-            vendor_competences__has_certification=False
-        ).distinct()
-        
+        no_category = Vendor.objects.select_related("address").filter(
+            category__isnull=True
+        )
+
+        competence_missing_certification = (
+            Vendor.objects.select_related("category", "address")
+            .filter(
+                vendor_competences__competence__requires_certification=True,
+                vendor_competences__has_competence=True,
+                vendor_competences__has_certification=False,
+            )
+            .distinct()
+        )
+
         data = {
-            'overdue_audits': VendorListSerializer(overdue_audits, many=True).data,
-            'expired_qualifications': VendorListSerializer(expired_qualifications, many=True).data,
-            'high_risk_vendors': VendorListSerializer(high_risk_vendors, many=True).data,
-            'missing_certification': VendorListSerializer(missing_certification, many=True).data,
-            'no_category': VendorListSerializer(no_category, many=True).data,
-            'competence_missing_certification': VendorListSerializer(competence_missing_certification, many=True).data,
+            "overdue_audits": VendorListSerializer(
+                overdue_audits, many=True
+            ).data,
+            "expired_qualifications": VendorListSerializer(
+                expired_qualifications, many=True
+            ).data,
+            "high_risk_vendors": VendorListSerializer(
+                high_risk_vendors, many=True
+            ).data,
+            "missing_certification": VendorListSerializer(
+                missing_certification, many=True
+            ).data,
+            "no_category": VendorListSerializer(no_category, many=True).data,
+            "competence_missing_certification": VendorListSerializer(
+                competence_missing_certification, many=True
+            ).data,
         }
-        
+
         return response.Response(data, status=status.HTTP_200_OK)
 
     # Address management for vendors
     @swagger_auto_schema(
-        methods=['get'],
+        methods=["get"],
         operation_id="vendors--get-address",
         operation_description="Get vendor address",
         manual_parameters=[
@@ -1202,7 +1395,7 @@ class VendorViewSet(viewsets.ViewSet):
         tags=["Vendor Address"],
     )
     @swagger_auto_schema(
-        methods=['post'],
+        methods=["post"],
         operation_id="vendors--create-address",
         operation_description="Create address for vendor",
         manual_parameters=[
@@ -1224,7 +1417,7 @@ class VendorViewSet(viewsets.ViewSet):
         tags=["Vendor Address"],
     )
     @swagger_auto_schema(
-        methods=['put'],
+        methods=["put"],
         operation_id="vendors--update-address",
         operation_description="Update vendor address",
         manual_parameters=[
@@ -1246,7 +1439,7 @@ class VendorViewSet(viewsets.ViewSet):
         tags=["Vendor Address"],
     )
     @swagger_auto_schema(
-        methods=['delete'],
+        methods=["delete"],
         operation_id="vendors--delete-address",
         operation_description="Delete vendor address",
         manual_parameters=[
@@ -1264,27 +1457,37 @@ class VendorViewSet(viewsets.ViewSet):
         },
         tags=["Vendor Address"],
     )
-    @action(detail=True, methods=['get', 'post', 'put', 'delete'], url_path='address')
+    @action(
+        detail=True,
+        methods=["get", "post", "put", "delete"],
+        url_path="address",
+    )
     def address_management(self, request, vendor_code=None):
         vendor = get_object_or_404(Vendor, vendor_code=vendor_code)
-        
-        if request.method == 'GET':
+
+        if request.method == "GET":
             if vendor.address:
                 serializer = AddressSerializer(vendor.address)
-                return response.Response(serializer.data, status=status.HTTP_200_OK)
+                return response.Response(
+                    serializer.data, status=status.HTTP_200_OK
+                )
             else:
                 return response.Response(
-                    {"detail": "Vendor has no address"}, 
-                    status=status.HTTP_404_NOT_FOUND
+                    {"detail": "Vendor has no address"},
+                    status=status.HTTP_404_NOT_FOUND,
                 )
-        
-        elif request.method == 'POST':
+
+        elif request.method == "POST":
             if vendor.address:
                 return response.Response(
-                    {"detail": "Vendor already has an address. Use PUT to update."}, 
-                    status=status.HTTP_400_BAD_REQUEST
+                    {
+                        "detail": (
+                            "Vendor already has an address. Use PUT to update."
+                        )
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
                 )
-            
+
             serializer = AddressManagementSerializer(data=request.data)
             if serializer.is_valid():
                 address = serializer.save()
@@ -1297,14 +1500,14 @@ class VendorViewSet(viewsets.ViewSet):
             return response.Response(
                 serializer.errors, status=status.HTTP_400_BAD_REQUEST
             )
-        
-        elif request.method == 'PUT':
+
+        elif request.method == "PUT":
             if not vendor.address:
                 return response.Response(
-                    {"detail": "Vendor has no address. Use POST to create."}, 
-                    status=status.HTTP_404_NOT_FOUND
+                    {"detail": "Vendor has no address. Use POST to create."},
+                    status=status.HTTP_404_NOT_FOUND,
                 )
-            
+
             serializer = AddressManagementSerializer(
                 vendor.address, data=request.data, partial=True
             )
@@ -1317,8 +1520,8 @@ class VendorViewSet(viewsets.ViewSet):
             return response.Response(
                 serializer.errors, status=status.HTTP_400_BAD_REQUEST
             )
-        
-        elif request.method == 'DELETE':
+
+        elif request.method == "DELETE":
             if vendor.address:
                 vendor.address.delete()
                 vendor.address = None
@@ -1326,8 +1529,8 @@ class VendorViewSet(viewsets.ViewSet):
                 return response.Response(status=status.HTTP_204_NO_CONTENT)
             else:
                 return response.Response(
-                    {"detail": "Vendor has no address"}, 
-                    status=status.HTTP_404_NOT_FOUND
+                    {"detail": "Vendor has no address"},
+                    status=status.HTTP_404_NOT_FOUND,
                 )
 
 
@@ -1359,7 +1562,9 @@ class QueryParamObtainAuthToken(ObtainAuthToken):
                 "The auth token",
                 schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
-                    properties={"token": openapi.Schema(type=openapi.TYPE_STRING)},
+                    properties={
+                        "token": openapi.Schema(type=openapi.TYPE_STRING)
+                    },
                 ),
             ),
             status.HTTP_400_BAD_REQUEST: "Bad request",
@@ -1374,8 +1579,10 @@ class QueryParamObtainAuthToken(ObtainAuthToken):
 # ViewSets Geografici e Zone di Competenza
 # ============================================================================
 
+
 class CountryViewSet(viewsets.ViewSet):
     """ViewSet per la gestione delle Nazioni"""
+
     permission_classes = [permissions.IsAuthenticated]
     authentication_classes = [QueryParameterTokenAuthentication]
 
@@ -1383,13 +1590,20 @@ class CountryViewSet(viewsets.ViewSet):
         operation_id="countries--list",
         operation_description="Lista delle nazioni",
         manual_parameters=[
-            openapi.Parameter(name="token", in_=openapi.IN_QUERY, type=openapi.TYPE_STRING, required=True),
+            openapi.Parameter(
+                name="token",
+                in_=openapi.IN_QUERY,
+                type=openapi.TYPE_STRING,
+                required=True,
+            ),
         ],
         responses={status.HTTP_200_OK: CountrySerializer(many=True)},
         tags=["Geography"],
     )
     def list(self, request):
-        countries = Country.objects.filter(is_active=True).order_by('sort_order', 'name')
+        countries = Country.objects.filter(is_active=True).order_by(
+            "sort_order", "name"
+        )
         serializer = CountrySerializer(countries, many=True)
         return response.Response(serializer.data)
 
@@ -1397,20 +1611,28 @@ class CountryViewSet(viewsets.ViewSet):
         operation_id="countries--tree",
         operation_description="Albero gerarchico Nazione → Regioni → Province",
         manual_parameters=[
-            openapi.Parameter(name="token", in_=openapi.IN_QUERY, type=openapi.TYPE_STRING, required=True),
+            openapi.Parameter(
+                name="token",
+                in_=openapi.IN_QUERY,
+                type=openapi.TYPE_STRING,
+                required=True,
+            ),
         ],
         responses={status.HTTP_200_OK: CountryTreeSerializer(many=True)},
         tags=["Geography"],
     )
-    @action(detail=False, methods=['get'], url_path='tree')
+    @action(detail=False, methods=["get"], url_path="tree")
     def tree(self, request):
-        countries = Country.objects.filter(is_active=True).order_by('sort_order', 'name')
+        countries = Country.objects.filter(is_active=True).order_by(
+            "sort_order", "name"
+        )
         serializer = CountryTreeSerializer(countries, many=True)
         return response.Response(serializer.data)
 
 
 class RegionViewSet(viewsets.ViewSet):
     """ViewSet per la gestione delle Regioni"""
+
     permission_classes = [permissions.IsAuthenticated]
     authentication_classes = [QueryParameterTokenAuthentication]
 
@@ -1418,23 +1640,39 @@ class RegionViewSet(viewsets.ViewSet):
         operation_id="regions--list",
         operation_description="Lista delle regioni",
         manual_parameters=[
-            openapi.Parameter(name="token", in_=openapi.IN_QUERY, type=openapi.TYPE_STRING, required=True),
-            openapi.Parameter(name="country", in_=openapi.IN_QUERY, type=openapi.TYPE_STRING, required=False, description="Filtra per ID nazione"),
+            openapi.Parameter(
+                name="token",
+                in_=openapi.IN_QUERY,
+                type=openapi.TYPE_STRING,
+                required=True,
+            ),
+            openapi.Parameter(
+                name="country",
+                in_=openapi.IN_QUERY,
+                type=openapi.TYPE_STRING,
+                required=False,
+                description="Filtra per ID nazione",
+            ),
         ],
         responses={status.HTTP_200_OK: RegionSerializer(many=True)},
         tags=["Geography"],
     )
     def list(self, request):
-        regions = Region.objects.filter(is_active=True).select_related('country')
-        country_id = request.query_params.get('country')
+        regions = Region.objects.filter(is_active=True).select_related(
+            "country"
+        )
+        country_id = request.query_params.get("country")
         if country_id:
             regions = regions.filter(country__id=country_id)
-        serializer = RegionSerializer(regions.order_by('country__name', 'sort_order', 'name'), many=True)
+        serializer = RegionSerializer(
+            regions.order_by("country__name", "sort_order", "name"), many=True
+        )
         return response.Response(serializer.data)
 
 
 class ProvinceViewSet(viewsets.ViewSet):
     """ViewSet per la gestione delle Province"""
+
     permission_classes = [permissions.IsAuthenticated]
     authentication_classes = [QueryParameterTokenAuthentication]
 
@@ -1442,27 +1680,49 @@ class ProvinceViewSet(viewsets.ViewSet):
         operation_id="provinces--list",
         operation_description="Lista delle province",
         manual_parameters=[
-            openapi.Parameter(name="token", in_=openapi.IN_QUERY, type=openapi.TYPE_STRING, required=True),
-            openapi.Parameter(name="region", in_=openapi.IN_QUERY, type=openapi.TYPE_STRING, required=False, description="Filtra per ID regione"),
-            openapi.Parameter(name="country", in_=openapi.IN_QUERY, type=openapi.TYPE_STRING, required=False, description="Filtra per ID nazione"),
+            openapi.Parameter(
+                name="token",
+                in_=openapi.IN_QUERY,
+                type=openapi.TYPE_STRING,
+                required=True,
+            ),
+            openapi.Parameter(
+                name="region",
+                in_=openapi.IN_QUERY,
+                type=openapi.TYPE_STRING,
+                required=False,
+                description="Filtra per ID regione",
+            ),
+            openapi.Parameter(
+                name="country",
+                in_=openapi.IN_QUERY,
+                type=openapi.TYPE_STRING,
+                required=False,
+                description="Filtra per ID nazione",
+            ),
         ],
         responses={status.HTTP_200_OK: ProvinceSerializer(many=True)},
         tags=["Geography"],
     )
     def list(self, request):
-        provinces = Province.objects.filter(is_active=True).select_related('region', 'region__country')
-        region_id = request.query_params.get('region')
+        provinces = Province.objects.filter(is_active=True).select_related(
+            "region", "region__country"
+        )
+        region_id = request.query_params.get("region")
         if region_id:
             provinces = provinces.filter(region__id=region_id)
-        country_id = request.query_params.get('country')
+        country_id = request.query_params.get("country")
         if country_id:
             provinces = provinces.filter(region__country__id=country_id)
-        serializer = ProvinceSerializer(provinces.order_by('region__name', 'sort_order', 'name'), many=True)
+        serializer = ProvinceSerializer(
+            provinces.order_by("region__name", "sort_order", "name"), many=True
+        )
         return response.Response(serializer.data)
 
 
 class CompetenceZoneViewSet(viewsets.ViewSet):
     """ViewSet per la gestione delle Zone di Competenza"""
+
     permission_classes = [permissions.IsAuthenticated]
     authentication_classes = [QueryParameterTokenAuthentication]
 
@@ -1470,25 +1730,44 @@ class CompetenceZoneViewSet(viewsets.ViewSet):
         operation_id="competence-zones--list",
         operation_description="Lista delle zone di competenza",
         manual_parameters=[
-            openapi.Parameter(name="token", in_=openapi.IN_QUERY, type=openapi.TYPE_STRING, required=True),
-            openapi.Parameter(name="is_active", in_=openapi.IN_QUERY, type=openapi.TYPE_BOOLEAN, required=False),
+            openapi.Parameter(
+                name="token",
+                in_=openapi.IN_QUERY,
+                type=openapi.TYPE_STRING,
+                required=True,
+            ),
+            openapi.Parameter(
+                name="is_active",
+                in_=openapi.IN_QUERY,
+                type=openapi.TYPE_BOOLEAN,
+                required=False,
+            ),
         ],
         responses={status.HTTP_200_OK: CompetenceZoneSerializer(many=True)},
         tags=["Competence Zones"],
     )
     def list(self, request):
-        zones = CompetenceZone.objects.prefetch_related('rules', 'rules__country', 'rules__region', 'rules__province').all()
-        is_active = request.query_params.get('is_active')
+        zones = CompetenceZone.objects.prefetch_related(
+            "rules", "rules__country", "rules__region", "rules__province"
+        ).all()
+        is_active = request.query_params.get("is_active")
         if is_active is not None:
-            zones = zones.filter(is_active=is_active.lower() == 'true')
-        serializer = CompetenceZoneSerializer(zones.order_by('name'), many=True)
+            zones = zones.filter(is_active=is_active.lower() == "true")
+        serializer = CompetenceZoneSerializer(
+            zones.order_by("name"), many=True
+        )
         return response.Response(serializer.data)
 
     @swagger_auto_schema(
         operation_id="competence-zones--create",
         operation_description="Crea una nuova zona di competenza con regole",
         manual_parameters=[
-            openapi.Parameter(name="token", in_=openapi.IN_QUERY, type=openapi.TYPE_STRING, required=True),
+            openapi.Parameter(
+                name="token",
+                in_=openapi.IN_QUERY,
+                type=openapi.TYPE_STRING,
+                required=True,
+            ),
         ],
         request_body=CompetenceZoneCreateUpdateSerializer,
         responses={status.HTTP_201_CREATED: CompetenceZoneSerializer},
@@ -1499,22 +1778,33 @@ class CompetenceZoneViewSet(viewsets.ViewSet):
         if serializer.is_valid():
             zone = serializer.save()
             response_serializer = CompetenceZoneSerializer(zone)
-            return response.Response(response_serializer.data, status=status.HTTP_201_CREATED)
-        return response.Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return response.Response(
+                response_serializer.data, status=status.HTTP_201_CREATED
+            )
+        return response.Response(
+            serializer.errors, status=status.HTTP_400_BAD_REQUEST
+        )
 
     @swagger_auto_schema(
         operation_id="competence-zones--retrieve",
         operation_description="Dettaglio zona di competenza",
         manual_parameters=[
-            openapi.Parameter(name="token", in_=openapi.IN_QUERY, type=openapi.TYPE_STRING, required=True),
+            openapi.Parameter(
+                name="token",
+                in_=openapi.IN_QUERY,
+                type=openapi.TYPE_STRING,
+                required=True,
+            ),
         ],
         responses={status.HTTP_200_OK: CompetenceZoneSerializer},
         tags=["Competence Zones"],
     )
     def retrieve(self, request, zone_id=None):
         zone = get_object_or_404(
-            CompetenceZone.objects.prefetch_related('rules', 'rules__country', 'rules__region', 'rules__province'),
-            id=zone_id
+            CompetenceZone.objects.prefetch_related(
+                "rules", "rules__country", "rules__region", "rules__province"
+            ),
+            id=zone_id,
         )
         serializer = CompetenceZoneSerializer(zone)
         return response.Response(serializer.data)
@@ -1523,7 +1813,12 @@ class CompetenceZoneViewSet(viewsets.ViewSet):
         operation_id="competence-zones--update",
         operation_description="Aggiorna una zona di competenza",
         manual_parameters=[
-            openapi.Parameter(name="token", in_=openapi.IN_QUERY, type=openapi.TYPE_STRING, required=True),
+            openapi.Parameter(
+                name="token",
+                in_=openapi.IN_QUERY,
+                type=openapi.TYPE_STRING,
+                required=True,
+            ),
         ],
         request_body=CompetenceZoneCreateUpdateSerializer,
         responses={status.HTTP_200_OK: CompetenceZoneSerializer},
@@ -1531,18 +1826,27 @@ class CompetenceZoneViewSet(viewsets.ViewSet):
     )
     def update(self, request, zone_id=None):
         zone = get_object_or_404(CompetenceZone, id=zone_id)
-        serializer = CompetenceZoneCreateUpdateSerializer(zone, data=request.data, partial=True)
+        serializer = CompetenceZoneCreateUpdateSerializer(
+            zone, data=request.data, partial=True
+        )
         if serializer.is_valid():
             zone = serializer.save()
             response_serializer = CompetenceZoneSerializer(zone)
             return response.Response(response_serializer.data)
-        return response.Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return response.Response(
+            serializer.errors, status=status.HTTP_400_BAD_REQUEST
+        )
 
     @swagger_auto_schema(
         operation_id="competence-zones--destroy",
         operation_description="Elimina una zona di competenza",
         manual_parameters=[
-            openapi.Parameter(name="token", in_=openapi.IN_QUERY, type=openapi.TYPE_STRING, required=True),
+            openapi.Parameter(
+                name="token",
+                in_=openapi.IN_QUERY,
+                type=openapi.TYPE_STRING,
+                required=True,
+            ),
         ],
         responses={status.HTTP_204_NO_CONTENT: "Zona eliminata"},
         tags=["Competence Zones"],
@@ -1551,8 +1855,13 @@ class CompetenceZoneViewSet(viewsets.ViewSet):
         zone = get_object_or_404(CompetenceZone, id=zone_id)
         if zone.vendors.exists():
             return response.Response(
-                {"detail": "Impossibile eliminare una zona assegnata a dei fornitori."},
-                status=status.HTTP_400_BAD_REQUEST
+                {
+                    "detail": (
+                        "Impossibile eliminare una zona assegnata "
+                        "a dei fornitori."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
             )
         zone.delete()
         return response.Response(status=status.HTTP_204_NO_CONTENT)

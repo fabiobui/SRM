@@ -4,10 +4,9 @@ import uuid
 
 import factory
 from faker import Faker
+
 from vendor_management_system.purchase_orders.models import PurchaseOrder
-
 from vendor_management_system.vendors.tests.factories import VendorFactory
-
 
 # Initialize the Faker library
 faker = Faker()
@@ -33,7 +32,13 @@ class PurchaseOrderFactory(factory.django.DjangoModelFactory):
     quantity = factory.LazyFunction(lambda: faker.random_int(min=1, max=100))
     status = factory.LazyFunction(
         lambda: faker.random_element(
-            elements=["PENDING", "ISSUED", "ACKNOWLEDGED", "DELIVERED", "CANCELLED"]
+            elements=[
+                "PENDING",
+                "ISSUED",
+                "ACKNOWLEDGED",
+                "DELIVERED",
+                "CANCELLED",
+            ]
         )
     )
     quality_rating = factory.LazyFunction(
@@ -84,6 +89,7 @@ class PurchaseOrderFactory(factory.django.DjangoModelFactory):
         if self.status == "DELIVERED":
             return faker.date_time_between_dates(
                 datetime_start=self.acknowledgment_date,
-                datetime_end=self.acknowledgment_date + datetime.timedelta(days=7),
+                datetime_end=self.acknowledgment_date
+                + datetime.timedelta(days=7),
             )
         return None

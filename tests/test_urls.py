@@ -24,7 +24,7 @@ URL_NAMES = [
     "document-upload",
     "schema-swagger-ui",
     "admin:vendors_vendor_add",
-    "admin:documents_documenttype_add",
+    "admin:documents_documentcatalog_add",
     "admin:logout",
 ]
 

@@ -5,21 +5,38 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('users', '0001_initial'),
-        ('vendors', '0001_initial'),
+        ("users", "0001_initial"),
+        ("vendors", "0001_initial"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='user',
-            name='role',
-            field=models.CharField(choices=[('admin', 'Amministratore'), ('bo_user', 'Utente Back Office'), ('vendor', 'Fornitore')], default='bo_user', help_text="Ruolo dell'utente nel sistema", max_length=20, verbose_name='Ruolo'),
+            model_name="user",
+            name="role",
+            field=models.CharField(
+                choices=[
+                    ("admin", "Amministratore"),
+                    ("bo_user", "Utente Back Office"),
+                    ("vendor", "Fornitore"),
+                ],
+                default="bo_user",
+                help_text="Ruolo dell'utente nel sistema",
+                max_length=20,
+                verbose_name="Ruolo",
+            ),
         ),
         migrations.AddField(
-            model_name='user',
-            name='vendor',
-            field=models.ForeignKey(blank=True, help_text='Fornitore associato a questo utente', null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='users', to='vendors.vendor', verbose_name='Fornitore'),
+            model_name="user",
+            name="vendor",
+            field=models.ForeignKey(
+                blank=True,
+                help_text="Fornitore associato a questo utente",
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="users",
+                to="vendors.vendor",
+                verbose_name="Fornitore",
+            ),
         ),
     ]

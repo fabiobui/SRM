@@ -113,10 +113,10 @@ const provinceRegionMap = {
 function initDashboard(chartDataJson, vendorsDataJson) {
     allVendors = vendorsDataJson;
     filteredVendors = [...allVendors];
-    
+
     // Salva i dati originali per ricalcolare i grafici
     window.originalChartData = chartDataJson;
-    
+
     // Costruisci la mappa servizio→categoria
     if (chartDataJson.by_services) {
         chartDataJson.by_services.forEach(item => {
@@ -125,7 +125,7 @@ function initDashboard(chartDataJson, vendorsDataJson) {
             }
         });
     }
-    
+
     createVendorTypeChart(chartDataJson.by_vendor_type);
     createIcoConsultantChart(chartDataJson.by_ico_consultant);
     createRegionChart(chartDataJson.by_region);
@@ -135,10 +135,10 @@ function initDashboard(chartDataJson, vendorsDataJson) {
     createCertificationsChart(chartDataJson.by_certifications || []);
     createServiceCategoriesChart(chartDataJson.by_service_categories || []);
     createServicesChart(chartDataJson.by_services || []);
-    
+
     renderVendorsTable();
     updateStatistics();
-    
+
     document.getElementById('search-input').addEventListener('input', filterVendors);
 }
 
@@ -161,13 +161,13 @@ function updateStatistics() {
     const totalVendors = allVendors.length;
     const activeVendors = allVendors.filter(v => v.is_active === true).length;
     const selectedVendors = filteredVendors.length;
-    
+
     // Filtra i fornitori positivi TRA QUELLI SELEZIONATI
     const positiveVendors = filteredVendors.filter(v => {
         const evaluation = v.vendor_final_evaluation;
         return evaluation && (evaluation === 'Positivo' || evaluation === 'Molto Positivo');
     }).length;
-    
+
     document.getElementById('total-vendors').textContent = totalVendors;
     document.getElementById('active-vendors').textContent = activeVendors;
     document.getElementById('selected-vendors').textContent = selectedVendors;
@@ -177,34 +177,34 @@ function updateStatistics() {
 // Funzione per ricalcolare i dati del grafico Tipo Fornitore
 function updateVendorTypeChart() {
     const vendorTypeCounts = {};
-    
+
     // Filtra i vendor escludendo il filtro vendor_types per calcolare il grafico
     const vendorsWithoutTypeFilter = allVendors.filter(vendor => {
         // Applica tutti i filtri ECCETTO vendor_types
         if (activeFilters.ico_consultant !== null) {
             if (vendor.is_ico_consultant !== activeFilters.ico_consultant) return false;
         }
-        
+
         if (activeFilters.regions.length > 0) {
             const vendorRegion = vendor.address?.region || 'Non Specificato';
             if (!activeFilters.regions.includes(vendorRegion)) return false;
         }
-        
+
         if (activeFilters.provinces.length > 0) {
             const vendorProvince = vendor.address?.state_province || 'Non Specificato';
             if (!activeFilters.provinces.includes(vendorProvince)) return false;
         }
-        
+
         if (activeFilters.competencies.length > 0) {
             const hasCompetency = activeFilters.competencies.some(comp => vendor.competences?.includes(comp));
             if (!hasCompetency) return false;
         }
-        
+
         if (activeFilters.certifications.length > 0) {
             const hasCertification = activeFilters.certifications.some(cert => vendor.certifications?.includes(cert));
             if (!hasCertification) return false;
         }
-        
+
         // Apply advanced filters
         if (advancedFilters.length > 0) {
             for (const filter of advancedFilters) {
@@ -213,7 +213,7 @@ function updateVendorTypeChart() {
                 }
             }
         }
-        
+
         const searchTerm = document.getElementById('search-input').value.toLowerCase();
         if (searchTerm) {
             const searchableText = [
@@ -226,31 +226,31 @@ function updateVendorTypeChart() {
             ].join(' ').toLowerCase();
             if (!searchableText.includes(searchTerm)) return false;
         }
-        
+
         return true;
     });
-    
+
     vendorsWithoutTypeFilter.forEach(v => {
         const type = v.vendor_type || 'Non Specificato';
         vendorTypeCounts[type] = (vendorTypeCounts[type] || 0) + 1;
     });
-    
+
     const vendorTypeMap = {
         'SUPPLIER': 'Fornitore',
         'CONTRACTOR': 'Appaltatore',
         'CONSULTANT': 'Consulente',
         'SERVICE_PROVIDER': 'Fornitore di Servizi'
     };
-    
+
     const labels = Object.keys(vendorTypeCounts).map(key => vendorTypeMap[key] || key);
     const data = Object.values(vendorTypeCounts);
-    
+
     // Evidenzia le selezioni attive
     const backgroundColors = labels.map((label, index) => {
         const originalKey = Object.keys(vendorTypeCounts)[index];
         return activeFilters.vendor_types.includes(originalKey) ? '#20c997' : ['#007bff', '#28a745', '#ffc107', '#dc3545', '#17a2b8', '#6f42c1'][index % 6];
     });
-    
+
     charts.vendorType.data.labels = labels;
     charts.vendorType.data.datasets[0].data = data;
     charts.vendorType.data.datasets[0].backgroundColor = backgroundColors;
@@ -265,27 +265,27 @@ function updateIcoConsultantChart() {
         if (activeFilters.vendor_types.length > 0) {
             if (!activeFilters.vendor_types.includes(vendor.vendor_type)) return false;
         }
-        
+
         if (activeFilters.regions.length > 0) {
             const vendorRegion = vendor.address?.region || 'Non Specificato';
             if (!activeFilters.regions.includes(vendorRegion)) return false;
         }
-        
+
         if (activeFilters.provinces.length > 0) {
             const vendorProvince = vendor.address?.state_province || 'Non Specificato';
             if (!activeFilters.provinces.includes(vendorProvince)) return false;
         }
-        
+
         if (activeFilters.competencies.length > 0) {
             const hasCompetency = activeFilters.competencies.some(comp => vendor.competences?.includes(comp));
             if (!hasCompetency) return false;
         }
-        
+
         if (activeFilters.certifications.length > 0) {
             const hasCertification = activeFilters.certifications.some(cert => vendor.certifications?.includes(cert));
             if (!hasCertification) return false;
         }
-        
+
         // Apply advanced filters
         if (advancedFilters.length > 0) {
             for (const filter of advancedFilters) {
@@ -294,7 +294,7 @@ function updateIcoConsultantChart() {
                 }
             }
         }
-        
+
         const searchTerm = document.getElementById('search-input').value.toLowerCase();
         if (searchTerm) {
             const searchableText = [
@@ -307,49 +307,49 @@ function updateIcoConsultantChart() {
             ].join(' ').toLowerCase();
             if (!searchableText.includes(searchTerm)) return false;
         }
-        
+
         return true;
     });
-    
+
     const icoCount = vendorsWithoutIcoFilter.filter(v => v.is_ico_consultant === true).length;
     const nonIcoCount = vendorsWithoutIcoFilter.filter(v => v.is_ico_consultant === false).length;
-    
+
     charts.icoConsultant.data.datasets[0].data = [icoCount, nonIcoCount];
-    
+
     // Evidenzia la selezione attiva
     charts.icoConsultant.data.datasets[0].backgroundColor = [
         activeFilters.ico_consultant === true ? '#20c997' : '#28a745',
         activeFilters.ico_consultant === false ? '#20c997' : '#6c757d'
     ];
-    
+
     charts.icoConsultant.update();
 }
 
 // Funzione per ricalcolare i dati del grafico Regioni
 function updateRegionChart() {
     const regionCounts = {};
-    
+
     // Filtra i vendor escludendo il filtro regioni per calcolare il grafico
     const vendorsWithoutRegionFilter = allVendors.filter(vendor => {
         // Applica tutti i filtri ECCETTO regioni e province
         if (activeFilters.vendor_types.length > 0) {
             if (!activeFilters.vendor_types.includes(vendor.vendor_type)) return false;
         }
-        
+
         if (activeFilters.ico_consultant !== null) {
             if (vendor.is_ico_consultant !== activeFilters.ico_consultant) return false;
         }
-        
+
         if (activeFilters.competencies.length > 0) {
             const hasCompetency = activeFilters.competencies.some(comp => vendor.competences?.includes(comp));
             if (!hasCompetency) return false;
         }
-        
+
         if (activeFilters.certifications.length > 0) {
             const hasCertification = activeFilters.certifications.some(cert => vendor.certifications?.includes(cert));
             if (!hasCertification) return false;
         }
-        
+
         // Apply advanced filters
         if (advancedFilters.length > 0) {
             for (const filter of advancedFilters) {
@@ -358,7 +358,7 @@ function updateRegionChart() {
                 }
             }
         }
-        
+
         const searchTerm = document.getElementById('search-input').value.toLowerCase();
         if (searchTerm) {
             const searchableText = [
@@ -371,23 +371,23 @@ function updateRegionChart() {
             ].join(' ').toLowerCase();
             if (!searchableText.includes(searchTerm)) return false;
         }
-        
+
         return true;
     });
-    
+
     vendorsWithoutRegionFilter.forEach(v => {
         const region = v.address?.region || 'Non Specificato';
         regionCounts[region] = (regionCounts[region] || 0) + 1;
     });
-    
+
     const labels = Object.keys(regionCounts);
     const data = Object.values(regionCounts);
-    
+
     // Evidenzia le selezioni attive
-    const backgroundColors = labels.map(label => 
+    const backgroundColors = labels.map(label =>
         activeFilters.regions.includes(label) ? '#20c997' : '#17a2b8'
     );
-    
+
     charts.region.data.labels = labels;
     charts.region.data.datasets[0].data = data;
     charts.region.data.datasets[0].backgroundColor = backgroundColors;
@@ -397,33 +397,33 @@ function updateRegionChart() {
 // Funzione per ricalcolare i dati del grafico Competenze
 function updateCompetenciesChart() {
     const competencyCounts = {};
-    
+
     // Filtra i vendor escludendo il filtro competenze per calcolare il grafico
     const vendorsWithoutCompetencyFilter = allVendors.filter(vendor => {
         // Applica tutti i filtri ECCETTO competenze
         if (activeFilters.vendor_types.length > 0) {
             if (!activeFilters.vendor_types.includes(vendor.vendor_type)) return false;
         }
-        
+
         if (activeFilters.ico_consultant !== null) {
             if (vendor.is_ico_consultant !== activeFilters.ico_consultant) return false;
         }
-        
+
         if (activeFilters.regions.length > 0) {
             const vendorRegion = vendor.address?.region || 'Non Specificato';
             if (!activeFilters.regions.includes(vendorRegion)) return false;
         }
-        
+
         if (activeFilters.provinces.length > 0) {
             const vendorProvince = vendor.address?.state_province || 'Non Specificato';
             if (!activeFilters.provinces.includes(vendorProvince)) return false;
         }
-        
+
         if (activeFilters.certifications.length > 0) {
             const hasCertification = activeFilters.certifications.some(cert => vendor.certifications?.includes(cert));
             if (!hasCertification) return false;
         }
-        
+
         // Apply advanced filters
         if (advancedFilters.length > 0) {
             for (const filter of advancedFilters) {
@@ -432,7 +432,7 @@ function updateCompetenciesChart() {
                 }
             }
         }
-        
+
         const searchTerm = document.getElementById('search-input').value.toLowerCase();
         if (searchTerm) {
             const searchableText = [
@@ -445,10 +445,10 @@ function updateCompetenciesChart() {
             ].join(' ').toLowerCase();
             if (!searchableText.includes(searchTerm)) return false;
         }
-        
+
         return true;
     });
-    
+
     vendorsWithoutCompetencyFilter.forEach(v => {
         if (v.competences && Array.isArray(v.competences)) {
             v.competences.forEach(comp => {
@@ -456,19 +456,19 @@ function updateCompetenciesChart() {
             });
         }
     });
-    
+
     // Ordina per conteggio e mostra TUTTE le competenze
     const sortedCompetencies = Object.entries(competencyCounts)
         .sort((a, b) => b[1] - a[1]);
-    
+
     const labels = sortedCompetencies.map(([comp]) => comp);
     const data = sortedCompetencies.map(([, count]) => count);
-    
+
     // Evidenzia le selezioni attive
-    const backgroundColors = labels.map(label => 
+    const backgroundColors = labels.map(label =>
         activeFilters.competencies.includes(label) ? '#20c997' : '#28a745'
     );
-    
+
     charts.competencies.data.labels = labels;
     charts.competencies.data.datasets[0].data = data;
     charts.competencies.data.datasets[0].backgroundColor = backgroundColors;
@@ -478,36 +478,36 @@ function updateCompetenciesChart() {
 // Funzione per ricalcolare i dati del grafico Certificazioni
 function updateCertificationsChart() {
     const certificationCounts = {};
-    
+
     // Filtra i vendor escludendo il filtro certificazioni per calcolare il grafico
     const vendorsWithoutCertificationFilter = allVendors.filter(vendor => {
         // Applica tutti i filtri ECCETTO certificazioni
         if (activeFilters.vendor_types.length > 0) {
             if (!activeFilters.vendor_types.includes(vendor.vendor_type)) return false;
         }
-        
+
         if (activeFilters.ico_consultant !== null) {
             if (vendor.is_ico_consultant !== activeFilters.ico_consultant) return false;
         }
-        
+
         if (activeFilters.regions.length > 0) {
             const vendorRegion = vendor.address?.region || 'Non Specificato';
             if (!activeFilters.regions.includes(vendorRegion)) return false;
         }
-        
+
         if (activeFilters.provinces.length > 0) {
             const vendorProvince = vendor.address?.state_province || 'Non Specificato';
             if (!activeFilters.provinces.includes(vendorProvince)) return false;
         }
-        
+
         if (activeFilters.competencies.length > 0) {
             if (!vendor.competences || !Array.isArray(vendor.competences)) return false;
-            const hasMatchingCompetency = vendor.competences.some(comp => 
+            const hasMatchingCompetency = vendor.competences.some(comp =>
                 activeFilters.competencies.includes(comp)
             );
             if (!hasMatchingCompetency) return false;
         }
-        
+
         // Apply advanced filters
         if (advancedFilters.length > 0) {
             for (const filter of advancedFilters) {
@@ -516,7 +516,7 @@ function updateCertificationsChart() {
                 }
             }
         }
-        
+
         const searchTerm = document.getElementById('search-input').value.toLowerCase();
         if (searchTerm) {
             const searchableText = [
@@ -530,10 +530,10 @@ function updateCertificationsChart() {
             ].join(' ').toLowerCase();
             if (!searchableText.includes(searchTerm)) return false;
         }
-        
+
         return true;
     });
-    
+
     vendorsWithoutCertificationFilter.forEach(v => {
         if (v.certifications && Array.isArray(v.certifications)) {
             v.certifications.forEach(cert => {
@@ -541,19 +541,19 @@ function updateCertificationsChart() {
             });
         }
     });
-    
+
     // Ordina per conteggio e mostra TUTTE le certificazioni
     const sortedCertifications = Object.entries(certificationCounts)
         .sort((a, b) => b[1] - a[1]);
-    
+
     const labels = sortedCertifications.map(([cert]) => cert);
     const data = sortedCertifications.map(([, count]) => count);
-    
+
     // Evidenzia le selezioni attive
-    const backgroundColors = labels.map(label => 
+    const backgroundColors = labels.map(label =>
         activeFilters.certifications.includes(label) ? '#20c997' : '#ffc107'
     );
-    
+
     charts.certifications.data.labels = labels;
     charts.certifications.data.datasets[0].data = data;
     charts.certifications.data.datasets[0].backgroundColor = backgroundColors;
@@ -563,53 +563,53 @@ function updateCertificationsChart() {
 // Funzione per ricalcolare i dati del grafico Qualifiche
 function updateQualificheChart() {
     const qualificheCounts = {};
-    
+
     // Filtra i vendor escludendo il filtro qualifiche per calcolare il grafico
     const vendorsWithoutQualificheFilter = allVendors.filter(vendor => {
         // Applica tutti i filtri ECCETTO qualifiche
         if (activeFilters.vendor_types.length > 0) {
             if (!activeFilters.vendor_types.includes(vendor.vendor_type)) return false;
         }
-        
+
         if (activeFilters.ico_consultant !== null) {
             if (vendor.is_ico_consultant !== activeFilters.ico_consultant) return false;
         }
-        
+
         if (activeFilters.regions.length > 0) {
             const vendorRegion = vendor.address?.region || 'Non Specificato';
             if (!activeFilters.regions.includes(vendorRegion)) return false;
         }
-        
+
         if (activeFilters.provinces.length > 0) {
             const vendorProvince = vendor.address?.state_province || 'Non Specificato';
             if (!activeFilters.provinces.includes(vendorProvince)) return false;
         }
-        
+
         if (activeFilters.competencies.length > 0) {
             const hasCompetency = activeFilters.competencies.some(comp => vendor.competences?.includes(comp));
             if (!hasCompetency) return false;
         }
-        
+
         if (activeFilters.competenze_req.length > 0) {
             const hasCompetenza = activeFilters.competenze_req.some(comp => vendor.competenze_req?.includes(comp));
             if (!hasCompetenza) return false;
         }
-        
+
         if (activeFilters.certifications.length > 0) {
             const hasCertification = activeFilters.certifications.some(cert => vendor.certifications?.includes(cert));
             if (!hasCertification) return false;
         }
-        
+
         if (activeFilters.service_categories.length > 0) {
             const hasCategory = activeFilters.service_categories.some(cat => vendor.service_categories?.includes(cat));
             if (!hasCategory) return false;
         }
-        
+
         if (activeFilters.services.length > 0) {
             const hasService = activeFilters.services.some(serv => vendor.services?.some(s => s.name === serv));
             if (!hasService) return false;
         }
-        
+
         // Apply advanced filters
         if (advancedFilters.length > 0) {
             for (const filter of advancedFilters) {
@@ -618,7 +618,7 @@ function updateQualificheChart() {
                 }
             }
         }
-        
+
         const searchTerm = document.getElementById('search-input').value.toLowerCase();
         if (searchTerm) {
             const searchableText = [
@@ -632,10 +632,10 @@ function updateQualificheChart() {
             ].join(' ').toLowerCase();
             if (!searchableText.includes(searchTerm)) return false;
         }
-        
+
         return true;
     });
-    
+
     vendorsWithoutQualificheFilter.forEach(v => {
         if (v.qualifiche && Array.isArray(v.qualifiche)) {
             v.qualifiche.forEach(qual => {
@@ -643,19 +643,19 @@ function updateQualificheChart() {
             });
         }
     });
-    
+
     // Ordina per conteggio
     const sortedQualifiche = Object.entries(qualificheCounts)
         .sort((a, b) => b[1] - a[1]);
-    
+
     const labels = sortedQualifiche.map(([qual]) => qual);
     const data = sortedQualifiche.map(([, count]) => count);
-    
+
     // Evidenzia le selezioni attive
-    const backgroundColors = labels.map(label => 
+    const backgroundColors = labels.map(label =>
         activeFilters.qualifiche.includes(label) ? '#20c997' : '#17a2b8'
     );
-    
+
     charts.qualifiche.data.labels = labels;
     charts.qualifiche.data.datasets[0].data = data;
     charts.qualifiche.data.datasets[0].backgroundColor = backgroundColors;
@@ -665,53 +665,53 @@ function updateQualificheChart() {
 // Funzione per ricalcolare i dati del grafico Competenze
 function updateCompetenzeChart() {
     const competenzeCounts = {};
-    
+
     // Filtra i vendor escludendo il filtro competenze per calcolare il grafico
     const vendorsWithoutCompetenzeFilter = allVendors.filter(vendor => {
         // Applica tutti i filtri ECCETTO competenze_req
         if (activeFilters.vendor_types.length > 0) {
             if (!activeFilters.vendor_types.includes(vendor.vendor_type)) return false;
         }
-        
+
         if (activeFilters.ico_consultant !== null) {
             if (vendor.is_ico_consultant !== activeFilters.ico_consultant) return false;
         }
-        
+
         if (activeFilters.regions.length > 0) {
             const vendorRegion = vendor.address?.region || 'Non Specificato';
             if (!activeFilters.regions.includes(vendorRegion)) return false;
         }
-        
+
         if (activeFilters.provinces.length > 0) {
             const vendorProvince = vendor.address?.state_province || 'Non Specificato';
             if (!activeFilters.provinces.includes(vendorProvince)) return false;
         }
-        
+
         if (activeFilters.competencies.length > 0) {
             const hasCompetency = activeFilters.competencies.some(comp => vendor.competences?.includes(comp));
             if (!hasCompetency) return false;
         }
-        
+
         if (activeFilters.qualifiche.length > 0) {
             const hasQualifica = activeFilters.qualifiche.some(qual => vendor.qualifiche?.includes(qual));
             if (!hasQualifica) return false;
         }
-        
+
         if (activeFilters.certifications.length > 0) {
             const hasCertification = activeFilters.certifications.some(cert => vendor.certifications?.includes(cert));
             if (!hasCertification) return false;
         }
-        
+
         if (activeFilters.service_categories.length > 0) {
             const hasCategory = activeFilters.service_categories.some(cat => vendor.service_categories?.includes(cat));
             if (!hasCategory) return false;
         }
-        
+
         if (activeFilters.services.length > 0) {
             const hasService = activeFilters.services.some(serv => vendor.services?.some(s => s.name === serv));
             if (!hasService) return false;
         }
-        
+
         // Apply advanced filters
         if (advancedFilters.length > 0) {
             for (const filter of advancedFilters) {
@@ -720,7 +720,7 @@ function updateCompetenzeChart() {
                 }
             }
         }
-        
+
         const searchTerm = document.getElementById('search-input').value.toLowerCase();
         if (searchTerm) {
             const searchableText = [
@@ -734,10 +734,10 @@ function updateCompetenzeChart() {
             ].join(' ').toLowerCase();
             if (!searchableText.includes(searchTerm)) return false;
         }
-        
+
         return true;
     });
-    
+
     vendorsWithoutCompetenzeFilter.forEach(v => {
         if (v.competenze_req && Array.isArray(v.competenze_req)) {
             v.competenze_req.forEach(comp => {
@@ -745,19 +745,19 @@ function updateCompetenzeChart() {
             });
         }
     });
-    
+
     // Ordina per conteggio
     const sortedCompetenze = Object.entries(competenzeCounts)
         .sort((a, b) => b[1] - a[1]);
-    
+
     const labels = sortedCompetenze.map(([comp]) => comp);
     const data = sortedCompetenze.map(([, count]) => count);
-    
+
     // Evidenzia le selezioni attive
-    const backgroundColors = labels.map(label => 
+    const backgroundColors = labels.map(label =>
         activeFilters.competenze_req.includes(label) ? '#20c997' : '#6610f2'
     );
-    
+
     charts.competenze_req.data.labels = labels;
     charts.competenze_req.data.datasets[0].data = data;
     charts.competenze_req.data.datasets[0].backgroundColor = backgroundColors;
@@ -767,53 +767,53 @@ function updateCompetenzeChart() {
 // Funzione per ricalcolare i dati del grafico Categorie Servizi
 function updateServiceCategoriesChart() {
     const categoryCounts = {};
-    
+
     // Filtra i vendor escludendo il filtro service_categories per calcolare il grafico
     const vendorsWithoutCategoryFilter = allVendors.filter(vendor => {
         // Applica tutti i filtri ECCETTO service_categories
         if (activeFilters.vendor_types.length > 0) {
             if (!activeFilters.vendor_types.includes(vendor.vendor_type)) return false;
         }
-        
+
         if (activeFilters.ico_consultant !== null) {
             if (vendor.is_ico_consultant !== activeFilters.ico_consultant) return false;
         }
-        
+
         if (activeFilters.regions.length > 0) {
             const vendorRegion = vendor.address?.region || 'Non Specificato';
             if (!activeFilters.regions.includes(vendorRegion)) return false;
         }
-        
+
         if (activeFilters.provinces.length > 0) {
             const vendorProvince = vendor.address?.state_province || 'Non Specificato';
             if (!activeFilters.provinces.includes(vendorProvince)) return false;
         }
-        
+
         if (activeFilters.competencies.length > 0) {
             const hasCompetency = activeFilters.competencies.some(comp => vendor.competences?.includes(comp));
             if (!hasCompetency) return false;
         }
-        
+
         if (activeFilters.qualifiche.length > 0) {
             const hasQualifica = activeFilters.qualifiche.some(qual => vendor.qualifiche?.includes(qual));
             if (!hasQualifica) return false;
         }
-        
+
         if (activeFilters.competenze_req.length > 0) {
             const hasCompetenza = activeFilters.competenze_req.some(comp => vendor.competenze_req?.includes(comp));
             if (!hasCompetenza) return false;
         }
-        
+
         if (activeFilters.certifications.length > 0) {
             const hasCertification = activeFilters.certifications.some(cert => vendor.certifications?.includes(cert));
             if (!hasCertification) return false;
         }
-        
+
         if (activeFilters.services.length > 0) {
             const hasService = activeFilters.services.some(serv => vendor.services?.some(s => s.name === serv));
             if (!hasService) return false;
         }
-        
+
         // Apply advanced filters
         if (advancedFilters.length > 0) {
             for (const filter of advancedFilters) {
@@ -822,7 +822,7 @@ function updateServiceCategoriesChart() {
                 }
             }
         }
-        
+
         const searchTerm = document.getElementById('search-input').value.toLowerCase();
         if (searchTerm) {
             const searchableText = [
@@ -835,10 +835,10 @@ function updateServiceCategoriesChart() {
             ].join(' ').toLowerCase();
             if (!searchableText.includes(searchTerm)) return false;
         }
-        
+
         return true;
     });
-    
+
     vendorsWithoutCategoryFilter.forEach(v => {
         if (v.service_categories && Array.isArray(v.service_categories)) {
             v.service_categories.forEach(cat => {
@@ -846,19 +846,19 @@ function updateServiceCategoriesChart() {
             });
         }
     });
-    
+
     // Ordina per conteggio
     const sortedCategories = Object.entries(categoryCounts)
         .sort((a, b) => b[1] - a[1]);
-    
+
     const labels = sortedCategories.map(([cat]) => cat);
     const data = sortedCategories.map(([, count]) => count);
-    
+
     // Evidenzia le selezioni attive
-    const backgroundColors = labels.map(label => 
+    const backgroundColors = labels.map(label =>
         activeFilters.service_categories.includes(label) ? '#20c997' : '#fd7e14'
     );
-    
+
     charts.service_categories.data.labels = labels;
     charts.service_categories.data.datasets[0].data = data;
     charts.service_categories.data.datasets[0].backgroundColor = backgroundColors;
@@ -868,53 +868,53 @@ function updateServiceCategoriesChart() {
 // Funzione per ricalcolare i dati del grafico Servizi Specifici
 function updateServicesChart() {
     const serviceCounts = {};
-    
+
     // Filtra i vendor escludendo il filtro services per calcolare il grafico
     const vendorsWithoutServicesFilter = allVendors.filter(vendor => {
         // Applica tutti i filtri ECCETTO services
         if (activeFilters.vendor_types.length > 0) {
             if (!activeFilters.vendor_types.includes(vendor.vendor_type)) return false;
         }
-        
+
         if (activeFilters.ico_consultant !== null) {
             if (vendor.is_ico_consultant !== activeFilters.ico_consultant) return false;
         }
-        
+
         if (activeFilters.regions.length > 0) {
             const vendorRegion = vendor.address?.region || 'Non Specificato';
             if (!activeFilters.regions.includes(vendorRegion)) return false;
         }
-        
+
         if (activeFilters.provinces.length > 0) {
             const vendorProvince = vendor.address?.state_province || 'Non Specificato';
             if (!activeFilters.provinces.includes(vendorProvince)) return false;
         }
-        
+
         if (activeFilters.competencies.length > 0) {
             const hasCompetency = activeFilters.competencies.some(comp => vendor.competences?.includes(comp));
             if (!hasCompetency) return false;
         }
-        
+
         if (activeFilters.qualifiche.length > 0) {
             const hasQualifica = activeFilters.qualifiche.some(qual => vendor.qualifiche?.includes(qual));
             if (!hasQualifica) return false;
         }
-        
+
         if (activeFilters.competenze_req.length > 0) {
             const hasCompetenza = activeFilters.competenze_req.some(comp => vendor.competenze_req?.includes(comp));
             if (!hasCompetenza) return false;
         }
-        
+
         if (activeFilters.certifications.length > 0) {
             const hasCertification = activeFilters.certifications.some(cert => vendor.certifications?.includes(cert));
             if (!hasCertification) return false;
         }
-        
+
         if (activeFilters.service_categories.length > 0) {
             const hasCategory = activeFilters.service_categories.some(cat => vendor.service_categories?.includes(cat));
             if (!hasCategory) return false;
         }
-        
+
         // Apply advanced filters
         if (advancedFilters.length > 0) {
             for (const filter of advancedFilters) {
@@ -923,7 +923,7 @@ function updateServicesChart() {
                 }
             }
         }
-        
+
         const searchTerm = document.getElementById('search-input').value.toLowerCase();
         if (searchTerm) {
             const searchableText = [
@@ -936,10 +936,10 @@ function updateServicesChart() {
             ].join(' ').toLowerCase();
             if (!searchableText.includes(searchTerm)) return false;
         }
-        
+
         return true;
     });
-    
+
     vendorsWithoutServicesFilter.forEach(v => {
         if (v.services && Array.isArray(v.services)) {
             v.services.forEach(serv => {
@@ -947,7 +947,7 @@ function updateServicesChart() {
             });
         }
     });
-    
+
     // Filtra per categoria selezionata se presente
     if (activeFilters.service_categories.length > 0) {
         // Dobbiamo costruire una mappa servizio->categoria dai dati originali del backend
@@ -959,7 +959,7 @@ function updateServicesChart() {
                 }
             });
         }
-        
+
         // Filtra i servizi che appartengono alle categorie selezionate
         Object.keys(serviceCounts).forEach(service => {
             const category = serviceToCategory[service];
@@ -968,23 +968,23 @@ function updateServicesChart() {
             }
         });
     }
-    
+
     // Ordina per conteggio
     const sortedServices = Object.entries(serviceCounts)
         .sort((a, b) => b[1] - a[1]);
-    
+
     const labels = sortedServices.map(([serv]) => serv);
     const data = sortedServices.map(([, count]) => count);
-    
+
     // Evidenzia le selezioni attive
-    const backgroundColors = labels.map(label => 
+    const backgroundColors = labels.map(label =>
         activeFilters.services.includes(label) ? '#20c997' : '#e83e8c'
     );
-    
+
     charts.services.data.labels = labels;
     charts.services.data.datasets[0].data = data;
     charts.services.data.datasets[0].backgroundColor = backgroundColors;
-    
+
     // Mostra badge se ci sono categorie selezionate
     const badge = document.getElementById('service-category-badge');
     if (activeFilters.service_categories.length > 0) {
@@ -993,7 +993,7 @@ function updateServicesChart() {
     } else {
         badge.style.display = 'none';
     }
-    
+
     charts.services.update();
 }
 
@@ -1006,7 +1006,7 @@ function createVendorTypeChart(data) {
         'CONSULTANT': 'Consulente',
         'SERVICE_PROVIDER': 'Fornitore di Servizi'
     };
-    
+
     charts.vendorType = new Chart(ctx, {
         type: 'doughnut',
         data: {
@@ -1031,7 +1031,7 @@ function createVendorTypeChart(data) {
                     toggleFilter('vendor_types', reverseMap[label] || label);
                 }
             },
-            plugins: { 
+            plugins: {
                 legend: { position: 'bottom' },
                 tooltip: {
                     callbacks: {
@@ -1047,7 +1047,7 @@ function createVendorTypeChart(data) {
 
 function createIcoConsultantChart(data) {
     const ctx = document.getElementById('serviceTypeChart').getContext('2d');
-    
+
     charts.icoConsultant = new Chart(ctx, {
         type: 'pie',
         data: {
@@ -1070,7 +1070,7 @@ function createIcoConsultantChart(data) {
                     toggleIcoFilter(isIco);
                 }
             },
-            plugins: { 
+            plugins: {
                 legend: { position: 'bottom' },
                 tooltip: {
                     callbacks: {
@@ -1105,7 +1105,7 @@ function createRegionChart(data) {
                 }
             },
             scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } },
-            plugins: { 
+            plugins: {
                 legend: { display: false },
                 tooltip: {
                     callbacks: {
@@ -1121,10 +1121,10 @@ function createRegionChart(data) {
 
 function createProvinceChart(data) {
     const ctx = document.getElementById('provinceChart').getContext('2d');
-    
+
     if (!data || data.length === 0) {
         const provinceCount = {};
-        
+
         allVendors.forEach((vendor) => {
             if (vendor.address && vendor.address.state_province) {
                 const province = vendor.address.state_province.trim();
@@ -1133,14 +1133,14 @@ function createProvinceChart(data) {
                 }
             }
         });
-        
+
         data = Object.entries(provinceCount)
             .map(([province, count]) => ({ province, count }))
             .sort((a, b) => b.count - a.count);
     }
-    
+
     allProvinces = data;
-    
+
     if (data.length === 0) {
         charts.province = new Chart(ctx, {
             type: 'bar',
@@ -1158,10 +1158,10 @@ function createProvinceChart(data) {
         });
         return;
     }
-    
+
     const labels = data.map(item => item.province);
     const values = data.map(item => item.count);
-    
+
     charts.province = new Chart(ctx, {
         type: 'bar',
         data: {
@@ -1215,16 +1215,16 @@ function createCompetenciesChart(data) {
                     toggleFilter('competencies', charts.competencies.data.labels[activeElements[0].index]);
                 }
             },
-            scales: { 
+            scales: {
                 y: { beginAtZero: true, ticks: { stepSize: 1 } },
-                x: { 
+                x: {
                     ticks: {
                         maxRotation: 90,
                         minRotation: 45
                     }
                 }
             },
-            plugins: { 
+            plugins: {
                 legend: { display: false },
                 tooltip: {
                     callbacks: {
@@ -1254,16 +1254,16 @@ function createCertificationsChart(data) {
                     toggleFilter('certifications', charts.certifications.data.labels[activeElements[0].index]);
                 }
             },
-            scales: { 
+            scales: {
                 y: { beginAtZero: true, ticks: { stepSize: 1 } },
-                x: { 
+                x: {
                     ticks: {
                         maxRotation: 90,
                         minRotation: 45
                     }
                 }
             },
-            plugins: { 
+            plugins: {
                 legend: { display: false },
                 tooltip: {
                     callbacks: {
@@ -1293,16 +1293,16 @@ function createQualificheChart(data) {
                     toggleFilter('qualifiche', charts.qualifiche.data.labels[activeElements[0].index]);
                 }
             },
-            scales: { 
+            scales: {
                 y: { beginAtZero: true, ticks: { stepSize: 1 } },
-                x: { 
+                x: {
                     ticks: {
                         maxRotation: 90,
                         minRotation: 45
                     }
                 }
             },
-            plugins: { 
+            plugins: {
                 legend: { display: false },
                 tooltip: {
                     callbacks: {
@@ -1332,16 +1332,16 @@ function createCompetenzeChart(data) {
                     toggleFilter('competenze_req', charts.competenze_req.data.labels[activeElements[0].index]);
                 }
             },
-            scales: { 
+            scales: {
                 y: { beginAtZero: true, ticks: { stepSize: 1 } },
-                x: { 
+                x: {
                     ticks: {
                         maxRotation: 90,
                         minRotation: 45
                     }
                 }
             },
-            plugins: { 
+            plugins: {
                 legend: { display: false },
                 tooltip: {
                     callbacks: {
@@ -1371,16 +1371,16 @@ function createServiceCategoriesChart(data) {
                     toggleFilter('service_categories', charts.service_categories.data.labels[activeElements[0].index]);
                 }
             },
-            scales: { 
+            scales: {
                 y: { beginAtZero: true, ticks: { stepSize: 1 } },
-                x: { 
+                x: {
                     ticks: {
                         maxRotation: 90,
                         minRotation: 45
                     }
                 }
             },
-            plugins: { 
+            plugins: {
                 legend: { display: false },
                 tooltip: {
                     callbacks: {
@@ -1410,16 +1410,16 @@ function createServicesChart(data) {
                     toggleFilter('services', charts.services.data.labels[activeElements[0].index]);
                 }
             },
-            scales: { 
+            scales: {
                 y: { beginAtZero: true, ticks: { stepSize: 1 } },
-                x: { 
+                x: {
                     ticks: {
                         maxRotation: 90,
                         minRotation: 45
                     }
                 }
             },
-            plugins: { 
+            plugins: {
                 legend: { display: false },
                 tooltip: {
                     callbacks: {
@@ -1441,26 +1441,26 @@ function updateProvinceChart() {
         if (activeFilters.vendor_types.length > 0) {
             if (!activeFilters.vendor_types.includes(vendor.vendor_type)) return false;
         }
-        
+
         if (activeFilters.ico_consultant !== null) {
             if (vendor.is_ico_consultant !== activeFilters.ico_consultant) return false;
         }
-        
+
         if (activeFilters.regions.length > 0) {
             const vendorRegion = vendor.address?.region || 'Non Specificato';
             if (!activeFilters.regions.includes(vendorRegion)) return false;
         }
-        
+
         if (activeFilters.competencies.length > 0) {
             const hasCompetency = activeFilters.competencies.some(comp => vendor.competences?.includes(comp));
             if (!hasCompetency) return false;
         }
-        
+
         if (activeFilters.certifications.length > 0) {
             const hasCertification = activeFilters.certifications.some(cert => vendor.certifications?.includes(cert));
             if (!hasCertification) return false;
         }
-        
+
         // Apply advanced filters
         if (advancedFilters.length > 0) {
             for (const filter of advancedFilters) {
@@ -1469,7 +1469,7 @@ function updateProvinceChart() {
                 }
             }
         }
-        
+
         const searchTerm = document.getElementById('search-input').value.toLowerCase();
         if (searchTerm) {
             const searchableText = [
@@ -1482,12 +1482,12 @@ function updateProvinceChart() {
             ].join(' ').toLowerCase();
             if (!searchableText.includes(searchTerm)) return false;
         }
-        
+
         return true;
     });
-    
+
     const provinceCount = {};
-    
+
     vendorsWithoutProvinceFilter.forEach((vendor) => {
         if (vendor.address && vendor.address.state_province) {
             const province = vendor.address.state_province.trim();
@@ -1496,19 +1496,19 @@ function updateProvinceChart() {
             }
         }
     });
-    
+
     const sortedProvinces = Object.entries(provinceCount)
         .sort((a, b) => b[1] - a[1]);
-    
+
     const labels = sortedProvinces.map(([province]) => province);
     const values = sortedProvinces.map(([, count]) => count);
-    
+
     charts.province.data.labels = labels;
     charts.province.data.datasets[0].data = values;
-    charts.province.data.datasets[0].backgroundColor = labels.map(label => 
+    charts.province.data.datasets[0].backgroundColor = labels.map(label =>
         activeFilters.provinces.includes(label) ? '#20c997' : '#6f42c1'
     );
-    
+
     // Mostra badge se ci sono regioni selezionate
     const badge = document.getElementById('province-region-badge');
     if (activeFilters.regions.length > 0) {
@@ -1517,7 +1517,7 @@ function updateProvinceChart() {
     } else {
         badge.style.display = 'none';
     }
-    
+
     charts.province.update();
 }
 
@@ -1537,7 +1537,7 @@ function toggleFilter(dimension, value) {
     } else {
         activeFilters[dimension].push(value);
     }
-    
+
     updateActiveFiltersDisplay();
     filterVendors();
     updateAllCharts();
@@ -1549,19 +1549,19 @@ function toggleIcoFilter(isIco) {
     } else {
         activeFilters.ico_consultant = isIco;
     }
-    
+
     updateActiveFiltersDisplay();
     filterVendors();
     updateAllCharts();
 }
 
 function clearAllFilters() {
-    activeFilters = { 
-        regions: [], 
-        provinces: [], 
-        vendor_types: [], 
-        ico_consultant: null, 
-        competencies: [], 
+    activeFilters = {
+        regions: [],
+        provinces: [],
+        vendor_types: [],
+        ico_consultant: null,
+        competencies: [],
         certifications: [],
         qualifiche: [],
         competenze_req: [],
@@ -1571,7 +1571,7 @@ function clearAllFilters() {
     advancedFilters = [];
     document.getElementById('search-input').value = '';
     document.getElementById('applied-filters-count').style.display = 'none';
-    
+
     updateActiveFiltersDisplay();
     filterVendors();
     updateAllCharts();
@@ -1584,18 +1584,18 @@ function removeFilter(dimension, value) {
     } else {
         const index = activeFilters[dimension].indexOf(value);
         if (index > -1) activeFilters[dimension].splice(index, 1);
-        
+
         if (dimension === 'regions') {
             const provincesToRemove = Object.keys(provinceRegionMap).filter(p => provinceRegionMap[p] === value);
             activeFilters.provinces = activeFilters.provinces.filter(p => !provincesToRemove.includes(p));
         }
-        
+
         if (dimension === 'service_categories') {
             const servicesToRemove = Object.keys(serviceCategoryMap).filter(s => serviceCategoryMap[s] === value);
             activeFilters.services = activeFilters.services.filter(s => !servicesToRemove.includes(s));
         }
     }
-    
+
     updateActiveFiltersDisplay();
     filterVendors();
     updateAllCharts();
@@ -1604,13 +1604,13 @@ function removeFilter(dimension, value) {
 function updateActiveFiltersDisplay() {
     const container = document.getElementById('active-filters-container');
     const row = document.getElementById('active-filters-row');
-    const hasFilters = Object.values(activeFilters).some(val => 
+    const hasFilters = Object.values(activeFilters).some(val =>
         (Array.isArray(val) && val.length > 0) || (val !== null && val !== undefined && !Array.isArray(val))
     );
-    
+
     row.style.display = hasFilters ? 'block' : 'none';
     if (!hasFilters) return;
-    
+
     container.innerHTML = '';
     const filterLabels = {
         'vendor_types': 'Tipo Fornitore',
@@ -1623,7 +1623,7 @@ function updateActiveFiltersDisplay() {
         'service_categories': 'Categoria Servizio',
         'services': 'Servizio'
     };
-    
+
     Object.entries(activeFilters).forEach(([key, values]) => {
         if (key === 'ico_consultant' && values !== null) {
             const chip = document.createElement('span');
@@ -1644,57 +1644,57 @@ function updateActiveFiltersDisplay() {
 
 function filterVendors() {
     const searchTerm = document.getElementById('search-input').value.toLowerCase();
-    
+
     filteredVendors = allVendors.filter(vendor => {
         // Apply chart-based filters
         if (activeFilters.vendor_types.length > 0) {
             if (!activeFilters.vendor_types.includes(vendor.vendor_type)) return false;
         }
-        
+
         if (activeFilters.ico_consultant !== null) {
             if (vendor.is_ico_consultant !== activeFilters.ico_consultant) return false;
         }
-        
+
         if (activeFilters.regions.length > 0) {
             const vendorRegion = vendor.address?.region || 'Non Specificato';
             if (!activeFilters.regions.includes(vendorRegion)) return false;
         }
-        
+
         if (activeFilters.provinces.length > 0) {
             const vendorProvince = vendor.address?.state_province || 'Non Specificato';
             if (!activeFilters.provinces.includes(vendorProvince)) return false;
         }
-        
+
         if (activeFilters.competencies.length > 0) {
             const hasCompetency = activeFilters.competencies.some(comp => vendor.competences?.includes(comp));
             if (!hasCompetency) return false;
         }
-        
+
         if (activeFilters.qualifiche.length > 0) {
             const hasQualifica = activeFilters.qualifiche.some(qual => vendor.qualifiche?.includes(qual));
             if (!hasQualifica) return false;
         }
-        
+
         if (activeFilters.competenze_req.length > 0) {
             const hasCompetenza = activeFilters.competenze_req.some(comp => vendor.competenze_req?.includes(comp));
             if (!hasCompetenza) return false;
         }
-        
+
         if (activeFilters.certifications.length > 0) {
             const hasCertification = activeFilters.certifications.some(cert => vendor.certifications?.includes(cert));
             if (!hasCertification) return false;
         }
-        
+
         if (activeFilters.service_categories.length > 0) {
             const hasCategory = activeFilters.service_categories.some(cat => vendor.service_categories?.includes(cat));
             if (!hasCategory) return false;
         }
-        
+
         if (activeFilters.services.length > 0) {
             const hasService = activeFilters.services.some(serv => vendor.services?.some(s => s.name === serv));
             if (!hasService) return false;
         }
-        
+
         // Apply advanced filters
         if (advancedFilters.length > 0) {
             for (const filter of advancedFilters) {
@@ -1703,7 +1703,7 @@ function filterVendors() {
                 }
             }
         }
-        
+
         // Apply search term
         if (searchTerm) {
             const searchableText = [
@@ -1721,18 +1721,18 @@ function filterVendors() {
             ].join(' ').toLowerCase();
             if (!searchableText.includes(searchTerm)) return false;
         }
-        
+
         return true;
     });
-    
+
     renderVendorsTable();
     updateStatistics();
-    
+
     // Aggiorna i grafici solo se c'è un termine di ricerca
     if (searchTerm) {
         updateAllCharts();
     }
-    
+
     // Update advanced filters display
     updateAdvancedFiltersDisplay();
 }
@@ -1741,34 +1741,34 @@ function renderVendorsTable() {
     const tbody = document.getElementById('vendors-table-body');
     document.getElementById('filtered-count').textContent = filteredVendors.length;
     document.getElementById('showing-count').textContent = filteredVendors.length;
-    
+
     if (filteredVendors.length === 0) {
         tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4"><div class="text-muted"><i class="fas fa-search fa-2x mb-2"></i><p>Nessun fornitore trovato</p></div></td></tr>';
         return;
     }
-    
+
     const vendorTypeMap = {
         'SUPPLIER': 'Fornitore',
         'CONTRACTOR': 'Appaltatore',
         'CONSULTANT': 'Consulente',
         'SERVICE_PROVIDER': 'Fornitore di Servizi'
     };
-    
+
     tbody.innerHTML = filteredVendors.map(vendor => {
         const region = vendor.address?.region || '<span class="text-muted">N/A</span>';
         const province = vendor.address?.state_province || '<span class="text-muted">N/A</span>';
         const phone = vendor.phone || '<span class="text-muted">N/A</span>';
         const evaluation = vendor.vendor_final_evaluation || 'DA VALUTARE';
-        
+
         // Map evaluation to badge class
         let evaluationBadge = 'bg-secondary';
         if (evaluation === 'MOLTO POSITIVO') evaluationBadge = 'bg-success';
         else if (evaluation === 'POSITIVO') evaluationBadge = 'bg-info';
         else if (evaluation === 'NEGATIVO') evaluationBadge = 'bg-danger';
         else if (evaluation === 'DA VALUTARE') evaluationBadge = 'bg-warning';
-        
+
         const vendorTypeLabel = vendor.vendor_type || '<span class="text-muted">N/A</span>';
-        
+
         return `<tr>
             <td><strong>${vendor.name || 'N/A'}</strong></td>
             <td>${vendorTypeLabel}</td>
@@ -1794,7 +1794,7 @@ function exportToExcel() {
     });
     const searchTerm = document.getElementById('search-input').value;
     if (searchTerm) params.append('search', searchTerm);
-    
+
     const prefix = typeof SCRIPT_PREFIX !== 'undefined' ? SCRIPT_PREFIX : '';
     window.location.href = `${prefix}/vendors/export-excel/${params.toString() ? '?' + params.toString() : ''}`;
 }
@@ -1804,7 +1804,7 @@ function exportToExcel() {
 function toggleAdvancedFilters() {
     const body = document.getElementById('advanced-filters-body');
     const btn = document.getElementById('toggle-filters-btn');
-    
+
     if (body.style.display === 'none') {
         body.style.display = 'block';
         btn.innerHTML = '<i class="fas fa-chevron-up"></i> Nascondi';
@@ -1821,18 +1821,18 @@ function toggleAdvancedFilters() {
 function addFilterRow() {
     filterRowCounter++;
     const container = document.getElementById('filters-container');
-    
+
     const row = document.createElement('div');
     row.className = 'filter-row';
     row.id = `filter-row-${filterRowCounter}`;
     row.dataset.rowId = filterRowCounter;
-    
+
     // Field selector
     const fieldSelect = document.createElement('select');
     fieldSelect.className = 'form-select form-select-sm filter-field-select';
     fieldSelect.id = `filter-field-${filterRowCounter}`;
     fieldSelect.innerHTML = '<option value="">-- Seleziona Campo --</option>';
-    
+
     for (const [key, config] of Object.entries(filterFields)) {
         const option = document.createElement('option');
         option.value = key;
@@ -1840,39 +1840,39 @@ function addFilterRow() {
         option.dataset.type = config.type;
         fieldSelect.appendChild(option);
     }
-    
+
     fieldSelect.addEventListener('change', function() {
         updateOperatorOptions(filterRowCounter);
         updateValueInput(filterRowCounter);
     });
-    
+
     // Operator selector
     const operatorSelect = document.createElement('select');
     operatorSelect.className = 'form-select form-select-sm filter-operator-select';
     operatorSelect.id = `filter-operator-${filterRowCounter}`;
     operatorSelect.innerHTML = '<option value="">-- Seleziona Operatore --</option>';
-    
+
     operatorSelect.addEventListener('change', function() {
         updateValueInputVisibility(filterRowCounter);
     });
-    
+
     // Value input
     const valueInput = document.createElement('input');
     valueInput.className = 'form-control form-control-sm filter-value-input';
     valueInput.id = `filter-value-${filterRowCounter}`;
     valueInput.placeholder = 'Valore';
-    
+
     // Remove button
     const removeBtn = document.createElement('button');
     removeBtn.className = 'btn btn-sm btn-danger btn-remove';
     removeBtn.innerHTML = '<i class="fas fa-trash"></i>';
     removeBtn.onclick = function() { removeFilterRow(filterRowCounter); };
-    
+
     row.appendChild(fieldSelect);
     row.appendChild(operatorSelect);
     row.appendChild(valueInput);
     row.appendChild(removeBtn);
-    
+
     container.appendChild(row);
 }
 
@@ -1886,16 +1886,16 @@ function removeFilterRow(rowId) {
 function updateOperatorOptions(rowId) {
     const fieldSelect = document.getElementById(`filter-field-${rowId}`);
     const operatorSelect = document.getElementById(`filter-operator-${rowId}`);
-    
+
     const selectedOption = fieldSelect.options[fieldSelect.selectedIndex];
     if (!selectedOption || !selectedOption.value) {
         operatorSelect.innerHTML = '<option value="">-- Seleziona Operatore --</option>';
         return;
     }
-    
+
     const fieldType = selectedOption.dataset.type;
     const operators = operatorsByType[fieldType] || operatorsByType['text'];
-    
+
     operatorSelect.innerHTML = '<option value="">-- Seleziona Operatore --</option>';
     operators.forEach(op => {
         const option = document.createElement('option');
@@ -1908,33 +1908,33 @@ function updateOperatorOptions(rowId) {
 function updateValueInput(rowId) {
     const fieldSelect = document.getElementById(`filter-field-${rowId}`);
     const valueInput = document.getElementById(`filter-value-${rowId}`);
-    
+
     const selectedOption = fieldSelect.options[fieldSelect.selectedIndex];
     if (!selectedOption || !selectedOption.value) {
         return;
     }
-    
+
     const fieldKey = selectedOption.value;
     const fieldConfig = filterFields[fieldKey];
-    
+
     // Clear existing input
     const row = document.getElementById(`filter-row-${rowId}`);
     const oldInput = valueInput;
-    
+
     if (fieldConfig.type === 'select') {
         // Replace with select
         const newSelect = document.createElement('select');
         newSelect.className = 'form-select form-select-sm filter-value-input';
         newSelect.id = `filter-value-${rowId}`;
         newSelect.innerHTML = '<option value="">-- Seleziona Valore --</option>';
-        
+
         fieldConfig.options.forEach(opt => {
             const option = document.createElement('option');
             option.value = opt;
             option.textContent = opt;
             newSelect.appendChild(option);
         });
-        
+
         row.replaceChild(newSelect, oldInput);
     } else if (fieldConfig.type === 'boolean') {
         // For boolean, value input is not needed (handled by operator)
@@ -1966,10 +1966,10 @@ function updateValueInput(rowId) {
 function updateValueInputVisibility(rowId) {
     const operatorSelect = document.getElementById(`filter-operator-${rowId}`);
     const valueInput = document.getElementById(`filter-value-${rowId}`);
-    
+
     const operator = operatorSelect.value;
     const noValueOperators = ['is_empty', 'is_not_empty', 'is_true', 'is_false'];
-    
+
     if (noValueOperators.includes(operator)) {
         valueInput.style.display = 'none';
         valueInput.value = '';
@@ -1982,13 +1982,13 @@ function applyAdvancedFilters() {
     // Collect all filter rows
     advancedFilters = [];
     const rows = document.querySelectorAll('.filter-row');
-    
+
     rows.forEach(row => {
         const rowId = row.dataset.rowId;
         const field = document.getElementById(`filter-field-${rowId}`).value;
         const operator = document.getElementById(`filter-operator-${rowId}`).value;
         const value = document.getElementById(`filter-value-${rowId}`).value;
-        
+
         if (field && operator) {
             // For operators that don't need a value
             const noValueOperators = ['is_empty', 'is_not_empty', 'is_true', 'is_false'];
@@ -2002,7 +2002,7 @@ function applyAdvancedFilters() {
             }
         }
     });
-    
+
     // Update badge count
     const badge = document.getElementById('applied-filters-count');
     if (advancedFilters.length > 0) {
@@ -2011,7 +2011,7 @@ function applyAdvancedFilters() {
     } else {
         badge.style.display = 'none';
     }
-    
+
     // Apply filters
     filterVendors();
     updateAllCharts();
@@ -2024,20 +2024,20 @@ function clearAdvancedFilters() {
     document.getElementById('filters-container').innerHTML = '';
     filterRowCounter = 0;
     document.getElementById('applied-filters-count').style.display = 'none';
-    
+
     // Re-apply without advanced filters
     filterVendors();
     updateAllCharts();
     updateStatistics();
     updateAdvancedFiltersDisplay();
-    
+
     // Add one empty row
     addFilterRow();
 }
 
 function removeAdvancedFilter(index) {
     advancedFilters.splice(index, 1);
-    
+
     // Update badge
     const badge = document.getElementById('applied-filters-count');
     if (advancedFilters.length > 0) {
@@ -2045,7 +2045,7 @@ function removeAdvancedFilter(index) {
     } else {
         badge.style.display = 'none';
     }
-    
+
     filterVendors();
     updateAllCharts();
     updateStatistics();
@@ -2055,23 +2055,23 @@ function removeAdvancedFilter(index) {
 function updateAdvancedFiltersDisplay() {
     const container = document.getElementById('active-filters-container');
     const row = document.getElementById('active-filters-row');
-    
+
     // Check if we have any filters (chart filters or advanced filters)
-    const hasChartFilters = Object.values(activeFilters).some(val => 
+    const hasChartFilters = Object.values(activeFilters).some(val =>
         (Array.isArray(val) && val.length > 0) || (val !== null && val !== undefined && !Array.isArray(val))
     );
     const hasAdvancedFilters = advancedFilters.length > 0;
-    
+
     if (!hasChartFilters && !hasAdvancedFilters) {
         row.style.display = 'none';
         return;
     }
-    
+
     row.style.display = 'block';
-    
+
     // Clear and rebuild
     container.innerHTML = '';
-    
+
     // Add chart filters (existing functionality)
     const filterLabels = {
         'vendor_types': 'Tipo Fornitore',
@@ -2080,7 +2080,7 @@ function updateAdvancedFiltersDisplay() {
         'competencies': 'Competenza',
         'certifications': 'Certificazione'
     };
-    
+
     Object.entries(activeFilters).forEach(([key, values]) => {
         if (key === 'ico_consultant' && values !== null) {
             const chip = document.createElement('span');
@@ -2097,15 +2097,15 @@ function updateAdvancedFiltersDisplay() {
             });
         }
     });
-    
+
     // Add advanced filters
     advancedFilters.forEach((filter, index) => {
         const chip = document.createElement('span');
         chip.className = 'applied-filter-badge';
-        
+
         const operatorLabel = getOperatorLabel(filter.operator);
         let displayValue = filter.value;
-        
+
         // For operators that don't show value
         if (['is_empty', 'is_not_empty', 'is_true', 'is_false'].includes(filter.operator)) {
             chip.innerHTML = `
@@ -2121,7 +2121,7 @@ function updateAdvancedFiltersDisplay() {
                 <span class="remove" onclick="removeAdvancedFilter(${index})">✕</span>
             `;
         }
-        
+
         container.appendChild(chip);
     });
 }
@@ -2138,7 +2138,7 @@ function applyAdvancedFilterToVendor(vendor, filter) {
     // Get the field value from vendor (supports nested properties like address.city)
     const fieldPath = filter.field.split('.');
     let value = vendor;
-    
+
     for (const part of fieldPath) {
         if (value === null || value === undefined) {
             value = null;
@@ -2146,11 +2146,11 @@ function applyAdvancedFilterToVendor(vendor, filter) {
         }
         value = value[part];
     }
-    
+
     // Convert value to string for text operations
     const strValue = value !== null && value !== undefined ? String(value).toLowerCase() : '';
     const filterValue = filter.value ? String(filter.value).toLowerCase() : '';
-    
+
     // Apply operator
     switch (filter.operator) {
         case 'contains':

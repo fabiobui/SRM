@@ -4,15 +4,20 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('vendors', '0010_alter_vendor_albo_zucchetti'),
+        ("vendors", "0010_alter_vendor_albo_zucchetti"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='vendor',
-            name='phone',
-            field=models.CharField(blank=True, help_text='Telefono di riferimento', max_length=100, null=True, verbose_name='Telefono'),
+            model_name="vendor",
+            name="phone",
+            field=models.CharField(
+                blank=True,
+                help_text="Telefono di riferimento",
+                max_length=100,
+                null=True,
+                verbose_name="Telefono",
+            ),
         ),
     ]

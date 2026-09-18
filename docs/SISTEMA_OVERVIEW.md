@@ -441,10 +441,10 @@ Automaticamente registra:
 # Recupera performance storico
 performances = vendor.historical_performances.filter(
     record_date__gte=last_year
-).order_by('record_date')
+).order_by("record_date")
 
 # Calcola trend
-trend = calculate_trend(performances, metric='quality_rating')
+trend = calculate_trend(performances, metric="quality_rating")
 ```
 
 ---
@@ -1019,6 +1019,6 @@ Per contribuire al progetto, consultare `contributors.txt` e seguire le linee gu
 
 ---
 
-**Versione Documento**: 1.0  
-**Ultimo Aggiornamento**: Dicembre 2025  
+**Versione Documento**: 1.0
+**Ultimo Aggiornamento**: Dicembre 2025
 **Autore**: Team SRM Development

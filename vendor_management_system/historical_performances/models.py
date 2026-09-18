@@ -3,7 +3,6 @@ import uuid
 
 from django.core import validators
 from django.db import models
-
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
@@ -39,14 +38,20 @@ class HistoricalPerformance(models.Model):
     on_time_delivery_rate = models.FloatField(
         _("On-time Delivery Rate"),
         help_text=_("On-time Delivery Rate of Vendor"),
-        validators=[validators.MinValueValidator(0), validators.MaxValueValidator(100)],
+        validators=[
+            validators.MinValueValidator(0),
+            validators.MaxValueValidator(100),
+        ],
         null=True,
         blank=True,
     )
     quality_rating_avg = models.FloatField(
         _("Quality Rating Average"),
         help_text=_("Quality Rating Average of Vendor"),
-        validators=[validators.MinValueValidator(0), validators.MaxValueValidator(5)],
+        validators=[
+            validators.MinValueValidator(0),
+            validators.MaxValueValidator(5),
+        ],
         null=True,
         blank=True,
     )
@@ -60,7 +65,10 @@ class HistoricalPerformance(models.Model):
     fulfillment_rate = models.FloatField(
         _("Fulfillment Rate"),
         help_text=_("Fulfillment Rate of Vendor"),
-        validators=[validators.MinValueValidator(0), validators.MaxValueValidator(100)],
+        validators=[
+            validators.MinValueValidator(0),
+            validators.MaxValueValidator(100),
+        ],
         null=True,
         blank=True,
     )
@@ -83,4 +91,4 @@ class HistoricalPerformance(models.Model):
             self.id = str(uuid.uuid4()).replace("-", "")[:10].upper()
 
         # Save the model
-        super(HistoricalPerformance, self).save(*args, **kwargs)
+        super().save(*args, **kwargs)

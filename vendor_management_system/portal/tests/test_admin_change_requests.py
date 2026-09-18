@@ -1,6 +1,7 @@
 """Test dell'admin Django per `VendorChangeRequest`
-(`/admin/portal/vendorchangerequest/`), distinto dalla vista BO del
-portale (`portal:bo-change-request-review`, coperta in
+(`/admin/portal/vendorchangerequest/`, registrato ma nascosto dal menu —
+vedi JAZZMIN_SETTINGS["hide_models"] in config/settings.py), distinto
+dalla vista BO del portale (`portal:bo-change-request-review`, coperta in
 `test_backoffice_change_requests.py`).
 
 Copre:

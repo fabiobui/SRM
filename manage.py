@@ -5,12 +5,10 @@ import os
 import sys
 from pathlib import Path
 
-
 # Run the code only if the file is run directly
 if __name__ == "__main__":
     # Set the DJANGO_SETTINGS_MODULE environment variable
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
-
 
     try:
         # Try to import the execute_from_command_line function
@@ -18,25 +16,22 @@ if __name__ == "__main__":
     except ImportError:
         try:
             # Try to import django
-            import django
-        except ImportError:
+            import django  # noqa: F401
+        except ImportError as exc:
             # Raise an ImportError if the django module is not found
             raise ImportError(
                 "Couldn't import Django. Are you sure it's installed and "
                 "available on your PYTHONPATH environment variable? Did you "
                 "forget to activate a virtual environment?"
-            )
+            ) from exc
 
         raise
-
 
     # Get the current path
     current_path = Path(__file__).parent.resolve()
 
-
     # Add the path to the vendor_management_system directory to the sys.path
     sys.path.append(str(current_path / "vendor_management_system"))
-
 
     # Execute the command line
     execute_from_command_line(sys.argv)

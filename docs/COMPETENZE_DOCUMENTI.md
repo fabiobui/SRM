@@ -186,12 +186,12 @@ python manage.py populate_document_types
 6. **Verificare completezza fornitore**
    ```python
    vendor = Vendor.objects.get(id=...)
-   
+
    # Competenze
    print(vendor.active_competences.count())
    print(vendor.expired_competences.count())
    print(vendor.missing_mandatory_competences.count())
-   
+
    # Documenti
    print(vendor.valid_documents.count())
    print(vendor.expired_documents.count())
@@ -209,27 +209,30 @@ vendors_with_expired = Vendor.objects.filter(
 ).distinct()
 
 # Trovare fornitori senza RSPP
-competence_rspp = Competence.objects.get(code='RSPP')
+competence_rspp = Competence.objects.get(code="RSPP")
 vendors_without_rspp = Vendor.objects.exclude(
     vendor_competences__competence=competence_rspp,
-    vendor_competences__has_competence=True
+    vendor_competences__has_competence=True,
 )
 
 # Trovare fornitori con DURC scaduto
-durc_type = DocumentType.objects.get(code='DURC')
+durc_type = DocumentType.objects.get(code="DURC")
 vendors_durc_expired = Vendor.objects.filter(
     vendor_documents__document_type=durc_type,
-    vendor_documents__expiry_date__lt=timezone.now().date()
+    vendor_documents__expiry_date__lt=timezone.now().date(),
 )
 
 # Trovare fornitori con documentazione completa
-vendors_compliant = [v for v in Vendor.objects.all() if v.is_documentation_complete]
+vendors_compliant = [
+    v for v in Vendor.objects.all() if v.is_documentation_complete
+]
 
 # Report competenze per categoria
 from django.db.models import Count
-Competence.objects.values('competence_category').annotate(
-    count=Count('id')
-).order_by('competence_category')
+
+Competence.objects.values("competence_category").annotate(
+    count=Count("id")
+).order_by("competence_category")
 ```
 
 ## Notifiche e Alert (da implementare)

@@ -4,10 +4,11 @@ Script per importare Nazioni (europee principali), Regioni e Province italiane.
 Uso:
     python manage.py shell < vendor_management_system/import_geography.py
     oppure:
-    python manage.py shell -c "exec(open('vendor_management_system/import_geography.py').read())"
+    python manage.py shell -c "exec(open(
+        'vendor_management_system/import_geography.py').read())"
 """
 
-from vendor_management_system.vendors.models import Country, Region, Province
+from vendor_management_system.vendors.models import Country, Province, Region
 
 # ============================================================================
 # NAZIONI (europee principali + extra)
@@ -48,8 +49,7 @@ COUNTRIES = [
 print("=== IMPORTAZIONE NAZIONI ===")
 for code, name, sort_order in COUNTRIES:
     obj, created = Country.objects.get_or_create(
-        code=code,
-        defaults={"name": name, "sort_order": sort_order}
+        code=code, defaults={"name": name, "sort_order": sort_order}
     )
     print(f"  {'CREATA' if created else 'ESISTE'}: {code} - {name}")
 
@@ -86,8 +86,7 @@ REGIONS = [
 print("=== IMPORTAZIONE REGIONI ===")
 for code, name in REGIONS:
     obj, created = Region.objects.get_or_create(
-        code=code,
-        defaults={"name": name, "country": italy}
+        code=code, defaults={"name": name, "country": italy}
     )
     print(f"  {'CREATA' if created else 'ESISTE'}: {code} - {name}")
 
@@ -234,13 +233,17 @@ print("=== IMPORTAZIONE PROVINCE ===")
 for code, name, region_code in PROVINCES:
     region = region_cache.get(region_code)
     if not region:
-        print(f"  ERRORE: regione {region_code} non trovata per {code} - {name}")
+        print(
+            f"  ERRORE: regione {region_code} non trovata per {code} - {name}"
+        )
         continue
     obj, created = Province.objects.get_or_create(
-        code=code,
-        defaults={"name": name, "region": region}
+        code=code, defaults={"name": name, "region": region}
     )
-    print(f"  {'CREATA' if created else 'ESISTE'}: {code} - {name} ({region_code})")
+    print(
+        f"  {'CREATA' if created else 'ESISTE'}: {code} - {name} "
+        f"({region_code})"
+    )
 
 print(f"Totale province: {Province.objects.count()}\n")
 print("=== IMPORTAZIONE COMPLETATA ===")

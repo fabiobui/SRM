@@ -4,24 +4,23 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('vendors', '0015_qualificationtype_parent_and_more'),
+        ("vendors", "0015_qualificationtype_parent_and_more"),
     ]
 
     operations = [
         migrations.RemoveField(
-            model_name='vendordocument',
-            name='document_type',
+            model_name="vendordocument",
+            name="document_type",
         ),
         migrations.RemoveField(
-            model_name='vendordocument',
-            name='vendor',
+            model_name="vendordocument",
+            name="vendor",
         ),
         migrations.DeleteModel(
-            name='DocumentType',
+            name="DocumentType",
         ),
         migrations.DeleteModel(
-            name='VendorDocument',
+            name="VendorDocument",
         ),
     ]

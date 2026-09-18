@@ -267,38 +267,38 @@ primaria del modello e viene generato automaticamente in `save()` se omesso — 
 ```python
 from vendor_management_system.vendors.models import Vendor, Category, Address
 
-cat1 = Category.objects.create(code='SERV', name='Servizi', is_active=True)
-cat2 = Category.objects.create(code='PROD', name='Prodotti', is_active=True)
+cat1 = Category.objects.create(code="SERV", name="Servizi", is_active=True)
+cat2 = Category.objects.create(code="PROD", name="Prodotti", is_active=True)
 
 addr = Address.objects.create(
-    street_address='Via Roma 123',
-    city='Milano',
-    state_province='Milano',
-    region='Lombardia',
-    postal_code='20100',
-    country='Italia',
+    street_address="Via Roma 123",
+    city="Milano",
+    state_province="Milano",
+    region="Lombardia",
+    postal_code="20100",
+    country="Italia",
 )
 
-vendor_types = ['Società', 'Professionista', 'Internazionale']
-evaluations = ['DA VALUTARE', 'POSITIVO', 'MOLTO POSITIVO', 'NEGATIVO']
+vendor_types = ["Società", "Professionista", "Internazionale"]
+evaluations = ["DA VALUTARE", "POSITIVO", "MOLTO POSITIVO", "NEGATIVO"]
 
 for i in range(20):
     Vendor.objects.create(
-        name=f'Fornitore Test {i}',
-        email=f'fornitore{i}@test.com',
-        phone=f'+39 02 1234567{i}',
+        name=f"Fornitore Test {i}",
+        email=f"fornitore{i}@test.com",
+        phone=f"+39 02 1234567{i}",
         category=cat1 if i % 2 == 0 else cat2,
         address=addr,
         vendor_type=vendor_types[i % len(vendor_types)],
-        qualification_status='APPROVED' if i % 3 == 0 else 'PENDING',
+        qualification_status="APPROVED" if i % 3 == 0 else "PENDING",
         vendor_final_evaluation=evaluations[i % len(evaluations)],
-        risk_level=['LOW', 'MEDIUM', 'HIGH'][i % 3],
+        risk_level=["LOW", "MEDIUM", "HIGH"][i % 3],
         quality_rating_avg=round(3.0 + (i % 5) * 0.4, 1),
         fulfillment_rate=round(60 + (i % 5) * 8, 1),
         is_active=True,
         is_ico_consultant=(i % 4 == 0),
-        vat_number=f'IT0123456789{i}',
-        fiscal_code=f'RSSMRA80A01H501{i}',
+        vat_number=f"IT0123456789{i}",
+        fiscal_code=f"RSSMRA80A01H501{i}",
     )
 
 print("Created 20 test vendors")

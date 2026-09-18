@@ -4,27 +4,42 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('vendors', '0013_remove_vendor_cluster_cost_vendor_cluster_corso'),
+        ("vendors", "0013_remove_vendor_cluster_cost_vendor_cluster_corso"),
     ]
 
     operations = [
         migrations.AlterModelOptions(
-            name='competence',
-            options={'ordering': ['competence_category', 'sort_order', 'name'], 'verbose_name': 'Competenza a catalogo', 'verbose_name_plural': 'Catalogo Competenze'},
+            name="competence",
+            options={
+                "ordering": ["competence_category", "sort_order", "name"],
+                "verbose_name": "Competenza a catalogo",
+                "verbose_name_plural": "Catalogo Competenze",
+            },
         ),
         migrations.AlterModelOptions(
-            name='vendorcompetence',
-            options={'ordering': ['-created_at'], 'verbose_name': 'Competenza assegnata', 'verbose_name_plural': 'Competenze assegnate'},
+            name="vendorcompetence",
+            options={
+                "ordering": ["-created_at"],
+                "verbose_name": "Competenza assegnata",
+                "verbose_name_plural": "Competenze assegnate",
+            },
         ),
         migrations.AlterModelOptions(
-            name='vendordocument',
-            options={'ordering': ['-created_at'], 'verbose_name': 'Documento associato', 'verbose_name_plural': 'Documenti associati'},
+            name="vendordocument",
+            options={
+                "ordering": ["-created_at"],
+                "verbose_name": "Documento associato",
+                "verbose_name_plural": "Documenti associati",
+            },
         ),
         migrations.AddField(
-            model_name='vendorcompetence',
-            name='has_certification',
-            field=models.BooleanField(default=False, help_text='Il fornitore possiede questa certificazione', verbose_name='Possiede Certificazione'),
+            model_name="vendorcompetence",
+            name="has_certification",
+            field=models.BooleanField(
+                default=False,
+                help_text="Il fornitore possiede questa certificazione",
+                verbose_name="Possiede Certificazione",
+            ),
         ),
     ]
