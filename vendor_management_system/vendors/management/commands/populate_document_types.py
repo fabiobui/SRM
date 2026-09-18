@@ -6,7 +6,7 @@ Uso: python manage.py populate_document_types
 
 from django.core.management.base import BaseCommand
 
-from vendor_management_system.documents.models import DocumentType
+from vendor_management_system.documents.models import DocumentCatalog
 
 
 class Command(BaseCommand):
@@ -274,7 +274,7 @@ class Command(BaseCommand):
         updated_count = 0
 
         for data in document_types_data:
-            document_type, created = DocumentType.objects.update_or_create(
+            document_type, created = DocumentCatalog.objects.update_or_create(
                 code=data["code"],
                 defaults={
                     "name": data["name"],

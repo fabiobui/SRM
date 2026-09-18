@@ -11,7 +11,7 @@ from vendor_management_system.core.permissions import (
     BackOfficeRequiredMixin,
     VendorRequiredMixin,
 )
-from vendor_management_system.documents.models import Document, DocumentType
+from vendor_management_system.documents.models import Document, DocumentCatalog
 from vendor_management_system.vendors.models import Vendor
 
 
@@ -100,7 +100,7 @@ class VendorPortalView(VendorRequiredMixin, TemplateView):
         vendor = self.request.user.vendor
 
         # Get required document types
-        required_types = DocumentType.objects.filter(is_required=True)
+        required_types = DocumentCatalog.objects.filter(is_required=True)
 
         # Get vendor's documents
         vendor_documents = Document.objects.filter(
@@ -149,7 +149,7 @@ class DocumentUploadView(VendorRequiredMixin, View):
 
         try:
             document_type = get_object_or_404(
-                DocumentType, id=document_type_id
+                DocumentCatalog, id=document_type_id
             )
 
             # Create or update document per il vendor dell'utente

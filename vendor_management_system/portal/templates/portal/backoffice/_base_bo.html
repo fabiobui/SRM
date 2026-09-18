@@ -18,6 +18,13 @@
       .diff-table th { width: 25%; }
       .diff-old { color: #6c757d; text-decoration: line-through; }
       .diff-new { color: #0a58ca; font-weight: 600; }
+      .navbar-bo .nav-link { padding-top: .65rem; padding-bottom: .65rem; }
+      .navbar-bo .nav-link i { width: 1.1em; text-align: center; margin-right: .35rem; }
+      .navbar-bo .nav-link-external {
+          border: 1px solid rgba(255, 255, 255, .35);
+          border-radius: .375rem;
+          margin-left: .5rem;
+      }
     </style>
 </head>
 <body>
@@ -26,35 +33,39 @@
         <a class="navbar-brand" href="{% url 'portal:bo-dashboard' %}">
             <i class="fas fa-briefcase"></i> Back Office
         </a>
-        <div class="collapse navbar-collapse">
-            <ul class="navbar-nav me-auto">
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#boMainNav"
+                aria-controls="boMainNav" aria-expanded="false" aria-label="Apri/chiudi il menu">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="boMainNav">
+            <ul class="navbar-nav me-auto gap-lg-1">
                 <li class="nav-item">
                     <a class="nav-link {% if request.resolver_match.url_name == 'bo-dashboard' %}active{% endif %}"
                        href="{% url 'portal:bo-dashboard' %}">
-                        <i class="fas fa-tachometer-alt"></i> Dashboard
+                        <i class="fas fa-tachometer-alt"></i>Dashboard
                     </a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link {% if 'change-request' in request.resolver_match.url_name %}active{% endif %}"
                        href="{% url 'portal:bo-change-requests' %}">
-                        <i class="fas fa-id-card"></i> Richieste anagrafica
+                        <i class="fas fa-id-card"></i>Richieste anagrafica
                     </a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link {% if 'document' in request.resolver_match.url_name %}active{% endif %}"
                        href="{% url 'portal:bo-documents' %}">
-                        <i class="fas fa-file-alt"></i> Documenti
+                        <i class="fas fa-file-alt"></i>Documenti
                     </a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link {% if 'requirement' in request.resolver_match.url_name %}active{% endif %}"
                        href="{% url 'portal:bo-requirements' %}">
-                        <i class="fas fa-user-graduate"></i> Requisiti professionali
+                        <i class="fas fa-user-graduate"></i>Requisiti professionali
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="{% url 'vendor-dashboard' %}">
-                        <i class="fas fa-building"></i> Fornitori - Analisi e Classificazione
+                    <a class="nav-link nav-link-external" href="{% url 'vendor-dashboard' %}">
+                        <i class="fas fa-building"></i>Fornitori - Analisi e Classificazione
                     </a>
                 </li>
             </ul>
@@ -66,7 +77,7 @@
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" href="{% url 'logout' %}">
-                        <i class="fas fa-sign-out-alt"></i> Logout
+                        <i class="fas fa-sign-out-alt"></i>Logout
                     </a>
                 </li>
             </ul>

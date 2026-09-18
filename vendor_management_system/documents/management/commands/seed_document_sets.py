@@ -17,7 +17,10 @@ import re
 
 from django.core.management.base import BaseCommand
 
-from vendor_management_system.documents.models import DocumentSet, DocumentType
+from vendor_management_system.documents.models import (
+    DocumentCatalog,
+    DocumentSet,
+)
 
 
 def _norm(code):
@@ -27,7 +30,7 @@ def _norm(code):
 
 
 # Definizione dei set. Ogni voce dei `codes` usa il codice "come da
-# specifica"; la risoluzione verso il DocumentType esistente avviene per
+# specifica"; la risoluzione verso il DocumentCatalog esistente avviene per
 # confronto normalizzato.
 DOCUMENT_SETS = [
     {
@@ -79,9 +82,11 @@ class Command(BaseCommand):
             self.style.NOTICE("Inizio popolamento Set Documentali...")
         )
 
-        # Mappa normalizzata code -> DocumentType (una sola query).
+        # Mappa normalizzata code -> DocumentCatalog (una sola query).
         by_norm = {
-            _norm(dt.code): dt for dt in DocumentType.objects.all() if dt.code
+            _norm(dt.code): dt
+            for dt in DocumentCatalog.objects.all()
+            if dt.code
         }
 
         for order, spec in enumerate(DOCUMENT_SETS, start=1):

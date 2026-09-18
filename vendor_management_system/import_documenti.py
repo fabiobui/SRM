@@ -19,7 +19,7 @@ django.setup()
 
 from vendor_management_system.documents.models import (  # noqa: E402
     Document,
-    DocumentType,
+    DocumentCatalog,
 )
 from vendor_management_system.vendors.models import Vendor  # noqa: E402
 
@@ -182,7 +182,7 @@ def import_documents(
                 if not value:
                     continue
 
-                doc_type = DocumentType.objects.filter(
+                doc_type = DocumentCatalog.objects.filter(
                     code__iexact=col.strip()
                 ).first()
                 if not doc_type:

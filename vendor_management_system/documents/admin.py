@@ -5,13 +5,13 @@ from django.utils.translation import gettext_lazy as _
 from vendor_management_system.documents.models import (
     VALIDITY_STATUS_META,
     Document,
+    DocumentCatalog,
     DocumentSet,
-    DocumentType,
 )
 
 
-@admin.register(DocumentType)
-class DocumentTypeAdmin(admin.ModelAdmin):
+@admin.register(DocumentCatalog)
+class DocumentCatalogAdmin(admin.ModelAdmin):
     list_display = [
         "code",
         "name",

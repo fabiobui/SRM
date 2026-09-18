@@ -13,7 +13,7 @@ VALIDITY_STATUS_META = {
 }
 
 
-class DocumentType(models.Model):
+class DocumentCatalog(models.Model):
     """Tipi di documenti da richiedere ai fornitori"""
 
     id = models.CharField(
@@ -147,7 +147,7 @@ class DocumentType(models.Model):
 
     class Meta:
         verbose_name = _("Tipo di Documento")
-        verbose_name_plural = _("Tipi di Documento")
+        verbose_name_plural = _("Catalogo Documenti")
         ordering = ["document_category", "sort_order", "name"]
         indexes = [
             models.Index(fields=["code"]),
@@ -193,7 +193,7 @@ class Document(models.Model):
         related_name="documents",
     )
     document_type = models.ForeignKey(
-        DocumentType,
+        DocumentCatalog,
         on_delete=models.CASCADE,
         verbose_name=_("Tipo di Documento"),
         help_text=_("Tipo di documento"),
@@ -252,7 +252,7 @@ class Document(models.Model):
 
     class Meta:
         verbose_name = _("Documento")
-        verbose_name_plural = _("Documenti")
+        verbose_name_plural = _("Registro Documenti")
         ordering = ["-uploaded_at"]
         unique_together = ["vendor", "document_type"]
 
@@ -337,7 +337,7 @@ class DocumentSet(models.Model):
     )
 
     document_types = models.ManyToManyField(
-        DocumentType,
+        DocumentCatalog,
         verbose_name=_("Tipi di Documento"),
         related_name="document_sets",
         help_text=_("Tipi di documento inclusi nel set"),

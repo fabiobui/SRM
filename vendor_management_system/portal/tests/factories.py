@@ -9,7 +9,7 @@ pre-crea per il fornitore (Document, VendorCompetence, VendorService).
 import factory
 from faker import Faker
 
-from vendor_management_system.documents.models import Document, DocumentType
+from vendor_management_system.documents.models import Document, DocumentCatalog
 from vendor_management_system.users.models import User
 from vendor_management_system.vendors.models import (
     Competence,
@@ -40,9 +40,9 @@ class VendorUserFactory(factory.django.DjangoModelFactory):
             self.save()
 
 
-class DocumentTypeFactory(factory.django.DjangoModelFactory):
+class DocumentCatalogFactory(factory.django.DjangoModelFactory):
     class Meta:
-        model = DocumentType
+        model = DocumentCatalog
 
     code = factory.Sequence(lambda n: f"DOCTYPE{n}")
     name = factory.LazyFunction(faker.word)
@@ -55,7 +55,7 @@ class DocumentFactory(factory.django.DjangoModelFactory):
         model = Document
 
     vendor = factory.SubFactory(VendorFactory)
-    document_type = factory.SubFactory(DocumentTypeFactory)
+    document_type = factory.SubFactory(DocumentCatalogFactory)
     status = "PENDING"
 
 

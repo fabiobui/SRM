@@ -12,12 +12,12 @@ from django.utils.translation import gettext_lazy as _
 from import_export import resources
 from import_export.admin import ImportExportModelAdmin
 
-# Import Document and DocumentType from documents app
+# Import Document and DocumentCatalog from documents app
 from vendor_management_system.documents.models import (
     VALIDITY_STATUS_META,
     Document,
+    DocumentCatalog,
     DocumentSet,
-    DocumentType,
 )
 
 from .models import (
@@ -1293,7 +1293,7 @@ class VendorAdmin(admin.ModelAdmin):
                 "requires_renewal": dt.requires_renewal,
                 "reminder": dt.reminder_days_before,
             }
-            for dt in DocumentType.objects.filter(is_active=True).only(
+            for dt in DocumentCatalog.objects.filter(is_active=True).only(
                 "pk",
                 "validity_period_days",
                 "requires_renewal",
