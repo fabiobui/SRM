@@ -5,15 +5,22 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('vendors', '0031_vendor_embyon_blocked_and_more'),
+        ("vendors", "0031_vendor_embyon_blocked_and_more"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='vendorevaluation',
-            name='evaluation_frequency',
-            field=models.ForeignKey(blank=True, default=None, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='evaluations', to='vendors.evaluationfrequency', verbose_name='Frequenza di Valutazione'),
+            model_name="vendorevaluation",
+            name="evaluation_frequency",
+            field=models.ForeignKey(
+                blank=True,
+                default=None,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="evaluations",
+                to="vendors.evaluationfrequency",
+                verbose_name="Frequenza di Valutazione",
+            ),
         ),
     ]

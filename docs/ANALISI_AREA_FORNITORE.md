@@ -114,29 +114,41 @@ Per l'auto‑registrazione pubblica con approvazione BO. La registrazione **non 
 
 ```python
 class VendorRegistrationRequest(models.Model):
-    STATUS = [('PENDING','In attesa'), ('APPROVED','Approvata'), ('REJECTED','Respinta')]
+    STATUS = [
+        ("PENDING", "In attesa"),
+        ("APPROVED", "Approvata"),
+        ("REJECTED", "Respinta"),
+    ]
 
     id = UUIDField(primary_key=True, default=uuid.uuid4)
     # Dati richiedente
     company_name = CharField(max_length=255)
     vat_number = CharField(max_length=20)
     fiscal_code = CharField(max_length=16, blank=True)
-    email = EmailField()                      # email fornitore = futuro login
+    email = EmailField()  # email fornitore = futuro login
     phone = CharField(max_length=20, blank=True)
     contact_person = CharField(max_length=100)
     category = ForeignKey(Category, null=True, blank=True, on_delete=SET_NULL)
-    notes = TextField(blank=True)             # messaggio del fornitore
+    notes = TextField(blank=True)  # messaggio del fornitore
     # Workflow
-    status = CharField(choices=STATUS, default='PENDING')
+    status = CharField(choices=STATUS, default="PENDING")
     created_at = DateTimeField(auto_now_add=True)
     reviewed_at = DateTimeField(null=True, blank=True)
-    reviewed_by = ForeignKey(User, on_delete=SET_NULL, null=True, blank=True,
-                             related_name='reviewed_registrations')
+    reviewed_by = ForeignKey(
+        User,
+        on_delete=SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reviewed_registrations",
+    )
     review_notes = TextField(blank=True)
     # Quando approvata
-    created_vendor = ForeignKey(Vendor, on_delete=SET_NULL, null=True, blank=True)
-    created_user   = ForeignKey(User,   on_delete=SET_NULL, null=True, blank=True,
-                                related_name='+')
+    created_vendor = ForeignKey(
+        Vendor, on_delete=SET_NULL, null=True, blank=True
+    )
+    created_user = ForeignKey(
+        User, on_delete=SET_NULL, null=True, blank=True, related_name="+"
+    )
 ```
 
 **Approvazione** (azione BO): crea `Vendor`, crea `User(role='vendor', vendor=...)`, invia email con link "imposta password" (token Django nativo `PasswordResetTokenGenerator`).
@@ -147,18 +159,29 @@ Le modifiche all'anagrafica proposte dal fornitore vanno in approvazione BO.
 
 ```python
 class VendorChangeRequest(models.Model):
-    STATUS = [('PENDING','In attesa'), ('APPROVED','Approvata'), ('REJECTED','Respinta')]
+    STATUS = [
+        ("PENDING", "In attesa"),
+        ("APPROVED", "Approvata"),
+        ("REJECTED", "Respinta"),
+    ]
 
     id = UUIDField(primary_key=True, default=uuid.uuid4)
-    vendor = ForeignKey(Vendor, on_delete=CASCADE, related_name='change_requests')
+    vendor = ForeignKey(
+        Vendor, on_delete=CASCADE, related_name="change_requests"
+    )
     requested_by = ForeignKey(User, on_delete=SET_NULL, null=True)
     # Snapshot dei campi modificati (JSON: {field: {"old":..., "new":...}})
     changes = JSONField()
-    status = CharField(choices=STATUS, default='PENDING')
+    status = CharField(choices=STATUS, default="PENDING")
     created_at = DateTimeField(auto_now_add=True)
     reviewed_at = DateTimeField(null=True, blank=True)
-    reviewed_by = ForeignKey(User, on_delete=SET_NULL, null=True, blank=True,
-                             related_name='reviewed_change_requests')
+    reviewed_by = ForeignKey(
+        User,
+        on_delete=SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reviewed_change_requests",
+    )
     review_notes = TextField(blank=True)
 ```
 
@@ -175,16 +198,25 @@ Messaggistica thread‑based per fornitore (1 thread per fornitore in questa fas
 ```python
 class Message(models.Model):
     id = UUIDField(primary_key=True, default=uuid.uuid4)
-    vendor = ForeignKey(Vendor, on_delete=CASCADE, related_name='messages')
-    sender = ForeignKey(User, on_delete=SET_NULL, null=True)  # vendor user o BO user
-    subject = CharField(max_length=200, blank=True)           # solo primo messaggio
+    vendor = ForeignKey(Vendor, on_delete=CASCADE, related_name="messages")
+    sender = ForeignKey(
+        User, on_delete=SET_NULL, null=True
+    )  # vendor user o BO user
+    subject = CharField(max_length=200, blank=True)  # solo primo messaggio
     body = TextField()
-    parent = ForeignKey('self', on_delete=CASCADE, null=True, blank=True,
-                        related_name='replies')               # threading
-    attachment = FileField(upload_to='vendor_messages/%Y/%m/', null=True, blank=True)
+    parent = ForeignKey(
+        "self",
+        on_delete=CASCADE,
+        null=True,
+        blank=True,
+        related_name="replies",
+    )  # threading
+    attachment = FileField(
+        upload_to="vendor_messages/%Y/%m/", null=True, blank=True
+    )
     created_at = DateTimeField(auto_now_add=True)
     read_at_by_vendor = DateTimeField(null=True, blank=True)
-    read_at_by_bo     = DateTimeField(null=True, blank=True)
+    read_at_by_bo = DateTimeField(null=True, blank=True)
     is_from_vendor = BooleanField()  # cache: sender appartiene al vendor?
 ```
 

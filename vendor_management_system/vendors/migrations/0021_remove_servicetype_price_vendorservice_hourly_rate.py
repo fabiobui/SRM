@@ -4,19 +4,25 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('vendors', '0020_remove_vendor_begin_experience_date_and_more'),
+        ("vendors", "0020_remove_vendor_begin_experience_date_and_more"),
     ]
 
     operations = [
         migrations.RemoveField(
-            model_name='servicetype',
-            name='price',
+            model_name="servicetype",
+            name="price",
         ),
         migrations.AddField(
-            model_name='vendorservice',
-            name='hourly_rate',
-            field=models.DecimalField(blank=True, decimal_places=2, help_text='Prezzo orario del servizio per questo fornitore', max_digits=10, null=True, verbose_name='Prezzo Orario'),
+            model_name="vendorservice",
+            name="hourly_rate",
+            field=models.DecimalField(
+                blank=True,
+                decimal_places=2,
+                help_text="Prezzo orario del servizio per questo fornitore",
+                max_digits=10,
+                null=True,
+                verbose_name="Prezzo Orario",
+            ),
         ),
     ]

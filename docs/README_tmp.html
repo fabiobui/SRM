@@ -682,12 +682,12 @@ Vendor (1) ←→ (*) VendorDocument
 <p><strong>Resource-Based URLs:</strong></p>
 <pre class="hljs"><code><div>/api/vendors/                     # Vendor collection
 /api/vendors/{vendor_code}/       # Individual vendor
-/api/purchase-orders/             # Order collection  
+/api/purchase-orders/             # Order collection
 /api/purchase-orders/{po_number}/ # Individual order
 </div></code></pre>
 <p><strong>State Transition Endpoints:</strong></p>
 <pre class="hljs"><code><div>POST /api/purchase-orders/{po_number}/issue/       # PENDING → ISSUED
-POST /api/purchase-orders/{po_number}/acknowledge/ # ISSUED → ACKNOWLEDGED  
+POST /api/purchase-orders/{po_number}/acknowledge/ # ISSUED → ACKNOWLEDGED
 POST /api/purchase-orders/{po_number}/deliver/     # ACKNOWLEDGED → DELIVERED
 POST /api/purchase-orders/{po_number}/cancel/      # Any → CANCELLED
 </div></code></pre>
@@ -732,10 +732,10 @@ POST /api/purchase-orders/{po_number}/cancel/      # Any → CANCELLED
     name = CharField(max_length=<span class="hljs-number">255</span>)
     contact_details = TextField()
     address = TextField()
-    
+
     <span class="hljs-comment"># Performance Metrics (auto-calculated)</span>
     on_time_delivery_rate = FloatField(<span class="hljs-number">0</span><span class="hljs-number">-100</span>, null=<span class="hljs-literal">True</span>)
-    quality_rating_avg = FloatField(<span class="hljs-number">0</span><span class="hljs-number">-5</span>, null=<span class="hljs-literal">True</span>)  
+    quality_rating_avg = FloatField(<span class="hljs-number">0</span><span class="hljs-number">-5</span>, null=<span class="hljs-literal">True</span>)
     average_response_time = FloatField(min=<span class="hljs-number">0</span>, null=<span class="hljs-literal">True</span>)  <span class="hljs-comment"># Hours</span>
     fulfillment_rate = FloatField(<span class="hljs-number">0</span><span class="hljs-number">-100</span>, null=<span class="hljs-literal">True</span>)
 </div></code></pre>
@@ -755,10 +755,10 @@ POST /api/purchase-orders/{po_number}/cancel/      # Any → CANCELLED
     order_date = DateTimeField(default=timezone.now)
     expected_delivery_date = DateTimeField(null=<span class="hljs-literal">True</span>)  <span class="hljs-comment"># Auto-calculated</span>
     actual_delivery_date = DateTimeField(null=<span class="hljs-literal">True</span>)    <span class="hljs-comment"># Set on delivery</span>
-    
+
     items = JSONField()  <span class="hljs-comment"># Product details and quantities</span>
     quantity = IntegerField(min=<span class="hljs-number">1</span>)  <span class="hljs-comment"># Total quantity (auto-calculated)</span>
-    
+
     <span class="hljs-comment"># Workflow fields</span>
     status = CharField(choices=STATUS_CHOICES, default=<span class="hljs-string">'PENDING'</span>)
     issue_date = DateTimeField(null=<span class="hljs-literal">True</span>)           <span class="hljs-comment"># Set via signal</span>
@@ -784,7 +784,7 @@ CANCELLED CANCELLED CANCELLED
     id = CharField(max_length=<span class="hljs-number">10</span>, primary_key=<span class="hljs-literal">True</span>)  <span class="hljs-comment"># Auto-generated</span>
     vendor = ForeignKey(<span class="hljs-string">"vendors.Vendor"</span>, on_delete=CASCADE)
     date = DateTimeField(default=timezone.now)
-    
+
     <span class="hljs-comment"># Snapshot of vendor metrics at capture time</span>
     on_time_delivery_rate = FloatField(<span class="hljs-number">0</span><span class="hljs-number">-100</span>, null=<span class="hljs-literal">True</span>)
     quality_rating_avg = FloatField(<span class="hljs-number">0</span><span class="hljs-number">-5</span>, null=<span class="hljs-literal">True</span>)
@@ -813,7 +813,7 @@ CANCELLED CANCELLED CANCELLED
     vendor = ForeignKey(<span class="hljs-string">"vendors.Vendor"</span>)
     document_type = ForeignKey(<span class="hljs-string">"DocumentType"</span>)
     file = FileField(upload_to=<span class="hljs-string">'vendor_documents/'</span>)
-    
+
     <span class="hljs-comment"># Workflow fields</span>
     status = CharField(choices=STATUS_CHOICES, default=<span class="hljs-string">'PENDING'</span>)
     uploaded_date = DateTimeField(auto_now_add=<span class="hljs-literal">True</span>)
@@ -881,11 +881,11 @@ document_type = ForeignKey(<span class="hljs-string">"DocumentType"</span>, on_d
     <span class="hljs-comment"># Purchase Order validation</span>
     <span class="hljs-keyword">if</span> self.status == <span class="hljs-string">'DELIVERED'</span> <span class="hljs-keyword">and</span> <span class="hljs-keyword">not</span> self.quality_rating:
         <span class="hljs-keyword">raise</span> ValidationError(<span class="hljs-string">"Quality rating required for delivered orders"</span>)
-    
+
     <span class="hljs-comment"># User-Vendor consistency</span>
     <span class="hljs-keyword">if</span> self.role == <span class="hljs-string">'vendor'</span> <span class="hljs-keyword">and</span> <span class="hljs-keyword">not</span> self.vendor:
         <span class="hljs-keyword">raise</span> ValidationError(<span class="hljs-string">"Vendor role requires vendor association"</span>)
-    
+
     <span class="hljs-comment"># Document expiry logic</span>
     <span class="hljs-keyword">if</span> self.expiry_date <span class="hljs-keyword">and</span> self.expiry_date &lt; timezone.now().date():
         <span class="hljs-keyword">raise</span> ValidationError(<span class="hljs-string">"Document has expired"</span>)
@@ -915,7 +915,7 @@ document_type = ForeignKey(<span class="hljs-string">"DocumentType"</span>, on_d
         <span class="hljs-keyword">if</span> old_instance.status != instance.status:
             <span class="hljs-keyword">if</span> instance.status == <span class="hljs-string">'ISSUED'</span>:
                 instance.issue_date = timezone.now()
-            <span class="hljs-keyword">elif</span> instance.status == <span class="hljs-string">'ACKNOWLEDGED'</span>:  
+            <span class="hljs-keyword">elif</span> instance.status == <span class="hljs-string">'ACKNOWLEDGED'</span>:
                 instance.acknowledgment_date = timezone.now()
             <span class="hljs-keyword">elif</span> instance.status == <span class="hljs-string">'DELIVERED'</span>:
                 instance.actual_delivery_date = timezone.now()
@@ -941,19 +941,19 @@ document_type = ForeignKey(<span class="hljs-string">"DocumentType"</span>, on_d
 <p><strong>Complete Purchase Order State Machine:</strong></p>
 <pre><code class="language-mermaid"><div class="mermaid">stateDiagram-v2
     [*] --> PENDING : Order Created
-    
+
     PENDING --> ISSUED : Issue to Vendor
     PENDING --> CANCELLED : Cancel Order
-    
+
     ISSUED --> ACKNOWLEDGED : Vendor Acknowledges
     ISSUED --> CANCELLED : Cancel Order
-    
+
     ACKNOWLEDGED --> DELIVERED : Mark as Delivered
     ACKNOWLEDGED --> CANCELLED : Cancel Order
-    
+
     DELIVERED --> [*] : Workflow Complete
     CANCELLED --> [*] : Workflow Complete
-    
+
     note right of ISSUED : issue_date auto-set
     note right of ACKNOWLEDGED : acknowledgment_date auto-set
     note right of DELIVERED : actual_delivery_date auto-set
@@ -1010,19 +1010,19 @@ document_type = ForeignKey(<span class="hljs-string">"DocumentType"</span>, on_d
 <p><strong>Document Approval Process:</strong></p>
 <pre><code class="language-mermaid"><div class="mermaid">stateDiagram-v2
     [*] --> PENDING : Document Uploaded
-    
+
     PENDING --> APPROVED : BO User Approves
     PENDING --> REJECTED : BO User Rejects
     PENDING --> EXPIRED : Auto-Expiry Check
-    
+
     APPROVED --> EXPIRED : Expiry Date Reached
     APPROVED --> RENEWED : New Version Uploaded
-    
+
     REJECTED --> PENDING : Resubmission
     EXPIRED --> PENDING : Document Renewed
-    
+
     RENEWED --> PENDING : Awaiting Approval
-    
+
     note right of APPROVED : approved_date set
     note right of EXPIRED : Automated via Celery
     note right of RENEWED : Previous version archived
@@ -1065,11 +1065,11 @@ document_type = ForeignKey(<span class="hljs-string">"DocumentType"</span>, on_d
     participant Vendor as Vendor Model
     participant Celery as Background Task
     participant HP as Historical Performance
-    
+
     PO->>Signal: Status Change to DELIVERED
     Signal->>Vendor: Trigger Performance Recalculation
     Vendor->>Vendor: Update Metrics (On-time, Quality, etc.)
-    
+
     Note over Celery: Every 6 Hours
     Celery->>Vendor: Fetch All Vendors
     Vendor->>HP: Create Historical Snapshot
@@ -1089,7 +1089,7 @@ rate = (on_time / delivered_orders.count()) * <span class="hljs-number">100</spa
 <li>
 <p><strong>Quality Rating Average</strong></p>
 <pre class="hljs"><code><div>rated_orders = vendor.purchase_orders.filter(
-    status=<span class="hljs-string">'DELIVERED'</span>, 
+    status=<span class="hljs-string">'DELIVERED'</span>,
     quality_rating__isnull=<span class="hljs-literal">False</span>
 )
 avg_rating = rated_orders.aggregate(Avg(<span class="hljs-string">'quality_rating'</span>))[<span class="hljs-string">'quality_rating__avg'</span>] <span class="hljs-keyword">or</span> <span class="hljs-number">0</span>
@@ -1127,7 +1127,7 @@ GET    /api/vendors/{vendor_code}/   # Retrieve specific vendor
 PUT    /api/vendors/{vendor_code}/   # Update vendor
 DELETE /api/vendors/{vendor_code}/   # Delete vendor
 
-# Purchase Order Management  
+# Purchase Order Management
 GET    /api/purchase-orders/         # List all orders
 POST   /api/purchase-orders/         # Create new order
 GET    /api/purchase-orders/{po_number}/  # Retrieve specific order
@@ -1155,16 +1155,16 @@ POST   /api/obtain-auth-token/       # Get JWT token
     participant API as API Gateway
     participant Auth as Auth Service
     participant DB as Database
-    
+
     Client->>API: POST /obtain-auth-token/ {email, password}
     API->>Auth: Validate Credentials
     Auth->>DB: Query User Model
     DB->>Auth: User Data + Role
     Auth->>API: Generate JWT Token
     API->>Client: Return Token
-    
+
     Note over Client: Store Token for Subsequent Requests
-    
+
     Client->>API: API Request + ?token=jwt_token
     API->>Auth: Validate Token
     Auth->>API: User Context + Permissions
@@ -1269,7 +1269,7 @@ CELERY_BEAT_SCHEDULE = {
         expiry_date__lte=warning_date,
         expiry_date__gte=timezone.now().date()
     )
-    
+
     <span class="hljs-keyword">for</span> doc <span class="hljs-keyword">in</span> expiring_docs:
         send_expiry_warning_email.delay(doc.id)
 </div></code></pre>
@@ -1302,7 +1302,7 @@ CELERY_BEAT_SCHEDULE = {
     <span class="hljs-string">"""Permission class for vendor users - access only to own data"""</span>
     <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">has_permission</span><span class="hljs-params">(self, request, view)</span>:</span>
         <span class="hljs-keyword">return</span> request.user.role == <span class="hljs-string">'vendor'</span> <span class="hljs-keyword">and</span> request.user.vendor <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span>
-    
+
     <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">has_object_permission</span><span class="hljs-params">(self, request, view, obj)</span>:</span>
         <span class="hljs-keyword">if</span> hasattr(obj, <span class="hljs-string">'vendor'</span>):
             <span class="hljs-keyword">return</span> obj.vendor == request.user.vendor

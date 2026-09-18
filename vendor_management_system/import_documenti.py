@@ -1,13 +1,14 @@
+import argparse
 import os
 import re
 import sys
+from datetime import datetime
+from pathlib import Path
+
 import django
 import pandas as pd
-from pathlib import Path
 from django.db import transaction
 from termcolor import colored
-import argparse
-from datetime import datetime
 
 # --- Setup Django ---
 CURRENT_DIR = Path(__file__).resolve().parent
@@ -16,9 +17,11 @@ sys.path.append(str(BASE_DIR))
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
 django.setup()
 
-from vendor_management_system.vendors.models import Vendor
-from vendor_management_system.documents.models import DocumentType, Document
-
+from vendor_management_system.documents.models import (  # noqa: E402
+    Document,
+    DocumentType,
+)
+from vendor_management_system.vendors.models import Vendor  # noqa: E402
 
 # === CONFIG ===
 FILE_PATH = "import_sa8000.xlsx"
@@ -62,7 +65,8 @@ def albo_row_from_code(code):
 
 
 def build_vendor_index():
-    """Indici dei fornitori per Codice Embyon e per Riga excel Albo Fornitore."""
+    """Indici dei fornitori per Codice Embyon e per Riga excel Albo
+    Fornitore."""
     by_code, by_row = {}, {}
     for v in Vendor.objects.only("pk", "old_code", "albo_excel_row", "name"):
         if v.old_code:
@@ -83,7 +87,7 @@ def resolve_vendor(value, by_code, by_row, key="auto"):
     """
     key_value = str(value or "").strip().upper()
     riga = albo_row_from_code(key_value)
-    if key_value.isdigit():           # la colonna porta direttamente la riga
+    if key_value.isdigit():  # la colonna porta direttamente la riga
         riga = int(key_value)
 
     if key != "old_code" and riga and riga in by_row:
@@ -107,7 +111,9 @@ def resolve_file_path(path: str | Path) -> Path | None:
 
 # === MAIN ===
 @transaction.atomic
-def import_documents(file_path=None, sheet_name=None, dry_run=None, key="auto"):
+def import_documents(
+    file_path=None, sheet_name=None, dry_run=None, key="auto"
+):
     file_path = file_path or FILE_PATH
     sheet_name = sheet_name or SHEET_NAME
     dry_run = dry_run if dry_run is not None else DRY_RUN
@@ -124,7 +130,13 @@ def import_documents(file_path=None, sheet_name=None, dry_run=None, key="auto"):
         df = pd.read_excel(resolved_path, sheet_name=sheet_name, dtype=str)
 
     print(colored(f"\n📄 Import documenti da: {resolved_path}", "cyan"))
-    print(colored(f"   Foglio: {sheet_name} | DRY_RUN: {dry_run}", "cyan", attrs=["bold"]))
+    print(
+        colored(
+            f"   Foglio: {sheet_name} | DRY_RUN: {dry_run}",
+            "cyan",
+            attrs=["bold"],
+        )
+    )
     print(colored(f"   Righe: {len(df)}\n", "cyan", attrs=["bold"]))
 
     created_docs = updated_docs = missing_vendor = 0
@@ -135,17 +147,32 @@ def import_documents(file_path=None, sheet_name=None, dry_run=None, key="auto"):
         for i, row in df.iterrows():
             old_code = safe_str(row.get("old_code"))
             if not old_code:
-                print(colored(f"[{i+1}] ⚠️ Riga senza old_code, saltata", "yellow"))
+                print(
+                    colored(
+                        f"[{i + 1}] ⚠️ Riga senza old_code, saltata", "yellow"
+                    )
+                )
                 continue
 
-            vendor, criterio = resolve_vendor(old_code, by_vendor_code, by_vendor_row, key)
+            vendor, criterio = resolve_vendor(
+                old_code, by_vendor_code, by_vendor_row, key
+            )
             if not vendor:
-                print(colored(f"[{i+1}] ❌ Vendor non trovato: {old_code}", "red"))
+                print(
+                    colored(
+                        f"[{i + 1}] ❌ Vendor non trovato: {old_code}", "red"
+                    )
+                )
                 missing_vendor += 1
                 continue
 
-            print(colored(f"\n➡️ {i+1}. Vendor: {vendor.name or old_code} "
-                          f"[{old_code} → {criterio}]", "cyan"))
+            print(
+                colored(
+                    f"\n➡️ {i + 1}. Vendor: {vendor.name or old_code} "
+                    f"[{old_code} → {criterio}]",
+                    "cyan",
+                )
+            )
 
             for col, val in row.items():
                 if col == "old_code":
@@ -155,9 +182,16 @@ def import_documents(file_path=None, sheet_name=None, dry_run=None, key="auto"):
                 if not value:
                     continue
 
-                doc_type = DocumentType.objects.filter(code__iexact=col.strip()).first()
+                doc_type = DocumentType.objects.filter(
+                    code__iexact=col.strip()
+                ).first()
                 if not doc_type:
-                    print(colored(f"   ⚠️ Tipo documento {col} non trovato, salto", "yellow"))
+                    print(
+                        colored(
+                            f"   ⚠️ Tipo documento {col} non trovato, salto",
+                            "yellow",
+                        )
+                    )
                     continue
 
                 # Rileva tipo di valore
@@ -182,13 +216,30 @@ def import_documents(file_path=None, sheet_name=None, dry_run=None, key="auto"):
 
                 if created:
                     created_docs += 1
-                    print(colored(f"   ✅ Nuovo documento: {doc_type.code} ({value})", "green"))
+                    print(
+                        colored(
+                            f"   ✅ Nuovo documento: {doc_type.code} "
+                            f"({value})",
+                            "green",
+                        )
+                    )
                 else:
                     updated_docs += 1
-                    print(colored(f"   ♻️ Aggiornato: {doc_type.code} ({value})", "yellow"))
+                    print(
+                        colored(
+                            f"   ♻️ Aggiornato: {doc_type.code} ({value})",
+                            "yellow",
+                        )
+                    )
 
         if dry_run:
-            print(colored("\n🧪 DRY RUN: annullo tutte le modifiche", "yellow", attrs=["bold"]))
+            print(
+                colored(
+                    "\n🧪 DRY RUN: annullo tutte le modifiche",
+                    "yellow",
+                    attrs=["bold"],
+                )
+            )
             transaction.set_rollback(True)
 
     print(colored("\n✅ Import completato", "cyan", attrs=["bold"]))
@@ -199,13 +250,38 @@ def import_documents(file_path=None, sheet_name=None, dry_run=None, key="auto"):
 
 # === CLI ===
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Import documenti vendor (Document) da Excel/CSV")
-    parser.add_argument("-f", "--file", dest="file_path", default=FILE_PATH, help="Percorso file")
-    parser.add_argument("-s", "--sheet", dest="sheet_name", default=SHEET_NAME, help="Indice o nome foglio")
-    parser.add_argument("--key", choices=["auto", "albo_row", "old_code"], default="auto",
-                        help="Come agganciare il fornitore: auto (riga Albo per i codici XLS, "
-                             "poi Codice Embyon), solo riga Albo, solo Codice Embyon")
-    parser.add_argument("--dry-run", action="store_true", help="Simula senza salvare modifiche")
+    parser = argparse.ArgumentParser(
+        description="Import documenti vendor (Document) da Excel/CSV"
+    )
+    parser.add_argument(
+        "-f",
+        "--file",
+        dest="file_path",
+        default=FILE_PATH,
+        help="Percorso file",
+    )
+    parser.add_argument(
+        "-s",
+        "--sheet",
+        dest="sheet_name",
+        default=SHEET_NAME,
+        help="Indice o nome foglio",
+    )
+    parser.add_argument(
+        "--key",
+        choices=["auto", "albo_row", "old_code"],
+        default="auto",
+        help="Come agganciare il fornitore: auto (riga Albo per i codici XLS, "
+        "poi Codice Embyon), solo riga Albo, solo Codice Embyon",
+    )
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Simula senza salvare modifiche"
+    )
     args = parser.parse_args()
 
-    import_documents(file_path=args.file_path, sheet_name=args.sheet_name, dry_run=args.dry_run, key=args.key)
+    import_documents(
+        file_path=args.file_path,
+        sheet_name=args.sheet_name,
+        dry_run=args.dry_run,
+        key=args.key,
+    )

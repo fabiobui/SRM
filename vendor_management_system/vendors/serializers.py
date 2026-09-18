@@ -3,71 +3,104 @@ from rest_framework import serializers
 from rest_framework.serializers import ModelSerializer, ValidationError
 
 from vendor_management_system.vendors.models import (
-    Vendor, Address, Category,
-    Country, Region, Province, CompetenceZone, CompetenceZoneRule
+    Address,
+    Category,
+    CompetenceZone,
+    CompetenceZoneRule,
+    Country,
+    Province,
+    Region,
+    Vendor,
 )
-
 
 # ============================================================================
 # Serializers Geografici
 # ============================================================================
+
 
 class CountrySerializer(ModelSerializer):
     region_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Country
-        fields = ['id', 'code', 'name', 'is_active', 'sort_order', 'region_count']
-        read_only_fields = ['id']
+        fields = [
+            "id",
+            "code",
+            "name",
+            "is_active",
+            "sort_order",
+            "region_count",
+        ]
+        read_only_fields = ["id"]
 
     def get_region_count(self, obj):
         return obj.regions.filter(is_active=True).count()
 
 
 class RegionSerializer(ModelSerializer):
-    country_name = serializers.CharField(source='country.name', read_only=True)
+    country_name = serializers.CharField(source="country.name", read_only=True)
     province_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Region
-        fields = ['id', 'code', 'name', 'country', 'country_name', 'is_active', 'sort_order', 'province_count']
-        read_only_fields = ['id']
+        fields = [
+            "id",
+            "code",
+            "name",
+            "country",
+            "country_name",
+            "is_active",
+            "sort_order",
+            "province_count",
+        ]
+        read_only_fields = ["id"]
 
     def get_province_count(self, obj):
         return obj.provinces.filter(is_active=True).count()
 
 
 class ProvinceSerializer(ModelSerializer):
-    region_name = serializers.CharField(source='region.name', read_only=True)
-    country_name = serializers.CharField(source='region.country.name', read_only=True)
+    region_name = serializers.CharField(source="region.name", read_only=True)
+    country_name = serializers.CharField(
+        source="region.country.name", read_only=True
+    )
 
     class Meta:
         model = Province
-        fields = ['id', 'code', 'name', 'region', 'region_name', 'country_name', 'is_active', 'sort_order']
-        read_only_fields = ['id']
+        fields = [
+            "id",
+            "code",
+            "name",
+            "region",
+            "region_name",
+            "country_name",
+            "is_active",
+            "sort_order",
+        ]
+        read_only_fields = ["id"]
 
 
 # Versioni compatte per nested use
 class CountryCompactSerializer(ModelSerializer):
     class Meta:
         model = Country
-        fields = ['id', 'code', 'name']
+        fields = ["id", "code", "name"]
 
 
 class RegionCompactSerializer(ModelSerializer):
-    country_name = serializers.CharField(source='country.name', read_only=True)
+    country_name = serializers.CharField(source="country.name", read_only=True)
 
     class Meta:
         model = Region
-        fields = ['id', 'code', 'name', 'country_name']
+        fields = ["id", "code", "name", "country_name"]
 
 
 class ProvinceCompactSerializer(ModelSerializer):
-    region_name = serializers.CharField(source='region.name', read_only=True)
+    region_name = serializers.CharField(source="region.name", read_only=True)
 
     class Meta:
         model = Province
-        fields = ['id', 'code', 'name', 'region_name']
+        fields = ["id", "code", "name", "region_name"]
 
 
 # Serializer gerarchico: Nazione → Regioni → Province
@@ -76,10 +109,12 @@ class CountryTreeSerializer(ModelSerializer):
 
     class Meta:
         model = Country
-        fields = ['id', 'code', 'name', 'regions']
+        fields = ["id", "code", "name", "regions"]
 
     def get_regions(self, obj):
-        regions = obj.regions.filter(is_active=True).order_by('sort_order', 'name')
+        regions = obj.regions.filter(is_active=True).order_by(
+            "sort_order", "name"
+        )
         return RegionTreeSerializer(regions, many=True).data
 
 
@@ -88,10 +123,12 @@ class RegionTreeSerializer(ModelSerializer):
 
     class Meta:
         model = Region
-        fields = ['id', 'code', 'name', 'provinces']
+        fields = ["id", "code", "name", "provinces"]
 
     def get_provinces(self, obj):
-        provinces = obj.provinces.filter(is_active=True).order_by('sort_order', 'name')
+        provinces = obj.provinces.filter(is_active=True).order_by(
+            "sort_order", "name"
+        )
         return ProvinceCompactSerializer(provinces, many=True).data
 
 
@@ -99,37 +136,48 @@ class RegionTreeSerializer(ModelSerializer):
 # Serializers Zone di Competenza
 # ============================================================================
 
+
 class CompetenceZoneRuleSerializer(ModelSerializer):
     geographic_target = serializers.ReadOnlyField()
     level = serializers.ReadOnlyField()
-    country_name = serializers.CharField(source='country.name', read_only=True)
-    region_name = serializers.CharField(source='region.name', read_only=True)
-    province_name = serializers.CharField(source='province.name', read_only=True)
+    country_name = serializers.CharField(source="country.name", read_only=True)
+    region_name = serializers.CharField(source="region.name", read_only=True)
+    province_name = serializers.CharField(
+        source="province.name", read_only=True
+    )
 
     class Meta:
         model = CompetenceZoneRule
         fields = [
-            'id', 'rule_type',
-            'country', 'country_name',
-            'region', 'region_name',
-            'province', 'province_name',
-            'geographic_target', 'level',
+            "id",
+            "rule_type",
+            "country",
+            "country_name",
+            "region",
+            "region_name",
+            "province",
+            "province_name",
+            "geographic_target",
+            "level",
         ]
-        read_only_fields = ['id']
+        read_only_fields = ["id"]
 
     def validate(self, data):
-        filled = sum([
-            data.get('country') is not None,
-            data.get('region') is not None,
-            data.get('province') is not None,
-        ])
+        filled = sum(
+            [
+                data.get("country") is not None,
+                data.get("region") is not None,
+                data.get("province") is not None,
+            ]
+        )
         if filled == 0:
             raise ValidationError(
                 "Selezionare almeno una tra Nazione, Regione o Provincia."
             )
         if filled > 1:
             raise ValidationError(
-                "Selezionare solo una tra Nazione, Regione o Provincia per ogni regola."
+                "Selezionare solo una tra Nazione, Regione o Provincia "
+                "per ogni regola."
             )
         return data
 
@@ -142,11 +190,17 @@ class CompetenceZoneSerializer(ModelSerializer):
     class Meta:
         model = CompetenceZone
         fields = [
-            'id', 'name', 'description', 'is_active',
-            'rules', 'rules_summary', 'vendor_count',
-            'created_at', 'updated_at',
+            "id",
+            "name",
+            "description",
+            "is_active",
+            "rules",
+            "rules_summary",
+            "vendor_count",
+            "created_at",
+            "updated_at",
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        read_only_fields = ["id", "created_at", "updated_at"]
 
     def get_vendor_count(self, obj):
         return obj.vendors.count()
@@ -157,26 +211,27 @@ class CompetenceZoneCompactSerializer(ModelSerializer):
 
     class Meta:
         model = CompetenceZone
-        fields = ['id', 'name', 'rules_summary']
+        fields = ["id", "name", "rules_summary"]
 
 
 class CompetenceZoneCreateUpdateSerializer(ModelSerializer):
     """Serializer per creare/aggiornare zone di competenza con regole inline"""
+
     rules = CompetenceZoneRuleSerializer(many=True, required=False)
 
     class Meta:
         model = CompetenceZone
-        fields = ['name', 'description', 'is_active', 'rules']
+        fields = ["name", "description", "is_active", "rules"]
 
     def create(self, validated_data):
-        rules_data = validated_data.pop('rules', [])
+        rules_data = validated_data.pop("rules", [])
         zone = CompetenceZone.objects.create(**validated_data)
         for rule_data in rules_data:
             CompetenceZoneRule.objects.create(zone=zone, **rule_data)
         return zone
 
     def update(self, instance, validated_data):
-        rules_data = validated_data.pop('rules', None)
+        rules_data = validated_data.pop("rules", None)
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
@@ -196,59 +251,85 @@ class CategorySerializer(ModelSerializer):
     level = serializers.ReadOnlyField()
     vendor_count = serializers.ReadOnlyField()
     total_vendor_count = serializers.ReadOnlyField()
-    parent_name = serializers.CharField(source='parent.name', read_only=True)
+    parent_name = serializers.CharField(source="parent.name", read_only=True)
     subcategories = serializers.StringRelatedField(many=True, read_only=True)
-    
+
     class Meta:
         model = Category
         fields = [
-            'id',
-            'code',
-            'name',
-            'description',
-            'parent',
-            'parent_name',
-            'is_active',
-            'sort_order',
-            'color_code',
-            'requires_certification',
-            'default_risk_level',
-            'created_at',
-            'updated_at',
-            'full_name',
-            'level',
-            'vendor_count',
-            'total_vendor_count',
-            'subcategories',
+            "id",
+            "code",
+            "name",
+            "description",
+            "parent",
+            "parent_name",
+            "is_active",
+            "sort_order",
+            "color_code",
+            "requires_certification",
+            "default_risk_level",
+            "created_at",
+            "updated_at",
+            "full_name",
+            "level",
+            "vendor_count",
+            "total_vendor_count",
+            "subcategories",
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at', 'full_name', 'level', 'vendor_count', 'total_vendor_count', 'parent_name', 'subcategories']
+        read_only_fields = [
+            "id",
+            "created_at",
+            "updated_at",
+            "full_name",
+            "level",
+            "vendor_count",
+            "total_vendor_count",
+            "parent_name",
+            "subcategories",
+        ]
 
     def validate(self, data):
         # Validazione per evitare cicli nella gerarchia
-        if 'parent' in data and data['parent']:
-            parent = data['parent']
+        if "parent" in data and data["parent"]:
+            parent = data["parent"]
             instance = self.instance
-            
+
             if instance and parent == instance:
-                raise ValidationError({
-                    'parent': 'Una categoria non può essere genitore di se stessa.'
-                })
-            
+                raise ValidationError(
+                    {
+                        "parent": (
+                            "Una categoria non può essere genitore "
+                            "di se stessa."
+                        )
+                    }
+                )
+
             # Controlla cicli più profondi
             if instance:
                 ancestors = parent.get_ancestors(include_self=True)
                 if instance in ancestors:
-                    raise ValidationError({
-                        'parent': 'Questa relazione creerebbe un ciclo nella gerarchia.'
-                    })
-        
+                    raise ValidationError(
+                        {
+                            "parent": (
+                                "Questa relazione creerebbe un ciclo "
+                                "nella gerarchia."
+                            )
+                        }
+                    )
+
         # Validazione codice colore
-        if 'color_code' in data and data['color_code']:
+        if "color_code" in data and data["color_code"]:
             import re
-            if not re.match(r'^#[0-9A-Fa-f]{6}$', data['color_code']):
-                raise ValidationError({
-                    'color_code': 'Il codice colore deve essere in formato esadecimale (es. #FF5733).'
-                })
+
+            if not re.match(r"^#[0-9A-Fa-f]{6}$", data["color_code"]):
+                raise ValidationError(
+                    {
+                        "color_code": (
+                            "Il codice colore deve essere in formato "
+                            "esadecimale (es. #FF5733)."
+                        )
+                    }
+                )
 
         return data
 
@@ -256,19 +337,19 @@ class CategorySerializer(ModelSerializer):
 # Serializer per Category (versione compatta per nested use)
 class CategoryCompactSerializer(ModelSerializer):
     full_name = serializers.ReadOnlyField()
-    parent_name = serializers.CharField(source='parent.name', read_only=True)
-    
+    parent_name = serializers.CharField(source="parent.name", read_only=True)
+
     class Meta:
         model = Category
         fields = [
-            'id',
-            'code',
-            'name',
-            'full_name',
-            'parent_name',
-            'color_code',
-            'requires_certification',
-            'default_risk_level',
+            "id",
+            "code",
+            "name",
+            "full_name",
+            "parent_name",
+            "color_code",
+            "requires_certification",
+            "default_risk_level",
         ]
 
 
@@ -277,15 +358,15 @@ class CategoryManagementSerializer(ModelSerializer):
     class Meta:
         model = Category
         fields = [
-            'code',
-            'name',
-            'description',
-            'parent',
-            'is_active',
-            'sort_order',
-            'color_code',
-            'requires_certification',
-            'default_risk_level',
+            "code",
+            "name",
+            "description",
+            "parent",
+            "is_active",
+            "sort_order",
+            "color_code",
+            "requires_certification",
+            "default_risk_level",
         ]
 
     def validate(self, data):
@@ -295,7 +376,8 @@ class CategoryManagementSerializer(ModelSerializer):
         # Get the list of fields provided in the input data
         received_fields = set(self.initial_data.keys())
 
-        # Calculate the extra fields by subtracting allowed fields from received fields
+        # Calculate the extra fields by subtracting allowed fields from
+        # received fields
         extra_fields = received_fields - allowed_fields
 
         # If there are extra fields, raise a validation error
@@ -305,28 +387,33 @@ class CategoryManagementSerializer(ModelSerializer):
             )
 
         # Validazione codice univoco
-        if 'code' in data:
-            code = data['code'].upper()
+        if "code" in data:
+            code = data["code"].upper()
             if self.instance and self.instance.code != code:
                 if Category.objects.filter(code=code).exists():
-                    raise ValidationError({
-                        'code': 'Una categoria con questo codice esiste già.'
-                    })
+                    raise ValidationError(
+                        {"code": "Una categoria con questo codice esiste già."}
+                    )
             elif not self.instance:
                 if Category.objects.filter(code=code).exists():
-                    raise ValidationError({
-                        'code': 'Una categoria con questo codice esiste già.'
-                    })
+                    raise ValidationError(
+                        {"code": "Una categoria con questo codice esiste già."}
+                    )
 
         # Validazione gerarchia
-        if 'parent' in data and data['parent']:
-            parent = data['parent']
+        if "parent" in data and data["parent"]:
+            parent = data["parent"]
             instance = self.instance
-            
+
             if instance and parent == instance:
-                raise ValidationError({
-                    'parent': 'Una categoria non può essere genitore di se stessa.'
-                })
+                raise ValidationError(
+                    {
+                        "parent": (
+                            "Una categoria non può essere genitore "
+                            "di se stessa."
+                        )
+                    }
+                )
 
         return data
 
@@ -335,59 +422,69 @@ class CategoryManagementSerializer(ModelSerializer):
 class AddressSerializer(ModelSerializer):
     full_address = serializers.ReadOnlyField()
     short_address = serializers.ReadOnlyField()
-    
+
     class Meta:
         model = Address
         fields = [
-            'id',
-            'street_address',
-            'street_address_2',
-            'city',
-            'state_province',
-            'region',
-            'postal_code',
-            'country',
-            'latitude',
-            'longitude',
-            'address_type',
-            'is_active',
-            'full_address',
-            'short_address',
-            'created_at',
-            'updated_at',
+            "id",
+            "street_address",
+            "street_address_2",
+            "city",
+            "state_province",
+            "region",
+            "postal_code",
+            "country",
+            "latitude",
+            "longitude",
+            "address_type",
+            "is_active",
+            "full_address",
+            "short_address",
+            "created_at",
+            "updated_at",
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at', 'full_address', 'short_address']
+        read_only_fields = [
+            "id",
+            "created_at",
+            "updated_at",
+            "full_address",
+            "short_address",
+        ]
 
     def validate(self, data):
         # Validazioni personalizzate per l'indirizzo
-        if 'postal_code' in data:
-            postal_code = data['postal_code']
-            country = data.get('country', 'Italia')
-            
+        if "postal_code" in data:
+            postal_code = data["postal_code"]
+            country = data.get("country", "Italia")
+
             # Validazione CAP italiano
-            if country == 'Italia':
+            if country == "Italia":
                 if not postal_code.isdigit() or len(postal_code) != 5:
-                    raise ValidationError({
-                        'postal_code': 'Il CAP italiano deve essere di 5 cifre.'
-                    })
-        
+                    raise ValidationError(
+                        {
+                            "postal_code": (
+                                "Il CAP italiano deve essere di 5 cifre."
+                            )
+                        }
+                    )
+
         return data
 
 
 # Serializer per Address (versione compatta per nested use)
 class AddressCompactSerializer(ModelSerializer):
     full_address = serializers.ReadOnlyField()
-    
+
     class Meta:
         model = Address
         fields = [
-            'id',
-            'street_address',
-            'city',
-            'postal_code',
-            'country',
-            'address_type',
-            'full_address',
+            "id",
+            "street_address",
+            "city",
+            "postal_code",
+            "country",
+            "address_type",
+            "full_address",
         ]
 
 
@@ -396,17 +493,17 @@ class AddressManagementSerializer(ModelSerializer):
     class Meta:
         model = Address
         fields = [
-            'street_address',
-            'street_address_2',
-            'city',
-            'state_province',
-            'region',
-            'postal_code',
-            'country',
-            'latitude',
-            'longitude',
-            'address_type',
-            'is_active',
+            "street_address",
+            "street_address_2",
+            "city",
+            "state_province",
+            "region",
+            "postal_code",
+            "country",
+            "latitude",
+            "longitude",
+            "address_type",
+            "is_active",
         ]
 
     def validate(self, data):
@@ -416,7 +513,8 @@ class AddressManagementSerializer(ModelSerializer):
         # Get the list of fields provided in the input data
         received_fields = set(self.initial_data.keys())
 
-        # Calculate the extra fields by subtracting allowed fields from received fields
+        # Calculate the extra fields by subtracting allowed fields from
+        # received fields
         extra_fields = received_fields - allowed_fields
 
         # If there are extra fields, raise a validation error
@@ -426,17 +524,21 @@ class AddressManagementSerializer(ModelSerializer):
             )
 
         # Validazioni personalizzate per l'indirizzo
-        if 'postal_code' in data:
-            postal_code = data['postal_code']
-            country = data.get('country', 'Italia')
-            
+        if "postal_code" in data:
+            postal_code = data["postal_code"]
+            country = data.get("country", "Italia")
+
             # Validazione CAP italiano
-            if country == 'Italia':
+            if country == "Italia":
                 if not postal_code.isdigit() or len(postal_code) != 5:
-                    raise ValidationError({
-                        'postal_code': 'Il CAP italiano deve essere di 5 cifre.'
-                    })
-        
+                    raise ValidationError(
+                        {
+                            "postal_code": (
+                                "Il CAP italiano deve essere di 5 cifre."
+                            )
+                        }
+                    )
+
         return data
 
 
@@ -446,9 +548,13 @@ class VendorSerializer(ModelSerializer):
     audit_overdue = serializers.ReadOnlyField()
     address = AddressSerializer(required=False, allow_null=True)
     category = CategoryCompactSerializer(read_only=True)
-    category_id = serializers.UUIDField(write_only=True, required=False, allow_null=True)
-    competence_zones = CompetenceZoneCompactSerializer(many=True, read_only=True)
-    
+    category_id = serializers.UUIDField(
+        write_only=True, required=False, allow_null=True
+    )
+    competence_zones = CompetenceZoneCompactSerializer(
+        many=True, read_only=True
+    )
+
     class Meta:
         model = Vendor
         fields = [
@@ -503,54 +609,58 @@ class VendorSerializer(ModelSerializer):
 
     def create(self, validated_data):
         # Gestisce la creazione dell'indirizzo se fornito
-        address_data = validated_data.pop('address', None)
-        category_id = validated_data.pop('category_id', None)
-        
+        address_data = validated_data.pop("address", None)
+        category_id = validated_data.pop("category_id", None)
+
         # Imposta la categoria se fornita
         if category_id:
             try:
                 category = Category.objects.get(id=category_id, is_active=True)
-                validated_data['category'] = category
-            except Category.DoesNotExist:
-                raise ValidationError({'category_id': 'Categoria non trovata o non attiva.'})
-        
+                validated_data["category"] = category
+            except Category.DoesNotExist as exc:
+                raise ValidationError(
+                    {"category_id": "Categoria non trovata o non attiva."}
+                ) from exc
+
         vendor = Vendor.objects.create(**validated_data)
-        
+
         if address_data:
             address = Address.objects.create(**address_data)
             vendor.address = address
             vendor.save()
-            
+
         return vendor
 
     def update(self, instance, validated_data):
         # Gestisce l'aggiornamento dell'indirizzo e categoria
-        address_data = validated_data.pop('address', None)
-        category_id = validated_data.pop('category_id', None)
-        
+        address_data = validated_data.pop("address", None)
+        category_id = validated_data.pop("category_id", None)
+
         # Gestisce la categoria
         if category_id is not None:
             if category_id:
                 try:
-                    category = Category.objects.get(id=category_id, is_active=True)
-                    validated_data['category'] = category
-                except Category.DoesNotExist:
-                    raise ValidationError({'category_id': 'Categoria non trovata o non attiva.'})
+                    category = Category.objects.get(
+                        id=category_id, is_active=True
+                    )
+                    validated_data["category"] = category
+                except Category.DoesNotExist as exc:
+                    raise ValidationError(
+                        {"category_id": "Categoria non trovata o non attiva."}
+                    ) from exc
             else:
-                validated_data['category'] = None
-        
+                validated_data["category"] = None
+
         # Aggiorna i campi del vendor
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
-        
+
         # Gestisce l'indirizzo
         if address_data is not None:
             if instance.address:
                 # Aggiorna l'indirizzo esistente
                 address_serializer = AddressSerializer(
-                    instance.address, 
-                    data=address_data, 
-                    partial=True
+                    instance.address, data=address_data, partial=True
                 )
                 if address_serializer.is_valid():
                     address_serializer.save()
@@ -558,7 +668,7 @@ class VendorSerializer(ModelSerializer):
                 # Crea un nuovo indirizzo
                 address = Address.objects.create(**address_data)
                 instance.address = address
-        
+
         instance.save()
         return instance
 
@@ -567,7 +677,7 @@ class VendorSerializer(ModelSerializer):
 class VendorCreateUpdateSerializer(ModelSerializer):
     address = AddressSerializer(required=False, allow_null=True)
     category_id = serializers.UUIDField(required=False, allow_null=True)
-    
+
     class Meta:
         model = Vendor
         fields = [
@@ -589,56 +699,56 @@ class VendorCreateUpdateSerializer(ModelSerializer):
     def validate_category_id(self, value):
         if value:
             try:
-                category = Category.objects.get(id=value, is_active=True)
+                Category.objects.get(id=value, is_active=True)
                 return value
-            except Category.DoesNotExist:
-                raise ValidationError('Categoria non trovata o non attiva.')
+            except Category.DoesNotExist as exc:
+                raise ValidationError(
+                    "Categoria non trovata o non attiva."
+                ) from exc
         return value
 
     def create(self, validated_data):
-        address_data = validated_data.pop('address', None)
-        category_id = validated_data.pop('category_id', None)
-        
+        address_data = validated_data.pop("address", None)
+        category_id = validated_data.pop("category_id", None)
+
         # Imposta la categoria
         if category_id:
-            validated_data['category'] = Category.objects.get(id=category_id)
-        
+            validated_data["category"] = Category.objects.get(id=category_id)
+
         vendor = Vendor.objects.create(**validated_data)
-        
+
         if address_data:
             address = Address.objects.create(**address_data)
             vendor.address = address
             vendor.save()
-            
+
         return vendor
 
     def update(self, instance, validated_data):
-        address_data = validated_data.pop('address', None)
-        category_id = validated_data.pop('category_id', None)
-        
+        address_data = validated_data.pop("address", None)
+        category_id = validated_data.pop("category_id", None)
+
         # Gestisce la categoria
         if category_id is not None:
             if category_id:
                 instance.category = Category.objects.get(id=category_id)
             else:
                 instance.category = None
-        
+
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
-        
+
         if address_data is not None:
             if instance.address:
                 address_serializer = AddressSerializer(
-                    instance.address, 
-                    data=address_data, 
-                    partial=True
+                    instance.address, data=address_data, partial=True
                 )
                 if address_serializer.is_valid():
                     address_serializer.save()
             else:
                 address = Address.objects.create(**address_data)
                 instance.address = address
-        
+
         instance.save()
         return instance
 
@@ -649,7 +759,7 @@ class VendorListSerializer(ModelSerializer):
     audit_overdue = serializers.ReadOnlyField()
     address = AddressCompactSerializer(read_only=True)
     category = CategoryCompactSerializer(read_only=True)
-    
+
     class Meta:
         model = Vendor
         fields = [
@@ -673,27 +783,30 @@ class VendorListSerializer(ModelSerializer):
 # Serializer specifico per category tree/hierarchy
 class CategoryTreeSerializer(ModelSerializer):
     """Serializer per visualizzare la struttura gerarchica delle categorie"""
+
     subcategories = serializers.SerializerMethodField()
     vendor_count = serializers.ReadOnlyField()
     total_vendor_count = serializers.ReadOnlyField()
-    
+
     class Meta:
         model = Category
         fields = [
-            'id',
-            'code',
-            'name',
-            'description',
-            'color_code',
-            'sort_order',
-            'vendor_count',
-            'total_vendor_count',
-            'subcategories',
+            "id",
+            "code",
+            "name",
+            "description",
+            "color_code",
+            "sort_order",
+            "vendor_count",
+            "total_vendor_count",
+            "subcategories",
         ]
-    
+
     def get_subcategories(self, obj):
         """Ricorsivamente ottiene le sottocategorie"""
-        subcategories = obj.subcategories.filter(is_active=True).order_by('sort_order', 'name')
+        subcategories = obj.subcategories.filter(is_active=True).order_by(
+            "sort_order", "name"
+        )
         return CategoryTreeSerializer(subcategories, many=True).data
 
 
@@ -705,39 +818,41 @@ class CategoryStatsSerializer(ModelSerializer):
     pending_vendors = serializers.SerializerMethodField()
     rejected_vendors = serializers.SerializerMethodField()
     high_risk_vendors = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = Category
         fields = [
-            'id',
-            'code',
-            'name',
-            'vendor_count',
-            'total_vendor_count',
-            'approved_vendors',
-            'pending_vendors',
-            'rejected_vendors',
-            'high_risk_vendors',
+            "id",
+            "code",
+            "name",
+            "vendor_count",
+            "total_vendor_count",
+            "approved_vendors",
+            "pending_vendors",
+            "rejected_vendors",
+            "high_risk_vendors",
         ]
-    
+
     def get_approved_vendors(self, obj):
-        return obj.vendors.filter(qualification_status='APPROVED').count()
-    
+        return obj.vendors.filter(qualification_status="APPROVED").count()
+
     def get_pending_vendors(self, obj):
-        return obj.vendors.filter(qualification_status='PENDING').count()
-    
+        return obj.vendors.filter(qualification_status="PENDING").count()
+
     def get_rejected_vendors(self, obj):
-        return obj.vendors.filter(qualification_status='REJECTED').count()
-    
+        return obj.vendors.filter(qualification_status="REJECTED").count()
+
     def get_high_risk_vendors(self, obj):
-        return obj.vendors.filter(risk_level='HIGH').count()
+        return obj.vendors.filter(risk_level="HIGH").count()
 
 
 # Serializer per vendor qualification
 class VendorQualificationSerializer(ModelSerializer):
     category = CategoryCompactSerializer(read_only=True)
-    competence_zones = CompetenceZoneCompactSerializer(many=True, read_only=True)
-    
+    competence_zones = CompetenceZoneCompactSerializer(
+        many=True, read_only=True
+    )
+
     class Meta:
         model = Vendor
         fields = [
@@ -753,16 +868,24 @@ class VendorQualificationSerializer(ModelSerializer):
             "competences_zone",
             "competence_zones",
         ]
-        read_only_fields = ["vendor_code", "name", "category", "competence_zones"]
+        read_only_fields = [
+            "vendor_code",
+            "name",
+            "category",
+            "competence_zones",
+        ]
 
     def validate(self, data):
         # Get the list of allowed fields from the Meta class
-        allowed_fields = set(self.Meta.fields) - set(self.Meta.read_only_fields)
+        allowed_fields = set(self.Meta.fields) - set(
+            self.Meta.read_only_fields
+        )
 
         # Get the list of fields provided in the input data
         received_fields = set(self.initial_data.keys())
 
-        # Calculate the extra fields by subtracting allowed fields from received fields
+        # Calculate the extra fields by subtracting allowed fields from
+        # received fields
         extra_fields = received_fields - allowed_fields
 
         # If there are extra fields, raise a validation error
@@ -772,12 +895,17 @@ class VendorQualificationSerializer(ModelSerializer):
             )
 
         # Validate qualification dates
-        if 'qualification_date' in data and 'qualification_expiry' in data:
-            if data['qualification_date'] and data['qualification_expiry']:
-                if data['qualification_date'] >= data['qualification_expiry']:
-                    raise ValidationError({
-                        'qualification_expiry': 'Qualification expiry must be after qualification date.'
-                    })
+        if "qualification_date" in data and "qualification_expiry" in data:
+            if data["qualification_date"] and data["qualification_expiry"]:
+                if data["qualification_date"] >= data["qualification_expiry"]:
+                    raise ValidationError(
+                        {
+                            "qualification_expiry": (
+                                "Qualification expiry must be after "
+                                "qualification date."
+                            )
+                        }
+                    )
 
         return data
 
@@ -785,7 +913,7 @@ class VendorQualificationSerializer(ModelSerializer):
 # Serializer per vendor audit
 class VendorAuditSerializer(ModelSerializer):
     category = CategoryCompactSerializer(read_only=True)
-    
+
     class Meta:
         model = Vendor
         fields = [
@@ -805,12 +933,15 @@ class VendorAuditSerializer(ModelSerializer):
 
     def validate(self, data):
         # Get the list of allowed fields from the Meta class
-        allowed_fields = set(self.Meta.fields) - set(self.Meta.read_only_fields)
+        allowed_fields = set(self.Meta.fields) - set(
+            self.Meta.read_only_fields
+        )
 
         # Get the list of fields provided in the input data
         received_fields = set(self.initial_data.keys())
 
-        # Calculate the extra fields by subtracting allowed fields from received fields
+        # Calculate the extra fields by subtracting allowed fields from
+        # received fields
         extra_fields = received_fields - allowed_fields
 
         # If there are extra fields, raise a validation error
@@ -820,12 +951,16 @@ class VendorAuditSerializer(ModelSerializer):
             )
 
         # Validate audit dates
-        if 'last_audit_date' in data and 'next_audit_due' in data:
-            if data['last_audit_date'] and data['next_audit_due']:
-                if data['last_audit_date'] >= data['next_audit_due']:
-                    raise ValidationError({
-                        'next_audit_due': 'Next audit due must be after last audit date.'
-                    })
+        if "last_audit_date" in data and "next_audit_due" in data:
+            if data["last_audit_date"] and data["next_audit_due"]:
+                if data["last_audit_date"] >= data["next_audit_due"]:
+                    raise ValidationError(
+                        {
+                            "next_audit_due": (
+                                "Next audit due must be after last audit date."
+                            )
+                        }
+                    )
 
         return data
 
@@ -833,7 +968,7 @@ class VendorAuditSerializer(ModelSerializer):
 # Serializer per vendor performance
 class VendorPerformanceSerializer(ModelSerializer):
     category = CategoryCompactSerializer(read_only=True)
-    
+
     class Meta:
         model = Vendor
         fields = [
@@ -849,12 +984,15 @@ class VendorPerformanceSerializer(ModelSerializer):
 
     def validate(self, data):
         # Get the list of allowed fields from the Meta class
-        allowed_fields = set(self.Meta.fields) - set(self.Meta.read_only_fields)
+        allowed_fields = set(self.Meta.fields) - set(
+            self.Meta.read_only_fields
+        )
 
         # Get the list of fields provided in the input data
         received_fields = set(self.initial_data.keys())
 
-        # Calculate the extra fields by subtracting allowed fields from received fields
+        # Calculate the extra fields by subtracting allowed fields from
+        # received fields
         extra_fields = received_fields - allowed_fields
 
         # If there are extra fields, raise a validation error

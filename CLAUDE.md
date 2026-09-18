@@ -58,20 +58,21 @@ l'overview completa e il setup locale (Docker o nativo).
 - **ruff** è configurato in `pyproject.toml` (`select = ["E", "F", "I", "UP", "B"]`, `target-version = "py312"`).
 - Applicato via **pre-commit** (`.pre-commit-config.yaml`): ruff check+format, più hook di igiene di base
   (trailing whitespace, EOF fixer, validità YAML/TOML/JSON, marker di merge conflict, file grandi, chiavi private).
-- Esecuzione manuale: `pre-commit run --all-files` (attenzione: la prima volta può riformattare molti file
-  esistenti mai passati da ruff — valuta di farlo in un commit dedicato).
-- **Attenzione all'hook su file grandi mai formattati**: l'hook Claude Code fa girare `ruff-format` sull'INTERO
-  file ad ogni `Write`/`Edit`, anche per una modifica di una riga — su un file legacy mai passato da ruff questo
-  produce un diff enorme e fuori scopo. Vale anche per i `.md`: `ruff-format` riformatta pure i blocchi
-  ` ```python ` incorporati nella documentazione (es. gli esempi di codice in `README.md`), non solo i file
-  `.py`. Per una modifica chirurgica a un file del genere, applicala con uno script (es. `python -c "..."` via
-  Bash) invece che con `Write`/`Edit`, così l'hook non scatta e il diff resta minimo. Se invece emergono
-  violazioni `ruff-check` non auto-fixabili (tipicamente E501 su file mai passati da ruff prima), **sistemale
-  subito, nello stesso giro di modifiche** — non rimandarle a un commit "solo formattazione" separato: una volta
-  che il file è stato toccato anche una sola volta da `Write`/`Edit` i numeri di riga cambiano rispetto
-  all'ultimo commit, quindi a posteriori non è più possibile isolare in modo pulito un commit di solo reformat
-  che si applichi sulla versione originale (serve riscrivere la cronologia, non praticabile su un branch già
-  pushato).
+- **L'intero repo è già stato passato da `ruff-check`/`ruff-format`** (pulizia lint/formattazione completa,
+  AIDEV-42): `pre-commit run --all-files` ora produce diff minimi, limitati ai file davvero toccati da una
+  modifica — non deve più riformattare a raffica file legacy mai visti da ruff.
+- **Attenzione all'hook su un file toccato per la prima volta da ruff** (es. un file nuovo, o uno escluso in
+  passato da `pyproject.toml`): l'hook Claude Code fa girare `ruff-format` sull'INTERO file ad ogni `Write`/
+  `Edit`, anche per una modifica di una riga — su un file mai passato da ruff questo produce un diff enorme e
+  fuori scopo. Vale anche per i `.md`: `ruff-format` riformatta pure i blocchi ` ```python ` incorporati nella
+  documentazione (es. gli esempi di codice in `README.md`), non solo i file `.py`. Per una modifica chirurgica a
+  un file del genere, applicala con uno script (es. `python -c "..."` via Bash) invece che con `Write`/`Edit`,
+  così l'hook non scatta e il diff resta minimo. Se invece emergono violazioni `ruff-check` non auto-fixabili
+  (tipicamente E501 su un file toccato per la prima volta), **sistemale subito, nello stesso giro di
+  modifiche** — non rimandarle a un commit "solo formattazione" separato: una volta che il file è stato toccato
+  anche una sola volta da `Write`/`Edit` i numeri di riga cambiano rispetto all'ultimo commit, quindi a
+  posteriori non è più possibile isolare in modo pulito un commit di solo reformat che si applichi sulla
+  versione originale (serve riscrivere la cronologia, non praticabile su un branch già pushato).
 - Installa il git hook una volta: `pre-commit install` (così gira anche su ogni `git commit`).
 - Un hook Claude Code (`.claude/settings.json` → `PostToolUse` su `Write|Edit`) esegue già
   `pre-commit run --files <file>` automaticamente dopo ogni modifica di Claude, segnalando in chat quello che non

@@ -12,6 +12,7 @@ underscore, punti).
 
 Uso: python manage.py seed_document_sets
 """
+
 import re
 
 from django.core.management.base import BaseCommand
@@ -25,8 +26,9 @@ def _norm(code):
     return re.sub(r"[^0-9A-Za-z]", "", code or "").upper()
 
 
-# Definizione dei set. Ogni voce dei `codes` usa il codice "come da specifica";
-# la risoluzione verso il DocumentType esistente avviene per confronto normalizzato.
+# Definizione dei set. Ogni voce dei `codes` usa il codice "come da
+# specifica"; la risoluzione verso il DocumentType esistente avviene per
+# confronto normalizzato.
 DOCUMENT_SETS = [
     {
         "name": "SUBAPPALTATORE",
@@ -44,7 +46,9 @@ DOCUMENT_SETS = [
     },
     {
         "name": "MEDICINA DEL LAVORO",
-        "description": "Set documentale per fornitori di servizi di Medicina del Lavoro.",
+        "description": (
+            "Set documentale per fornitori di servizi di Medicina del Lavoro."
+        ),
         "codes": [
             "RC PROF",
             "DURC",
@@ -65,13 +69,20 @@ DOCUMENT_SETS = [
 
 
 class Command(BaseCommand):
-    help = "Popola il catalogo dei Set Documentali usati nel tab Documenti del fornitore"
+    help = (
+        "Popola il catalogo dei Set Documentali usati nel tab Documenti "
+        "del fornitore"
+    )
 
     def handle(self, *args, **options):
-        self.stdout.write(self.style.NOTICE("Inizio popolamento Set Documentali..."))
+        self.stdout.write(
+            self.style.NOTICE("Inizio popolamento Set Documentali...")
+        )
 
         # Mappa normalizzata code -> DocumentType (una sola query).
-        by_norm = {_norm(dt.code): dt for dt in DocumentType.objects.all() if dt.code}
+        by_norm = {
+            _norm(dt.code): dt for dt in DocumentType.objects.all() if dt.code
+        }
 
         for order, spec in enumerate(DOCUMENT_SETS, start=1):
             doc_set, created = DocumentSet.objects.get_or_create(
@@ -87,7 +98,9 @@ class Command(BaseCommand):
                 doc_set.description = spec["description"]
                 doc_set.is_active = True
                 doc_set.sort_order = order
-                doc_set.save(update_fields=["description", "is_active", "sort_order"])
+                doc_set.save(
+                    update_fields=["description", "is_active", "sort_order"]
+                )
 
             resolved, missing = [], []
             for code in spec["codes"]:
@@ -99,14 +112,18 @@ class Command(BaseCommand):
             verb = "Creato" if created else "Aggiornato"
             self.stdout.write(
                 self.style.SUCCESS(
-                    f"{verb} set '{doc_set.name}': {len(resolved)} tipi collegati."
+                    f"{verb} set '{doc_set.name}': {len(resolved)} tipi "
+                    "collegati."
                 )
             )
             if missing:
                 self.stdout.write(
                     self.style.WARNING(
-                        f"  ⚠ Tipi documento non trovati (ignorati): {', '.join(missing)}"
+                        "  ⚠ Tipi documento non trovati (ignorati): "
+                        f"{', '.join(missing)}"
                     )
                 )
 
-        self.stdout.write(self.style.NOTICE("Popolamento Set Documentali completato."))
+        self.stdout.write(
+            self.style.NOTICE("Popolamento Set Documentali completato.")
+        )

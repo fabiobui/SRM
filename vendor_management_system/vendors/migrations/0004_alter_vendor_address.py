@@ -5,15 +5,22 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('vendors', '0003_address_category_alter_vendor_category_and_more'),
+        ("vendors", "0003_address_category_alter_vendor_category_and_more"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='vendor',
-            name='address',
-            field=models.ForeignKey(blank=True, help_text='Indirizzo del fornitore', null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='vendors', to='vendors.address', verbose_name='Address'),
+            model_name="vendor",
+            name="address",
+            field=models.ForeignKey(
+                blank=True,
+                help_text="Indirizzo del fornitore",
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="vendors",
+                to="vendors.address",
+                verbose_name="Address",
+            ),
         ),
     ]

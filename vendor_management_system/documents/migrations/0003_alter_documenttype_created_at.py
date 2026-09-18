@@ -4,15 +4,16 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('documents', '0002_alter_documenttype_options_and_more'),
+        ("documents", "0002_alter_documenttype_options_and_more"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='documenttype',
-            name='created_at',
-            field=models.DateTimeField(auto_now_add=True, verbose_name='Creato il'),
+            model_name="documenttype",
+            name="created_at",
+            field=models.DateTimeField(
+                auto_now_add=True, verbose_name="Creato il"
+            ),
         ),
     ]

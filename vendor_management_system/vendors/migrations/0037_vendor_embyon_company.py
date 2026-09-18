@@ -4,15 +4,31 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('vendors', '0036_alter_category_options_vendor_albo_excel_row_and_more'),
+        (
+            "vendors",
+            "0036_alter_category_options_vendor_albo_excel_row_and_more",
+        ),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='vendor',
-            name='embyon_company',
-            field=models.CharField(blank=True, choices=[('CmaSrl', 'CmaSrl'), ('Evimed', 'Evimed'), ('GsProtec', 'GsProtec'), ('Sicura', 'Sicura')], help_text='Società Embyon (DITTA) presso cui il fornitore è censito', max_length=50, null=True, verbose_name='Società Embyon'),
+            model_name="vendor",
+            name="embyon_company",
+            field=models.CharField(
+                blank=True,
+                choices=[
+                    ("CmaSrl", "CmaSrl"),
+                    ("Evimed", "Evimed"),
+                    ("GsProtec", "GsProtec"),
+                    ("Sicura", "Sicura"),
+                ],
+                help_text=(
+                    "Società Embyon (DITTA) presso cui il fornitore è censito"
+                ),
+                max_length=50,
+                null=True,
+                verbose_name="Società Embyon",
+            ),
         ),
     ]

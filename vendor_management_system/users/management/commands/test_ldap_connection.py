@@ -1,6 +1,8 @@
 """
-Management command per testare la connessione LDAP (bind di servizio e ricerca base).
+Management command per testare la connessione LDAP (bind di servizio e
+ricerca base).
 """
+
 import ssl
 import time
 
@@ -15,32 +17,47 @@ except ImportError:
 
 
 class Command(BaseCommand):
-    help = "Testa la connessione LDAP: verifica raggiungibilità del server, bind di servizio e ricerca base."
+    help = (
+        "Testa la connessione LDAP: verifica raggiungibilità del "
+        "server, bind di servizio e ricerca base."
+    )
 
     def add_arguments(self, parser):
         parser.add_argument(
             "--server-uri",
             dest="server_uri",
             default=None,
-            help="URI del server LDAP (default: AUTH_LDAP_SERVER_URI dal settings)",
+            help=(
+                "URI del server LDAP (default: AUTH_LDAP_SERVER_URI "
+                "dal settings)"
+            ),
         )
         parser.add_argument(
             "--bind-dn",
             dest="bind_dn",
             default=None,
-            help="DN dell'account di servizio (default: AUTH_LDAP_BIND_DN dal settings)",
+            help=(
+                "DN dell'account di servizio (default: "
+                "AUTH_LDAP_BIND_DN dal settings)"
+            ),
         )
         parser.add_argument(
             "--bind-password",
             dest="bind_password",
             default=None,
-            help="Password dell'account di servizio (default: AUTH_LDAP_BIND_PASSWORD dal settings)",
+            help=(
+                "Password dell'account di servizio (default: "
+                "AUTH_LDAP_BIND_PASSWORD dal settings)"
+            ),
         )
         parser.add_argument(
             "--search-base",
             dest="search_base",
             default=None,
-            help="Base DN per la ricerca di test (default: LDAP_USER_BASE_DN dal settings)",
+            help=(
+                "Base DN per la ricerca di test (default: "
+                "LDAP_USER_BASE_DN dal settings)"
+            ),
         )
         parser.add_argument(
             "--no-search",
@@ -57,24 +74,45 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         if ldap3 is None:
-            raise CommandError("Il pacchetto 'ldap3' non è installato. Esegui: pip install ldap3")
+            raise CommandError(
+                "Il pacchetto 'ldap3' non è installato. "
+                "Esegui: pip install ldap3"
+            )
 
-        server_uri = options["server_uri"] or getattr(settings, "AUTH_LDAP_SERVER_URI", "")
-        bind_dn = options["bind_dn"] or getattr(settings, "AUTH_LDAP_BIND_DN", "")
-        bind_password = options["bind_password"] or getattr(settings, "AUTH_LDAP_BIND_PASSWORD", "")
-        search_base = options["search_base"] or getattr(settings, "LDAP_USER_BASE_DN", "")
+        server_uri = options["server_uri"] or getattr(
+            settings, "AUTH_LDAP_SERVER_URI", ""
+        )
+        bind_dn = options["bind_dn"] or getattr(
+            settings, "AUTH_LDAP_BIND_DN", ""
+        )
+        bind_password = options["bind_password"] or getattr(
+            settings, "AUTH_LDAP_BIND_PASSWORD", ""
+        )
+        search_base = options["search_base"] or getattr(
+            settings, "LDAP_USER_BASE_DN", ""
+        )
         timeout = options["timeout"]
         no_search = options["no_search"]
 
         if not server_uri:
-            raise CommandError("Nessun server URI configurato. Usa --server-uri o imposta AUTH_LDAP_SERVER_URI.")
+            raise CommandError(
+                "Nessun server URI configurato. Usa --server-uri o "
+                "imposta AUTH_LDAP_SERVER_URI."
+            )
         if not bind_dn or not bind_password:
-            raise CommandError("Bind DN e password obbligatori. Usa --bind-dn/--bind-password o configura il settings.")
+            raise CommandError(
+                "Bind DN e password obbligatori. Usa "
+                "--bind-dn/--bind-password o configura il settings."
+            )
 
-        self.stdout.write(self.style.MIGRATE_HEADING("=== Test connessione LDAP ==="))
+        self.stdout.write(
+            self.style.MIGRATE_HEADING("=== Test connessione LDAP ===")
+        )
         self.stdout.write(f"  Server URI   : {server_uri}")
         self.stdout.write(f"  Bind DN      : {bind_dn}")
-        self.stdout.write(f"  Search Base  : {search_base or '(non impostata)'}")
+        self.stdout.write(
+            f"  Search Base  : {search_base or '(non impostata)'}"
+        )
         self.stdout.write(f"  Timeout      : {timeout}s")
         self.stdout.write("")
 
@@ -84,7 +122,9 @@ class Command(BaseCommand):
         tls_config = None
         if use_ssl:
             validate_cert = getattr(settings, "LDAP_TLS_VALIDATE", True)
-            tls_config = Tls(validate=ssl.CERT_REQUIRED if validate_cert else ssl.CERT_NONE)
+            tls_config = Tls(
+                validate=ssl.CERT_REQUIRED if validate_cert else ssl.CERT_NONE
+            )
 
         try:
             server = ldap3.Server(
@@ -94,9 +134,13 @@ class Command(BaseCommand):
                 get_info=ldap3.ALL,
                 connect_timeout=timeout,
             )
-            self.stdout.write(self.style.SUCCESS("   OK - Server raggiungibile"))
+            self.stdout.write(
+                self.style.SUCCESS("   OK - Server raggiungibile")
+            )
         except Exception as exc:
-            raise CommandError(f"Impossibile connettersi al server: {exc}")
+            raise CommandError(
+                f"Impossibile connettersi al server: {exc}"
+            ) from exc
 
         # --- 2. Bind di servizio ---
         self.stdout.write("2) Bind con account di servizio...")
@@ -111,12 +155,21 @@ class Command(BaseCommand):
             )
             elapsed = time.monotonic() - t0
             if not conn.bound:
-                raise CommandError("Bind fallito: il server non ha accettato le credenziali di servizio.")
-            self.stdout.write(self.style.SUCCESS(f"   OK - Bind riuscito ({elapsed:.2f}s)"))
+                raise CommandError(
+                    "Bind fallito: il server non ha accettato le "
+                    "credenziali di servizio."
+                )
+            self.stdout.write(
+                self.style.SUCCESS(f"   OK - Bind riuscito ({elapsed:.2f}s)")
+            )
         except ldap3.core.exceptions.LDAPBindError as exc:
-            raise CommandError(f"Bind di servizio fallito (credenziali errate?): {exc}")
+            raise CommandError(
+                f"Bind di servizio fallito (credenziali errate?): {exc}"
+            ) from exc
         except Exception as exc:
-            raise CommandError(f"Errore durante il bind di servizio: {exc}")
+            raise CommandError(
+                f"Errore durante il bind di servizio: {exc}"
+            ) from exc
 
         # --- 3. Info server ---
         if server.info:
@@ -130,7 +183,12 @@ class Command(BaseCommand):
         # --- 4. Ricerca di test ---
         if not no_search:
             if not search_base:
-                self.stdout.write(self.style.WARNING("4) Ricerca di test saltata: search base non configurata."))
+                self.stdout.write(
+                    self.style.WARNING(
+                        "4) Ricerca di test saltata: search base non "
+                        "configurata."
+                    )
+                )
             else:
                 self.stdout.write(f"4) Ricerca di test su '{search_base}'...")
                 try:
@@ -143,13 +201,23 @@ class Command(BaseCommand):
                     )
                     if success:
                         count = len(conn.entries)
-                        self.stdout.write(self.style.SUCCESS(f"   OK - {count} entry trovate (limit 5)"))
+                        self.stdout.write(
+                            self.style.SUCCESS(
+                                f"   OK - {count} entry trovate (limit 5)"
+                            )
+                        )
                         for entry in conn.entries[:5]:
                             self.stdout.write(f"   - {entry.entry_dn}")
                     else:
-                        self.stdout.write(self.style.WARNING(f"   Nessun risultato. Verifica il search base."))
+                        self.stdout.write(
+                            self.style.WARNING(
+                                "   Nessun risultato. Verifica il search base."
+                            )
+                        )
                 except Exception as exc:
-                    self.stdout.write(self.style.ERROR(f"   Errore nella ricerca: {exc}"))
+                    self.stdout.write(
+                        self.style.ERROR(f"   Errore nella ricerca: {exc}")
+                    )
         else:
             self.stdout.write("4) Ricerca di test: saltata (--no-search)")
 

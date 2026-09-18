@@ -1,12 +1,13 @@
+import argparse
 import os
 import re
 import sys
+from pathlib import Path
+
 import django
 import pandas as pd
-from pathlib import Path
 from django.db import transaction
 from termcolor import colored
-import argparse
 
 # --- Setup Django environment ---
 CURRENT_DIR = Path(__file__).resolve().parent
@@ -16,8 +17,11 @@ sys.path.append(str(BASE_DIR))
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
 django.setup()
 
-from vendor_management_system.vendors.models import Vendor, ServiceType, VendorService
-
+from vendor_management_system.vendors.models import (  # noqa: E402
+    ServiceType,
+    Vendor,
+    VendorService,
+)
 
 # === CONFIG ===
 FILE_PATH = "import_servizi_assegnati.xlsx"
@@ -51,7 +55,8 @@ def albo_row_from_code(code):
 
 
 def build_vendor_index():
-    """Indici dei fornitori per Codice Embyon e per Riga excel Albo Fornitore."""
+    """Indici dei fornitori per Codice Embyon e per Riga excel Albo
+    Fornitore."""
     by_code, by_row = {}, {}
     for v in Vendor.objects.only("pk", "old_code", "albo_excel_row", "name"):
         if v.old_code:
@@ -72,7 +77,7 @@ def resolve_vendor(value, by_code, by_row, key="auto"):
     """
     key_value = str(value or "").strip().upper()
     riga = albo_row_from_code(key_value)
-    if key_value.isdigit():           # la colonna porta direttamente la riga
+    if key_value.isdigit():  # la colonna porta direttamente la riga
         riga = int(key_value)
 
     if key != "old_code" and riga and riga in by_row:
@@ -97,7 +102,12 @@ def resolve_file_path(path: str | Path) -> Path | None:
 
 # === MAIN FUNCTION ===
 @transaction.atomic
-def import_services(file_path: str | Path | None = None, sheet_name=None, dry_run: bool | None = None, key="auto"):
+def import_services(
+    file_path: str | Path | None = None,
+    sheet_name=None,
+    dry_run: bool | None = None,
+    key="auto",
+):
     file_path = file_path or FILE_PATH
     sheet_name = sheet_name or SHEET_NAME
     dry_run = dry_run if dry_run is not None else DRY_RUN
@@ -108,38 +118,62 @@ def import_services(file_path: str | Path | None = None, sheet_name=None, dry_ru
         sys.exit(1)
 
     ext = resolved_path.suffix.lower()
-    
+
     # Nuovo formato: riga 0 = nomi descrittivi, riga 1 = codici (header)
-    # Leggiamo prima le due righe di intestazione per creare il mapping codice -> nome
+    # Leggiamo prima le due righe di intestazione per creare il mapping
+    # codice -> nome
     if ext == ".csv":
-        df_headers = pd.read_csv(resolved_path, dtype=str, nrows=2, header=None)
+        df_headers = pd.read_csv(
+            resolved_path, dtype=str, nrows=2, header=None
+        )
     else:
-        df_headers = pd.read_excel(resolved_path, sheet_name=sheet_name, dtype=str, nrows=2, header=None)
-    
+        df_headers = pd.read_excel(
+            resolved_path,
+            sheet_name=sheet_name,
+            dtype=str,
+            nrows=2,
+            header=None,
+        )
+
     # Riga 0: nomi descrittivi dei servizi
     # Riga 1: codici dei servizi (SERV-001, SERV-003, ecc.)
     names_row = df_headers.iloc[0].tolist()
     codes_row = df_headers.iloc[1].tolist()
-    
+
     # Creiamo mapping codice -> nome (escludendo la prima colonna "codice")
     code_to_name = {}
-    for i, (name, code) in enumerate(zip(names_row, codes_row)):
+    for i, (name, code) in enumerate(zip(names_row, codes_row, strict=False)):
         if i == 0:  # Salta la prima colonna (codice vendor)
             continue
         code_str = safe_str(code)
         name_str = safe_str(name)
         if code_str and name_str:
             code_to_name[code_str] = name_str
-    
-    # Ora leggiamo il file con header sulla riga 1 (codici) e skippiamo la riga 0
+
+    # Ora leggiamo il file con header sulla riga 1 (codici) e skippiamo la
+    # riga 0
     if ext == ".csv":
         df = pd.read_csv(resolved_path, dtype=str, header=1)
     else:
-        df = pd.read_excel(resolved_path, sheet_name=sheet_name, dtype=str, header=1)
+        df = pd.read_excel(
+            resolved_path, sheet_name=sheet_name, dtype=str, header=1
+        )
 
     print(colored(f"\n📘 Import servizi da: {resolved_path}", "cyan"))
-    print(colored(f"   Foglio: {sheet_name} | DRY_RUN: {dry_run}", "cyan", attrs=["bold"]))
-    print(colored(f"   Righe dati: {len(df)} | Servizi: {len(code_to_name)}\n", "cyan", attrs=["bold"]))
+    print(
+        colored(
+            f"   Foglio: {sheet_name} | DRY_RUN: {dry_run}",
+            "cyan",
+            attrs=["bold"],
+        )
+    )
+    print(
+        colored(
+            f"   Righe dati: {len(df)} | Servizi: {len(code_to_name)}\n",
+            "cyan",
+            attrs=["bold"],
+        )
+    )
 
     created_vendor_services = 0
     missing_vendors = 0
@@ -152,19 +186,35 @@ def import_services(file_path: str | Path | None = None, sheet_name=None, dry_ru
             # La prima colonna ora si chiama "codice" (non più "old_code")
             old_code = safe_str(row.get("codice"))
             if not old_code:
-                print(colored(f"[{i+1}] ⚠️ Riga senza codice, saltata", "yellow"))
+                print(
+                    colored(
+                        f"[{i + 1}] ⚠️ Riga senza codice, saltata", "yellow"
+                    )
+                )
                 continue
 
-            vendor, criterio = resolve_vendor(old_code, by_vendor_code, by_vendor_row, key)
+            vendor, criterio = resolve_vendor(
+                old_code, by_vendor_code, by_vendor_row, key
+            )
             if not vendor:
-                print(colored(f"[{i+1}] ❌ Vendor non trovato: {old_code}", "red"))
+                print(
+                    colored(
+                        f"[{i + 1}] ❌ Vendor non trovato: {old_code}", "red"
+                    )
+                )
                 missing_vendors += 1
                 continue
 
-            print(colored(f"\n➡️ {i+1}. Vendor: {vendor.name or old_code} "
-                          f"[{old_code} → {criterio}]", "cyan"))
+            print(
+                colored(
+                    f"\n➡️ {i + 1}. Vendor: {vendor.name or old_code} "
+                    f"[{old_code} → {criterio}]",
+                    "cyan",
+                )
+            )
 
-            # Conta quanti servizi ha già questo vendor per determinare is_primary
+            # Conta quanti servizi ha già questo vendor per determinare
+            # is_primary
             vendor_services_count = 0
 
             for col, val in row.items():
@@ -173,7 +223,8 @@ def import_services(file_path: str | Path | None = None, sheet_name=None, dry_ru
                 if not parse_bool(val):
                     continue
 
-                # Il codice servizio è l'intestazione della colonna (es. SERV-001)
+                # Il codice servizio è l'intestazione della colonna
+                # (es. SERV-001)
                 service_code = safe_str(col)
                 # Il nome viene dal mapping con la prima riga
                 service_name = code_to_name.get(service_code, service_code)
@@ -187,43 +238,94 @@ def import_services(file_path: str | Path | None = None, sheet_name=None, dry_ru
                 )
                 if created:
                     created_services += 1
-                    print(colored(f"   🆕 Creato servizio: {service.code} - {service.name}", "green"))
+                    print(
+                        colored(
+                            f"   🆕 Creato servizio: {service.code} - "
+                            f"{service.name}",
+                            "green",
+                        )
+                    )
 
                 # Determina se è il servizio principale (il primo assegnato)
-                is_primary = (vendor_services_count == 0)
+                is_primary = vendor_services_count == 0
 
                 vs, created_vs = VendorService.objects.get_or_create(
                     vendor=vendor,
                     service_type=service,
-                    defaults={"is_primary": is_primary, "notes": "Importato automaticamente"},
+                    defaults={
+                        "is_primary": is_primary,
+                        "notes": "Importato automaticamente",
+                    },
                 )
                 if created_vs:
                     created_vendor_services += 1
                     primary_label = " (Principale)" if is_primary else ""
-                    print(colored(f"   ✅ Assegnato: {service.name}{primary_label}", "yellow"))
+                    print(
+                        colored(
+                            f"   ✅ Assegnato: {service.name}{primary_label}",
+                            "yellow",
+                        )
+                    )
                     vendor_services_count += 1
                 else:
-                    print(colored(f"   ↪️ Già presente: {service.name}", "white"))
+                    print(
+                        colored(f"   ↪️ Già presente: {service.name}", "white")
+                    )
 
         if dry_run:
-            print(colored("\n🧪 DRY RUN: annullo tutte le modifiche", "yellow", attrs=["bold"]))
+            print(
+                colored(
+                    "\n🧪 DRY RUN: annullo tutte le modifiche",
+                    "yellow",
+                    attrs=["bold"],
+                )
+            )
             transaction.set_rollback(True)
 
     print(colored("\n✅ Import completato", "cyan", attrs=["bold"]))
-    print(colored(f"   VendorService creati: {created_vendor_services}", "green"))
+    print(
+        colored(f"   VendorService creati: {created_vendor_services}", "green")
+    )
     print(colored(f"   Servizi nuovi: {created_services}", "green"))
     print(colored(f"   Vendor non trovati: {missing_vendors}\n", "red"))
 
 
 # === CLI ===
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Import servizi vendor da Excel/CSV")
-    parser.add_argument("-f", "--file", dest="file_path", default=FILE_PATH, help="Percorso file")
-    parser.add_argument("-s", "--sheet", dest="sheet_name", default=SHEET_NAME, help="Indice o nome foglio")
-    parser.add_argument("--dry-run", action="store_true", help="Esegue simulazione senza salvare")
-    parser.add_argument("--key", choices=["auto", "albo_row", "old_code"], default="auto",
-                        help="Come agganciare il fornitore: auto (riga Albo per i codici XLS, "
-                             "poi Codice Embyon), solo riga Albo, solo Codice Embyon")
+    parser = argparse.ArgumentParser(
+        description="Import servizi vendor da Excel/CSV"
+    )
+    parser.add_argument(
+        "-f",
+        "--file",
+        dest="file_path",
+        default=FILE_PATH,
+        help="Percorso file",
+    )
+    parser.add_argument(
+        "-s",
+        "--sheet",
+        dest="sheet_name",
+        default=SHEET_NAME,
+        help="Indice o nome foglio",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Esegue simulazione senza salvare",
+    )
+    parser.add_argument(
+        "--key",
+        choices=["auto", "albo_row", "old_code"],
+        default="auto",
+        help="Come agganciare il fornitore: auto (riga Albo per i codici XLS, "
+        "poi Codice Embyon), solo riga Albo, solo Codice Embyon",
+    )
     args = parser.parse_args()
 
-    import_services(file_path=args.file_path, sheet_name=args.sheet_name, dry_run=args.dry_run, key=args.key)
+    import_services(
+        file_path=args.file_path,
+        sheet_name=args.sheet_name,
+        dry_run=args.dry_run,
+        key=args.key,
+    )

@@ -1,9 +1,8 @@
 # Imports
-from django.utils import timezone
-
 from django.db import models
 from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
+from django.utils import timezone
 
 from vendor_management_system.purchase_orders.models import PurchaseOrder
 
@@ -23,7 +22,8 @@ def set_issue_date(sender, instance, **kwargs):
         instance.issue_date = timezone.now().date()
 
 
-# Create a signal to set the acknowledgment_date when a PurchaseOrder is acknowledged
+# Create a signal to set the acknowledgment_date when a PurchaseOrder is
+# acknowledged
 @receiver(pre_save, sender=PurchaseOrder)
 def set_acknowledgment_date(sender, instance, **kwargs):
     try:
@@ -38,7 +38,8 @@ def set_acknowledgment_date(sender, instance, **kwargs):
         instance.acknowledgment_date = timezone.now().date()
 
 
-# Create a signal to set the actual_delivery_date when a PurchaseOrder is marked as DELIVERED
+# Create a signal to set the actual_delivery_date when a PurchaseOrder is
+# marked as DELIVERED
 @receiver(pre_save, sender=PurchaseOrder)
 def set_actual_delivery_date(sender, instance, **kwargs):
     try:
@@ -48,12 +49,16 @@ def set_actual_delivery_date(sender, instance, **kwargs):
         return
 
     # Check if the status is changing from ACKNOWLEDGED to DELIVERED
-    if old_instance.status == "ACKNOWLEDGED" and instance.status == "DELIVERED":
+    if (
+        old_instance.status == "ACKNOWLEDGED"
+        and instance.status == "DELIVERED"
+    ):
         # Set the actual_delivery_date to the current date
         instance.actual_delivery_date = timezone.now().date()
 
 
-# Create a signal to set the on_time_delivery_rate of the Vendor when a PurchaseOrder is marked as DELIVERED
+# Create a signal to set the on_time_delivery_rate of the Vendor when a
+# PurchaseOrder is marked as DELIVERED
 @receiver(post_save, sender=PurchaseOrder)
 def update_vendor_on_time_delivery_rate(sender, instance, **kwargs):
     # Check if the instance is being updated (not created)
@@ -78,18 +83,23 @@ def update_vendor_on_time_delivery_rate(sender, instance, **kwargs):
             )
 
             # Update the on_time_delivery_rate of the Vendor
-            vendor.on_time_delivery_rate = round(on_time_delivery_rate * 100, 4)
+            vendor.on_time_delivery_rate = round(
+                on_time_delivery_rate * 100, 4
+            )
 
             # Save the Vendor
             vendor.save()
 
 
-# Create a signal to set the quality_rating_avg of the Vendor when a PurchaseOrder is marked as DELIVERED and is rated
+# Create a signal to set the quality_rating_avg of the Vendor when a
+# PurchaseOrder is marked as DELIVERED and is rated
 @receiver(post_save, sender=PurchaseOrder)
 def update_vendor_quality_rating_avg(sender, instance, **kwargs):
     # Check if the instance is being updated (not created)
-    if instance.status not in ["PENDING", "CANCELLED"] and instance.vendor is not None:
-
+    if (
+        instance.status not in ["PENDING", "CANCELLED"]
+        and instance.vendor is not None
+    ):
         # Get the vendor
         vendor = instance.vendor
 
@@ -127,7 +137,8 @@ def update_vendor_quality_rating_avg(sender, instance, **kwargs):
                 vendor.save()
 
 
-# Create a signal to set the average_response_time of the Vendor when a PurchaseOrder is marked as ACKNOWLEDGED
+# Create a signal to set the average_response_time of the Vendor when a
+# PurchaseOrder is marked as ACKNOWLEDGED
 @receiver(post_save, sender=PurchaseOrder)
 def update_vendor_average_response_time(sender, instance, **kwargs):
     # Check if the instance is being updated (not created)
@@ -143,13 +154,13 @@ def update_vendor_average_response_time(sender, instance, **kwargs):
         if acknowledged_orders.count() > 0:
             # Calculate the average_response_time
             total_response_time = sum(
-                (
-                    (order.acknowledgment_date - order.issue_date).total_seconds()
-                    / 3600
-                    for order in acknowledged_orders
-                )
+                (order.acknowledgment_date - order.issue_date).total_seconds()
+                / 3600
+                for order in acknowledged_orders
             )
-            average_response_time = total_response_time / acknowledged_orders.count()
+            average_response_time = (
+                total_response_time / acknowledged_orders.count()
+            )
 
             # Update the average_response_time of the Vendor
             vendor.average_response_time = round(average_response_time, 4)
@@ -158,7 +169,8 @@ def update_vendor_average_response_time(sender, instance, **kwargs):
             vendor.save()
 
 
-# Create a signal to set the fulfillment_rate of the Vendor when a PurchaseOrder is marked as DELIVERED
+# Create a signal to set the fulfillment_rate of the Vendor when a
+# PurchaseOrder is marked as DELIVERED
 @receiver(post_save, sender=PurchaseOrder)
 def update_vendor_fulfillment_rate(sender, instance, **kwargs):
     # Check if the instance being updated (not created)
@@ -178,7 +190,9 @@ def update_vendor_fulfillment_rate(sender, instance, **kwargs):
 
         if issued_orders.count() > 0:
             # Calculate the fulfillment_rate
-            fulfillment_rate = completed_deliveries.count() / issued_orders.count()
+            fulfillment_rate = (
+                completed_deliveries.count() / issued_orders.count()
+            )
 
             # Update the fulfillment_rate of the Vendor
             vendor.fulfillment_rate = round(fulfillment_rate * 100, 4)

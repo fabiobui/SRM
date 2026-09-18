@@ -12,7 +12,13 @@ from vendor_management_system.vendors.models import Vendor
 @pytest.mark.django_db
 def test_purchase_order_model_fields(db, purchase_order_factory):
     # Test for 5 PurchaseOrder objects
-    for status in ["PENDING", "ISSUED", "ACKNOWLEDGED", "DELIVERED", "CANCELLED"]:
+    for status in [
+        "PENDING",
+        "ISSUED",
+        "ACKNOWLEDGED",
+        "DELIVERED",
+        "CANCELLED",
+    ]:
         purchase_order = purchase_order_factory(status=status)
 
         # Check the PurchaseOrder object fields
@@ -63,7 +69,8 @@ def test_unique_po_number(db, purchase_order_factory):
     # Create a PurchaseOrder object with a purchase order number
     purchase_order = purchase_order_factory()
 
-    # Check that creating another PurchaseOrder object with the same Purchase Order Number raises an IntegrityError
+    # Check that creating another PurchaseOrder object with the same
+    # Purchase Order Number raises an IntegrityError
     with pytest.raises(IntegrityError):
         purchase_order_duplicate = purchase_order_factory(
             po_number=purchase_order.po_number
@@ -77,12 +84,14 @@ def test_valid_dates_status_pending(db, purchase_order_factory):
     # Create a PurchaseOrder object with a status of "PENDING"
     purchase_order = purchase_order_factory(status="PENDING")
 
-    # If the status is "PENDING", the issue_date, acknowledgment_date and actual_delivery_date should be None
+    # If the status is "PENDING", the issue_date, acknowledgment_date and
+    # actual_delivery_date should be None
     assert purchase_order.issue_date is None
     assert purchase_order.acknowledgment_date is None
     assert purchase_order.actual_delivery_date is None
 
-    # If the status is "PENDING", the expected_delivery_date should be after the order_date
+    # If the status is "PENDING", the expected_delivery_date should be
+    # after the order_date
     assert purchase_order.expected_delivery_date >= purchase_order.order_date
 
 
@@ -91,14 +100,17 @@ def test_valid_dates_status_issued(db, purchase_order_factory):
     # Create a PurchaseOrder object with a status of "ISSUED"
     purchase_order = purchase_order_factory(status="ISSUED")
 
-    # If the status is "ISSUED", the issue_date should be after the order_date
+    # If the status is "ISSUED", the issue_date should be after the
+    # order_date
     assert purchase_order.issue_date >= purchase_order.order_date
 
-    # If the status is "ISSUED", the acknowledgment_date and actual_delivery_date should be None
+    # If the status is "ISSUED", the acknowledgment_date and
+    # actual_delivery_date should be None
     assert purchase_order.acknowledgment_date is None
     assert purchase_order.actual_delivery_date is None
 
-    # If the status is "ISSUED", the expected_delivery_date should be after the issue_date
+    # If the status is "ISSUED", the expected_delivery_date should be
+    # after the issue_date
     assert purchase_order.expected_delivery_date >= purchase_order.issue_date
 
 
@@ -107,17 +119,24 @@ def test_valid_dates_status_acknowledged(db, purchase_order_factory):
     # Create a PurchaseOrder object with a status of "ACKNOWLEDGED"
     purchase_order = purchase_order_factory(status="ACKNOWLEDGED")
 
-    # If the status is "ACKNOWLEDGED", the issue_date should be after the order_date
+    # If the status is "ACKNOWLEDGED", the issue_date should be after the
+    # order_date
     assert purchase_order.issue_date >= purchase_order.order_date
 
-    # If the status is "ACKNOWLEDGED", the acknowledgment_date should be after the issue_date
+    # If the status is "ACKNOWLEDGED", the acknowledgment_date should be
+    # after the issue_date
     assert purchase_order.acknowledgment_date >= purchase_order.issue_date
 
-    # IF the status is "ACKNOWLEDGED", the actual_delivery_date should be None
+    # IF the status is "ACKNOWLEDGED", the actual_delivery_date should be
+    # None
     assert purchase_order.actual_delivery_date is None
 
-    # If the status is "ACKNOWLEDGED", the expected_delivery_date should be after the acknowledgment_date
-    assert purchase_order.expected_delivery_date >= purchase_order.acknowledgment_date
+    # If the status is "ACKNOWLEDGED", the expected_delivery_date should
+    # be after the acknowledgment_date
+    assert (
+        purchase_order.expected_delivery_date
+        >= purchase_order.acknowledgment_date
+    )
 
 
 # Test for valid dates - status "DELIVERED"
@@ -125,15 +144,24 @@ def test_valid_dates_status_delivered(db, purchase_order_factory):
     # Create a PurchaseOrder object with a status of "DELIVERED"
     purchase_order = purchase_order_factory(status="DELIVERED")
 
-    # If the status is "DELIVERED", the issue_date should be after the order_date
+    # If the status is "DELIVERED", the issue_date should be after the
+    # order_date
     assert purchase_order.issue_date >= purchase_order.order_date
 
-    # If the status is "DELIVERED", the acknowledgment_date should be after the issue_date
+    # If the status is "DELIVERED", the acknowledgment_date should be
+    # after the issue_date
     assert purchase_order.acknowledgment_date >= purchase_order.issue_date
 
-    # If the status is "DELIVERED", the expected_delivery_date and actual_delivery_date should be after the acknowledgment_date
-    assert purchase_order.expected_delivery_date >= purchase_order.acknowledgment_date
-    assert purchase_order.actual_delivery_date >= purchase_order.acknowledgment_date
+    # If the status is "DELIVERED", the expected_delivery_date and
+    # actual_delivery_date should be after the acknowledgment_date
+    assert (
+        purchase_order.expected_delivery_date
+        >= purchase_order.acknowledgment_date
+    )
+    assert (
+        purchase_order.actual_delivery_date
+        >= purchase_order.acknowledgment_date
+    )
 
 
 # Test for valid dates - status "CANCELLED"
@@ -141,14 +169,20 @@ def test_valid_dates_status_cancelled(db, purchase_order_factory):
     # Create a PurchaseOrder object with a status of "CANCELLED"
     purchase_order = purchase_order_factory(status="CANCELLED")
 
-    # If the status is "CANCELLED", the issue_date should be after the order_date
+    # If the status is "CANCELLED", the issue_date should be after the
+    # order_date
     assert purchase_order.issue_date >= purchase_order.order_date
 
-    # If the status is "CANCELLED", the acknowledgment_date should be after the issue_date
+    # If the status is "CANCELLED", the acknowledgment_date should be
+    # after the issue_date
     assert purchase_order.acknowledgment_date >= purchase_order.issue_date
 
-    # If the status is "CANCELLED", the expected_delivery_date should be after the acknowledgment_date
-    assert purchase_order.expected_delivery_date >= purchase_order.acknowledgment_date
+    # If the status is "CANCELLED", the expected_delivery_date should be
+    # after the acknowledgment_date
+    assert (
+        purchase_order.expected_delivery_date
+        >= purchase_order.acknowledgment_date
+    )
 
     # If the status is "CANCELLED", the actual_delivery_date should be None
     assert purchase_order.actual_delivery_date is None

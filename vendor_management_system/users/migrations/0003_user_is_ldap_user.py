@@ -4,15 +4,21 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('users', '0002_user_role_user_vendor'),
+        ("users", "0002_user_role_user_vendor"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='user',
-            name='is_ldap_user',
-            field=models.BooleanField(default=False, help_text="Indica se l'utente è stato creato tramite autenticazione LDAP", verbose_name='Utente LDAP'),
+            model_name="user",
+            name="is_ldap_user",
+            field=models.BooleanField(
+                default=False,
+                help_text=(
+                    "Indica se l'utente è stato creato tramite "
+                    "autenticazione LDAP"
+                ),
+                verbose_name="Utente LDAP",
+            ),
         ),
     ]

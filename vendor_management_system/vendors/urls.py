@@ -1,21 +1,21 @@
 # Imports
 from django.urls import path
-from vendor_management_system.vendors.views import (
-    VendorViewSet, 
-    AddressViewSet, 
-    CategoryViewSet,
-    CountryViewSet,
-    RegionViewSet,
-    ProvinceViewSet,
-    CompetenceZoneViewSet,
-)
+
 from vendor_management_system.vendors.dashboard_views import (
-    vendor_dashboard_view,
     dashboard_stats_api,
     dashboard_vendors_list_api,
     export_vendors_excel,
+    vendor_dashboard_view,
 )
-
+from vendor_management_system.vendors.views import (
+    AddressViewSet,
+    CategoryViewSet,
+    CompetenceZoneViewSet,
+    CountryViewSet,
+    ProvinceViewSet,
+    RegionViewSet,
+    VendorViewSet,
+)
 
 # Define the URL patterns for the vendors app
 urlpatterns = [
@@ -54,11 +54,12 @@ urlpatterns = [
         ),
         name="vendors--detail-vendor",
     ),
-    
     # Vendor management specific endpoints
     path(
         "<vendor_code>/qualification/",
-        VendorViewSet.as_view({"get": "qualification", "patch": "qualification"}),
+        VendorViewSet.as_view(
+            {"get": "qualification", "patch": "qualification"}
+        ),
         name="vendors--qualification",
     ),
     path(
@@ -71,21 +72,25 @@ urlpatterns = [
         VendorViewSet.as_view({"get": "performance", "patch": "performance"}),
         name="vendors--performance",
     ),
-    
     # Address management for vendors (mantieni dal precedente)
     path(
         "<vendor_code>/address/",
-        VendorViewSet.as_view({"get": "get_address", "post": "create_address", "put": "update_address", "delete": "delete_address"}),
+        VendorViewSet.as_view(
+            {
+                "get": "get_address",
+                "post": "create_address",
+                "put": "update_address",
+                "delete": "delete_address",
+            }
+        ),
         name="vendors--address",
     ),
-    
     # Alert and monitoring endpoints
     path(
         "alerts/",
         VendorViewSet.as_view({"get": "alerts"}),
         name="vendors--alerts",
     ),
-    
     # Address CRUD operations (standalone) (mantieni dal precedente)
     path(
         "addresses/",
@@ -99,7 +104,6 @@ urlpatterns = [
         ),
         name="addresses--detail",
     ),
-    
     # Category CRUD operations (NUOVO)
     path(
         "categories/",
@@ -113,7 +117,6 @@ urlpatterns = [
         ),
         name="categories--detail",
     ),
-    
     # Category management endpoints (NUOVO)
     path(
         "categories/tree/",
@@ -130,7 +133,6 @@ urlpatterns = [
         CategoryViewSet.as_view({"get": "vendors"}),
         name="categories--vendors",
     ),
-    
     # =========================================================================
     # Geography endpoints (Nazione, Regione, Provincia)
     # =========================================================================
@@ -154,7 +156,6 @@ urlpatterns = [
         ProvinceViewSet.as_view({"get": "list"}),
         name="provinces--list",
     ),
-    
     # =========================================================================
     # Competence Zone endpoints (Zone di Competenza)
     # =========================================================================

@@ -4,15 +4,19 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('vendors', '0009_remove_vendor_year_of_establishment_and_more'),
+        ("vendors", "0009_remove_vendor_year_of_establishment_and_more"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='vendor',
-            name='albo_zucchetti',
-            field=models.CharField(blank=True, max_length=20, null=True, verbose_name='Inserito in Albo Zucchetti'),
+            model_name="vendor",
+            name="albo_zucchetti",
+            field=models.CharField(
+                blank=True,
+                max_length=20,
+                null=True,
+                verbose_name="Inserito in Albo Zucchetti",
+            ),
         ),
     ]

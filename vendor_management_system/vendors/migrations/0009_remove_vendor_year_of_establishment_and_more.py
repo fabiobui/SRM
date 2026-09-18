@@ -4,19 +4,23 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('vendors', '0008_alter_qualificationtype_options_and_more'),
+        ("vendors", "0008_alter_qualificationtype_options_and_more"),
     ]
 
     operations = [
         migrations.RemoveField(
-            model_name='vendor',
-            name='year_of_establishment',
+            model_name="vendor",
+            name="year_of_establishment",
         ),
         migrations.AddField(
-            model_name='vendor',
-            name='date_of_establishment',
-            field=models.DateField(blank=True, help_text='Data di Specializzazione o Fondazione', null=True, verbose_name='Data di Specializzazione/Fondazione'),
+            model_name="vendor",
+            name="date_of_establishment",
+            field=models.DateField(
+                blank=True,
+                help_text="Data di Specializzazione o Fondazione",
+                null=True,
+                verbose_name="Data di Specializzazione/Fondazione",
+            ),
         ),
     ]
