@@ -391,7 +391,9 @@ JAZZMIN_SETTINGS = {
         "portal": [
             {
                 "name": "Dashboard",
-                "url": "/portale/backoffice/dashboard/",
+                "url": "/portale/backoffice/dashboard/"
+                if not USE_FORNITORI_PREFIX
+                else "/fornitori/portale/backoffice/dashboard/",
                 "icon": "fas fa-tachometer-alt",
                 "order": 0,
             }

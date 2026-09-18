@@ -6,7 +6,8 @@
 > manuale utente admin, `ANALISI_AREA_FORNITORE.md`, `COMPETENZE_DOCUMENTI.md` = note su feature specifiche,
 > `VENDOR_DASHBOARD.md` = la dashboard di analytics fornitori, `LDAP.md` = autenticazione LDAP/AD,
 > `URL_PREFIX_CONFIG.md` = il prefisso `/fornitori`, `SCRIPT_IMPORT.md` = gli script di import/manutenzione dati,
-> `PRE_COMMIT.md` = installazione e funzionamento di pre-commit).
+> `PRE_COMMIT.md` = installazione e funzionamento di pre-commit, `DEPLOY.md` = procedura di deploy sulla VM di
+> test/produzione).
 > Questo file si concentra su: **cos'è il progetto**, **come è organizzato**, **quali portali web esistono**, e
 > **come farlo girare su una macchina locale**, incluse le lacune trovate nei docs/config esistenti e come
 > puntarlo su una copia di dati reali invece che su un database vuoto/seedato (§11).
