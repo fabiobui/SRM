@@ -1,0 +1,316 @@
+{% extends "portal/backoffice/_base_bo.html" %}
+
+{% block title %}Dashboard — Back Office{% endblock %}
+
+{% block extra_head %}
+<style>
+    .stats-card {
+        background: #fff;
+        border-radius: 8px;
+        padding: 1.25rem 1.5rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        border-left: 4px solid #17a2b8;
+        margin-bottom: 1rem;
+    }
+    .stats-card.warning { border-left-color: #ffc107; }
+    .stats-number { font-size: 1.6rem; font-weight: bold; color: #333; }
+    .stats-number.text-warning { color: #b8860b !important; }
+    .stats-number.text-danger { color: #dc3545 !important; }
+    .section-table { background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h1 class="h3 mb-0"><i class="fas fa-tachometer-alt"></i> Dashboard Back Office</h1>
+    <p class="text-muted">Le card sotto mostrano lo stato generale del sistema (tutti i fornitori); le sezioni più in basso mostrano gli aggiornamenti scaduti e da revisionare solo per i fornitori che gestisci</p>
+</div>
+
+<!-- KPI globali -->
+<div class="row mb-4">
+    <div class="col-lg-4 col-md-6 mb-3">
+        <div class="stats-card warning">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="stats-number">{{ total_documents }}</div>
+                    <div class="text-muted">Documenti totali</div>
+                </div>
+                <div class="text-end me-3">
+                    <div class="stats-number text-danger">{{ documents_expired }}</div>
+                    <div class="text-muted">scaduti</div>
+                </div>
+                <div class="text-end">
+                    <div class="stats-number text-warning">{{ documents_pending_review }}</div>
+                    <div class="text-muted">da revisionare</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4 col-md-6 mb-3">
+        <div class="stats-card warning">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="stats-number">{{ total_requirements }}</div>
+                    <div class="text-muted">Requisiti totali</div>
+                </div>
+                <div class="text-end me-3">
+                    <div class="stats-number text-danger">{{ requirements_expired }}</div>
+                    <div class="text-muted">scaduti</div>
+                </div>
+                <div class="text-end">
+                    <div class="stats-number text-warning">{{ requirements_pending_review }}</div>
+                    <div class="text-muted">da revisionare</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4 col-md-6 mb-3">
+        <div class="stats-card warning">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="stats-number">{{ total_change_requests }}</div>
+                    <div class="text-muted">Richieste anagrafica totali</div>
+                </div>
+                <div class="text-end">
+                    <div class="stats-number text-warning">{{ change_requests_pending }}</div>
+                    <div class="text-muted">in attesa</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Aggiornamenti da revisionare per i fornitori gestiti dall'utente loggato -->
+<h2 class="h5 mb-3"><i class="fas fa-user-check"></i> Aggiornamenti dei tuoi fornitori</h2>
+
+<!-- Scaduti: priorità più alta, mostrati per primi -->
+<div class="section-table mb-4">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead class="bg-light">
+                <tr>
+                    <th colspan="4" class="bg-danger text-white">
+                        <i class="fas fa-exclamation-circle"></i> Documenti scaduti
+                    </th>
+                </tr>
+                <tr>
+                    <th>Fornitore</th>
+                    <th>Tipo documento</th>
+                    <th>Data scadenza</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for d in my_expired_documents %}
+                <tr>
+                    <td><strong>{{ d.vendor.name }}</strong> <small class="text-muted">{{ d.vendor.vendor_code }}</small></td>
+                    <td>{{ d.document_type.name }}</td>
+                    <td class="text-danger">{{ d.expiry_date|date:"d/m/Y" }}</td>
+                    <td class="text-end">
+                        <a href="{% url 'portal:bo-document-detail' pk=d.pk %}" class="btn btn-sm btn-outline-primary">Dettaglio</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="4" class="text-center text-muted py-3">Nessun documento scaduto.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="p-2 text-end border-top">
+        <a href="{% url 'portal:bo-documents' %}?status=EXPIRED" class="small">Vedi tutti i documenti scaduti &raquo;</a>
+    </div>
+</div>
+
+<div class="section-table mb-4">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead class="bg-light">
+                <tr>
+                    <th colspan="4" class="bg-danger text-white">
+                        <i class="fas fa-exclamation-circle"></i> Requisiti professionali scaduti
+                    </th>
+                </tr>
+                <tr>
+                    <th>Fornitore</th>
+                    <th>Requisito</th>
+                    <th>Data scadenza</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for req in my_expired_requirements %}
+                <tr>
+                    <td><strong>{{ req.vendor.name }}</strong> <small class="text-muted">{{ req.vendor.vendor_code }}</small></td>
+                    <td>{{ req.competence.name }}</td>
+                    <td class="text-danger">{{ req.expiry_date|date:"d/m/Y" }}</td>
+                    <td class="text-end">
+                        <a href="{% url 'portal:bo-requirement-detail' pk=req.pk %}" class="btn btn-sm btn-outline-primary">Dettaglio</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="4" class="text-center text-muted py-3">Nessun requisito scaduto.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="p-2 text-end border-top">
+        <a href="{% url 'portal:bo-requirements' %}?verified=expired" class="small">Vedi tutti i requisiti scaduti &raquo;</a>
+    </div>
+</div>
+
+<!-- In attesa di revisione -->
+<div class="section-table mb-4">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead class="bg-light">
+                <tr>
+                    <th colspan="4" class="bg-warning text-dark">
+                        <i class="fas fa-id-card"></i> Richieste modifica anagrafica in attesa
+                    </th>
+                </tr>
+                <tr>
+                    <th>Fornitore</th>
+                    <th>Tipo</th>
+                    <th>Data invio</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in my_pending_change_requests %}
+                <tr>
+                    <td><strong>{{ r.vendor.name }}</strong> <small class="text-muted">{{ r.vendor.vendor_code }}</small></td>
+                    <td>{% if r.vendor_service %}Servizio: {{ r.vendor_service.service_type.name }}{% else %}Anagrafica{% endif %}</td>
+                    <td>{{ r.created_at|date:"d/m/Y H:i" }}</td>
+                    <td class="text-end">
+                        <a href="{% url 'portal:bo-change-request-detail' pk=r.pk %}" class="btn btn-sm btn-outline-primary">Dettaglio</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="4" class="text-center text-muted py-3">Nessuna richiesta in attesa.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="p-2 text-end border-top">
+        <a href="{% url 'portal:bo-change-requests' %}" class="small">Vedi tutte le richieste anagrafica &raquo;</a>
+    </div>
+</div>
+
+<div class="section-table mb-4">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead class="bg-light">
+                <tr>
+                    <th colspan="4" class="bg-warning text-dark">
+                        <i class="fas fa-file-alt"></i> Documenti in attesa di revisione
+                    </th>
+                </tr>
+                <tr>
+                    <th>Fornitore</th>
+                    <th>Tipo documento</th>
+                    <th>Data caricamento</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for d in my_pending_documents %}
+                <tr>
+                    <td><strong>{{ d.vendor.name }}</strong> <small class="text-muted">{{ d.vendor.vendor_code }}</small></td>
+                    <td>{{ d.document_type.name }}</td>
+                    <td>{{ d.uploaded_at|date:"d/m/Y H:i" }}</td>
+                    <td class="text-end">
+                        <a href="{% url 'portal:bo-document-detail' pk=d.pk %}" class="btn btn-sm btn-outline-primary">Dettaglio</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="4" class="text-center text-muted py-3">Nessun documento in attesa.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="p-2 text-end border-top">
+        <a href="{% url 'portal:bo-documents' %}" class="small">Vedi tutti i documenti &raquo;</a>
+    </div>
+</div>
+
+<div class="section-table mb-4">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead class="bg-light">
+                <tr>
+                    <th colspan="4" class="bg-warning text-dark">
+                        <i class="fas fa-user-graduate"></i> Requisiti professionali in attesa di revisione
+                    </th>
+                </tr>
+                <tr>
+                    <th>Fornitore</th>
+                    <th>Requisito</th>
+                    <th>Data caricamento</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for req in my_pending_requirements %}
+                <tr>
+                    <td><strong>{{ req.vendor.name }}</strong> <small class="text-muted">{{ req.vendor.vendor_code }}</small></td>
+                    <td>{{ req.competence.name }}</td>
+                    <td>{{ req.updated_at|date:"d/m/Y H:i" }}</td>
+                    <td class="text-end">
+                        <a href="{% url 'portal:bo-requirement-detail' pk=req.pk %}" class="btn btn-sm btn-outline-primary">Dettaglio</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="4" class="text-center text-muted py-3">Nessun requisito in attesa.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="p-2 text-end border-top">
+        <a href="{% url 'portal:bo-requirements' %}" class="small">Vedi tutti i requisiti &raquo;</a>
+    </div>
+</div>
+
+<!-- Fornitori senza copertura documentale/requisiti, tra quelli gestiti dall'utente loggato -->
+<h2 class="h5 mb-3"><i class="fas fa-exclamation-triangle text-warning"></i> Fornitori da completare</h2>
+
+<div class="row">
+    <div class="col-lg-6 mb-3">
+        <div class="section-table">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="bg-light">
+                        <tr><th colspan="2" class="bg-info text-white">Fornitori senza documenti assegnati</th></tr>
+                        <tr><th>Nome</th><th>Codice</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for vendor in my_vendors_without_documents %}
+                        <tr><td>{{ vendor.name }}</td><td>{{ vendor.vendor_code }}</td></tr>
+                        {% empty %}
+                        <tr><td colspan="2" class="text-center text-muted py-3">Nessuno.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6 mb-3">
+        <div class="section-table">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="bg-light">
+                        <tr><th colspan="2" class="bg-info text-white">Fornitori senza requisiti assegnati</th></tr>
+                        <tr><th>Nome</th><th>Codice</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for vendor in my_vendors_without_requirements %}
+                        <tr><td>{{ vendor.name }}</td><td>{{ vendor.vendor_code }}</td></tr>
+                        {% empty %}
+                        <tr><td colspan="2" class="text-center text-muted py-3">Nessuno.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

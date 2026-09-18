@@ -11,8 +11,10 @@
       body { background: #f6f8fa; }
       .navbar-bo { background: linear-gradient(90deg, #0c4a6e 0%, #0369a1 100%); }
       .badge-cr-PENDING  { background:#ffc107; color:#212529; }
+      .badge-cr-UPLOADED { background:#ffc107; color:#212529; }
       .badge-cr-APPROVED { background:#198754; }
       .badge-cr-REJECTED { background:#dc3545; }
+      .badge-cr-EXPIRED  { background:#212529; }
       .diff-table th { width: 25%; }
       .diff-old { color: #6c757d; text-decoration: line-through; }
       .diff-new { color: #0a58ca; font-weight: 600; }
@@ -21,19 +23,38 @@
 <body>
 <nav class="navbar navbar-expand-lg navbar-dark navbar-bo">
     <div class="container">
-        <a class="navbar-brand" href="{% url 'backoffice-dashboard' %}">
+        <a class="navbar-brand" href="{% url 'portal:bo-dashboard' %}">
             <i class="fas fa-briefcase"></i> Back Office
         </a>
         <div class="collapse navbar-collapse">
             <ul class="navbar-nav me-auto">
                 <li class="nav-item">
-                    <a class="nav-link" href="{% url 'backoffice-dashboard' %}">
+                    <a class="nav-link {% if request.resolver_match.url_name == 'bo-dashboard' %}active{% endif %}"
+                       href="{% url 'portal:bo-dashboard' %}">
                         <i class="fas fa-tachometer-alt"></i> Dashboard
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link active" href="{% url 'portal:bo-change-requests' %}">
+                    <a class="nav-link {% if 'change-request' in request.resolver_match.url_name %}active{% endif %}"
+                       href="{% url 'portal:bo-change-requests' %}">
                         <i class="fas fa-id-card"></i> Richieste anagrafica
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if 'document' in request.resolver_match.url_name %}active{% endif %}"
+                       href="{% url 'portal:bo-documents' %}">
+                        <i class="fas fa-file-alt"></i> Documenti
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if 'requirement' in request.resolver_match.url_name %}active{% endif %}"
+                       href="{% url 'portal:bo-requirements' %}">
+                        <i class="fas fa-user-graduate"></i> Requisiti professionali
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'vendor-dashboard' %}">
+                        <i class="fas fa-building"></i> Fornitori - Analisi e Classificazione
                     </a>
                 </li>
             </ul>

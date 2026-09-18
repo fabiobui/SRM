@@ -14,6 +14,7 @@ from django.db.models import Q
 from django.http import HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
+from django.utils import timezone
 from django.views import View
 from django.views.generic import (
     DetailView,
@@ -27,6 +28,7 @@ from vendor_management_system.core.permissions import (
 )
 from vendor_management_system.documents.models import Document
 from vendor_management_system.vendors.models import (
+    Vendor,
     VendorCompetence,
     VendorOperationalAttributes,
     VendorService,
@@ -680,6 +682,283 @@ class BoChangeRequestReviewView(BackOfficeRequiredMixin, View):
                 f"Richiesta rifiutata per {change_request.vendor.name}.",
             )
         return redirect("portal:bo-change-requests")
+
+
+# --- area BO (gestione requisiti professionali) -----------------------------
+
+
+class BoRequirementListView(BackOfficeRequiredMixin, ListView):
+    """Lista requisiti professionali con documento caricato, per il BO.
+
+    Default: solo quelli con `document_file` presente e non ancora
+    verificati (`verified=False`) — analogo al default "solo PENDING" di
+    `BoChangeRequestListView`.
+    """
+
+    template_name = "portal/backoffice/requirements_list.html"
+    context_object_name = "requirements"
+    paginate_by = 25
+
+    def get_queryset(self):
+        verified = self.request.GET.get("verified", "false")
+        if verified == "expired":
+            # Data di scadenza superata, a prescindere da verified/
+            # document_file: `VendorCompetence` non ha un campo di stato
+            # (solo la property calcolata `expiry_status`), quindi il
+            # filtro va fatto direttamente sulla data.
+            return (
+                VendorCompetence.objects.select_related("vendor", "competence")
+                .filter(
+                    expiry_date__isnull=False,
+                    expiry_date__lt=timezone.now().date(),
+                )
+                .order_by("expiry_date")
+            )
+        qs = VendorCompetence.objects.select_related(
+            "vendor", "competence"
+        ).exclude(document_file="")
+        if verified in ("true", "false"):
+            qs = qs.filter(verified=(verified == "true"))
+        return qs.order_by("-updated_at")
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["verified_filter"] = self.request.GET.get("verified", "false")
+        return ctx
+
+
+class BoRequirementDetailView(BackOfficeRequiredMixin, DetailView):
+    """Dettaglio requisito professionale + form approvazione/rifiuto."""
+
+    template_name = "portal/backoffice/requirement_detail.html"
+    context_object_name = "requirement"
+    model = VendorCompetence
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["form"] = VendorChangeReviewForm()
+        return ctx
+
+
+class BoRequirementReviewView(BackOfficeRequiredMixin, View):
+    """POST: verifica o rifiuta il documento di un requisito professionale."""
+
+    http_method_names = ["post"]
+
+    def post(self, request, pk, *args, **kwargs):
+        requirement = get_object_or_404(VendorCompetence, pk=pk)
+
+        form = VendorChangeReviewForm(request.POST)
+        if not form.is_valid():
+            messages.error(request, "Form non valido.")
+            return redirect("portal:bo-requirement-detail", pk=pk)
+
+        action = form.cleaned_data["action"]
+        notes = form.cleaned_data.get("review_notes", "")
+
+        requirement.verified = action == "approve"
+        requirement.verified_by = request.user.name or request.user.email
+        requirement.verified_date = timezone.now().date()
+        if notes:
+            requirement.notes = notes
+        requirement.save()
+
+        if action == "approve":
+            messages.success(
+                request,
+                f"Requisito '{requirement.competence.name}' verificato per "
+                f"{requirement.vendor.name}.",
+            )
+        else:
+            messages.warning(
+                request,
+                f"Requisito '{requirement.competence.name}' rifiutato per "
+                f"{requirement.vendor.name}.",
+            )
+        return redirect("portal:bo-requirements")
+
+
+# --- area BO (gestione documenti) -------------------------------------------
+
+
+class BoDocumentListView(BackOfficeRequiredMixin, ListView):
+    """Lista documenti per il back-office, default solo `UPLOADED`
+    ("da revisionare") — analogo al default "solo PENDING" di
+    `BoChangeRequestListView`."""
+
+    template_name = "portal/backoffice/documents_list.html"
+    context_object_name = "documents"
+    paginate_by = 25
+
+    def get_queryset(self):
+        qs = Document.objects.select_related("vendor", "document_type")
+        status = self.request.GET.get("status", "UPLOADED")
+        if status == "EXPIRED":
+            # Data di scadenza superata, indipendentemente dallo stato
+            # salvato (che si aggiorna solo al prossimo save() del
+            # documento, non c'è un job periodico che lo tiene allineato).
+            return qs.filter(
+                expiry_date__isnull=False,
+                expiry_date__lt=timezone.now().date(),
+            ).order_by("expiry_date")
+        if status in dict(Document.STATUS_CHOICES):
+            qs = qs.filter(status=status)
+        return qs.order_by("-uploaded_at")
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["status_filter"] = self.request.GET.get("status", "UPLOADED")
+        # "Scaduto" per primo nel filtro: è la priorità più alta da
+        # revisionare, gli altri stati restano nell'ordine del modello.
+        ctx["status_choices"] = [
+            ("EXPIRED", dict(Document.STATUS_CHOICES)["EXPIRED"]),
+            *[c for c in Document.STATUS_CHOICES if c[0] != "EXPIRED"],
+        ]
+        return ctx
+
+
+class BoDocumentDetailView(BackOfficeRequiredMixin, DetailView):
+    """Dettaglio documento + form approvazione/rifiuto."""
+
+    template_name = "portal/backoffice/document_detail.html"
+    context_object_name = "document"
+    model = Document
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["form"] = VendorChangeReviewForm()
+        return ctx
+
+
+class BoDocumentReviewView(BackOfficeRequiredMixin, View):
+    """POST: approva o rifiuta un documento caricato dal fornitore."""
+
+    http_method_names = ["post"]
+
+    def post(self, request, pk, *args, **kwargs):
+        document = get_object_or_404(Document, pk=pk)
+
+        form = VendorChangeReviewForm(request.POST)
+        if not form.is_valid():
+            messages.error(request, "Form non valido.")
+            return redirect("portal:bo-document-detail", pk=pk)
+
+        action = form.cleaned_data["action"]
+        notes = form.cleaned_data.get("review_notes", "")
+
+        document.status = "APPROVED" if action == "approve" else "REJECTED"
+        document.reviewed_by = request.user
+        document.reviewed_at = timezone.now()
+        if notes:
+            document.notes = notes
+        document.save()
+
+        if action == "approve":
+            messages.success(
+                request,
+                f"Documento '{document.document_type.name}' approvato per "
+                f"{document.vendor.name}.",
+            )
+        else:
+            messages.warning(
+                request,
+                f"Documento '{document.document_type.name}' rifiutato per "
+                f"{document.vendor.name}.",
+            )
+        return redirect("portal:bo-documents")
+
+
+# --- area BO (dashboard consolidata) ----------------------------------------
+
+
+class BoDashboardView(BackOfficeRequiredMixin, TemplateView):
+    """Dashboard consolidata per il back-office.
+
+    KPI globali di sistema in alto; sezioni personali (fornitori con
+    `managed_by` uguale all'utente loggato) con gli aggiornamenti da
+    revisionare e i fornitori senza documenti/requisiti assegnati.
+    """
+
+    template_name = "portal/backoffice/dashboard.html"
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+
+        # KPI globali (tutto il sistema, indipendenti dal gestore loggato).
+        ctx["total_documents"] = Document.objects.count()
+        ctx["documents_pending_review"] = Document.objects.filter(
+            status="UPLOADED"
+        ).count()
+        ctx["total_requirements"] = VendorCompetence.objects.count()
+        ctx["requirements_pending_review"] = (
+            VendorCompetence.objects.exclude(document_file="")
+            .filter(verified=False)
+            .count()
+        )
+        ctx["total_change_requests"] = VendorChangeRequest.objects.count()
+        ctx["change_requests_pending"] = VendorChangeRequest.objects.filter(
+            status=VendorChangeRequest.STATUS_PENDING
+        ).count()
+
+        # Scaduti: data di scadenza superata, a prescindere dallo stato
+        # salvato (vedi nota in BoDocumentListView/BoRequirementListView).
+        today = timezone.now().date()
+        ctx["documents_expired"] = Document.objects.filter(
+            expiry_date__isnull=False, expiry_date__lt=today
+        ).count()
+        ctx["requirements_expired"] = VendorCompetence.objects.filter(
+            expiry_date__isnull=False, expiry_date__lt=today
+        ).count()
+
+        # Sezioni personali: solo i fornitori gestiti dall'utente loggato.
+        user = self.request.user
+        ctx["my_pending_change_requests"] = (
+            VendorChangeRequest.objects.filter(
+                vendor__managed_by=user,
+                status=VendorChangeRequest.STATUS_PENDING,
+            )
+            .select_related("vendor", "vendor_service")
+            .order_by("-created_at")[:10]
+        )
+        ctx["my_pending_documents"] = (
+            Document.objects.filter(vendor__managed_by=user, status="UPLOADED")
+            .select_related("vendor", "document_type")
+            .order_by("-uploaded_at")[:10]
+        )
+        ctx["my_pending_requirements"] = (
+            VendorCompetence.objects.filter(
+                vendor__managed_by=user, verified=False
+            )
+            .exclude(document_file="")
+            .select_related("vendor", "competence")
+            .order_by("-updated_at")[:10]
+        )
+        ctx["my_expired_documents"] = (
+            Document.objects.filter(
+                vendor__managed_by=user,
+                expiry_date__isnull=False,
+                expiry_date__lt=today,
+            )
+            .select_related("vendor", "document_type")
+            .order_by("expiry_date")[:10]
+        )
+        ctx["my_expired_requirements"] = (
+            VendorCompetence.objects.filter(
+                vendor__managed_by=user,
+                expiry_date__isnull=False,
+                expiry_date__lt=today,
+            )
+            .select_related("vendor", "competence")
+            .order_by("expiry_date")[:10]
+        )
+        ctx["my_vendors_without_documents"] = Vendor.objects.filter(
+            managed_by=user, documents__isnull=True
+        )[:10]
+        ctx["my_vendors_without_requirements"] = Vendor.objects.filter(
+            managed_by=user, vendor_competences__isnull=True
+        )[:10]
+
+        return ctx
 
 
 # --- retro-compatibilità ----------------------------------------------------
