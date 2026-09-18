@@ -10,7 +10,7 @@ Convenzioni:
 """
 
 from django.contrib import messages
-from django.db.models import Q
+from django.db.models import Count, Q
 from django.http import HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
@@ -102,6 +102,49 @@ class PortalDashboardView(VendorRequiredMixin, TemplateView):
             Q(document_file="") | Q(document_file__isnull=True)
         ).count()
 
+        # Metriche divise per tipologia (AIDEV-44): prima le 4 card KPI in
+        # cima mostravano solo i Document sotto un'etichetta generica, che
+        # nascondeva i VendorCompetence (requisiti) nello stesso stato — es.
+        # "in revisione" mostrava 2 anche quando c'erano altri 2 requisiti in
+        # revisione. Ora ogni tipologia ha il proprio conteggio.
+        doc_stats = {
+            "to_upload": to_upload_count,
+            "in_review": pending_review_count,
+            "approved": approved_count,
+            "expired": expired_count,
+        }
+        req_stats = {
+            "to_upload": requirements_to_upload_count,
+            "in_review": requirements.exclude(
+                Q(document_file="") | Q(document_file__isnull=True)
+            )
+            .filter(verified=False)
+            .count(),
+            "approved": requirements.filter(verified=True).count(),
+            "expired": requirements.filter(
+                expiry_date__isnull=False,
+                expiry_date__lt=timezone.now().date(),
+            ).count(),
+        }
+
+        def _change_request_stats(vendor_service_isnull):
+            counts = dict(
+                VendorChangeRequest.objects.filter(
+                    vendor=vendor, vendor_service__isnull=vendor_service_isnull
+                )
+                .values("status")
+                .annotate(total=Count("id"))
+                .values_list("status", "total")
+            )
+            return {
+                "pending": counts.get(VendorChangeRequest.STATUS_PENDING, 0),
+                "approved": counts.get(VendorChangeRequest.STATUS_APPROVED, 0),
+                "rejected": counts.get(VendorChangeRequest.STATUS_REJECTED, 0),
+            }
+
+        anagrafica_stats = _change_request_stats(vendor_service_isnull=True)
+        servizi_stats = _change_request_stats(vendor_service_isnull=False)
+
         ctx.update(
             {
                 "vendor": vendor,
@@ -115,6 +158,10 @@ class PortalDashboardView(VendorRequiredMixin, TemplateView):
                 "rejected_count": rejected_count,
                 "pending_change_requests": pending_change_requests,
                 "total_documents": documents.count(),
+                "doc_stats": doc_stats,
+                "req_stats": req_stats,
+                "anagrafica_stats": anagrafica_stats,
+                "servizi_stats": servizi_stats,
             }
         )
         return ctx
