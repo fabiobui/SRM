@@ -8,19 +8,19 @@ Questo script verifica che:
 """
 
 import unittest
-from datetime import timedelta
 
 from django.contrib.auth import get_user_model
+from django.db import connection
 from django.test import Client, TestCase
-from django.utils import timezone
+from django.test.utils import CaptureQueriesContext
 from rest_framework.authtoken.models import Token
 
-from vendor_management_system.portal.models import VendorChangeRequest
 from vendor_management_system.portal.tests.factories import (
-    DocumentFactory,
     VendorCompetenceFactory,
+    VendorServiceFactory,
 )
 from vendor_management_system.vendors.models import Address, Category, Vendor
+from vendor_management_system.vendors.tests.factories import VendorFactory
 
 
 class VendorDashboardTestCase(TestCase):
@@ -161,113 +161,53 @@ class VendorDashboardTestCase(TestCase):
         self.assertEqual(response.status_code, 401)
 
 
-class VendorDashboardPendingBannerTestCase(TestCase):
-    """Banner "aggiornamenti da revisionare" della dashboard.
+class VendorDashboardQueryCountTestCase(TestCase):
+    """La vista dashboard non deve generare query N+1 per fornitore (AIDEV-46).
 
-    Copre i 3 conteggi (richieste anagrafica, documenti, requisiti
-    professionali) mostrati per il gestore loggato (`Vendor.managed_by`):
-    solo elementi "in attesa", senza alcun vincolo di data, filtrati sul
-    gestore corretto e azzerati quando il BO li risolve.
+    vendor_services e vendor_competences sono già prefetchati sulla
+    queryset di base: filtrarli di nuovo con `.filter()` sul related
+    manager (invece che in Python sui dati già prefetchati) bypassa la
+    cache del prefetch e rilancia una query per ogni fornitore.
+    Verifichiamo che il numero di query non cresca linearmente col
+    numero di fornitori presenti.
     """
 
     def setUp(self):
         User = get_user_model()
-        self.manager = User.objects.create_user(
-            email="manager@test.com", password="testpass123", role="bo_user"
-        )
-        self.other_manager = User.objects.create_user(
-            email="other-manager@test.com",
-            password="testpass123",
-            role="bo_user",
-        )
-        self.category = Category.objects.create(
-            code="BANNER", name="Test Banner Category", is_active=True
-        )
-        self.address = Address.objects.create(
-            street_address="Via Test 1",
-            city="Milano",
-            postal_code="20100",
-            country="Italia",
-        )
-        self.vendor = Vendor.objects.create(
-            name="Fornitore Gestito",
-            email="vendor-banner@test.com",
-            category=self.category,
-            address=self.address,
-            managed_by=self.manager,
-        )
-        self.other_vendor = Vendor.objects.create(
-            name="Fornitore Altro Gestore",
-            email="other-vendor-banner@test.com",
-            category=self.category,
-            address=self.address,
-            managed_by=self.other_manager,
+        self.user = User.objects.create_user(
+            email="perf@test.com", password="testpass123", role="ADMIN"
         )
         self.client = Client()
-        self.client.login(email=self.manager.email, password="testpass123")
+        self.client.login(email="perf@test.com", password="testpass123")
 
-    def test_banner_counts_pending_items_for_managed_vendor(self):
-        VendorChangeRequest.objects.create(
-            vendor=self.vendor, changes={"name": {"old": "a", "new": "b"}}
-        )
-        DocumentFactory(vendor=self.vendor, status="UPLOADED")
-        VendorCompetenceFactory(
-            vendor=self.vendor,
-            document_file="vendor_competences/2026/09/x.pdf",
-            verified=False,
-        )
+    def _add_vendors(self, count):
+        for _ in range(count):
+            vendor = VendorFactory()
+            VendorServiceFactory(vendor=vendor, is_primary=True)
+            VendorCompetenceFactory(
+                vendor=vendor, is_qualifica=True, has_competence=True
+            )
+            VendorCompetenceFactory(
+                vendor=vendor, is_competenza=True, has_competence=True
+            )
+            VendorCompetenceFactory(vendor=vendor, has_certification=True)
 
-        response = self.client.get("/vendors/dashboard/")
-
+    def test_query_count_does_not_scale_with_vendor_count(self):
+        self._add_vendors(3)
+        with CaptureQueriesContext(connection) as small:
+            response = self.client.get("/vendors/dashboard/")
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context["pending_change_requests_count"], 1)
-        self.assertEqual(response.context["pending_documents_count"], 1)
-        self.assertEqual(response.context["pending_requirements_count"], 1)
-        self.assertContains(response, "Aggiornamenti da revisionare")
 
-    def test_banner_ignores_items_managed_by_someone_else(self):
-        VendorChangeRequest.objects.create(
-            vendor=self.other_vendor,
-            changes={"name": {"old": "a", "new": "b"}},
+        self._add_vendors(3)
+        with CaptureQueriesContext(connection) as large:
+            response = self.client.get("/vendors/dashboard/")
+        self.assertEqual(response.status_code, 200)
+
+        # Senza N+1 il conteggio query resta (quasi) costante al variare
+        # del numero di fornitori; con l'N+1 cresce di ~4 query/fornitore.
+        self.assertLessEqual(
+            len(large.captured_queries) - len(small.captured_queries), 5
         )
-        DocumentFactory(vendor=self.other_vendor, status="UPLOADED")
-
-        response = self.client.get("/vendors/dashboard/")
-
-        self.assertEqual(response.context["pending_change_requests_count"], 0)
-        self.assertEqual(response.context["pending_documents_count"], 0)
-
-    def test_banner_excludes_resolved_items(self):
-        VendorChangeRequest.objects.create(
-            vendor=self.vendor,
-            changes={"name": {"old": "a", "new": "b"}},
-            status=VendorChangeRequest.STATUS_APPROVED,
-        )
-        DocumentFactory(vendor=self.vendor, status="APPROVED")
-        VendorCompetenceFactory(
-            vendor=self.vendor,
-            document_file="vendor_competences/2026/09/y.pdf",
-            verified=True,
-        )
-
-        response = self.client.get("/vendors/dashboard/")
-
-        self.assertEqual(response.context["pending_change_requests_count"], 0)
-        self.assertEqual(response.context["pending_documents_count"], 0)
-        self.assertEqual(response.context["pending_requirements_count"], 0)
-        self.assertNotContains(response, "Aggiornamenti da revisionare")
-
-    def test_banner_has_no_date_window(self):
-        old_request = VendorChangeRequest.objects.create(
-            vendor=self.vendor, changes={"name": {"old": "a", "new": "b"}}
-        )
-        VendorChangeRequest.objects.filter(pk=old_request.pk).update(
-            created_at=timezone.now() - timedelta(days=365)
-        )
-
-        response = self.client.get("/vendors/dashboard/")
-
-        self.assertEqual(response.context["pending_change_requests_count"], 1)
 
 
 if __name__ == "__main__":

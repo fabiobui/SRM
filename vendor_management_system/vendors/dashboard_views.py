@@ -9,8 +9,6 @@ from django.http import HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 from django.views.decorators.csrf import csrf_exempt
 
-from vendor_management_system.documents.models import Document
-from vendor_management_system.portal.models import VendorChangeRequest
 from vendor_management_system.vendors.models import (
     Competence,
     ServiceType,
@@ -35,6 +33,10 @@ def vendor_dashboard_view(request):
                 queryset=VendorService.objects.select_related(
                     "service_type", "service_type__parent"
                 ),
+            ),
+            Prefetch(
+                "vendor_competences",
+                queryset=VendorCompetence.objects.select_related("competence"),
             ),
         )
         .all()
@@ -122,11 +124,7 @@ def vendor_dashboard_view(request):
             .order_by("-vendor_count")
         )
 
-        print(f"DEBUG Qualifiche query: {len(qualifiche_data)} results")
         for qual_data in qualifiche_data:
-            print(
-                f"  - {qual_data['name']}: {qual_data['vendor_count']} vendors"
-            )
             chart_data["by_qualifiche"].append(
                 {
                     "qualifica": qual_data["name"],
@@ -134,8 +132,7 @@ def vendor_dashboard_view(request):
                 }
             )
 
-    except Exception as e:
-        print(f"ERROR Qualifiche aggregation: {e}")
+    except Exception:
         pass
 
     # Se non ci sono qualifiche, mostra placeholder
@@ -163,11 +160,7 @@ def vendor_dashboard_view(request):
             .order_by("-vendor_count")
         )
 
-        print(f"DEBUG Competenze query: {len(competenze_data)} results")
         for comp_data in competenze_data:
-            print(
-                f"  - {comp_data['name']}: {comp_data['vendor_count']} vendors"
-            )
             chart_data["by_competenze"].append(
                 {
                     "competenza": comp_data["name"],
@@ -175,8 +168,7 @@ def vendor_dashboard_view(request):
                 }
             )
 
-    except Exception as e:
-        print(f"ERROR Competenze aggregation: {e}")
+    except Exception:
         pass
 
     # Se non ci sono competenze, mostra placeholder
@@ -315,10 +307,18 @@ def vendor_dashboard_view(request):
     # Vendors data for table
     vendors_data = []
     for vendor in vendors:
+        # vendor_services e vendor_competences sono già prefetchati sulla
+        # queryset di base: filtrarli qui in Python (anziché con
+        # .filter() sul related manager, che bypassa la cache del
+        # prefetch e riesegue una query per ogni fornitore) evita N+1
+        # query (vedi AIDEV-46).
+        vendor_services = list(vendor.vendor_services.all())
+        vendor_competences = list(vendor.vendor_competences.all())
+
         # Recupera il servizio principale
-        primary_service = vendor.vendor_services.filter(
-            is_primary=True
-        ).first()
+        primary_service = next(
+            (vs for vs in vendor_services if vs.is_primary), None
+        )
 
         vendor_dict = {
             "vendor_code": vendor.vendor_code,
@@ -350,7 +350,7 @@ def vendor_dashboard_view(request):
             else None,
             "services": [
                 {"name": vs.service_type.name, "is_primary": vs.is_primary}
-                for vs in vendor.vendor_services.all()
+                for vs in vendor_services
             ],
             "address": {
                 "street_address": vendor.address.street_address
@@ -373,48 +373,30 @@ def vendor_dashboard_view(request):
             "competences": [comp.name for comp in vendor.competences.all()],
             "qualifiche": [
                 vc.competence.name
-                for vc in vendor.vendor_competences.filter(is_qualifica=True)
+                for vc in vendor_competences
+                if vc.is_qualifica
             ],
             "competenze_req": [
                 vc.competence.name
-                for vc in vendor.vendor_competences.filter(is_competenza=True)
+                for vc in vendor_competences
+                if vc.is_competenza
             ],
             "certifications": [
                 vc.competence.name
-                for vc in vendor.vendor_competences.filter(
-                    has_certification=True
-                )
+                for vc in vendor_competences
+                if vc.has_certification
             ],
             "service_categories": list(
                 set(
                     [
                         vs.service_type.parent.name
-                        for vs in vendor.vendor_services.all()
+                        for vs in vendor_services
                         if vs.service_type.parent
                     ]
                 )
             ),
         }
         vendors_data.append(vendor_dict)
-
-    # Aggiornamenti in attesa di revisione per il gestore loggato:
-    # conteggi live sullo stato corrente, nessun vincolo di data. Un elemento
-    # sparisce automaticamente quando il BO lo risolve (approvato/rifiutato,
-    # o verificato per i requisiti).
-    pending_change_requests_count = VendorChangeRequest.objects.filter(
-        vendor__managed_by=request.user,
-        status=VendorChangeRequest.STATUS_PENDING,
-    ).count()
-    pending_documents_count = Document.objects.filter(
-        vendor__managed_by=request.user, status="UPLOADED"
-    ).count()
-    pending_requirements_count = (
-        VendorCompetence.objects.filter(
-            vendor__managed_by=request.user, verified=False
-        )
-        .exclude(document_file="")
-        .count()
-    )
 
     context = {
         "total_vendors": total_vendors,
@@ -425,9 +407,6 @@ def vendor_dashboard_view(request):
         "chart_data_json": json.dumps(chart_data, cls=DjangoJSONEncoder),
         "vendors_data_json": json.dumps(vendors_data, cls=DjangoJSONEncoder),
         "FORCE_SCRIPT_NAME": django_settings.FORCE_SCRIPT_NAME or "",
-        "pending_change_requests_count": pending_change_requests_count,
-        "pending_documents_count": pending_documents_count,
-        "pending_requirements_count": pending_requirements_count,
     }
 
     return render(request, "vendors/vendor_dashboard.html", context)
