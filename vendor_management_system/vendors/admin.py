@@ -1053,9 +1053,71 @@ class VendorOperationalAttributesInline(admin.StackedInline):
     )
 
 
+class VendorAdminForm(forms.ModelForm):
+    """ModelForm del VendorAdmin con controllo duplicati su Codice Embyon,
+    Partita IVA e Codice Fiscale (AIDEV-21).
+
+    Impedisce di salvare un fornitore che ripete uno di questi campi già
+    usato da un'altra anagrafica, indirizzando l'utente (via link) al
+    Codice Fornitore esistente invece di lasciargli creare un doppione.
+    Il controllo resta a livello di form admin: non introduce vincoli a
+    livello di modello/DB, per non impattare gli script di
+    ``data_migration_scripts/`` che scrivono direttamente sul modello.
+    """
+
+    class Meta:
+        model = Vendor
+        fields = "__all__"
+
+    def _check_duplicate(self, value, label, lookup):
+        from django.urls import reverse
+
+        if not value:
+            return value
+        other = Vendor.objects.filter(**{lookup: value})
+        if self.instance.pk:
+            other = other.exclude(pk=self.instance.pk)
+        other = other.first()
+        if other:
+            url = reverse("admin:vendors_vendor_change", args=[other.pk])
+            raise forms.ValidationError(
+                format_html(
+                    "{} già usato dal fornitore <strong>{}</strong> "
+                    '(<a href="{}" target="_blank" rel="noopener">'
+                    "Codice Fornitore {}</a>).",
+                    label,
+                    other.name or other.vendor_code,
+                    url,
+                    other.pk,
+                )
+            )
+        return value
+
+    def clean_old_code(self):
+        value = self.cleaned_data.get("old_code")
+        return self._check_duplicate(value, _("Codice Embyon"), "old_code")
+
+    def clean_vat_number(self):
+        value = self.cleaned_data.get("vat_number")
+        if value:
+            value = value.strip()
+        return self._check_duplicate(
+            value, _("Partita IVA"), "vat_number__iexact"
+        )
+
+    def clean_fiscal_code(self):
+        value = self.cleaned_data.get("fiscal_code")
+        if value:
+            value = value.strip()
+        return self._check_duplicate(
+            value, _("Codice Fiscale"), "fiscal_code__iexact"
+        )
+
+
 # Vendor Admin (Enhanced)
 @admin.register(Vendor)
 class VendorAdmin(admin.ModelAdmin):
+    form = VendorAdminForm
     list_display = [
         "vendor_code",
         "old_code",
@@ -1150,8 +1212,60 @@ class VendorAdmin(admin.ModelAdmin):
                 self.admin_site.admin_view(self.embyon_search_view),
                 name="vendors_vendor_embyon_search",
             ),
+            path(
+                "duplicate-check/",
+                self.admin_site.admin_view(self.duplicate_check_view),
+                name="vendors_vendor_duplicate_check",
+            ),
         ]
         return custom + urls
+
+    def duplicate_check_view(self, request):
+        """Controllo live (AJAX) di duplicati su Codice Embyon, Partita IVA
+        o Codice Fiscale rispetto ai fornitori già presenti in anagrafica
+        locale (AIDEV-21).
+
+        Usato dal tab "Informazioni Base" per segnalare un doppione appena
+        l'utente esce dal campo, senza attendere il salvataggio. La stessa
+        validazione è comunque applicata (obbligatoriamente) anche lato
+        server in ``VendorAdminForm``, per restare valida anche a JS
+        disattivato.
+
+        Accetta come filtri (GET): ``field`` (uno tra old_code, vat_number,
+        fiscal_code), ``value`` e, in modifica, ``pk`` (Codice Fornitore
+        corrente, escluso dal confronto).
+        """
+        from django.urls import reverse
+
+        field = request.GET.get("field", "").strip()
+        value = request.GET.get("value", "").strip()
+        current_pk = request.GET.get("pk", "").strip()
+
+        lookups = {
+            "old_code": "old_code",
+            "vat_number": "vat_number__iexact",
+            "fiscal_code": "fiscal_code__iexact",
+        }
+        if field not in lookups or not value:
+            return JsonResponse({"duplicate": False})
+
+        qs = Vendor.objects.filter(**{lookups[field]: value})
+        if current_pk:
+            qs = qs.exclude(pk=current_pk)
+        other = qs.first()
+        if not other:
+            return JsonResponse({"duplicate": False})
+
+        return JsonResponse(
+            {
+                "duplicate": True,
+                "vendor_code": other.pk,
+                "vendor_name": other.name or other.pk,
+                "change_url": reverse(
+                    "admin:vendors_vendor_change", args=[other.pk]
+                ),
+            }
+        )
 
     def embyon_search_view(self, request):
         """Ricerca fornitori nell'anagrafica Embyon (tabella esterna su
@@ -1425,6 +1539,7 @@ class VendorAdmin(admin.ModelAdmin):
             "admin/js/document_expiry_calc.js",
             "admin/js/document_validity_status.js",
             "admin/js/embyon_search.js",
+            "admin/js/vendor_duplicate_check.js",
         )
         css = {"all": ("admin/css/vendor_operational_attributes.css",)}
 
