@@ -48,6 +48,9 @@
             <dt class="col-sm-3">Codice Fiscale</dt>
             <dd class="col-sm-9">{{ vendor.fiscal_code|default:"—" }} <small class="text-muted">(non modificabile)</small></dd>
 
+            <dt class="col-sm-3">Data Prima Fornitura</dt>
+            <dd class="col-sm-9">{{ vendor.first_supply_date|date:"d/m/Y"|default:"—" }} <small class="text-muted">(non modificabile)</small></dd>
+
             <dt class="col-sm-3">Email</dt>
             <dd class="col-sm-9">{{ vendor.email|default:"—" }}</dd>
 
@@ -62,6 +65,12 @@
 
             <dt class="col-sm-3">Contatto di riferimento</dt>
             <dd class="col-sm-9">{{ vendor.reference_contact|default:"—" }}</dd>
+
+            <dt class="col-sm-3">PEC</dt>
+            <dd class="col-sm-9">
+                {% if vendor.pec %}<a href="mailto:{{ vendor.pec }}">{{ vendor.pec }}</a>
+                {% else %}—{% endif %}
+            </dd>
 
             <dt class="col-sm-3">Persona di riferimento</dt>
             <dd class="col-sm-9">{{ vendor.reference_person|default:"—" }}</dd>

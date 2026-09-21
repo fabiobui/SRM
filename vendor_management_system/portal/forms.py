@@ -35,6 +35,7 @@ EDITABLE_VENDOR_FIELDS = (
     "phone",
     "website",
     "reference_contact",
+    "pec",
     "reference_person",
     "contact_details",
     "vendor_task_description",
@@ -183,6 +184,7 @@ class VendorProfileChangeForm(forms.ModelForm):
             "reference_contact": forms.TextInput(
                 attrs={"class": "form-control"}
             ),
+            "pec": forms.EmailInput(attrs={"class": "form-control"}),
             "reference_person": forms.TextInput(
                 attrs={"class": "form-control"}
             ),

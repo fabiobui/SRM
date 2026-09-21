@@ -7,6 +7,8 @@ speciale del campo `address` (FK a un modello strutturato, gestito come
 testo libero — vedi `portal/forms.py` e `portal/models.py`).
 """
 
+import datetime
+
 import pytest
 from django.urls import reverse
 
@@ -25,6 +27,7 @@ def _valid_profile_payload(vendor, **overrides):
         "phone": vendor.phone or "",
         "website": vendor.website or "",
         "reference_contact": vendor.reference_contact or "",
+        "pec": vendor.pec or "",
         "reference_person": vendor.reference_person or "",
         "contact_details": vendor.contact_details or "",
         "vendor_task_description": vendor.vendor_task_description or "",
@@ -85,6 +88,40 @@ class TestVendorChangeRequestCreateView:
         vendor.refresh_from_db()
         assert vendor.vat_number == original_vat_number
 
+    def test_pec_is_editable(self, client):
+        user = self._login(client)
+        vendor = user.vendor
+        payload = _valid_profile_payload(
+            vendor, pec="fornitore@pec.example.it"
+        )
+
+        client.post(reverse("portal:my-profile-change"), data=payload)
+
+        change_request = VendorChangeRequest.objects.get(vendor=vendor)
+        assert (
+            change_request.changes["pec"]["new"] == "fornitore@pec.example.it"
+        )
+        vendor.refresh_from_db()
+        assert vendor.pec != "fornitore@pec.example.it"  # non ancora applicato
+
+    def test_first_supply_date_is_not_editable(self, client):
+        user = self._login(client)
+        vendor = user.vendor
+        original_first_supply_date = vendor.first_supply_date
+        payload = _valid_profile_payload(
+            vendor, first_supply_date="2020-01-15"
+        )
+
+        client.post(reverse("portal:my-profile-change"), data=payload)
+
+        change_request = VendorChangeRequest.objects.filter(
+            vendor=vendor
+        ).first()
+        if change_request:
+            assert "first_supply_date" not in change_request.changes
+        vendor.refresh_from_db()
+        assert vendor.first_supply_date == original_first_supply_date
+
     def test_second_pending_profile_request_is_blocked(self, client):
         user = self._login(client)
         vendor = user.vendor
@@ -115,6 +152,24 @@ class TestVendorChangeRequestCreateView:
             change_request.changes["address"]["new"]
             == "Via Nuova 1, 20100, Milano"
         )
+
+
+@pytest.mark.django_db
+class TestVendorProfileDetailView:
+    def test_pec_and_first_supply_date_are_displayed(self, client):
+        user = VendorUserFactory(password=PASSWORD)
+        client.login(email=user.email, password=PASSWORD)
+        vendor = user.vendor
+        vendor.pec = "fornitore@pec.example.it"
+        vendor.first_supply_date = datetime.date(2020, 1, 15)
+        vendor.save()
+
+        response = client.get(reverse("portal:my-profile"))
+
+        assert response.status_code == 200
+        content = response.content.decode()
+        assert "fornitore@pec.example.it" in content
+        assert "15/01/2020" in content
 
 
 @pytest.mark.django_db

@@ -1057,6 +1057,7 @@ class VendorOperationalAttributesInline(admin.StackedInline):
 @admin.register(Vendor)
 class VendorAdmin(admin.ModelAdmin):
     list_display = [
+        "vendor_code",
         "old_code",
         "embyon_company",
         "name",
@@ -1444,6 +1445,7 @@ class VendorAdmin(admin.ModelAdmin):
                     "qualification_type",
                     "category",
                     "competence_zones",
+                    "first_supply_date",
                     "vendor_final_evaluation",
                     "risk_level",
                     "embyon_active",
@@ -1458,6 +1460,7 @@ class VendorAdmin(admin.ModelAdmin):
                     "email",
                     "phone",
                     "reference_contact",
+                    "pec",
                     "website",
                     "address",
                     "contact_details",

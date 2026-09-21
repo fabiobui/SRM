@@ -137,3 +137,38 @@ def test_vendor_fulfillment_rate(db, vendor_factory):
         with pytest.raises(ValidationError):
             vendor = vendor_factory(fulfillment_rate=invalid_rate)
             vendor.full_clean()
+
+
+# Test for the optional PEC and prima data fornitura fields (AIDEV-41)
+@pytest.mark.django_db
+def test_vendor_pec_and_first_supply_date_are_optional(db, vendor_factory):
+    vendor = vendor_factory()
+
+    # Nessuno dei due campi è richiesto per salvare l'anagrafica fornitore
+    vendor.full_clean()
+    assert vendor.pec is None
+    assert vendor.first_supply_date is None
+
+
+@pytest.mark.django_db
+def test_vendor_pec_and_first_supply_date_accept_valid_values(
+    db, vendor_factory
+):
+    import datetime
+
+    vendor = vendor_factory(
+        pec="fornitore@pec.example.it",
+        first_supply_date=datetime.date(2020, 1, 15),
+    )
+
+    vendor.full_clean()
+    assert vendor.pec == "fornitore@pec.example.it"
+    assert vendor.first_supply_date == datetime.date(2020, 1, 15)
+
+
+@pytest.mark.django_db
+def test_vendor_pec_rejects_invalid_email(db, vendor_factory):
+    vendor = vendor_factory(pec="non-e-una-email")
+
+    with pytest.raises(ValidationError):
+        vendor.full_clean()
