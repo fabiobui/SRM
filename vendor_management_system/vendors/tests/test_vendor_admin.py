@@ -8,6 +8,7 @@ back-office/admin.
 import pytest
 from django.contrib.auth import get_user_model
 from django.urls import reverse
+from django.utils.translation import gettext_lazy as _
 
 from vendor_management_system.vendors.admin import VendorAdmin
 from vendor_management_system.vendors.tests.factories import VendorFactory
@@ -18,6 +19,35 @@ PASSWORD = "test-pass-1234"
 
 def test_list_filter_includes_managed_by():
     assert "managed_by" in VendorAdmin.list_filter
+
+
+def test_vendor_code_is_first_in_list_display():
+    # `list_display_links` non è impostato: Django rende cliccabile di
+    # default la prima colonna. Deve essere "Codice Fornitore", non più
+    # "Codice Embyon" (AIDEV-41).
+    assert VendorAdmin.list_display[0] == "vendor_code"
+    assert VendorAdmin.list_display[1] == "old_code"
+
+
+def test_pec_fieldset_position():
+    fieldsets = dict(VendorAdmin.fieldsets)
+    contatti_fields = fieldsets[_("Contatti")]["fields"]
+    assert (
+        contatti_fields.index("pec")
+        == contatti_fields.index("reference_contact") + 1
+    )
+    assert contatti_fields.index("pec") == contatti_fields.index("website") - 1
+
+
+def test_first_supply_date_fieldset_position():
+    fieldsets = dict(VendorAdmin.fieldsets)
+    base_fields = fieldsets[_("Informazioni Base")]["fields"]
+    assert base_fields.index("first_supply_date") == (
+        base_fields.index("competence_zones") + 1
+    )
+    assert base_fields.index("first_supply_date") == (
+        base_fields.index("vendor_final_evaluation") - 1
+    )
 
 
 @pytest.mark.django_db

@@ -1636,6 +1636,12 @@ class Vendor(models.Model):
         blank=True,
         null=True,
     )
+    pec = models.EmailField(
+        _("PEC"),
+        blank=True,
+        null=True,
+        help_text=_("Posta Elettronica Certificata"),
+    )
     phone = models.CharField(
         _("Telefono"),
         max_length=100,
@@ -1938,6 +1944,14 @@ class Vendor(models.Model):
         blank=True,
         related_name="vendors",
         help_text=_("Zone di competenza geografica del fornitore"),
+    )
+    first_supply_date = models.DateField(
+        _("Data Prima Fornitura"),
+        null=True,
+        blank=True,
+        help_text=_(
+            "Data del primo servizio di fornitura erogato dal fornitore"
+        ),
     )
     # Competences relationship
     competences = models.ManyToManyField(
