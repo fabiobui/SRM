@@ -42,33 +42,6 @@
             </div>
         </div>
 
-        {% if pending_change_requests_count or pending_documents_count or pending_requirements_count %}
-        <!-- Banner aggiornamenti da revisionare -->
-        <div class="alert alert-warning" role="alert">
-            <h2 class="h6 mb-2"><i class="fas fa-bell"></i> Aggiornamenti da revisionare</h2>
-            <ul class="mb-0">
-                {% if pending_change_requests_count %}
-                <li>
-                    Hai <strong>{{ pending_change_requests_count }}</strong> richiest{{ pending_change_requests_count|pluralize:"a,e" }} di modifica anagrafica da revisionare —
-                    <a href="{% url 'portal:bo-change-requests' %}">vai alle richieste</a>
-                </li>
-                {% endif %}
-                {% if pending_documents_count %}
-                <li>
-                    Hai <strong>{{ pending_documents_count }}</strong> document{{ pending_documents_count|pluralize:"o,i" }} da revisionare —
-                    <a href="{% url 'portal:bo-documents' %}">vai ai documenti</a>
-                </li>
-                {% endif %}
-                {% if pending_requirements_count %}
-                <li>
-                    Hai <strong>{{ pending_requirements_count }}</strong> requisit{{ pending_requirements_count|pluralize:"o,i" }} professional{{ pending_requirements_count|pluralize:"e,i" }} da revisionare —
-                    <a href="{% url 'portal:bo-requirements' %}">vai ai requisiti</a>
-                </li>
-                {% endif %}
-            </ul>
-        </div>
-        {% endif %}
-
         <!-- Summary Statistics Cards -->
         <div class="row mb-4">
             <div class="col-lg-3 col-md-6 mb-3">

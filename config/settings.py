@@ -125,6 +125,10 @@ LOCAL_APPS = [
     "vendor_management_system.services",
     "vendor_management_system.competences",
     "vendor_management_system.portal",  # ← Portale fornitore
+    # Sezione admin "Vendors - Analysis and Classification": stesso
+    # pattern, un modello proxy su vendors.Vendor (vedi
+    # vendors_analysis/models.py).
+    "vendor_management_system.vendors_analysis",
 ]
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
@@ -367,27 +371,20 @@ JAZZMIN_SETTINGS = {
         # Sezione "Back office portal": solo il link "Dashboard" (sotto),
         # il modello resta registrato solo per far esistere la sezione.
         "portal.vendorchangerequest",
+        # Sezione "Vendors - Analysis and Classification": stesso motivo,
+        # solo il link "Dashboard" (sotto) - vedi AIDEV-46.
+        "vendors_analysis.vendoranalysissection",
     ],
     "topmenu_links": [
         {
-            "name": "Selezione",
+            "name": "Vendors - Analysis and Classification",
             "url": "/vendors/dashboard/"
             if not USE_FORNITORI_PREFIX
             else "/fornitori/vendors/dashboard/",
-            "icon": "fas fa-filter",
+            "icon": "fas fa-tachometer-alt",
         },
     ],
     "custom_links": {
-        "vendors": [
-            {
-                "name": "Selezione",
-                "url": "/vendors/dashboard/"
-                if not USE_FORNITORI_PREFIX
-                else "/fornitori/vendors/dashboard/",
-                "icon": "fas fa-filter",
-                "order": 0,
-            }
-        ],
         "portal": [
             {
                 "name": "Dashboard",
@@ -398,10 +395,19 @@ JAZZMIN_SETTINGS = {
                 "order": 0,
             }
         ],
+        "vendors_analysis": [
+            {
+                "name": "Dashboard",
+                "url": "/vendors/dashboard/"
+                if not USE_FORNITORI_PREFIX
+                else "/fornitori/vendors/dashboard/",
+                "icon": "fas fa-tachometer-alt",
+                "order": 0,
+            }
+        ],
     },
     "order_with_respect_to": [
         "vendors",
-        "vendors.selezione",
         "vendors.vendor",
         "vendors.category",
         "vendors.address",
@@ -414,6 +420,7 @@ JAZZMIN_SETTINGS = {
         "auth",
         "users",
         "portal",
+        "vendors_analysis",
     ],
     "icons": {
         "auth": "fas fa-users-cog",
@@ -466,6 +473,7 @@ JAZZMIN_SETTINGS = {
         "competences.competencecatalog": "fas fa-concierge-bell",
         "competences.competenceset": "fas fa-clipboard-list",
         "portal": "fas fa-building",
+        "vendors_analysis": "fas fa-tachometer-alt",
     },
 }
 
