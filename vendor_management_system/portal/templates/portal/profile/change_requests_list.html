@@ -32,11 +32,7 @@
                 <tr>
                     <td>{{ r.created_at|date:"d/m/Y H:i" }}</td>
                     <td>
-                        {% if r.vendor_service %}
-                            Servizio: {{ r.vendor_service.service_type.name }}
-                        {% else %}
-                            Anagrafica
-                        {% endif %}
+                        {% include "portal/_change_request_type_label.html" with cr=r %}
                     </td>
                     <td>
                         {% if r.status == 'PENDING' %}

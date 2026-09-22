@@ -42,6 +42,7 @@ from .models import (
     VendorEvaluation,
     VendorOperationalAttributes,
     VendorService,
+    category_scope_ids,
 )
 
 # ============================================================================
@@ -893,21 +894,6 @@ class ContractAdmin(admin.ModelAdmin):
 # ============================================================================
 # Set predefiniti (Requisiti Professionali / Servizi)
 # ============================================================================
-
-
-def category_scope_ids(category):
-    """Id della classificazione indicata e di tutti i suoi antenati.
-
-    Serve a far comparire su un fornitore anche i set definiti su una
-    classificazione padre: un set legato a 'MDL' (104) resta valido per un
-    fornitore classificato 'MEDICO COMPETENTE' (104103).
-    """
-    ids, seen = [], set()
-    while category and category.pk not in seen:
-        seen.add(category.pk)
-        ids.append(category.pk)
-        category = category.parent
-    return ids
 
 
 @admin.register(CompetenceSet)

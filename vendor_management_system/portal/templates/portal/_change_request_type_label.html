@@ -1,0 +1,9 @@
+{% if cr.request_type == "ADD_SERVICE" %}
+    Nuovo servizio: {{ cr.service_type.name|default:"—" }}
+{% elif cr.request_type == "DELETE_SERVICE" %}
+    Eliminazione servizio: {{ cr.vendor_service.service_type.name|default:"(servizio già rimosso)" }}
+{% elif cr.vendor_service %}
+    Servizio: {{ cr.vendor_service.service_type.name }}
+{% else %}
+    Anagrafica
+{% endif %}

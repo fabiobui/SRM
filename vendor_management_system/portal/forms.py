@@ -9,20 +9,29 @@ I form definiti qui sono usati dalle view dell'area /portale/. Il pattern è:
 - `VendorServiceChangeForm`: campi descrittivi di un proprio VendorService
   (prezzo/contratto restano BO-only). Stesso pattern: il diff finisce in una
   VendorChangeRequest legata al servizio.
+- `VendorServiceAddRequestForm`: proposta di un nuovo servizio dal catalogo
+  (`ServiceType`), non ancora assegnato al vendor. Stesso pattern: genera una
+  VendorChangeRequest (request_type=ADD_SERVICE) da approvare.
 - `VendorOperationalAttributesForm`: attributi operativi del proprio Vendor.
   A differenza dei form precedenti salva direttamente (nessuna approvazione).
 """
+
+from collections import defaultdict
 
 from django import forms
 from django.utils.translation import gettext_lazy as _
 
 from vendor_management_system.documents.models import Document
 from vendor_management_system.vendors.models import (
+    ServiceType,
     Vendor,
     VendorCompetence,
     VendorOperationalAttributes,
     VendorService,
+    category_scope_ids,
 )
+
+from .models import EDITABLE_VENDOR_SERVICE_FIELDS, VendorChangeRequest
 
 # Whitelist server-side: solo questi campi sono modificabili dal fornitore via
 # richiesta di modifica anagrafica. Campi identificativi/qualificativi/audit
@@ -39,16 +48,6 @@ EDITABLE_VENDOR_FIELDS = (
     "reference_person",
     "contact_details",
     "vendor_task_description",
-)
-
-# Whitelist server-side per i servizi: prezzo orario (hourly_rate) e
-# contratto collegato (contract) restano di sola competenza back-office, non
-# sono mai esposti in un form fornitore.
-EDITABLE_VENDOR_SERVICE_FIELDS = (
-    "is_primary",
-    "start_date",
-    "end_date",
-    "notes",
 )
 
 
@@ -298,6 +297,125 @@ class VendorServiceChangeForm(forms.ModelForm):
             if old_norm != new_norm:
                 diff[field] = {"old": old_value, "new": new_value}
         return diff
+
+
+def available_service_types_for_vendor(vendor):
+    """Servizi del catalogo che il vendor può proporre di aggiungere.
+
+    Esclude i servizi già assegnati e quelli con una richiesta ADD_SERVICE
+    già in attesa (evita duplicati). Se il vendor ha una classificazione
+    (`Vendor.category`) e questa — o un suo antenato — ha almeno un
+    `ServiceSet` collegato, filtra ai soli servizi di quei set (coerenza
+    con la classificazione, vedi `vendors/admin.py:service_sets_view` per lo
+    stesso meccanismo lato back-office). Altrimenti (nessuna classificazione,
+    o nessun set collegato) ritorna l'intero catalogo attivo: un fornitore
+    non deve mai trovarsi con una tendina vuota solo perché per la sua
+    classificazione non è stato configurato nessun set.
+    """
+    already_assigned = VendorService.objects.filter(vendor=vendor).values_list(
+        "service_type_id", flat=True
+    )
+    pending_add = VendorChangeRequest.objects.filter(
+        vendor=vendor,
+        request_type=VendorChangeRequest.REQUEST_TYPE_ADD_SERVICE,
+        status=VendorChangeRequest.STATUS_PENDING,
+    ).values_list("service_type_id", flat=True)
+    queryset = ServiceType.objects.filter(
+        is_active=True, parent__isnull=False
+    ).exclude(pk__in=list(already_assigned) + list(pending_add))
+
+    if vendor.category_id:
+        scope = category_scope_ids(vendor.category)
+        scoped_queryset = queryset.filter(
+            service_sets__category_id__in=scope, service_sets__is_active=True
+        ).distinct()
+        if scoped_queryset.exists():
+            return scoped_queryset
+    return queryset.distinct()
+
+
+def _grouped_service_type_choices(queryset):
+    """Costruisce le `choices` di un `ChoiceField` raggruppate per sezione
+    (optgroup = tipologia padre), stesso ordinamento già usato in
+    `VendorServiceInline.formfield_for_foreignkey` (vendors/admin.py)."""
+    grouped = defaultdict(list)
+    for service_type in queryset.select_related("parent").order_by(
+        "parent__sort_order", "parent__name", "sort_order", "name"
+    ):
+        grouped[service_type.parent.name].append(
+            (str(service_type.pk), service_type.name)
+        )
+    return [(section, items) for section, items in grouped.items()]
+
+
+class VendorServiceAddRequestForm(forms.Form):
+    """Richiesta di aggiunta di un nuovo servizio dal catalogo.
+
+    `service_type` è un `ChoiceField` (non `ModelChoiceField`) per poter
+    mostrare la tendina raggruppata per sezione tramite optgroup. Gli altri
+    campi ricalcano `EDITABLE_VENDOR_SERVICE_FIELDS`: prezzo orario e
+    contratto restano BO-only anche qui. Non salva nulla — la view genera
+    la `VendorChangeRequest` (request_type=ADD_SERVICE) da approvare.
+    """
+
+    service_type = forms.ChoiceField(
+        label=_("Servizio da aggiungere"),
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    is_primary = forms.BooleanField(
+        label=_("Servizio principale"),
+        required=False,
+    )
+    start_date = forms.DateField(
+        label=_("Data inizio erogazione"),
+        required=False,
+        widget=forms.DateInput(
+            attrs={"class": "form-control", "type": "date"}
+        ),
+    )
+    end_date = forms.DateField(
+        label=_("Data fine erogazione"),
+        required=False,
+        widget=forms.DateInput(
+            attrs={"class": "form-control", "type": "date"}
+        ),
+    )
+    notes = forms.CharField(
+        label=_("Note"),
+        required=False,
+        widget=forms.Textarea(attrs={"class": "form-control", "rows": 3}),
+    )
+
+    def __init__(self, vendor, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.vendor = vendor
+        self._queryset = available_service_types_for_vendor(vendor)
+        self.fields["service_type"].choices = _grouped_service_type_choices(
+            self._queryset
+        )
+
+    def clean_service_type(self):
+        # Ri-valida sempre contro lo stesso queryset filtrato: non fidarsi
+        # del pk POSTato, altrimenti un fornitore potrebbe manomettere il
+        # valore per richiedere un servizio già assegnato o fuori scope.
+        pk = self.cleaned_data["service_type"]
+        service_type = self._queryset.filter(pk=pk).first()
+        if service_type is None:
+            raise forms.ValidationError(_("Servizio non disponibile."))
+        return service_type
+
+    def compute_changes(self) -> dict:
+        """Diff da salvare in `VendorChangeRequest.changes`: solo i campi
+        effettivamente valorizzati (i campi assenti restano ai default del
+        modello `VendorService` alla creazione)."""
+        if not self.is_valid():
+            return {}
+        changes = {}
+        for field in EDITABLE_VENDOR_SERVICE_FIELDS:
+            value = self.cleaned_data.get(field)
+            if value not in (None, "", False):
+                changes[field] = {"old": None, "new": value}
+        return changes
 
 
 class VendorOperationalAttributesForm(forms.ModelForm):

@@ -78,6 +78,20 @@
             </div>
         </div>
     </div>
+    <div class="col-lg-4 col-md-6 mb-3">
+        <div class="stats-card warning">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="stats-number">{{ total_service_requests }}</div>
+                    <div class="text-muted">Richieste servizi totali</div>
+                </div>
+                <div class="text-end">
+                    <div class="stats-number text-warning">{{ service_requests_pending }}</div>
+                    <div class="text-muted">in attesa</div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- Aggiornamenti da revisionare per i fornitori gestiti dall'utente loggato -->
@@ -193,6 +207,43 @@
     </div>
     <div class="p-2 text-end border-top">
         <a href="{% url 'portal:bo-change-requests' %}" class="small">Vedi tutte le richieste anagrafica &raquo;</a>
+    </div>
+</div>
+
+<div class="section-table mb-4">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead class="bg-light">
+                <tr>
+                    <th colspan="4" class="bg-warning text-dark">
+                        <i class="fas fa-concierge-bell"></i> Richieste servizi in attesa
+                    </th>
+                </tr>
+                <tr>
+                    <th>Fornitore</th>
+                    <th>Tipo</th>
+                    <th>Data invio</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in my_pending_service_requests %}
+                <tr>
+                    <td><strong>{{ r.vendor.name }}</strong> <small class="text-muted">{{ r.vendor.vendor_code }}</small></td>
+                    <td>{% include "portal/_change_request_type_label.html" with cr=r %}</td>
+                    <td>{{ r.created_at|date:"d/m/Y H:i" }}</td>
+                    <td class="text-end">
+                        <a href="{% url 'portal:bo-service-request-detail' pk=r.pk %}" class="btn btn-sm btn-outline-primary">Dettaglio</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="4" class="text-center text-muted py-3">Nessuna richiesta in attesa.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="p-2 text-end border-top">
+        <a href="{% url 'portal:bo-service-requests' %}" class="small">Vedi tutte le richieste servizi &raquo;</a>
     </div>
 </div>
 

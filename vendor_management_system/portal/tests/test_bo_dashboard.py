@@ -17,6 +17,7 @@ from vendor_management_system.portal.models import VendorChangeRequest
 from vendor_management_system.portal.tests.factories import (
     DocumentFactory,
     VendorCompetenceFactory,
+    VendorServiceFactory,
     VendorUserFactory,
 )
 from vendor_management_system.vendors.tests.factories import VendorFactory
@@ -221,4 +222,59 @@ class TestBoDashboardExpired:
         ]
         assert list(response.context["my_expired_requirements"]) == [
             my_expired_requirement
+        ]
+
+
+@pytest.mark.django_db
+class TestBoDashboardServiceRequests:
+    """Le richieste sui servizi hanno KPI e sezione "in attesa" separate
+    da quelle di sola anagrafica (vedi `_service_requests_qs` in
+    `portal/views.py`)."""
+
+    def test_service_requests_counted_separately_from_profile_requests(
+        self, client
+    ):
+        bo_user = _login_as_bo(client)
+        my_vendor = VendorFactory(managed_by=bo_user)
+        service = VendorServiceFactory(vendor=my_vendor)
+        VendorChangeRequest.objects.create(
+            vendor=my_vendor, changes={"name": {"old": "a", "new": "b"}}
+        )
+        VendorChangeRequest.objects.create(
+            vendor=my_vendor,
+            vendor_service=service,
+            changes={"notes": {"old": "", "new": "x"}},
+        )
+
+        response = client.get(reverse("portal:bo-dashboard"))
+
+        assert response.context["change_requests_pending"] == 1
+        assert response.context["service_requests_pending"] == 1
+
+    def test_pending_service_requests_scoped_to_manager(self, client):
+        bo_user = _login_as_bo(client)
+        other_manager = User.objects.create_user(
+            email="other-manager-6@example.invalid",
+            password=PASSWORD,
+            role="bo_user",
+        )
+        my_vendor = VendorFactory(managed_by=bo_user)
+        other_vendor = VendorFactory(managed_by=other_manager)
+        my_service = VendorServiceFactory(vendor=my_vendor)
+        other_service = VendorServiceFactory(vendor=other_vendor)
+        my_request = VendorChangeRequest.objects.create(
+            vendor=my_vendor,
+            vendor_service=my_service,
+            changes={"notes": {"old": "", "new": "x"}},
+        )
+        VendorChangeRequest.objects.create(
+            vendor=other_vendor,
+            vendor_service=other_service,
+            changes={"notes": {"old": "", "new": "y"}},
+        )
+
+        response = client.get(reverse("portal:bo-dashboard"))
+
+        assert list(response.context["my_pending_service_requests"]) == [
+            my_request
         ]

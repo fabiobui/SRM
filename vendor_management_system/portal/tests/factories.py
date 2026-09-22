@@ -12,7 +12,9 @@ from faker import Faker
 from vendor_management_system.documents.models import Document, DocumentCatalog
 from vendor_management_system.users.models import User
 from vendor_management_system.vendors.models import (
+    Category,
     Competence,
+    ServiceSet,
     ServiceType,
     VendorCompetence,
     VendorService,
@@ -78,6 +80,10 @@ class VendorCompetenceFactory(factory.django.DjangoModelFactory):
 
 
 class ServiceTypeFactory(factory.django.DjangoModelFactory):
+    """Per default è una categoria (`parent=None`). Per un servizio
+    specifico (l'unico tipo proponibile in "Aggiungi servizio"), passare
+    `parent=ServiceTypeFactory()`."""
+
     class Meta:
         model = ServiceType
 
@@ -93,3 +99,23 @@ class VendorServiceFactory(factory.django.DjangoModelFactory):
 
     vendor = factory.SubFactory(VendorFactory)
     service_type = factory.SubFactory(ServiceTypeFactory)
+
+
+class CategoryFactory(factory.django.DjangoModelFactory):
+    """Classificazione fornitore (`Vendor.category`)."""
+
+    class Meta:
+        model = Category
+
+    code = factory.Sequence(lambda n: f"CAT{n}")
+    name = factory.LazyFunction(faker.word)
+
+
+class ServiceSetFactory(factory.django.DjangoModelFactory):
+    """Set di servizi collegabile a una Category, usato per filtrare la
+    tendina "Aggiungi servizio" in base alla classificazione del vendor."""
+
+    class Meta:
+        model = ServiceSet
+
+    name = factory.LazyFunction(faker.word)
