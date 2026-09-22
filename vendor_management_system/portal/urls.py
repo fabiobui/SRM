@@ -48,14 +48,26 @@ urlpatterns = [
         name="my-requirement-upload",
     ),
     # I miei servizi — i VendorService sono pre-creati dal BO (singolarmente
-    # o in blocco tramite ServiceSet, vedi vendors/admin.py); il fornitore
-    # propone modifiche ai soli campi descrittivi (prezzo/contratto restano
-    # BO-only) sul singolo servizio identificato dal pk (UUID) in URL.
+    # o in blocco tramite ServiceSet, vedi vendors/admin.py) oppure creati
+    # all'approvazione di una richiesta di aggiunta del fornitore. Il
+    # fornitore propone modifiche ai soli campi descrittivi (prezzo/
+    # contratto restano BO-only), richieste di aggiunta dal catalogo o
+    # richieste di eliminazione — tutte soggette ad approvazione BO.
     path("servizi/", views.MyServicesView.as_view(), name="my-services"),
+    path(
+        "servizi/aggiungi/",
+        views.VendorServiceAddRequestCreateView.as_view(),
+        name="my-service-add",
+    ),
     path(
         "servizi/<uuid:pk>/modifica/",
         views.VendorServiceChangeRequestCreateView.as_view(),
         name="my-service-change",
+    ),
+    path(
+        "servizi/<uuid:pk>/elimina/",
+        views.VendorServiceDeleteRequestCreateView.as_view(),
+        name="my-service-delete",
     ),
     # Attributi operativi — scrittura diretta, nessuna approvazione BO.
     path(
@@ -98,6 +110,22 @@ urlpatterns = [
         "backoffice/anagrafica-richieste/<uuid:pk>/review/",
         views.BoChangeRequestReviewView.as_view(),
         name="bo-change-request-review",
+    ),
+    # Area BO — gestione richieste servizi (modifica/aggiunta/eliminazione)
+    path(
+        "backoffice/servizi-richieste/",
+        views.BoServiceRequestListView.as_view(),
+        name="bo-service-requests",
+    ),
+    path(
+        "backoffice/servizi-richieste/<uuid:pk>/",
+        views.BoServiceRequestDetailView.as_view(),
+        name="bo-service-request-detail",
+    ),
+    path(
+        "backoffice/servizi-richieste/<uuid:pk>/review/",
+        views.BoServiceRequestReviewView.as_view(),
+        name="bo-service-request-review",
     ),
     # Area BO — gestione requisiti professionali
     path(

@@ -1,0 +1,44 @@
+{% extends "portal/base_portal.html" %}
+
+{% block title %}Richiedi eliminazione servizio — Portale Fornitore{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'portal:dashboard' %}">Home</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'portal:my-services' %}">Servizi</a></li>
+        <li class="breadcrumb-item active">{{ service.service_type.name }}</li>
+    </ol>
+</nav>
+
+<h1 class="h3 mb-3"><i class="fas fa-trash text-danger"></i> Richiedi eliminazione — {{ service.service_type.name }}</h1>
+
+<div class="alert alert-warning">
+    <i class="fas fa-exclamation-triangle"></i>
+    La richiesta viene inviata al back-office per approvazione: il servizio verrà rimosso
+    dal tuo elenco solo dopo l'approvazione.
+</div>
+
+<form method="post" novalidate>
+    {% csrf_token %}
+    <div class="card">
+        <div class="card-body">
+            <div class="mb-3 row">
+                <label for="id_reason" class="col-sm-3 col-form-label">Motivo (facoltativo)</label>
+                <div class="col-sm-9">
+                    <textarea name="reason" id="id_reason" rows="3" class="form-control"
+                              placeholder="Es. servizio non più erogato, errore di assegnazione…"></textarea>
+                </div>
+            </div>
+        </div>
+        <div class="card-footer d-flex gap-2 justify-content-end">
+            <a href="{% url 'portal:my-services' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-times"></i> Annulla
+            </a>
+            <button type="submit" class="btn btn-danger">
+                <i class="fas fa-paper-plane"></i> Conferma richiesta eliminazione
+            </button>
+        </div>
+    </div>
+</form>
+{% endblock %}

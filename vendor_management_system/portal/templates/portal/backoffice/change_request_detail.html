@@ -5,7 +5,7 @@
 {% block content %}
 <nav aria-label="breadcrumb">
     <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{% url 'portal:bo-change-requests' %}">Richieste anagrafica</a></li>
+        <li class="breadcrumb-item"><a href="{{ back_url }}">{{ back_label }}</a></li>
         <li class="breadcrumb-item active">{{ change_request.vendor.name }}</li>
     </ol>
 </nav>
@@ -22,11 +22,7 @@
         <dl class="row mb-0">
             <dt class="col-sm-3">Tipo</dt>
             <dd class="col-sm-9">
-                {% if change_request.vendor_service %}
-                    Servizio: {{ change_request.vendor_service.service_type.name }}
-                {% else %}
-                    Anagrafica
-                {% endif %}
+                {% include "portal/_change_request_type_label.html" with cr=change_request %}
             </dd>
             <dt class="col-sm-3">Richiesta da</dt>
             <dd class="col-sm-9">
@@ -83,7 +79,7 @@
 <div class="card">
     <div class="card-header"><strong>Decisione</strong></div>
     <div class="card-body">
-        <form method="post" action="{% url 'portal:bo-change-request-review' pk=change_request.pk %}">
+        <form method="post" action="{{ review_url }}">
             {% csrf_token %}
             <div class="mb-3">
                 <label for="id_review_notes" class="form-label">Note di revisione (facoltative)</label>
@@ -104,7 +100,7 @@
 {% endif %}
 
 <div class="mt-3">
-    <a href="{% url 'portal:bo-change-requests' %}" class="btn btn-outline-secondary">
+    <a href="{{ back_url }}" class="btn btn-outline-secondary">
         <i class="fas fa-arrow-left"></i> Torna alla lista
     </a>
 </div>

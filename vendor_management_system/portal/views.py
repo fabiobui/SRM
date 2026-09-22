@@ -40,6 +40,7 @@ from .forms import (
     VendorChangeReviewForm,
     VendorOperationalAttributesForm,
     VendorProfileChangeForm,
+    VendorServiceAddRequestForm,
     VendorServiceChangeForm,
 )
 from .models import VendorChangeRequest
@@ -387,10 +388,13 @@ def _vendor_services_qs(vendor):
     """Queryset dei servizi assegnati al vendor.
 
     I `VendorService` sono pre-creati dal back-office (singolarmente o in
-    blocco tramite `ServiceSet`, vedi `vendors/admin.py`). Il fornitore non
-    sceglie i servizi che eroga: può solo proporre modifiche ai campi
-    descrittivi (vedi `EDITABLE_VENDOR_SERVICE_FIELDS`) sui record già
-    assegnati al proprio vendor.
+    blocco tramite `ServiceSet`, vedi `vendors/admin.py`), oppure creati
+    all'approvazione di una richiesta ADD_SERVICE del fornitore (vedi
+    `VendorServiceAddRequestCreateView`). Il fornitore non modifica mai
+    direttamente questi record: può solo proporre modifiche ai campi
+    descrittivi (vedi `EDITABLE_VENDOR_SERVICE_FIELDS`), l'aggiunta di un
+    nuovo servizio dal catalogo, o l'eliminazione di uno esistente — tutte
+    richieste soggette ad approvazione back-office.
     """
     return VendorService.objects.filter(vendor=vendor).select_related(
         "service_type", "contract"
@@ -491,6 +495,108 @@ class VendorServiceChangeRequestCreateView(VendorRequiredMixin, View):
         messages.success(
             request,
             "Richiesta di modifica inviata. "
+            "Il back-office la valuterà a breve.",
+        )
+        return redirect("portal:my-change-requests")
+
+
+class VendorServiceAddRequestCreateView(VendorRequiredMixin, View):
+    """Form di richiesta di aggiunta di un nuovo servizio dal catalogo.
+
+    La tendina dei servizi proponibili è filtrata da
+    `available_service_types_for_vendor` (vedi `portal/forms.py`): esclude
+    i servizi già assegnati e, se la classificazione del fornitore ha un
+    ServiceSet collegato, la restringe a quel set.
+    """
+
+    template_name = "portal/services/add_form.html"
+
+    def get(self, request, *args, **kwargs):
+        form = VendorServiceAddRequestForm(vendor=request.user.vendor)
+        from django.shortcuts import render
+
+        return render(request, self.template_name, {"form": form})
+
+    def post(self, request, *args, **kwargs):
+        vendor = request.user.vendor
+        form = VendorServiceAddRequestForm(vendor=vendor, data=request.POST)
+        if not form.is_valid():
+            from django.shortcuts import render
+
+            return render(request, self.template_name, {"form": form})
+
+        service_type = form.cleaned_data["service_type"]
+        VendorChangeRequest.objects.create(
+            vendor=vendor,
+            request_type=VendorChangeRequest.REQUEST_TYPE_ADD_SERVICE,
+            service_type=service_type,
+            requested_by=request.user,
+            changes=form.compute_changes(),
+        )
+        messages.success(
+            request,
+            "Richiesta di aggiunta servizio inviata. "
+            "Il back-office la valuterà a breve.",
+        )
+        return redirect("portal:my-change-requests")
+
+
+class VendorServiceDeleteRequestCreateView(VendorRequiredMixin, View):
+    """Conferma di richiesta di eliminazione di un servizio esistente.
+
+    Stesso vincolo "una sola richiesta pendente per servizio" già usato da
+    `VendorServiceChangeRequestCreateView`.
+    """
+
+    template_name = "portal/services/delete_confirm.html"
+
+    def _get_service(self, request, pk):
+        return get_object_or_404(
+            VendorService, pk=pk, vendor=request.user.vendor
+        )
+
+    def _has_pending(self, vendor_service):
+        return VendorChangeRequest.objects.filter(
+            vendor_service=vendor_service,
+            status=VendorChangeRequest.STATUS_PENDING,
+        ).exists()
+
+    def get(self, request, pk, *args, **kwargs):
+        service = self._get_service(request, pk)
+        if self._has_pending(service):
+            messages.warning(
+                request,
+                "Hai già una richiesta di modifica in attesa per questo "
+                "servizio. Attendi l'esito prima di inviarne un'altra.",
+            )
+            return redirect("portal:my-services")
+        from django.shortcuts import render
+
+        return render(request, self.template_name, {"service": service})
+
+    def post(self, request, pk, *args, **kwargs):
+        service = self._get_service(request, pk)
+        if self._has_pending(service):
+            messages.warning(request, "Hai già una richiesta in attesa.")
+            return redirect("portal:my-services")
+
+        reason = request.POST.get("reason", "").strip()
+        changes = {
+            "service_type": {"old": str(service.service_type), "new": None}
+        }
+        if reason:
+            changes["motivo"] = {"old": None, "new": reason}
+
+        VendorChangeRequest.objects.create(
+            vendor=service.vendor,
+            vendor_service=service,
+            request_type=VendorChangeRequest.REQUEST_TYPE_DELETE_SERVICE,
+            requested_by=request.user,
+            changes=changes,
+        )
+        messages.success(
+            request,
+            "Richiesta di eliminazione inviata. "
             "Il back-office la valuterà a breve.",
         )
         return redirect("portal:my-change-requests")
@@ -654,17 +760,31 @@ class MyQualificationView(VendorRequiredMixin, TemplateView):
 # --- area BO (gestione richieste anagrafica) -------------------------------
 
 
+def _service_requests_qs():
+    """Richieste che riguardano i servizi: modifica di un `VendorService`
+    esistente (`vendor_service` valorizzato) oppure aggiunta dal catalogo
+    (`service_type` valorizzato, ADD_SERVICE). Usata sia da
+    `BoServiceRequestListView`/Detail/Review sia da `BoDashboardView` per
+    tenerle separate dalle richieste di sola anagrafica.
+    """
+    return VendorChangeRequest.objects.filter(
+        Q(vendor_service__isnull=False) | Q(service_type__isnull=False)
+    )
+
+
 class BoChangeRequestListView(BackOfficeRequiredMixin, ListView):
-    """Lista richieste anagrafica per il back-office, default solo PENDING."""
+    """Lista richieste di sola anagrafica per il back-office, default solo
+    PENDING. Le richieste sui servizi hanno una lista dedicata, vedi
+    `BoServiceRequestListView`."""
 
     template_name = "portal/backoffice/change_requests_list.html"
     context_object_name = "requests"
     paginate_by = 25
 
     def get_queryset(self):
-        qs = VendorChangeRequest.objects.select_related(
-            "vendor", "requested_by", "reviewed_by"
-        )
+        qs = VendorChangeRequest.objects.filter(
+            vendor_service__isnull=True, service_type__isnull=True
+        ).select_related("vendor", "requested_by", "reviewed_by")
         status = self.request.GET.get(
             "status", VendorChangeRequest.STATUS_PENDING
         )
@@ -682,7 +802,7 @@ class BoChangeRequestListView(BackOfficeRequiredMixin, ListView):
 
 
 class BoChangeRequestDetailView(BackOfficeRequiredMixin, DetailView):
-    """Dettaglio richiesta + form approvazione/rifiuto."""
+    """Dettaglio richiesta anagrafica + form approvazione/rifiuto."""
 
     template_name = "portal/backoffice/change_request_detail.html"
     context_object_name = "change_request"
@@ -691,11 +811,17 @@ class BoChangeRequestDetailView(BackOfficeRequiredMixin, DetailView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx["form"] = VendorChangeReviewForm()
+        ctx["review_url"] = reverse(
+            "portal:bo-change-request-review", kwargs={"pk": self.object.pk}
+        )
+        ctx["back_url"] = reverse("portal:bo-change-requests")
+        ctx["back_label"] = "Richieste anagrafica"
         return ctx
 
 
 class BoChangeRequestReviewView(BackOfficeRequiredMixin, View):
-    """POST: approva o rifiuta una richiesta. Action/note dal form."""
+    """POST: approva o rifiuta una richiesta anagrafica. Action/note dal
+    form."""
 
     http_method_names = ["post"]
 
@@ -729,6 +855,109 @@ class BoChangeRequestReviewView(BackOfficeRequiredMixin, View):
                 f"Richiesta rifiutata per {change_request.vendor.name}.",
             )
         return redirect("portal:bo-change-requests")
+
+
+# --- area BO (gestione richieste servizi) -----------------------------------
+
+
+class BoServiceRequestListView(BackOfficeRequiredMixin, ListView):
+    """Lista richieste sui servizi (modifica, aggiunta, eliminazione) per il
+    back-office, default solo PENDING — stesso pattern delle altre liste BO
+    (`BoChangeRequestListView`, `BoDocumentListView`, `BoRequirementListView`).
+    """
+
+    template_name = "portal/backoffice/service_requests_list.html"
+    context_object_name = "requests"
+    paginate_by = 25
+
+    def get_queryset(self):
+        qs = _service_requests_qs().select_related(
+            "vendor",
+            "vendor_service__service_type",
+            "service_type",
+            "requested_by",
+            "reviewed_by",
+        )
+        status = self.request.GET.get(
+            "status", VendorChangeRequest.STATUS_PENDING
+        )
+        if status in dict(VendorChangeRequest.STATUS_CHOICES):
+            qs = qs.filter(status=status)
+        return qs
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["status_filter"] = self.request.GET.get(
+            "status", VendorChangeRequest.STATUS_PENDING
+        )
+        ctx["status_choices"] = VendorChangeRequest.STATUS_CHOICES
+        return ctx
+
+
+class BoServiceRequestDetailView(BackOfficeRequiredMixin, DetailView):
+    """Dettaglio richiesta sui servizi + form approvazione/rifiuto.
+
+    Stesso template di `BoChangeRequestDetailView` (la resa del tipo di
+    richiesta, del diff e del form di decisione è identica): riusa
+    `change_request_detail.html`, con `back_url`/`review_url` puntati alla
+    lista/azione dedicate ai servizi invece che all'anagrafica. `get_queryset`
+    ristretto a `_service_requests_qs()` evita che una richiesta di sola
+    anagrafica sia raggiungibile da questa route (404 altrimenti).
+    """
+
+    template_name = "portal/backoffice/change_request_detail.html"
+    context_object_name = "change_request"
+
+    def get_queryset(self):
+        return _service_requests_qs()
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["form"] = VendorChangeReviewForm()
+        ctx["review_url"] = reverse(
+            "portal:bo-service-request-review", kwargs={"pk": self.object.pk}
+        )
+        ctx["back_url"] = reverse("portal:bo-service-requests")
+        ctx["back_label"] = "Richieste servizi"
+        return ctx
+
+
+class BoServiceRequestReviewView(BackOfficeRequiredMixin, View):
+    """POST: approva o rifiuta una richiesta sui servizi. Action/note dal
+    form — stessa logica di `BoChangeRequestReviewView`, ristretta alle
+    richieste sui servizi e con redirect sulla lista dedicata."""
+
+    http_method_names = ["post"]
+
+    def post(self, request, pk, *args, **kwargs):
+        change_request = get_object_or_404(_service_requests_qs(), pk=pk)
+        if not change_request.is_pending:
+            messages.warning(
+                request, "La richiesta non è più in stato 'in attesa'."
+            )
+            return redirect("portal:bo-service-request-detail", pk=pk)
+
+        form = VendorChangeReviewForm(request.POST)
+        if not form.is_valid():
+            messages.error(request, "Form non valido.")
+            return redirect("portal:bo-service-request-detail", pk=pk)
+
+        action = form.cleaned_data["action"]
+        notes = form.cleaned_data.get("review_notes", "")
+
+        if action == "approve":
+            change_request.apply_to_vendor(reviewer=request.user, notes=notes)
+            messages.success(
+                request,
+                f"Richiesta applicata per {change_request.vendor.name}.",
+            )
+        else:
+            change_request.reject(reviewer=request.user, notes=notes)
+            messages.warning(
+                request,
+                f"Richiesta rifiutata per {change_request.vendor.name}.",
+            )
+        return redirect("portal:bo-service-requests")
 
 
 # --- area BO (gestione requisiti professionali) -----------------------------
@@ -942,10 +1171,21 @@ class BoDashboardView(BackOfficeRequiredMixin, TemplateView):
             .filter(verified=False)
             .count()
         )
-        ctx["total_change_requests"] = VendorChangeRequest.objects.count()
-        ctx["change_requests_pending"] = VendorChangeRequest.objects.filter(
+        # "Richieste anagrafica" = sole richieste su Vendor (non su servizi,
+        # vedi _service_requests_qs — hanno KPI/sezione dedicate sotto).
+        profile_requests_qs = VendorChangeRequest.objects.filter(
+            vendor_service__isnull=True, service_type__isnull=True
+        )
+        ctx["total_change_requests"] = profile_requests_qs.count()
+        ctx["change_requests_pending"] = profile_requests_qs.filter(
             status=VendorChangeRequest.STATUS_PENDING
         ).count()
+        ctx["total_service_requests"] = _service_requests_qs().count()
+        ctx["service_requests_pending"] = (
+            _service_requests_qs()
+            .filter(status=VendorChangeRequest.STATUS_PENDING)
+            .count()
+        )
 
         # Scaduti: data di scadenza superata, a prescindere dallo stato
         # salvato (vedi nota in BoDocumentListView/BoRequirementListView).
@@ -960,11 +1200,22 @@ class BoDashboardView(BackOfficeRequiredMixin, TemplateView):
         # Sezioni personali: solo i fornitori gestiti dall'utente loggato.
         user = self.request.user
         ctx["my_pending_change_requests"] = (
-            VendorChangeRequest.objects.filter(
+            profile_requests_qs.filter(
                 vendor__managed_by=user,
                 status=VendorChangeRequest.STATUS_PENDING,
             )
-            .select_related("vendor", "vendor_service")
+            .select_related("vendor")
+            .order_by("-created_at")[:10]
+        )
+        ctx["my_pending_service_requests"] = (
+            _service_requests_qs()
+            .filter(
+                vendor__managed_by=user,
+                status=VendorChangeRequest.STATUS_PENDING,
+            )
+            .select_related(
+                "vendor", "vendor_service__service_type", "service_type"
+            )
             .order_by("-created_at")[:10]
         )
         ctx["my_pending_documents"] = (

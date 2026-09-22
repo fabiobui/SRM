@@ -8,13 +8,18 @@
         <h1 class="h3 mb-1"><i class="fas fa-concierge-bell text-success"></i> I miei servizi</h1>
         <p class="text-muted mb-0">{{ vendor.name }} · {{ vendor.vendor_code }}</p>
     </div>
+    <a href="{% url 'portal:my-service-add' %}" class="btn btn-success">
+        <i class="fas fa-plus"></i> Richiedi aggiunta servizio
+    </a>
 </div>
 
 <div class="alert alert-light border">
     <i class="fas fa-info-circle text-muted"></i>
     L'elenco dei servizi erogati è definito dal back-office. Puoi proporre modifiche
-    ai dati descrittivi (servizio principale, date di erogazione, note): prezzo orario
-    e contratto restano di competenza del back-office.
+    ai dati descrittivi (servizio principale, date di erogazione, note), richiedere
+    l'aggiunta di un nuovo servizio dal catalogo o l'eliminazione di uno esistente:
+    ogni richiesta viene valutata dal back-office. Prezzo orario e contratto restano
+    di competenza del back-office.
 </div>
 
 {% if services %}
@@ -57,6 +62,9 @@
                 {% if s.pk not in pending_service_ids %}
                 <a href="{% url 'portal:my-service-change' pk=s.pk %}" class="btn btn-sm btn-success">
                     <i class="fas fa-edit"></i> Proponi modifiche
+                </a>
+                <a href="{% url 'portal:my-service-delete' pk=s.pk %}" class="btn btn-sm btn-outline-danger">
+                    <i class="fas fa-trash"></i> Richiedi eliminazione
                 </a>
                 {% endif %}
             </div>
