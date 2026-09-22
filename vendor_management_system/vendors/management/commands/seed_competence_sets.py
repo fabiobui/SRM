@@ -76,6 +76,16 @@ COMPETENCES = [
         True,
         None,
     ),
+    # --- Set Requisiti Formatore/Consulente/Laboratorio (AIDEV-10) ---
+    (
+        "REQ-023",
+        "Idoneità Tecnico Professionale",
+        "SAFETY",
+        False,
+        False,
+        None,
+    ),
+    ("REQ-024", "Accreditamento", "QUALITY", False, False, None),
 ]
 
 # Rinnovo richiesto ma senza periodicità indicata nel file.
@@ -133,6 +143,31 @@ COMPETENCE_SETS = [
             "FGAS",
             "Saldatura",
         ],
+    },
+    {
+        "name": "FORMATORE",
+        "description": (
+            "Requisiti professionali per i fornitori di tipo "
+            "Formatore/Società di formazione."
+        ),
+        "category_code": None,
+        "codes": ["REQ-023", "REQ-024", "REQ-021"],
+    },
+    {
+        "name": "CONSULENTE",
+        "description": (
+            "Requisiti professionali per i fornitori di tipo Consulente."
+        ),
+        "category_code": None,
+        "codes": ["REQ-023", "REQ-024"],
+    },
+    {
+        "name": "LABORATORIO",
+        "description": (
+            "Requisiti professionali per i fornitori di tipo Laboratorio."
+        ),
+        "category_code": None,
+        "codes": ["REQ-023", "REQ-024"],
     },
 ]
 
@@ -221,12 +256,13 @@ class Command(BaseCommand):
         categories = {c.code: c for c in Category.objects.all()}
 
         for order, spec in enumerate(COMPETENCE_SETS, start=1):
-            category = categories.get(spec["category_code"])
-            if category is None:
+            category_code = spec.get("category_code")
+            category = categories.get(category_code) if category_code else None
+            if category_code and category is None:
                 self.stdout.write(
                     self.style.WARNING(
                         f"  ⚠ Classificazione "
-                        f"'{spec['category_code']}' non trovata: "
+                        f"'{category_code}' non trovata: "
                         f"il set '{spec['name']}' resta senza "
                         f"classificazione."
                     )

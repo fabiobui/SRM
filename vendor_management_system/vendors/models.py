@@ -1479,6 +1479,9 @@ class Vendor(models.Model):
         ("Società/professionista", _("Società/professionista")),
         ("Subappaltatore", _("Subappaltatore")),
         ("Internazionale", _("Internazionale")),
+        ("Formatore", _("Formatore")),
+        ("Consulente", _("Consulente")),
+        ("Laboratorio", _("Laboratorio")),
     ]
 
     SERVICE_TYPE_CHOICES = [
