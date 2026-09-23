@@ -189,6 +189,16 @@ class Command(BaseCommand):
                 "periodicità di rinnovo di SOA, F-GAS, SALDATURA)."
             ),
         )
+        parser.add_argument(
+            "--create-only",
+            action="store_true",
+            help=(
+                "Crea solo i Set Requisiti mancanti, senza toccare quelli "
+                "già esistenti (descrizione, classificazione e lista "
+                "requisiti possono essere stati personalizzati da admin). "
+                "Pensato per l'esecuzione automatica ad ogni deploy."
+            ),
+        )
 
     @transaction.atomic
     def handle(self, *args, **options):
@@ -197,7 +207,7 @@ class Command(BaseCommand):
         )
 
         by_norm = self._sync_catalog(update_existing=options["update_catalog"])
-        self._sync_sets(by_norm)
+        self._sync_sets(by_norm, create_only=options["create_only"])
 
         self.stdout.write(
             self.style.NOTICE(
@@ -252,7 +262,7 @@ class Command(BaseCommand):
 
         return by_norm
 
-    def _sync_sets(self, by_norm):
+    def _sync_sets(self, by_norm, create_only=False):
         categories = {c.code: c for c in Category.objects.all()}
 
         for order, spec in enumerate(COMPETENCE_SETS, start=1):
@@ -277,6 +287,13 @@ class Command(BaseCommand):
                     "sort_order": order,
                 },
             )
+            if not created and create_only:
+                self.stdout.write(
+                    f"  Set '{comp_set.name}' già esistente: non toccato "
+                    "(--create-only)."
+                )
+                continue
+
             if not created:
                 comp_set.description = spec["description"]
                 comp_set.category = category

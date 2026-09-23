@@ -321,6 +321,16 @@ class Command(BaseCommand):
                 "catalogo. Di default i servizi esistenti non vengono toccati."
             ),
         )
+        parser.add_argument(
+            "--create-only",
+            action="store_true",
+            help=(
+                "Crea solo i Set Servizi mancanti, senza toccare quelli già "
+                "esistenti (descrizione, classificazione e lista servizi "
+                "possono essere stati personalizzati da admin). Pensato per "
+                "l'esecuzione automatica ad ogni deploy."
+            ),
+        )
 
     @transaction.atomic
     def handle(self, *args, **options):
@@ -329,6 +339,7 @@ class Command(BaseCommand):
         )
 
         update = options["update_catalog"]
+        create_only = options["create_only"]
         by_norm = {
             _norm(s.code): s for s in ServiceType.objects.all() if s.code
         }
@@ -340,7 +351,9 @@ class Command(BaseCommand):
                 self._resolve_service(svc, parent, by_norm, update)
                 for svc in spec["services"]
             ]
-            self._sync_set(spec, order, resolved, categories)
+            self._sync_set(
+                spec, order, resolved, categories, create_only=create_only
+            )
 
         self.stdout.write(
             self.style.NOTICE("Popolamento Set Servizi completato.")
@@ -397,7 +410,7 @@ class Command(BaseCommand):
             service.save(update_fields=["name", "sort_order", "is_active"])
         return service
 
-    def _sync_set(self, spec, order, services, categories):
+    def _sync_set(self, spec, order, services, categories, create_only=False):
         category = None
         if spec["category_code"]:
             category = categories.get(spec["category_code"])
@@ -420,6 +433,13 @@ class Command(BaseCommand):
                 "sort_order": order,
             },
         )
+        if not created and create_only:
+            self.stdout.write(
+                f"  Set '{service_set.name}' già esistente: non toccato "
+                "(--create-only)."
+            )
+            return
+
         if not created:
             service_set.description = spec["description"]
             service_set.category = category

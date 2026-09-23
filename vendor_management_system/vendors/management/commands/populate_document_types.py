@@ -12,10 +12,24 @@ from vendor_management_system.documents.models import DocumentCatalog
 class Command(BaseCommand):
     help = "Popola i tipi di documenti comuni richiesti ai fornitori"
 
+    def add_arguments(self, parser):
+        parser.add_argument(
+            "--create-only",
+            action="store_true",
+            help=(
+                "Crea solo i tipi documento mancanti, senza toccare quelli "
+                "già a catalogo (nome, categoria, ecc. possono essere stati "
+                "personalizzati da admin). Pensato per l'esecuzione "
+                "automatica ad ogni deploy."
+            ),
+        )
+
     def handle(self, *args, **options):
         self.stdout.write(
             self.style.NOTICE("Inizio popolamento tipi documento...")
         )
+
+        create_only = options["create_only"]
 
         document_types_data = [
             # Documenti Legali/Amministrativi
@@ -272,18 +286,28 @@ class Command(BaseCommand):
 
         created_count = 0
         updated_count = 0
+        skipped_count = 0
 
         for data in document_types_data:
+            if (
+                create_only
+                and DocumentCatalog.objects.filter(code=data["code"]).exists()
+            ):
+                skipped_count += 1
+                continue
+
             document_type, created = DocumentCatalog.objects.update_or_create(
                 code=data["code"],
                 defaults={
                     "name": data["name"],
                     "description": data.get("description", ""),
                     "document_category": data["document_category"],
-                    "is_mandatory": data["is_mandatory"],
+                    "is_required": data["is_mandatory"],
                     "requires_renewal": data["requires_renewal"],
-                    "default_validity_days": data.get("default_validity_days"),
-                    "alert_days_before_expiry": data.get(
+                    "validity_period_days": (
+                        data.get("default_validity_days") or 365
+                    ),
+                    "reminder_days_before": data.get(
                         "alert_days_before_expiry", 30
                     ),
                     "is_active": True,
@@ -312,6 +336,8 @@ class Command(BaseCommand):
                 f"\n✅ Popolamento completato!\n"
                 f"   - Tipi documento creati: {created_count}\n"
                 f"   - Tipi documento aggiornati: {updated_count}\n"
-                f"   - Totale: {created_count + updated_count}"
+                f"   - Tipi documento saltati (già a catalogo): "
+                f"{skipped_count}\n"
+                f"   - Totale: {created_count + updated_count + skipped_count}"
             )
         )

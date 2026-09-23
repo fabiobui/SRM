@@ -483,12 +483,21 @@ distinguerle:
   di business, solo DDL. Questo comando va sempre eseguito; è ciò che fa sì che le tabelle dell'app esistano
   affatto.
 - **I management command `populate_*` / `seed_*`** (eseguiti *dopo* `migrate`, interamente opzionali) sono
-  comandi custom, una-tantum, di **seeding dei dati**, specifici del dominio di questa app — inseriscono righe di
+  comandi custom, di **seeding dei dati**, specifici del dominio di questa app — inseriscono righe di
   dati di riferimento sulla compliance dei fornitori italiani (tipi di documento, competenze/certificazioni, ecc.)
   che i menu a tendina della UI e i form dell'admin si aspettano esistano. Nulla nell'app *richiede* questi dati
   per avviarsi, ma diverse schermate (es. scegliere un "Set Documentale" su un fornitore) sono vuote/inutilizzabili
   senza. Tutti e cinque sono idempotenti (sicuri da rieseguire — usano `update_or_create`/`get_or_create`, quindi
-  rieseguirli aggiorna semplicemente le righe esistenti invece di duplicarle).
+  rieseguirli aggiorna semplicemente le righe esistenti invece di duplicarle) — ma di default aggiornano *anche*
+  le righe/i set già esistenti col contenuto hardcoded nello script, sovrascrivendo eventuali personalizzazioni
+  fatte a mano in admin (nome, descrizione, lista documenti/requisiti/servizi collegati a un set). Per questo
+  `populate_document_types`, `seed_competence_sets`, `seed_service_sets` e `seed_document_sets` supportano il
+  flag `--create-only`: con quel flag creano solo ciò che manca e non toccano nulla di già esistente — è la
+  modalità usata dal deploy automatico (vedi [DEPLOY.md](DEPLOY.md) e `compose/django/start`). Senza flag
+  (comportamento di default, pensato per l'uso manuale in locale) restano un resync forzato completo.
+  **`populate_competences` è un'eccezione**: usa una codifica (`RSPP`, `ASPP`...) diversa da quella già a
+  catalogo (`REQ-001`, `REQ-002`...) e ne duplicherebbe una parte se rilanciato — non ha il flag `--create-only`,
+  non è incluso nel deploy automatico, e va usato solo dopo un confronto manuale caso per caso.
 
 L'ordine di esecuzione è importante per un paio di essi, dato che alcuni seedano righe di catalogo che altri
 collegano insieme:
