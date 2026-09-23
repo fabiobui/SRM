@@ -59,3 +59,34 @@ def test_seed_is_idempotent(formatore_requirement):
         assert CompetenceSet.objects.filter(name=set_name).count() == 1
     assert Competence.objects.filter(code="REQ-023").count() == 1
     assert Competence.objects.filter(code="REQ-024").count() == 1
+
+
+@pytest.mark.django_db
+def test_create_only_does_not_touch_existing_set(formatore_requirement):
+    call_command("seed_competence_sets")
+
+    comp_set = CompetenceSet.objects.get(name="CONSULENTE")
+    comp_set.description = "Personalizzato da admin"
+    comp_set.save(update_fields=["description"])
+    comp_set.competences.remove(Competence.objects.get(code="REQ-024"))
+
+    call_command("seed_competence_sets", "--create-only")
+
+    comp_set.refresh_from_db()
+    assert comp_set.description == "Personalizzato da admin"
+    assert "REQ-024" not in set(
+        comp_set.competences.values_list("code", flat=True)
+    )
+
+
+@pytest.mark.django_db
+def test_create_only_still_creates_missing_sets(formatore_requirement):
+    CompetenceSet.objects.filter(name="LABORATORIO").delete()
+
+    call_command("seed_competence_sets", "--create-only")
+
+    comp_set = CompetenceSet.objects.get(name="LABORATORIO")
+    assert (
+        set(comp_set.competences.values_list("code", flat=True))
+        == NEW_SETS["LABORATORIO"]
+    )

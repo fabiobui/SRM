@@ -37,6 +37,29 @@ su Ubuntu il Python di sistema è "externally managed" (PEP 668) e rifiuta `pip 
 `error: externally-managed-environment` — capita se questi comandi finiscono per essere eseguiti in una shell/
 sessione SSH diversa da quella in cui hai fatto `source`, dove il venv non risulta più attivo.
 
+Aggiorna anche i dati di riferimento (tipi documento, requisiti/servizi, e i set che li raggruppano per
+categoria fornitore — vedi [PROJECT_OVERVIEW_AND_LOCAL_SETUP.md, §9](PROJECT_OVERVIEW_AND_LOCAL_SETUP.md) per
+il dettaglio di ciascun comando). `migrate` porta solo lo schema: senza questo step, nuovi censimenti aggiunti
+dal codice (nuovi tipi documento/requisiti/set) restano assenti dal DB finché non li si lancia esplicitamente:
+
+```bash
+.venv/bin/python manage.py populate_document_types --create-only
+.venv/bin/python manage.py seed_competence_sets --create-only
+.venv/bin/python manage.py seed_service_sets --create-only
+.venv/bin/python manage.py seed_document_sets --create-only
+```
+
+`--create-only` crea solo ciò che manca (nuovo codice/nome mai visto) e **non tocca** righe o set già
+esistenti — utile perché tutti questi oggetti sono editabili da admin (nome, descrizione, lista
+documenti/requisiti collegati a un set): senza questo flag, ogni deploy risincronizzerebbe anche gli
+esistenti col contenuto hardcoded nello script, cancellando eventuali personalizzazioni fatte a mano. Vanno
+quindi lanciati **ad ogni deploy**, non solo la prima volta — con `--create-only` è sicuro farlo
+incondizionatamente.
+
+**Non lanciare `populate_competences`** in questa sequenza: usa una codifica (`RSPP`, `ASPP`...) diversa da
+quella già a catalogo (`REQ-001`, `REQ-002`...) e duplicherebbe requisiti già censiti sotto un altro codice.
+Richiede un confronto manuale caso per caso, non un comando da deploy automatico.
+
 Controlla se serve anche `collectstatic` (necessario solo con `DEBUG=False` — vedi
 [PROJECT_OVERVIEW_AND_LOCAL_SETUP.md, §10](PROJECT_OVERVIEW_AND_LOCAL_SETUP.md)):
 

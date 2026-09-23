@@ -84,3 +84,34 @@ def test_seed_is_idempotent(preexisting_document_types):
         assert DocumentSet.objects.filter(name=set_name).count() == 1
     for code in NEW_DOCUMENT_TYPE_CODES:
         assert DocumentCatalog.objects.filter(code=code).count() == 1
+
+
+@pytest.mark.django_db
+def test_create_only_does_not_touch_existing_set(preexisting_document_types):
+    call_command("seed_document_sets")
+
+    doc_set = DocumentSet.objects.get(name="FORMATORE")
+    doc_set.description = "Personalizzato da admin"
+    doc_set.save(update_fields=["description"])
+    doc_set.document_types.remove(DocumentCatalog.objects.get(code="POLIZZA"))
+
+    call_command("seed_document_sets", "--create-only")
+
+    doc_set.refresh_from_db()
+    assert doc_set.description == "Personalizzato da admin"
+    assert "POLIZZA" not in set(
+        doc_set.document_types.values_list("code", flat=True)
+    )
+
+
+@pytest.mark.django_db
+def test_create_only_still_creates_missing_sets(preexisting_document_types):
+    DocumentSet.objects.filter(name="LABORATORIO").delete()
+
+    call_command("seed_document_sets", "--create-only")
+
+    doc_set = DocumentSet.objects.get(name="LABORATORIO")
+    assert (
+        set(doc_set.document_types.values_list("code", flat=True))
+        == NEW_SETS["LABORATORIO"]
+    )

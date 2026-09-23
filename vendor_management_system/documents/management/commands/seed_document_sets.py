@@ -148,10 +148,24 @@ class Command(BaseCommand):
         "del fornitore"
     )
 
+    def add_arguments(self, parser):
+        parser.add_argument(
+            "--create-only",
+            action="store_true",
+            help=(
+                "Crea solo i Set Documentali mancanti, senza toccare quelli "
+                "già esistenti (nome, descrizione e lista documenti possono "
+                "essere stati personalizzati da admin). Pensato per "
+                "l'esecuzione automatica ad ogni deploy."
+            ),
+        )
+
     def handle(self, *args, **options):
         self.stdout.write(
             self.style.NOTICE("Inizio popolamento Set Documentali...")
         )
+
+        create_only = options["create_only"]
 
         self._sync_new_document_types()
 
@@ -172,6 +186,13 @@ class Command(BaseCommand):
                     "sort_order": order,
                 },
             )
+            if not created and create_only:
+                self.stdout.write(
+                    f"  Set '{doc_set.name}' già esistente: non toccato "
+                    "(--create-only)."
+                )
+                continue
+
             if not created:
                 doc_set.description = spec["description"]
                 doc_set.is_active = True
