@@ -9,6 +9,7 @@ from django.http import HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 from django.views.decorators.csrf import csrf_exempt
 
+from vendor_management_system.vendors import competence
 from vendor_management_system.vendors.models import (
     Competence,
     ServiceType,
@@ -41,6 +42,9 @@ def vendor_dashboard_view(request):
         )
         .all()
     )
+    # +2 query costanti, non per fornitore: serve a `vendors_data`, che
+    # espone la copertura territoriale di ogni fornitore.
+    vendors = competence.prefetch_competence(vendors)
 
     # Summary statistics
     total_vendors = vendors.count()
@@ -60,6 +64,10 @@ def vendor_dashboard_view(request):
         risk_level__in=["HIGH", "CRITICAL"]
     ).count()
 
+    # Conteggi per zona di competenza: regioni, province e nazioni
+    # estere, in 3 query.
+    aggregati_competenza = competence.competence_aggregations()
+
     # Chart data aggregations
     chart_data = {
         "by_vendor_type": list(
@@ -77,14 +85,11 @@ def vendor_dashboard_view(request):
                 "count": vendors.filter(is_ico_consultant=False).count(),
             },
         ],
-        "by_region": list(
-            vendors.exclude(address__isnull=True)
-            .exclude(address__region__isnull=True)
-            .exclude(address__region="")
-            .values("address__region")
-            .annotate(count=Count("vendor_code"), region=F("address__region"))
-            .order_by("-count")
-        ),
+        # Regioni e province contano ora la ZONA DI COMPETENZA, non piu'
+        # la sede: un fornitore attivo in cinque regioni
+        # compare in tutte e cinque, quindi la somma delle barre e'
+        # maggiore del numero di fornitori.
+        **aggregati_competenza,
         "by_quality": [],
         "by_fulfillment": [],
         "by_qualifiche": [],
@@ -94,16 +99,24 @@ def vendor_dashboard_view(request):
         "by_services": [],
     }
 
-    # Add count for vendors without address or region
+    # Fornitori senza nessuna zona di competenza dichiarata.
     vendors_no_region = vendors.filter(
-        Q(address__isnull=True)
-        | Q(address__region__isnull=True)
-        | Q(address__region="")
+        competence_provinces__isnull=True, competence_countries__isnull=True
     ).count()
     if vendors_no_region > 0:
         chart_data["by_region"].append(
-            {"region": "Non specificato", "count": vendors_no_region}
+            {
+                "region": "Non specificato",
+                "code": None,
+                "count": vendors_no_region,
+            }
         )
+    chart_data["competence_meta"] = {
+        "vendors_without_competence": vendors_no_region,
+        "region_assignments": sum(
+            riga["count"] for riga in aggregati_competenza["by_region"]
+        ),
+    }
 
     # Qualifiche aggregation (is_qualifica=True on VendorCompetence)
     try:
@@ -305,6 +318,9 @@ def vendor_dashboard_view(request):
         )
 
     # Vendors data for table
+    # Gli indici geografici si calcolano una volta sola: dentro al loop
+    # sarebbero due query per fornitore.
+    geo = competence.geo_maps()
     vendors_data = []
     for vendor in vendors:
         # vendor_services e vendor_competences sono già prefetchati sulla
@@ -370,6 +386,12 @@ def vendor_dashboard_view(request):
             }
             if vendor.address
             else None,
+            # Copertura territoriale, per i grafici Regioni/Province e per
+            # il filtro incrociato lato client. Codici e non nomi, con la
+            # sentinella "*" per "tutto il territorio": senza, un
+            # fornitore su tutta Italia peserebbe ~0,7 KB e la pagina
+            # (che non passa da GZipMiddleware) crescerebbe di megabyte.
+            "competence": competence.vendor_competence_codes(vendor, geo),
             "competences": [comp.name for comp in vendor.competences.all()],
             "qualifiche": [
                 vc.competence.name
@@ -410,6 +432,13 @@ def vendor_dashboard_view(request):
     }
 
     return render(request, "vendors/vendor_dashboard.html", context)
+
+
+def _lista_csv(valore):
+    """Scompone un parametro CSV della querystring in lista di codici."""
+    if not valore:
+        return None
+    return [pezzo.strip() for pezzo in valore.split(",") if pezzo.strip()]
 
 
 @csrf_exempt
@@ -468,6 +497,14 @@ def dashboard_vendors_list_api(request):
         vendors = vendors.filter(
             vendor_services__service_type__name=service_type
         ).distinct()
+    # Stessi parametri dell'export, per non far divergere le due
+    # superfici di filtro.
+    vendors = competence.filter_by_competence(
+        vendors,
+        countries=_lista_csv(request.GET.get("comp_countries")),
+        regions=_lista_csv(request.GET.get("comp_regions")),
+        provinces=_lista_csv(request.GET.get("comp_provinces")),
+    )
     if search:
         vendors = vendors.filter(
             Q(vendor_code__icontains=search)
@@ -513,7 +550,7 @@ def export_vendors_excel(request):
     import openpyxl
     from openpyxl.styles import Font, PatternFill
 
-    vendors = (
+    vendors = competence.prefetch_competence(
         Vendor.objects.select_related("category", "address")
         .prefetch_related(
             "vendor_services__service_type",
@@ -524,8 +561,14 @@ def export_vendors_excel(request):
     )
 
     # Apply filters (matching dashboard JS activeFilters keys)
-    regions = request.GET.get("regions")
-    provinces = request.GET.get("provinces")
+    # Zone di competenza: codici, non nomi, e parametri distinti per
+    # nazione/regione/provincia. Sostituiscono i vecchi
+    # `regions`/`provinces`, che filtravano per nome sulla SEDE: tenere
+    # lo stesso nome con due semantiche diverse sarebbe un bug silenzioso
+    # garantito.
+    comp_countries = request.GET.get("comp_countries")
+    comp_regions = request.GET.get("comp_regions")
+    comp_provinces = request.GET.get("comp_provinces")
     vendor_types = request.GET.get("vendor_types")
     ico_consultant = request.GET.get("ico_consultant")
     competencies = request.GET.get("competencies")
@@ -542,12 +585,12 @@ def export_vendors_excel(request):
     risk_level = request.GET.get("risk_level")
     service_type = request.GET.get("service_type")
 
-    if regions:
-        region_list = [r.strip() for r in regions.split(",")]
-        vendors = vendors.filter(address__region__in=region_list)
-    if provinces:
-        province_list = [p.strip() for p in provinces.split(",")]
-        vendors = vendors.filter(address__state_province__in=province_list)
+    vendors = competence.filter_by_competence(
+        vendors,
+        countries=_lista_csv(comp_countries),
+        regions=_lista_csv(comp_regions),
+        provinces=_lista_csv(comp_provinces),
+    )
     if vendor_types:
         type_list = [t.strip() for t in vendor_types.split(",")]
         vendors = vendors.filter(vendor_type__in=type_list)
@@ -615,6 +658,9 @@ def export_vendors_excel(request):
     header_font = Font(bold=True, color="FFFFFF")
 
     # Headers
+    # Regione/Provincia restano la SEDE; le colonne di competenza sono
+    # aggiunte in coda perche' l'export e' filtrato per zona di
+    # competenza: senza, non si capirebbe perche' una riga e' nel file.
     headers = [
         "Nome",
         "Tipo",
@@ -623,6 +669,8 @@ def export_vendors_excel(request):
         "Regione",
         "Provincia",
         "Valutazione Complessiva",
+        "Zone di Competenza",
+        "Province Competenza",
     ]
     for col, header in enumerate(headers, 1):
         cell = ws.cell(row=1, column=col, value=header)
@@ -630,6 +678,7 @@ def export_vendors_excel(request):
         cell.font = header_font
 
     # Data rows
+    geo_export = competence.geo_maps()
     for row, vendor in enumerate(vendors, 2):
         ws.cell(row=row, column=1, value=vendor.name)
         ws.cell(row=row, column=2, value=vendor.vendor_type)
@@ -653,6 +702,20 @@ def export_vendors_excel(request):
             row=row,
             column=7,
             value=vendor.vendor_final_evaluation or "DA VALUTARE",
+        )
+        ws.cell(
+            row=row,
+            column=8,
+            value=competence.competence_summary(vendor, geo_export),
+        )
+        ws.cell(
+            row=row,
+            column=9,
+            value=", ".join(
+                competence.vendor_competence_codes(vendor, geo_export)[
+                    "provinces"
+                ]
+            ),
         )
 
     # Auto-adjust column widths

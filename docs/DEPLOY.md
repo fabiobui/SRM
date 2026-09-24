@@ -43,6 +43,7 @@ il dettaglio di ciascun comando). `migrate` porta solo lo schema: senza questo s
 dal codice (nuovi tipi documento/requisiti/set) restano assenti dal DB finché non li si lancia esplicitamente:
 
 ```bash
+.venv/bin/python manage.py seed_geography --create-only
 .venv/bin/python manage.py populate_document_types --create-only
 .venv/bin/python manage.py seed_competence_sets --create-only
 .venv/bin/python manage.py seed_service_sets --create-only
@@ -59,6 +60,35 @@ incondizionatamente.
 **Non lanciare `populate_competences`** in questa sequenza: usa una codifica (`RSPP`, `ASPP`...) diversa da
 quella già a catalogo (`REQ-001`, `REQ-002`...) e duplicherebbe requisiti già censiti sotto un altro codice.
 Richiede un confronto manuale caso per caso, non un comando da deploy automatico.
+
+### Prima release delle zone di competenza territoriali
+
+Vale **solo per il deploy che introduce questa funzionalità**, una volta sola.
+
+La migrazione `vendors/0044_remove_competence_zone_stack` cancella in modo
+**irreversibile** il vecchio campo testuale `Vendor.competences_zone` e le
+tabelle delle vecchie zone nominate. La migrazione `0043` prova a travasarne il
+contenuto nei nuovi campi territoriali, ma quello che non riesce a interpretare
+(es. macro-aree ambigue come "Nord Italia") va sistemato a mano, e dopo `0044`
+non c'è più modo di sapere cosa fosse.
+
+Quindi, **prima** di lanciare `migrate` in produzione:
+
+```bash
+.venv/bin/python data_migration_scripts/report_competence_zone_migration.py
+```
+
+Lo script è di sola lettura e scrive
+`data_migration_scripts/reports/competence_zone_migration.csv` con l'esito
+previsto fornitore per fornitore. Se i casi `NESSUN_MATCH` + `PARZIALE`
+superano il 30% lo segnala esplicitamente: conviene allora estendere gli alias
+in `vendors/migrations/0043_migrate_competence_zones.py` prima di procedere.
+
+Il report contiene ragioni sociali: la cartella `reports/` non è servita da
+Django, non spostarlo sotto `static/`.
+
+In alternativa, si può deployare fino a `0043` e tenere `0044` per un rilascio
+successivo, dopo aver sistemato i dati dall'admin.
 
 Controlla se serve anche `collectstatic` (necessario solo con `DEBUG=False` — vedi
 [PROJECT_OVERVIEW_AND_LOCAL_SETUP.md, §10](PROJECT_OVERVIEW_AND_LOCAL_SETUP.md)):

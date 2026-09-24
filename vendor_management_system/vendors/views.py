@@ -15,7 +15,6 @@ from vendor_management_system.core.serializers import (
 from vendor_management_system.vendors.models import (
     Address,
     Category,
-    CompetenceZone,
     Country,
     Province,
     Region,
@@ -28,8 +27,6 @@ from vendor_management_system.vendors.serializers import (
     CategorySerializer,
     CategoryStatsSerializer,
     CategoryTreeSerializer,
-    CompetenceZoneCreateUpdateSerializer,
-    CompetenceZoneSerializer,
     CountrySerializer,
     CountryTreeSerializer,
     ProvinceSerializer,
@@ -1718,150 +1715,3 @@ class ProvinceViewSet(viewsets.ViewSet):
             provinces.order_by("region__name", "sort_order", "name"), many=True
         )
         return response.Response(serializer.data)
-
-
-class CompetenceZoneViewSet(viewsets.ViewSet):
-    """ViewSet per la gestione delle Zone di Competenza"""
-
-    permission_classes = [permissions.IsAuthenticated]
-    authentication_classes = [QueryParameterTokenAuthentication]
-
-    @swagger_auto_schema(
-        operation_id="competence-zones--list",
-        operation_description="Lista delle zone di competenza",
-        manual_parameters=[
-            openapi.Parameter(
-                name="token",
-                in_=openapi.IN_QUERY,
-                type=openapi.TYPE_STRING,
-                required=True,
-            ),
-            openapi.Parameter(
-                name="is_active",
-                in_=openapi.IN_QUERY,
-                type=openapi.TYPE_BOOLEAN,
-                required=False,
-            ),
-        ],
-        responses={status.HTTP_200_OK: CompetenceZoneSerializer(many=True)},
-        tags=["Competence Zones"],
-    )
-    def list(self, request):
-        zones = CompetenceZone.objects.prefetch_related(
-            "rules", "rules__country", "rules__region", "rules__province"
-        ).all()
-        is_active = request.query_params.get("is_active")
-        if is_active is not None:
-            zones = zones.filter(is_active=is_active.lower() == "true")
-        serializer = CompetenceZoneSerializer(
-            zones.order_by("name"), many=True
-        )
-        return response.Response(serializer.data)
-
-    @swagger_auto_schema(
-        operation_id="competence-zones--create",
-        operation_description="Crea una nuova zona di competenza con regole",
-        manual_parameters=[
-            openapi.Parameter(
-                name="token",
-                in_=openapi.IN_QUERY,
-                type=openapi.TYPE_STRING,
-                required=True,
-            ),
-        ],
-        request_body=CompetenceZoneCreateUpdateSerializer,
-        responses={status.HTTP_201_CREATED: CompetenceZoneSerializer},
-        tags=["Competence Zones"],
-    )
-    def create(self, request):
-        serializer = CompetenceZoneCreateUpdateSerializer(data=request.data)
-        if serializer.is_valid():
-            zone = serializer.save()
-            response_serializer = CompetenceZoneSerializer(zone)
-            return response.Response(
-                response_serializer.data, status=status.HTTP_201_CREATED
-            )
-        return response.Response(
-            serializer.errors, status=status.HTTP_400_BAD_REQUEST
-        )
-
-    @swagger_auto_schema(
-        operation_id="competence-zones--retrieve",
-        operation_description="Dettaglio zona di competenza",
-        manual_parameters=[
-            openapi.Parameter(
-                name="token",
-                in_=openapi.IN_QUERY,
-                type=openapi.TYPE_STRING,
-                required=True,
-            ),
-        ],
-        responses={status.HTTP_200_OK: CompetenceZoneSerializer},
-        tags=["Competence Zones"],
-    )
-    def retrieve(self, request, zone_id=None):
-        zone = get_object_or_404(
-            CompetenceZone.objects.prefetch_related(
-                "rules", "rules__country", "rules__region", "rules__province"
-            ),
-            id=zone_id,
-        )
-        serializer = CompetenceZoneSerializer(zone)
-        return response.Response(serializer.data)
-
-    @swagger_auto_schema(
-        operation_id="competence-zones--update",
-        operation_description="Aggiorna una zona di competenza",
-        manual_parameters=[
-            openapi.Parameter(
-                name="token",
-                in_=openapi.IN_QUERY,
-                type=openapi.TYPE_STRING,
-                required=True,
-            ),
-        ],
-        request_body=CompetenceZoneCreateUpdateSerializer,
-        responses={status.HTTP_200_OK: CompetenceZoneSerializer},
-        tags=["Competence Zones"],
-    )
-    def update(self, request, zone_id=None):
-        zone = get_object_or_404(CompetenceZone, id=zone_id)
-        serializer = CompetenceZoneCreateUpdateSerializer(
-            zone, data=request.data, partial=True
-        )
-        if serializer.is_valid():
-            zone = serializer.save()
-            response_serializer = CompetenceZoneSerializer(zone)
-            return response.Response(response_serializer.data)
-        return response.Response(
-            serializer.errors, status=status.HTTP_400_BAD_REQUEST
-        )
-
-    @swagger_auto_schema(
-        operation_id="competence-zones--destroy",
-        operation_description="Elimina una zona di competenza",
-        manual_parameters=[
-            openapi.Parameter(
-                name="token",
-                in_=openapi.IN_QUERY,
-                type=openapi.TYPE_STRING,
-                required=True,
-            ),
-        ],
-        responses={status.HTTP_204_NO_CONTENT: "Zona eliminata"},
-        tags=["Competence Zones"],
-    )
-    def destroy(self, request, zone_id=None):
-        zone = get_object_or_404(CompetenceZone, id=zone_id)
-        if zone.vendors.exists():
-            return response.Response(
-                {
-                    "detail": (
-                        "Impossibile eliminare una zona assegnata "
-                        "a dei fornitori."
-                    )
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        zone.delete()
-        return response.Response(status=status.HTTP_204_NO_CONTENT)

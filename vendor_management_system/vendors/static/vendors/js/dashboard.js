@@ -36,8 +36,8 @@ const filterFields = {
     'is_ico_consultant': { label: 'Consulente ICO', type: 'boolean' },
     'contractual_status': { label: 'Stato Contrattuale', type: 'select', options: ['00', '02', '03', '04', '05', '06', '99'] },
     'address.city': { label: 'Città', type: 'text' },
-    'address.region': { label: 'Regione', type: 'text' },
-    'address.state_province': { label: 'Provincia', type: 'text' },
+    'address.region': { label: 'Regione (sede)', type: 'text' },
+    'address.state_province': { label: 'Provincia (sede)', type: 'text' },
     'address.country': { label: 'Paese', type: 'text' },
     'category.name': { label: 'Categoria', type: 'text' },
     'service_type.name': { label: 'Tipo Servizio', type: 'text' }
@@ -77,37 +77,102 @@ const operatorsByType = {
     ]
 };
 
-// Italian Provinces mapping to Regions
-const provinceRegionMap = {
-    'Agrigento': 'Sicilia', 'Alessandria': 'Piemonte', 'Ancona': 'Marche', 'Aosta': "Valle d'Aosta",
-    "L'Aquila": 'Abruzzo', 'Arezzo': 'Toscana', 'Ascoli Piceno': 'Marche', 'Asti': 'Piemonte',
-    'Avellino': 'Campania', 'Bari': 'Puglia', 'Barletta-Andria-Trani': 'Puglia', 'Belluno': 'Veneto',
-    'Benevento': 'Campania', 'Bergamo': 'Lombardia', 'Biella': 'Piemonte', 'Bologna': 'Emilia-Romagna',
-    'Bolzano': 'Trentino-Alto Adige', 'Brescia': 'Lombardia', 'Brindisi': 'Puglia', 'Cagliari': 'Sardegna',
-    'Caltanissetta': 'Sicilia', 'Campobasso': 'Molise', 'Caserta': 'Campania', 'Catania': 'Sicilia',
-    'Catanzaro': 'Calabria', 'Chieti': 'Abruzzo', 'Como': 'Lombardia', 'Cosenza': 'Calabria',
-    'Cremona': 'Lombardia', 'Crotone': 'Calabria', 'Cuneo': 'Piemonte', 'Enna': 'Sicilia',
-    'Fermo': 'Marche', 'Ferrara': 'Emilia-Romagna', 'Firenze': 'Toscana', 'Foggia': 'Puglia',
-    'Forlì-Cesena': 'Emilia-Romagna', 'Frosinone': 'Lazio', 'Genova': 'Liguria',
-    'Gorizia': 'Friuli-Venezia Giulia', 'Grosseto': 'Toscana', 'Imperia': 'Liguria', 'Isernia': 'Molise',
-    'La Spezia': 'Liguria', 'Latina': 'Lazio', 'Lecce': 'Puglia', 'Lecco': 'Lombardia',
-    'Livorno': 'Toscana', 'Lodi': 'Lombardia', 'Lucca': 'Toscana', 'Macerata': 'Marche',
-    'Mantova': 'Lombardia', 'Massa-Carrara': 'Toscana', 'Matera': 'Basilicata',
-    'Messina': 'Sicilia', 'Milano': 'Lombardia', 'Modena': 'Emilia-Romagna', 'Monza e Brianza': 'Lombardia',
-    'Napoli': 'Campania', 'Novara': 'Piemonte', 'Nuoro': 'Sardegna', 'Oristano': 'Sardegna',
-    'Padova': 'Veneto', 'Palermo': 'Sicilia', 'Parma': 'Emilia-Romagna', 'Pavia': 'Lombardia',
-    'Perugia': 'Umbria', 'Pesaro e Urbino': 'Marche', 'Pescara': 'Abruzzo', 'Piacenza': 'Emilia-Romagna',
-    'Pisa': 'Toscana', 'Pistoia': 'Toscana', 'Pordenone': 'Friuli-Venezia Giulia', 'Potenza': 'Basilicata',
-    'Prato': 'Toscana', 'Ragusa': 'Sicilia', 'Ravenna': 'Emilia-Romagna', 'Reggio Calabria': 'Calabria',
-    'Reggio Emilia': 'Emilia-Romagna', 'Rieti': 'Lazio', 'Rimini': 'Emilia-Romagna', 'Roma': 'Lazio',
-    'Rovigo': 'Veneto', 'Salerno': 'Campania', 'Sassari': 'Sardegna', 'Savona': 'Liguria',
-    'Siena': 'Toscana', 'Siracusa': 'Sicilia', 'Sondrio': 'Lombardia', 'Sud Sardegna': 'Sardegna',
-    'Taranto': 'Puglia', 'Teramo': 'Abruzzo', 'Terni': 'Umbria', 'Torino': 'Piemonte',
-    'Trapani': 'Sicilia', 'Trento': 'Trentino-Alto Adige', 'Treviso': 'Veneto',
-    'Trieste': 'Friuli-Venezia Giulia', 'Udine': 'Friuli-Venezia Giulia', 'Varese': 'Lombardia',
-    'Venezia': 'Veneto', 'Verbano-Cusio-Ossola': 'Piemonte', 'Vercelli': 'Piemonte',
-    'Verona': 'Veneto', 'Vibo Valentia': 'Calabria', 'Vicenza': 'Veneto', 'Viterbo': 'Lazio'
-};
+// ---------------------------------------------------------------------------
+// Copertura territoriale
+//
+// I grafici "Regioni" e "Province" contano le ZONE DI COMPETENZA del
+// fornitore, non piu' la sede. Ogni fornitore porta in `vendor.competence`
+// i codici delle aree coperte; la sentinella '*' significa "tutto il
+// territorio" ed evita di serializzare 107 sigle per fornitore.
+//
+// Le mappe codice <-> nome si costruiscono dai dati dei grafici, che il
+// server produce gia' ordinati: non serve piu' la tabella provincia ->
+// regione hardcodata qui (che fra l'altro divergeva dal database sulla
+// grafia di Friuli(-)Venezia Giulia).
+// ---------------------------------------------------------------------------
+const COMPETENCE_ALL = '*';
+const UNSPECIFIED_LABEL = 'Non specificato';
+
+let regionNameByCode = {};
+let regionCodeByName = {};
+let provinceNameByCode = {};
+let provinceCodeByName = {};
+let regionNameByProvinceName = {};
+let allRegionCodes = [];
+let allProvinceCodes = [];
+
+function buildGeoMaps(chartDataJson) {
+    regionNameByCode = {};
+    regionCodeByName = {};
+    provinceNameByCode = {};
+    provinceCodeByName = {};
+    regionNameByProvinceName = {};
+
+    (chartDataJson.by_region || []).forEach(row => {
+        if (!row.code) return;  // bucket "Non specificato"
+        regionNameByCode[row.code] = row.region;
+        regionCodeByName[row.region] = row.code;
+    });
+    (chartDataJson.by_province || []).forEach(row => {
+        if (!row.code) return;
+        provinceNameByCode[row.code] = row.province;
+        provinceCodeByName[row.province] = row.code;
+        if (row.region_name) {
+            regionNameByProvinceName[row.province] = row.region_name;
+        }
+    });
+
+    allRegionCodes = Object.keys(regionNameByCode);
+    allProvinceCodes = Object.keys(provinceNameByCode);
+}
+
+// Un fornitore senza nessuna area dichiarata. Stessa definizione del
+// bucket "Non specificato" calcolato lato server: se divergessero, il
+// grafico iniziale e quello ricalcolato dopo un filtro mostrerebbero
+// numeri diversi.
+function hasNoCompetence(vendor) {
+    const c = vendor.competence;
+    if (!c) return true;
+    return (c.regions || []).length === 0 && (c.countries || []).length === 0;
+}
+
+function competenceRegionCodes(vendor) {
+    const codes = (vendor.competence && vendor.competence.regions) || [];
+    return codes.indexOf(COMPETENCE_ALL) !== -1 ? allRegionCodes : codes;
+}
+
+function competenceProvinceCodes(vendor) {
+    const codes = (vendor.competence && vendor.competence.provinces) || [];
+    return codes.indexOf(COMPETENCE_ALL) !== -1 ? allProvinceCodes : codes;
+}
+
+// Predicato unico dei filtri geografici, al posto delle dieci copie che
+// erano sparse in ogni updateXChart(). `opts.skipRegions` /
+// `opts.skipProvinces` servono al grafico che sta ricalcolando la propria
+// stessa dimensione.
+function matchesCompetenceFilters(vendor, opts) {
+    opts = opts || {};
+
+    if (!opts.skipRegions && activeFilters.regions.length > 0) {
+        const codes = competenceRegionCodes(vendor);
+        const ok = activeFilters.regions.some(name =>
+            name === UNSPECIFIED_LABEL
+                ? hasNoCompetence(vendor)
+                : codes.indexOf(regionCodeByName[name]) !== -1
+        );
+        if (!ok) return false;
+    }
+
+    if (!opts.skipProvinces && activeFilters.provinces.length > 0) {
+        const codes = competenceProvinceCodes(vendor);
+        const ok = activeFilters.provinces.some(name =>
+            codes.indexOf(provinceCodeByName[name]) !== -1
+        );
+        if (!ok) return false;
+    }
+
+    return true;
+}
 
 // Initialize dashboard
 function initDashboard(chartDataJson, vendorsDataJson) {
@@ -116,6 +181,10 @@ function initDashboard(chartDataJson, vendorsDataJson) {
 
     // Salva i dati originali per ricalcolare i grafici
     window.originalChartData = chartDataJson;
+
+    // Mappe codice <-> nome delle aree di competenza: vanno costruite
+    // prima di qualunque createXChart.
+    buildGeoMaps(chartDataJson);
 
     // Costruisci la mappa servizio→categoria
     if (chartDataJson.by_services) {
@@ -185,15 +254,7 @@ function updateVendorTypeChart() {
             if (vendor.is_ico_consultant !== activeFilters.ico_consultant) return false;
         }
 
-        if (activeFilters.regions.length > 0) {
-            const vendorRegion = vendor.address?.region || 'Non Specificato';
-            if (!activeFilters.regions.includes(vendorRegion)) return false;
-        }
-
-        if (activeFilters.provinces.length > 0) {
-            const vendorProvince = vendor.address?.state_province || 'Non Specificato';
-            if (!activeFilters.provinces.includes(vendorProvince)) return false;
-        }
+        if (!matchesCompetenceFilters(vendor)) return false;
 
         if (activeFilters.competencies.length > 0) {
             const hasCompetency = activeFilters.competencies.some(comp => vendor.competences?.includes(comp));
@@ -231,7 +292,7 @@ function updateVendorTypeChart() {
     });
 
     vendorsWithoutTypeFilter.forEach(v => {
-        const type = v.vendor_type || 'Non Specificato';
+        const type = v.vendor_type || UNSPECIFIED_LABEL;
         vendorTypeCounts[type] = (vendorTypeCounts[type] || 0) + 1;
     });
 
@@ -266,15 +327,7 @@ function updateIcoConsultantChart() {
             if (!activeFilters.vendor_types.includes(vendor.vendor_type)) return false;
         }
 
-        if (activeFilters.regions.length > 0) {
-            const vendorRegion = vendor.address?.region || 'Non Specificato';
-            if (!activeFilters.regions.includes(vendorRegion)) return false;
-        }
-
-        if (activeFilters.provinces.length > 0) {
-            const vendorProvince = vendor.address?.state_province || 'Non Specificato';
-            if (!activeFilters.provinces.includes(vendorProvince)) return false;
-        }
+        if (!matchesCompetenceFilters(vendor)) return false;
 
         if (activeFilters.competencies.length > 0) {
             const hasCompetency = activeFilters.competencies.some(comp => vendor.competences?.includes(comp));
@@ -345,6 +398,13 @@ function updateRegionChart() {
             if (!hasCompetency) return false;
         }
 
+        // Il filtro province SI applica (skipRegions: true): cliccare una
+        // provincia deve restringere il grafico Regioni alla sola regione
+        // di quella provincia. Il filtro regioni resta escluso, altrimenti
+        // deselezionare una regione dal proprio stesso grafico sarebbe
+        // impossibile.
+        if (!matchesCompetenceFilters(vendor, { skipRegions: true })) return false;
+
         if (activeFilters.certifications.length > 0) {
             const hasCertification = activeFilters.certifications.some(cert => vendor.certifications?.includes(cert));
             if (!hasCertification) return false;
@@ -376,8 +436,37 @@ function updateRegionChart() {
     });
 
     vendorsWithoutRegionFilter.forEach(v => {
-        const region = v.address?.region || 'Non Specificato';
-        regionCounts[region] = (regionCounts[region] || 0) + 1;
+        if (hasNoCompetence(v)) {
+            regionCounts[UNSPECIFIED_LABEL] =
+                (regionCounts[UNSPECIFIED_LABEL] || 0) + 1;
+            return;
+        }
+
+        if (activeFilters.provinces.length > 0) {
+            // Con un filtro provincia attivo il grafico si restringe alla
+            // sola regione di quella provincia, non a tutte le regioni
+            // coperte dal fornitore: altrimenti filtrando "Ravenna" si
+            // vedrebbe comparire anche la Lombardia se il fornitore la
+            // copre pure lui.
+            const coperte = new Set(competenceProvinceCodes(v));
+            const regioniDelFiltro = new Set();
+            activeFilters.provinces.forEach(nomeProvincia => {
+                const codice = provinceCodeByName[nomeProvincia];
+                if (codice && coperte.has(codice)) {
+                    const nomeRegione = regionNameByProvinceName[nomeProvincia];
+                    if (nomeRegione) regioniDelFiltro.add(nomeRegione);
+                }
+            });
+            regioniDelFiltro.forEach(name => {
+                regionCounts[name] = (regionCounts[name] || 0) + 1;
+            });
+            return;
+        }
+
+        competenceRegionCodes(v).forEach(code => {
+            const name = regionNameByCode[code];
+            if (name) regionCounts[name] = (regionCounts[name] || 0) + 1;
+        });
     });
 
     const labels = Object.keys(regionCounts);
@@ -409,15 +498,7 @@ function updateCompetenciesChart() {
             if (vendor.is_ico_consultant !== activeFilters.ico_consultant) return false;
         }
 
-        if (activeFilters.regions.length > 0) {
-            const vendorRegion = vendor.address?.region || 'Non Specificato';
-            if (!activeFilters.regions.includes(vendorRegion)) return false;
-        }
-
-        if (activeFilters.provinces.length > 0) {
-            const vendorProvince = vendor.address?.state_province || 'Non Specificato';
-            if (!activeFilters.provinces.includes(vendorProvince)) return false;
-        }
+        if (!matchesCompetenceFilters(vendor)) return false;
 
         if (activeFilters.certifications.length > 0) {
             const hasCertification = activeFilters.certifications.some(cert => vendor.certifications?.includes(cert));
@@ -490,15 +571,7 @@ function updateCertificationsChart() {
             if (vendor.is_ico_consultant !== activeFilters.ico_consultant) return false;
         }
 
-        if (activeFilters.regions.length > 0) {
-            const vendorRegion = vendor.address?.region || 'Non Specificato';
-            if (!activeFilters.regions.includes(vendorRegion)) return false;
-        }
-
-        if (activeFilters.provinces.length > 0) {
-            const vendorProvince = vendor.address?.state_province || 'Non Specificato';
-            if (!activeFilters.provinces.includes(vendorProvince)) return false;
-        }
+        if (!matchesCompetenceFilters(vendor)) return false;
 
         if (activeFilters.competencies.length > 0) {
             if (!vendor.competences || !Array.isArray(vendor.competences)) return false;
@@ -575,15 +648,7 @@ function updateQualificheChart() {
             if (vendor.is_ico_consultant !== activeFilters.ico_consultant) return false;
         }
 
-        if (activeFilters.regions.length > 0) {
-            const vendorRegion = vendor.address?.region || 'Non Specificato';
-            if (!activeFilters.regions.includes(vendorRegion)) return false;
-        }
-
-        if (activeFilters.provinces.length > 0) {
-            const vendorProvince = vendor.address?.state_province || 'Non Specificato';
-            if (!activeFilters.provinces.includes(vendorProvince)) return false;
-        }
+        if (!matchesCompetenceFilters(vendor)) return false;
 
         if (activeFilters.competencies.length > 0) {
             const hasCompetency = activeFilters.competencies.some(comp => vendor.competences?.includes(comp));
@@ -677,15 +742,7 @@ function updateCompetenzeChart() {
             if (vendor.is_ico_consultant !== activeFilters.ico_consultant) return false;
         }
 
-        if (activeFilters.regions.length > 0) {
-            const vendorRegion = vendor.address?.region || 'Non Specificato';
-            if (!activeFilters.regions.includes(vendorRegion)) return false;
-        }
-
-        if (activeFilters.provinces.length > 0) {
-            const vendorProvince = vendor.address?.state_province || 'Non Specificato';
-            if (!activeFilters.provinces.includes(vendorProvince)) return false;
-        }
+        if (!matchesCompetenceFilters(vendor)) return false;
 
         if (activeFilters.competencies.length > 0) {
             const hasCompetency = activeFilters.competencies.some(comp => vendor.competences?.includes(comp));
@@ -779,15 +836,7 @@ function updateServiceCategoriesChart() {
             if (vendor.is_ico_consultant !== activeFilters.ico_consultant) return false;
         }
 
-        if (activeFilters.regions.length > 0) {
-            const vendorRegion = vendor.address?.region || 'Non Specificato';
-            if (!activeFilters.regions.includes(vendorRegion)) return false;
-        }
-
-        if (activeFilters.provinces.length > 0) {
-            const vendorProvince = vendor.address?.state_province || 'Non Specificato';
-            if (!activeFilters.provinces.includes(vendorProvince)) return false;
-        }
+        if (!matchesCompetenceFilters(vendor)) return false;
 
         if (activeFilters.competencies.length > 0) {
             const hasCompetency = activeFilters.competencies.some(comp => vendor.competences?.includes(comp));
@@ -880,15 +929,7 @@ function updateServicesChart() {
             if (vendor.is_ico_consultant !== activeFilters.ico_consultant) return false;
         }
 
-        if (activeFilters.regions.length > 0) {
-            const vendorRegion = vendor.address?.region || 'Non Specificato';
-            if (!activeFilters.regions.includes(vendorRegion)) return false;
-        }
-
-        if (activeFilters.provinces.length > 0) {
-            const vendorProvince = vendor.address?.state_province || 'Non Specificato';
-            if (!activeFilters.provinces.includes(vendorProvince)) return false;
-        }
+        if (!matchesCompetenceFilters(vendor)) return false;
 
         if (activeFilters.competencies.length > 0) {
             const hasCompetency = activeFilters.competencies.some(comp => vendor.competences?.includes(comp));
@@ -1010,7 +1051,7 @@ function createVendorTypeChart(data) {
     charts.vendorType = new Chart(ctx, {
         type: 'doughnut',
         data: {
-            labels: data.map(item => vendorTypeMap[item.type] || item.type || 'Non Specificato'),
+            labels: data.map(item => vendorTypeMap[item.type] || item.type || UNSPECIFIED_LABEL),
             datasets: [{
                 data: data.map(item => item.count),
                 backgroundColor: ['#007bff', '#28a745', '#ffc107', '#dc3545', '#17a2b8', '#6f42c1']
@@ -1093,7 +1134,7 @@ function createRegionChart(data) {
     charts.region = new Chart(ctx, {
         type: 'bar',
         data: {
-            labels: data.map(item => item.region || 'Non Specificato'),
+            labels: data.map(item => item.region || UNSPECIFIED_LABEL),
             datasets: [{ label: 'Numero Fornitori', data: data.map(item => item.count), backgroundColor: '#17a2b8' }]
         },
         options: {
@@ -1122,23 +1163,9 @@ function createRegionChart(data) {
 function createProvinceChart(data) {
     const ctx = document.getElementById('provinceChart').getContext('2d');
 
-    if (!data || data.length === 0) {
-        const provinceCount = {};
-
-        allVendors.forEach((vendor) => {
-            if (vendor.address && vendor.address.state_province) {
-                const province = vendor.address.state_province.trim();
-                if (province && province !== 'Non Specificato' && province !== '') {
-                    provinceCount[province] = (provinceCount[province] || 0) + 1;
-                }
-            }
-        });
-
-        data = Object.entries(provinceCount)
-            .map(([province, count]) => ({ province, count }))
-            .sort((a, b) => b.count - a.count);
-    }
-
+    // `by_province` e' calcolato lato server: non serve piu'
+    // il fallback che ricalcolava i conteggi nel browser.
+    data = data || [];
     allProvinces = data;
 
     if (data.length === 0) {
@@ -1446,10 +1473,7 @@ function updateProvinceChart() {
             if (vendor.is_ico_consultant !== activeFilters.ico_consultant) return false;
         }
 
-        if (activeFilters.regions.length > 0) {
-            const vendorRegion = vendor.address?.region || 'Non Specificato';
-            if (!activeFilters.regions.includes(vendorRegion)) return false;
-        }
+        if (!matchesCompetenceFilters(vendor, { skipProvinces: true })) return false;
 
         if (activeFilters.competencies.length > 0) {
             const hasCompetency = activeFilters.competencies.some(comp => vendor.competences?.includes(comp));
@@ -1489,12 +1513,10 @@ function updateProvinceChart() {
     const provinceCount = {};
 
     vendorsWithoutProvinceFilter.forEach((vendor) => {
-        if (vendor.address && vendor.address.state_province) {
-            const province = vendor.address.state_province.trim();
-            if (province && province !== 'Non Specificato' && province !== '') {
-                provinceCount[province] = (provinceCount[province] || 0) + 1;
-            }
-        }
+        competenceProvinceCodes(vendor).forEach(code => {
+            const name = provinceNameByCode[code];
+            if (name) provinceCount[name] = (provinceCount[name] || 0) + 1;
+        });
     });
 
     const sortedProvinces = Object.entries(provinceCount)
@@ -1527,8 +1549,9 @@ function toggleFilter(dimension, value) {
     if (index > -1) {
         activeFilters[dimension].splice(index, 1);
         if (dimension === 'regions') {
-            const provincesToRemove = Object.keys(provinceRegionMap).filter(p => provinceRegionMap[p] === value);
-            activeFilters.provinces = activeFilters.provinces.filter(p => !provincesToRemove.includes(p));
+            activeFilters.provinces = activeFilters.provinces.filter(
+                p => regionNameByProvinceName[p] !== value
+            );
         }
         if (dimension === 'service_categories') {
             const servicesToRemove = Object.keys(serviceCategoryMap).filter(s => serviceCategoryMap[s] === value);
@@ -1586,8 +1609,9 @@ function removeFilter(dimension, value) {
         if (index > -1) activeFilters[dimension].splice(index, 1);
 
         if (dimension === 'regions') {
-            const provincesToRemove = Object.keys(provinceRegionMap).filter(p => provinceRegionMap[p] === value);
-            activeFilters.provinces = activeFilters.provinces.filter(p => !provincesToRemove.includes(p));
+            activeFilters.provinces = activeFilters.provinces.filter(
+                p => regionNameByProvinceName[p] !== value
+            );
         }
 
         if (dimension === 'service_categories') {
@@ -1655,15 +1679,7 @@ function filterVendors() {
             if (vendor.is_ico_consultant !== activeFilters.ico_consultant) return false;
         }
 
-        if (activeFilters.regions.length > 0) {
-            const vendorRegion = vendor.address?.region || 'Non Specificato';
-            if (!activeFilters.regions.includes(vendorRegion)) return false;
-        }
-
-        if (activeFilters.provinces.length > 0) {
-            const vendorProvince = vendor.address?.state_province || 'Non Specificato';
-            if (!activeFilters.provinces.includes(vendorProvince)) return false;
-        }
+        if (!matchesCompetenceFilters(vendor)) return false;
 
         if (activeFilters.competencies.length > 0) {
             const hasCompetency = activeFilters.competencies.some(comp => vendor.competences?.includes(comp));
@@ -1786,6 +1802,20 @@ function exportToExcel() {
     const params = new URLSearchParams();
     Object.entries(activeFilters).forEach(([key, values]) => {
         if (values === null || values === undefined) return;
+        // Le zone di competenza viaggiano per CODICE e sotto un nome di
+        // parametro diverso da quello del filtro client, che lavora sui
+        // nomi. I vecchi `regions`/`provinces` filtravano per
+        // nome sulla sede e non esistono più lato server.
+        if (key === 'regions' || key === 'provinces') {
+            if (!values.length) return;
+            const mappa =
+                key === 'regions' ? regionCodeByName : provinceCodeByName;
+            const codici = values.map(n => mappa[n]).filter(Boolean);
+            if (codici.length) {
+                params.append('comp_' + key, codici.join(','));
+            }
+            return;
+        }
         if (Array.isArray(values)) {
             if (values.length > 0) params.append(key, values.join(','));
         } else {

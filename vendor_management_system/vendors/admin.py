@@ -20,13 +20,22 @@ from vendor_management_system.documents.models import (
     DocumentSet,
 )
 
+from .admin_filters import (
+    CompetenceCountryFilter,
+    CompetenceProvinceFilter,
+    CompetenceRegionFilter,
+)
+from .competence import (
+    competence_summary,
+    current_selection,
+    prefetch_competence,
+    set_vendor_competence,
+)
 from .models import (
     Address,
     Category,
     Competence,
     CompetenceSet,
-    CompetenceZone,
-    CompetenceZoneRule,
     Contract,
     Country,
     EvaluationCriterion,
@@ -44,6 +53,7 @@ from .models import (
     VendorService,
     category_scope_ids,
 )
+from .widgets import CompetenceAreaField
 
 # ============================================================================
 # Admin Geografici (Nazione, Regione, Provincia)
@@ -106,66 +116,6 @@ class ProvinceAdmin(admin.ModelAdmin):
         return obj.region.country.name
 
     region_country.short_description = _("Nazione")
-
-
-# ============================================================================
-# Admin Zone di Competenza
-# ============================================================================
-
-
-class CompetenceZoneRuleInline(admin.TabularInline):
-    model = CompetenceZoneRule
-    extra = 1
-    fields = ["rule_type", "country", "region", "province"]
-    autocomplete_fields = ["country", "region", "province"]
-
-
-@admin.register(CompetenceZone)
-class CompetenceZoneAdmin(admin.ModelAdmin):
-    list_display = [
-        "name",
-        "rules_summary",
-        "is_active",
-        "vendor_count",
-        "created_at",
-    ]
-    list_filter = ["is_active"]
-    search_fields = ["name", "description"]
-    readonly_fields = ["created_at", "updated_at", "rules_summary"]
-    inlines = [CompetenceZoneRuleInline]
-
-    fieldsets = (
-        (
-            _("Informazioni Base"),
-            {"fields": ("name", "description", "is_active")},
-        ),
-        (
-            _("Riepilogo"),
-            {"fields": ("rules_summary",), "classes": ("collapse",)},
-        ),
-        (
-            _("Metadata"),
-            {"fields": ("created_at", "updated_at"), "classes": ("collapse",)},
-        ),
-    )
-
-    def vendor_count(self, obj):
-        return obj.vendors.count()
-
-    vendor_count.short_description = _("N. Fornitori")
-
-
-@admin.register(CompetenceZoneRule)
-class CompetenceZoneRuleAdmin(admin.ModelAdmin):
-    list_display = ["zone", "rule_type", "geographic_target", "level"]
-    list_filter = ["rule_type", "zone"]
-    search_fields = [
-        "zone__name",
-        "country__name",
-        "region__name",
-        "province__name",
-    ]
-    autocomplete_fields = ["zone", "country", "region", "province"]
 
 
 # Category Admin
@@ -1049,11 +999,45 @@ class VendorAdminForm(forms.ModelForm):
     Il controllo resta a livello di form admin: non introduce vincoli a
     livello di modello/DB, per non impattare gli script di
     ``data_migration_scripts/`` che scrivono direttamente sul modello.
+
+    Ospita anche il selettore territoriale delle zone di competenza:
+    un campo composito che rimpiazza i due M2M reali nel form.
     """
+
+    competence_areas = CompetenceAreaField(
+        label=_("Zone di competenza"),
+        required=False,
+        help_text=_(
+            "Province italiane coperte e/o nazioni estere in cui il "
+            "fornitore opera. Una regione risulta coperta per intero "
+            "quando lo sono tutte le sue province."
+        ),
+    )
 
     class Meta:
         model = Vendor
-        fields = "__all__"
+        # I due M2M territoriali sono esclusi perche' li gestisce il campo
+        # composito `competence_areas`: lasciandoli, Django renderizzerebbe
+        # anche i loro widget di default accanto al selettore.
+        exclude = ("competence_provinces", "competence_countries")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance.pk:
+            self.fields["competence_areas"].initial = current_selection(
+                self.instance
+            )
+
+    def _save_m2m(self):
+        # Hook corretto per l'admin: `save(commit=False)` + `save_model()`
+        # + `save_related()` finiscono qui passando da `form.save_m2m()`.
+        super()._save_m2m()
+        selezione = self.cleaned_data.get("competence_areas") or {}
+        set_vendor_competence(
+            self.instance,
+            province_codes=selezione.get("provinces", []),
+            country_codes=selezione.get("countries", []),
+        )
 
     def _check_duplicate(self, value, label, lookup):
         from django.urls import reverse
@@ -1114,6 +1098,7 @@ class VendorAdmin(admin.ModelAdmin):
         "vendor_final_evaluation",
         "embyon_active",
         "qualification_score",
+        "competence_areas_display",
     ]
     list_filter = [
         "qualification_status",
@@ -1124,7 +1109,16 @@ class VendorAdmin(admin.ModelAdmin):
         "embyon_company",
         "embyon_active",
         "managed_by",
+        # Zone di competenza, a cascata: la Regione mostra solo quelle
+        # della Nazione scelta, la Provincia solo quelle della Regione
+        # scelta.
+        CompetenceCountryFilter,
+        CompetenceRegionFilter,
+        CompetenceProvinceFilter,
     ]
+    # Mancava: `list_display` include `category`, quindi senza questo la
+    # changelist faceva una query per riga.
+    list_select_related = ("category", "managed_by")
     search_fields = [
         "vendor_code",
         "old_code",
@@ -1154,7 +1148,6 @@ class VendorAdmin(admin.ModelAdmin):
         "category",
         "qualification_type",
         "managed_by",
-        "competence_zones",
     ]
     inlines = [
         VendorServiceInline,
@@ -1164,6 +1157,16 @@ class VendorAdmin(admin.ModelAdmin):
         VendorEvaluationInline,
         VendorOperationalAttributesInline,
     ]
+
+    def get_queryset(self, request):
+        # La colonna "Zone di competenza" legge i due M2M: senza prefetch
+        # sarebbero due query per riga.
+        return prefetch_competence(super().get_queryset(request))
+
+    def competence_areas_display(self, obj):
+        return competence_summary(obj)
+
+    competence_areas_display.short_description = _("Zone di competenza")
 
     def get_form(self, request, obj=None, **kwargs):
         # Salva l'oggetto corrente per usarlo negli inline
@@ -1545,7 +1548,7 @@ class VendorAdmin(admin.ModelAdmin):
                     "fiscal_code",
                     "qualification_type",
                     "category",
-                    "competence_zones",
+                    "competence_areas",
                     "first_supply_date",
                     "vendor_final_evaluation",
                     "risk_level",

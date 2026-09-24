@@ -10,7 +10,6 @@ from vendor_management_system.vendors.dashboard_views import (
 from vendor_management_system.vendors.views import (
     AddressViewSet,
     CategoryViewSet,
-    CompetenceZoneViewSet,
     CountryViewSet,
     ProvinceViewSet,
     RegionViewSet,
@@ -155,20 +154,5 @@ urlpatterns = [
         "provinces/",
         ProvinceViewSet.as_view({"get": "list"}),
         name="provinces--list",
-    ),
-    # =========================================================================
-    # Competence Zone endpoints (Zone di Competenza)
-    # =========================================================================
-    path(
-        "competence-zones/",
-        CompetenceZoneViewSet.as_view({"get": "list", "post": "create"}),
-        name="competence-zones--list-create",
-    ),
-    path(
-        "competence-zones/<uuid:zone_id>/",
-        CompetenceZoneViewSet.as_view(
-            {"get": "retrieve", "put": "update", "delete": "destroy"}
-        ),
-        name="competence-zones--detail",
     ),
 ]

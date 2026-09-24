@@ -5,8 +5,6 @@ from rest_framework.serializers import ModelSerializer, ValidationError
 from vendor_management_system.vendors.models import (
     Address,
     Category,
-    CompetenceZone,
-    CompetenceZoneRule,
     Country,
     Province,
     Region,
@@ -130,119 +128,6 @@ class RegionTreeSerializer(ModelSerializer):
             "sort_order", "name"
         )
         return ProvinceCompactSerializer(provinces, many=True).data
-
-
-# ============================================================================
-# Serializers Zone di Competenza
-# ============================================================================
-
-
-class CompetenceZoneRuleSerializer(ModelSerializer):
-    geographic_target = serializers.ReadOnlyField()
-    level = serializers.ReadOnlyField()
-    country_name = serializers.CharField(source="country.name", read_only=True)
-    region_name = serializers.CharField(source="region.name", read_only=True)
-    province_name = serializers.CharField(
-        source="province.name", read_only=True
-    )
-
-    class Meta:
-        model = CompetenceZoneRule
-        fields = [
-            "id",
-            "rule_type",
-            "country",
-            "country_name",
-            "region",
-            "region_name",
-            "province",
-            "province_name",
-            "geographic_target",
-            "level",
-        ]
-        read_only_fields = ["id"]
-
-    def validate(self, data):
-        filled = sum(
-            [
-                data.get("country") is not None,
-                data.get("region") is not None,
-                data.get("province") is not None,
-            ]
-        )
-        if filled == 0:
-            raise ValidationError(
-                "Selezionare almeno una tra Nazione, Regione o Provincia."
-            )
-        if filled > 1:
-            raise ValidationError(
-                "Selezionare solo una tra Nazione, Regione o Provincia "
-                "per ogni regola."
-            )
-        return data
-
-
-class CompetenceZoneSerializer(ModelSerializer):
-    rules = CompetenceZoneRuleSerializer(many=True, read_only=True)
-    rules_summary = serializers.ReadOnlyField()
-    vendor_count = serializers.SerializerMethodField()
-
-    class Meta:
-        model = CompetenceZone
-        fields = [
-            "id",
-            "name",
-            "description",
-            "is_active",
-            "rules",
-            "rules_summary",
-            "vendor_count",
-            "created_at",
-            "updated_at",
-        ]
-        read_only_fields = ["id", "created_at", "updated_at"]
-
-    def get_vendor_count(self, obj):
-        return obj.vendors.count()
-
-
-class CompetenceZoneCompactSerializer(ModelSerializer):
-    rules_summary = serializers.ReadOnlyField()
-
-    class Meta:
-        model = CompetenceZone
-        fields = ["id", "name", "rules_summary"]
-
-
-class CompetenceZoneCreateUpdateSerializer(ModelSerializer):
-    """Serializer per creare/aggiornare zone di competenza con regole inline"""
-
-    rules = CompetenceZoneRuleSerializer(many=True, required=False)
-
-    class Meta:
-        model = CompetenceZone
-        fields = ["name", "description", "is_active", "rules"]
-
-    def create(self, validated_data):
-        rules_data = validated_data.pop("rules", [])
-        zone = CompetenceZone.objects.create(**validated_data)
-        for rule_data in rules_data:
-            CompetenceZoneRule.objects.create(zone=zone, **rule_data)
-        return zone
-
-    def update(self, instance, validated_data):
-        rules_data = validated_data.pop("rules", None)
-        for attr, value in validated_data.items():
-            setattr(instance, attr, value)
-        instance.save()
-
-        if rules_data is not None:
-            # Rimuove le regole esistenti e ricrea
-            instance.rules.all().delete()
-            for rule_data in rules_data:
-                CompetenceZoneRule.objects.create(zone=instance, **rule_data)
-
-        return instance
 
 
 # Serializer per Category
@@ -551,8 +436,11 @@ class VendorSerializer(ModelSerializer):
     category_id = serializers.UUIDField(
         write_only=True, required=False, allow_null=True
     )
-    competence_zones = CompetenceZoneCompactSerializer(
-        many=True, read_only=True
+    competence_provinces = serializers.SlugRelatedField(
+        slug_field="code", many=True, read_only=True
+    )
+    competence_countries = serializers.SlugRelatedField(
+        slug_field="code", many=True, read_only=True
     )
 
     class Meta:
@@ -591,8 +479,8 @@ class VendorSerializer(ModelSerializer):
             "category",
             "category_id",
             "risk_level",
-            "competences_zone",
-            "competence_zones",
+            "competence_provinces",
+            "competence_countries",
             # Contractual information
             "contractual_status",
             "contractual_start_date",
@@ -849,8 +737,11 @@ class CategoryStatsSerializer(ModelSerializer):
 # Serializer per vendor qualification
 class VendorQualificationSerializer(ModelSerializer):
     category = CategoryCompactSerializer(read_only=True)
-    competence_zones = CompetenceZoneCompactSerializer(
-        many=True, read_only=True
+    competence_provinces = serializers.SlugRelatedField(
+        slug_field="code", many=True, read_only=True
+    )
+    competence_countries = serializers.SlugRelatedField(
+        slug_field="code", many=True, read_only=True
     )
 
     class Meta:
@@ -865,14 +756,15 @@ class VendorQualificationSerializer(ModelSerializer):
             "qualification_expiry",
             "vendor_final_evaluation",
             "risk_level",
-            "competences_zone",
-            "competence_zones",
+            "competence_provinces",
+            "competence_countries",
         ]
         read_only_fields = [
             "vendor_code",
             "name",
             "category",
-            "competence_zones",
+            "competence_provinces",
+            "competence_countries",
         ]
 
     def validate(self, data):

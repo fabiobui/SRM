@@ -22,6 +22,10 @@ from django import forms
 from django.utils.translation import gettext_lazy as _
 
 from vendor_management_system.documents.models import Document
+from vendor_management_system.vendors.competence import (
+    current_selection,
+    format_selection,
+)
 from vendor_management_system.vendors.models import (
     ServiceType,
     Vendor,
@@ -30,8 +34,13 @@ from vendor_management_system.vendors.models import (
     VendorService,
     category_scope_ids,
 )
+from vendor_management_system.vendors.widgets import CompetenceAreaField
 
-from .models import EDITABLE_VENDOR_SERVICE_FIELDS, VendorChangeRequest
+from .models import (
+    COMPETENCE_AREAS_KEY,
+    EDITABLE_VENDOR_SERVICE_FIELDS,
+    VendorChangeRequest,
+)
 
 # Whitelist server-side: solo questi campi sono modificabili dal fornitore via
 # richiesta di modifica anagrafica. Campi identificativi/qualificativi/audit
@@ -205,6 +214,18 @@ class VendorProfileChangeForm(forms.ModelForm):
         ),
     )
 
+    # Come `address_text`: campo non-model, perché la copertura vive in due
+    # M2M che non sono serializzabili nel diff JSON.
+    competence_areas = CompetenceAreaField(
+        label=_("Zone di competenza"),
+        required=False,
+        help_text=_(
+            "Province italiane coperte e/o nazioni estere in cui operi. "
+            "Una regione risulta coperta per intero quando lo sono tutte "
+            "le sue province."
+        ),
+    )
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Snapshot PRIMA di is_valid(): il _post_clean() di Django muta
@@ -217,6 +238,12 @@ class VendorProfileChangeForm(forms.ModelForm):
         }
         self._old_address = format_address(self.instance.address)
         self.fields["address_text"].initial = self._old_address
+
+        self._old_areas = current_selection(self.instance)
+        self._old_areas_label = format_selection(
+            self._old_areas["provinces"], self._old_areas["countries"]
+        )
+        self.fields["competence_areas"].initial = self._old_areas
 
     def compute_diff(self) -> dict:
         """Calcola il diff fra il valore originale e quello proposto.
@@ -241,6 +268,37 @@ class VendorProfileChangeForm(forms.ModelForm):
         new_address = self.cleaned_data.get("address_text", "").strip()
         if self._old_address != new_address:
             diff["address"] = {"old": self._old_address, "new": new_address}
+
+        # Zone di competenza. In `changes` finiscono due cose:
+        # la frase leggibile in `old`/`new`, che i tre renderer generici
+        # del diff stampano cosi' com'e' senza bisogno di un template
+        # filter, e i codici in `old_codes`/`new_codes`, che sono la
+        # fonte macchina usata dall'approvazione. Le frasi vanno congelate
+        # qui e non ricalcolate a video: dopo l'approvazione `old` deve
+        # continuare a raccontare com'era allora. Tutto e' str/list[str]
+        # perche' `VendorChangeRequest.changes` e' un JSONField senza
+        # DjangoJSONEncoder.
+        nuove_aree = self.cleaned_data.get(COMPETENCE_AREAS_KEY) or {
+            "provinces": [],
+            "countries": [],
+        }
+        prima = (
+            set(self._old_areas["provinces"]),
+            set(self._old_areas["countries"]),
+        )
+        dopo = (set(nuove_aree["provinces"]), set(nuove_aree["countries"]))
+        if prima != dopo:
+            diff[COMPETENCE_AREAS_KEY] = {
+                "old": self._old_areas_label,
+                "new": format_selection(
+                    nuove_aree["provinces"], nuove_aree["countries"]
+                ),
+                "old_codes": self._old_areas,
+                "new_codes": {
+                    "provinces": sorted(nuove_aree["provinces"]),
+                    "countries": sorted(nuove_aree["countries"]),
+                },
+            }
 
         return diff
 

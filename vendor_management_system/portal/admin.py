@@ -12,6 +12,14 @@ from .models import VendorChangeRequest
 # modelli "vendors" spostati in Services/Competences.
 
 
+# Etichette leggibili per le chiavi del diff che non corrispondono a
+# un campo del modello.
+ETICHETTE_CAMPO = {
+    "address": "Indirizzo",
+    "competence_areas": "Zone di competenza",
+}
+
+
 @admin.register(VendorChangeRequest)
 class VendorChangeRequestAdmin(admin.ModelAdmin):
     list_display = (
@@ -66,6 +74,9 @@ class VendorChangeRequestAdmin(admin.ModelAdmin):
     status_badge.short_description = "Stato"
 
     def changes_pretty(self, obj):
+        # Le chiavi "virtuali" del diff (address, competence_areas) non
+        # sono campi del modello: senza mappa apparirebbero col loro nome
+        # tecnico.
         if not obj.changes:
             return "—"
         rows_args = []
@@ -76,7 +87,8 @@ class VendorChangeRequestAdmin(admin.ModelAdmin):
                 if isinstance(payload, dict)
                 else payload
             )
-            rows_args.append((field, old or "—", new or "—"))
+            etichetta = ETICHETTE_CAMPO.get(field, field)
+            rows_args.append((etichetta, old or "—", new or "—"))
         rows_html = format_html_join(
             "",
             "<tr><td><code>{}</code></td>"

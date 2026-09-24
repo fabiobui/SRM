@@ -1,6 +1,15 @@
 """
 Script per importare Nazioni (europee principali), Regioni e Province italiane.
 
+DEPRECATO: usare `python manage.py seed_geography`, che fa la
+stessa cosa leggendo le fixture `vendors/fixtures/geography_italy.json` e
+`geography_countries.json`, è idempotente, non sovrascrive `is_active` e
+`sort_order` personalizzati da admin, e viene eseguito automaticamente ad
+ogni deploy da `compose/django/start`. La geografia è inoltre seminata dalla
+data migration `vendors/0041_seed_geography`, perché è il prerequisito delle
+zone di competenza dei fornitori. Questo script resta solo come riferimento
+storico dei dati di partenza.
+
 Uso:
     python manage.py shell < vendor_management_system/import_geography.py
     oppure:

@@ -71,8 +71,8 @@ che, al click, attiva/disattiva una voce nell'oggetto `activeFilters` descritto 
 |---|---|---|
 | `vendorTypeChart` | `vendor_type` | `vendor_types` (array) |
 | `serviceTypeChart` (etichettato "Consulenti ICO") | `is_ico_consultant` | `ico_consultant` (tri-stato: `null`/`true`/`false`) |
-| `regionChart` | `address.region` | `regions` (array) |
-| `provinceChart` | `address.state_province` (solo all'interno delle regioni selezionate) | `provinces` (array) |
+| `regionChart` (etichettato "Regioni") | regioni di **competenza** (`vendor.competence.regions`) | `regions` (array di nomi) |
+| `provinceChart` | province di **competenza** (solo all'interno delle regioni selezionate) | `provinces` (array di nomi) |
 | `qualificheChart` | `Competence` dove `VendorCompetence.is_qualifica=True` | `qualifiche` (array) |
 | `competenzeChart` | `Competence` dove `VendorCompetence.is_competenza=True` | `competenze_req` (array) |
 | `serviceCategoriesChart` | `ServiceType` di primo livello (`parent__isnull=True`) | `service_categories` (array) |
@@ -129,8 +129,8 @@ aggiornata):
 | `is_ico_consultant` | Consulente ICO | boolean | |
 | `contractual_status` | Stato Contrattuale | select | `00` Da verificare, `02` Fare RAI, `03` RAI Effettuata, `04` Contrattualizzato, `05` Da contrattualizzare ad esigenza, `06` Contratto Scaduto, `99` Non Usare |
 | `address.city` | Città | text | annidato — i fornitori senza indirizzo non corrispondono mai |
-| `address.region` | Regione | text | annidato |
-| `address.state_province` | Provincia | text | annidato |
+| `address.region` | Regione (sede) | text | annidato |
+| `address.state_province` | Provincia (sede) | text | annidato |
 | `address.country` | Paese | text | annidato |
 | `category.name` | Categoria | text | annidato |
 | `service_type.name` | Tipo Servizio | text | annidato — corrisponde solo al servizio *primario* del fornitore |
@@ -208,8 +208,9 @@ Pulsante: "Esporta Excel" verde (in basso a destra, posizione fissa) → `GET /v
 
 | Param | Maps to |
 |---|---|
-| `regions` | `address__region__in` |
-| `provinces` | `address__state_province__in` |
+| `comp_regions` | fornitori che coprono quelle regioni (codici, es. `LOM,VEN`) |
+| `comp_provinces` | fornitori che coprono quelle province (sigle, es. `MI,RA`) |
+| `comp_countries` | fornitori che coprono quelle nazioni (codici ISO, es. `FR`) |
 | `vendor_types` | `vendor_type__in` |
 | `ico_consultant` | `true`/`false` → `is_ico_consultant` |
 | `competencies` | `competences__name__in` |
@@ -220,13 +221,18 @@ Pulsante: "Esporta Excel" verde (in basso a destra, posizione fissa) → `GET /v
 | `services` | `vendor_services__service_type__name__in` |
 | `search` | stessa logica di corrispondenza per sottostringa del §4, applicata lato server (`vendor_code`, `name`, `email`) |
 
+> **Cambio incompatibile**: i vecchi parametri `regions` e `provinces` filtravano per *nome* sulla
+> **sede** del fornitore (`address__region` / `address__state_province`) e non esistono più. Al loro posto ci
+> sono `comp_regions`/`comp_provinces`/`comp_countries`, che filtrano per *codice* sulle **zone di competenza**.
+> Vecchi link o bookmark dell'export che usavano i nomi smettono di filtrare (senza errori).
+
 Esistono anche parametri "legacy" ancora gestiti per retrocompatibilità, provenienti da una versione precedente
 della dashboard: `category`, `qualification_status`, `risk_level`, `service_type` — nessuno di questi viene mai
 inviato dal template/JS attuale, ma l'endpoint continua ad accettarli se si costruisce l'URL a mano.
 
 - **Colonne esportate** (codice attuale — molto più ridotto delle "22 colonne" pubblicizzate dai vecchi
   documenti, che descrivevano una versione precedente di questo endpoint): **Nome, Tipo, Email, Telefono,
-  Regione, Provincia, Valutazione Complessiva**. Nessun codice fornitore, nessuna Partita IVA/Codice Fiscale,
+  Regione, Provincia, Valutazione Complessiva, Zone di Competenza, Province Competenza**. Nessun codice fornitore, nessuna Partita IVA/Codice Fiscale,
   nessun indirizzo (via/CAP), nessuna metrica di performance oltre alla valutazione finale. Se serve un export
   più completo, `export_vendors_excel` è il punto in cui estenderlo.
 - **File**: foglio singolo "Fornitori", riga di intestazione in grassetto bianco su sfondo blu, colonne a

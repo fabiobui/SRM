@@ -136,16 +136,24 @@
         <div class="row mb-4">
             <div class="col-lg-6 mb-3">
                 <div class="chart-container">
-                    <h5 class="mb-3">Fornitori per Regione</h5>
+                    <h5 class="mb-1">Regioni</h5>
+                    <p class="text-muted small mb-3">
+                        Zone di competenza, non sede. Un fornitore attivo in più regioni
+                        è conteggiato in ognuna, quindi la somma delle barre è maggiore
+                        del numero di fornitori.
+                    </p>
                     <canvas id="regionChart" class="chart-clickable"></canvas>
                 </div>
             </div>
             <div class="col-lg-6 mb-3">
                 <div class="chart-container">
-                    <h5 class="mb-3">
+                    <h5 class="mb-1">
                         Province
                         <span id="province-region-badge" class="badge bg-info ms-2" style="display: none;"></span>
                     </h5>
+                    <p class="text-muted small mb-3">
+                        Province di competenza del fornitore.
+                    </p>
                     <canvas id="provinceChart" class="chart-clickable"></canvas>
                 </div>
             </div>

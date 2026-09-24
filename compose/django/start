@@ -25,6 +25,14 @@ python manage.py migrate
 # catalogo che altri collegano insieme). `populate_competences` è escluso:
 # usa una codifica diversa da quella già a catalogo e duplicherebbe
 # requisiti esistenti — richiede un intervento dedicato, non automatico.
+
+# Il catalogo geografico (nazioni, regioni, province) è il prerequisito
+# delle zone di competenza dei fornitori: senza, il selettore territoriale
+# nell'admin e nel portale è vuoto. Viene seminato anche da una data
+# migration (vendors/0041), perché `migrate` gira prima di questi comandi
+# e la migrazione di travaso delle vecchie zone ha bisogno delle province
+# già in tabella; qui serve per i re-seed degli ambienti già migrati.
+python manage.py seed_geography --create-only
 python manage.py populate_document_types --create-only
 python manage.py seed_competence_sets --create-only
 python manage.py seed_service_sets --create-only

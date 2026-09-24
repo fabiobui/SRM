@@ -35,9 +35,8 @@
     - 14.2 [Tipologie / Servizi](#142-tipologie--servizi)
     - 14.3 [Titoli di Studio](#143-titoli-di-studio)
     - 14.4 [Nazioni, Regioni e Province](#144-nazioni-regioni-e-province)
-    - 14.5 [Zone di Competenza](#145-zone-di-competenza)
-    - 14.6 [Criteri e Frequenze di Valutazione](#146-criteri-e-frequenze-di-valutazione)
-    - 14.7 [Valutatori](#147-valutatori)
+    - 14.5 [Criteri e Frequenze di Valutazione](#145-criteri-e-frequenze-di-valutazione)
+    - 14.6 [Valutatori](#146-valutatori)
 
 ---
 
@@ -105,7 +104,7 @@ Questa è la prima sezione del form, contiene i dati identificativi del fornitor
 | 7 | **Codice Fiscale** | No | Codice fiscale |
 | 8 | **Titolo di Studio / Tipo di Qualifica** | No | Titolo di studio o tipo di qualifica del fornitore |
 | 9 | **Categoria** | No | Categoria merceologica di appartenenza |
-| 10 | **Zone di Competenza** | No | Una o più zone geografiche di operatività (autocomplete; vedi [§14.5](#145-zone-di-competenza)) |
+| 10 | **Zone di competenza** | No | Territori in cui il fornitore opera, scelti con un selettore ad albero Nazione → Regione → Provincia (vedi [§14.4](#144-nazioni-regioni-e-province)) |
 | 11 | **Valutazione Finale del Fornitore** | No | `Da Valutare`, `Negativo`, `Positivo`, `Molto Positivo` |
 | 12 | **Livello di Affidabilità/Rischio** | No | `Basso`, `Medio` o `Alto` |
 | 13 | **Bloccato in Embyon** | No | Spuntare se il fornitore risulta bloccato lato Embyon |
@@ -469,7 +468,7 @@ Ogni valutazione associa un **criterio** a un **punteggio**:
 
 | Campo | Descrizione |
 |-------|-------------|
-| **Criterio** | Selezionare dal catalogo (vedi [§14.6](#146-criteri-e-frequenze-di-valutazione)) |
+| **Criterio** | Selezionare dal catalogo (vedi [§14.5](#145-criteri-e-frequenze-di-valutazione)) |
 | **Punteggio** | Scala da 1 a 8 |
 | **Valutatore** | Chi ha effettuato la valutazione |
 | **Frequenza** | Ogni quanti mesi ripetere la valutazione |
@@ -612,38 +611,49 @@ Catalogo dei titoli di studio con livello EQF. Struttura gerarchica (genitore �
 
 **Vendors → Nazioni / Regioni / Province**
 
-Dati geografici usati per gli indirizzi e le zone di competenza.
+Dati geografici usati dalle zone di competenza dei fornitori.
 
 - Le **Nazioni** hanno un codice ISO a 3 lettere
 - Le **Regioni** sono collegate a una nazione
 - Le **Province** sono collegate a una regione (sigla provincia)
 
+Il catalogo è **seminato automaticamente ad ogni deploy** (comando
+`seed_geography`, più una data migration che lo anticipa): non va
+popolato a mano. Il seeding crea solo ciò che manca e non sovrascrive
+mai `È Attiva` e `Ordine`, che puoi quindi personalizzare —
+disattivare una provincia la fa sparire dal selettore, e l'`Ordine`
+decide in che sequenza compaiono le voci.
+
+#### Come si assegnano le zone a un fornitore
+
+Nella scheda fornitore, tab **Informazioni Base**, il campo **Zone di
+competenza** mostra un albero a cascata:
+
+- spunta le singole **province** italiane che il fornitore copre;
+- la casella di una **regione** è derivata: appare piena quando tutte
+  le sue province sono selezionate e a trattino quando lo sono solo
+  alcune. Cliccandola selezioni o deselezioni l'intera regione in un
+  colpo;
+- le **nazioni estere** (che a catalogo non hanno regioni e province)
+  si selezionano solo a livello di nazione, nel riquadro
+  *Altre nazioni*;
+- ogni livello ha i comandi *Seleziona tutto* / *Deseleziona tutto*, e
+  in alto c'è una casella di ricerca per trovare rapidamente una
+  provincia.
+
+In cima alla lista fornitori tre filtri a cascata — **Competenza:
+Nazione**, **Regione**, **Provincia** — permettono di estrarre chi
+opera in un territorio; scegliendo una nazione l'elenco delle regioni
+si restringe, e così via.
+
+Anche il fornitore può proporre le proprie zone dal portale
+(*Anagrafica → Proponi modifiche*): la proposta arriva al back office
+come ogni altra modifica anagrafica e diventa effettiva solo dopo
+l'approvazione.
+
 ---
 
-### 14.5 Zone di Competenza
-
-**Vendors → Zone di Competenza**
-
-Ogni zona è definita da un insieme di **regole** che includono o escludono aree geografiche:
-
-| Tipo Regola | Effetto |
-|-------------|---------|
-| **INCLUDE** | L'area è coperta dalla zona |
-| **EXCLUDE** | L'area è esclusa dalla zona |
-
-Le regole possono operare a livello di Nazione, Regione o Provincia.
-
-**Esempio:** una zona "Nord Italia" potrebbe avere:
-- INCLUDE → Regione Lombardia
-- INCLUDE → Regione Piemonte
-- INCLUDE → Regione Veneto
-- EXCLUDE → Provincia di Belluno
-
-<!-- 📸 SCREENSHOT: Scheda zona di competenza con regole inline -->
-
----
-
-### 14.6 Criteri e Frequenze di Valutazione
+### 14.5 Criteri e Frequenze di Valutazione
 
 **Vendors → Criteri di Valutazione**
 
@@ -664,7 +674,7 @@ Definiscono ogni quanti mesi ripetere la valutazione (es. 6, 12, 24 mesi).
 
 ---
 
-### 14.7 Valutatori
+### 14.6 Valutatori
 
 **Vendors → Valutatori**
 

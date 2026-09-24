@@ -17,6 +17,13 @@ EDITABLE_VENDOR_SERVICE_FIELDS = (
     "notes",
 )
 
+# Chiave "virtuale" del diff per le zone di competenza: non
+# corrisponde a un campo del Vendor, come gia' avviene per "address". La
+# copertura vive in due M2M, che non sono assegnabili con `setattr` ne'
+# serializzabili in JSON, quindi viaggia come codici nel diff e viene
+# applicata da `_apply_competence_areas`.
+COMPETENCE_AREAS_KEY = "competence_areas"
+
 
 class VendorChangeRequest(models.Model):
     """Richiesta di modifica dell'anagrafica, di un servizio esistente, o di
@@ -175,7 +182,9 @@ class VendorChangeRequest(models.Model):
           un caso speciale solo quando il target è il `Vendor`:
           `Vendor.address` è una FK a un modello strutturato, quindi il
           testo libero proposto viene scritto sull'`Address` collegato
-          (creandolo se assente) invece di un `setattr` diretto.
+          (creandolo se assente) invece di un `setattr` diretto. Lo stesso
+          vale per "competence_areas": sono due M2M, che si scrivono con
+          `set()` e solo dopo il `save()` del target.
         """
         if self.status != self.STATUS_PENDING:
             raise ValueError(
@@ -188,6 +197,7 @@ class VendorChangeRequest(models.Model):
             self._delete_vendor_service()
         else:
             target = self.target
+            aree_da_applicare = None
             for field, payload in (self.changes or {}).items():
                 new_value = (
                     payload.get("new")
@@ -197,10 +207,22 @@ class VendorChangeRequest(models.Model):
                 if field == "address" and target is self.vendor:
                     self._apply_address(new_value)
                     continue
+                if field == COMPETENCE_AREAS_KEY and target is self.vendor:
+                    # Attenzione: questo ramo deve restare PRIMA della
+                    # guardia `hasattr` qui sotto. `competence_areas` non
+                    # e' un attributo del Vendor, quindi finendo dopo la
+                    # guardia la modifica verrebbe scartata in silenzio:
+                    # richiesta APPROVED, zone invariate, nessun errore.
+                    aree_da_applicare = payload
+                    continue
                 if not hasattr(target, field):
                     continue
                 setattr(target, field, new_value)
             target.save()
+            if aree_da_applicare is not None:
+                # Dopo il save(): un M2M si scrive solo su un'istanza gia'
+                # persistita.
+                self._apply_competence_areas(aree_da_applicare)
 
         self.status = self.STATUS_APPROVED
         self.reviewed_at = timezone.now()
@@ -267,6 +289,29 @@ class VendorChangeRequest(models.Model):
             vendor.address = Address.objects.create(
                 street_address=new_text or ""
             )
+
+    def _apply_competence_areas(self, payload):
+        """Applica la copertura territoriale proposta.
+
+        I due M2M (`competence_provinces`, `competence_countries`) non sono
+        assegnabili con `setattr` - solleverebbe "Direct assignment to the
+        forward side of a many-to-many set is prohibited" - e vanno scritti
+        con `set()` dopo che il Vendor e' stato salvato.
+
+        I codici sono quelli congelati nel diff al momento della proposta:
+        quelli nel frattempo cancellati o disattivati vengono scartati da
+        `set_vendor_competence`, senza far fallire l'approvazione.
+        """
+        from vendor_management_system.vendors.competence import (
+            set_vendor_competence,
+        )
+
+        codici = (payload or {}).get("new_codes") or {}
+        set_vendor_competence(
+            self.vendor,
+            province_codes=codici.get("provinces") or [],
+            country_codes=codici.get("countries") or [],
+        )
 
     def reject(self, reviewer, notes: str = ""):
         if self.status != self.STATUS_PENDING:

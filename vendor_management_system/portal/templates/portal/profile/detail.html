@@ -83,6 +83,17 @@
 
             <dt class="col-sm-3">Indirizzo</dt>
             <dd class="col-sm-9">{{ vendor.address|default:"—" }}</dd>
+
+            <dt class="col-sm-3">Zone di competenza</dt>
+            <dd class="col-sm-9">
+                {% if competence_areas_summary %}
+                    <ul class="list-unstyled mb-0">
+                        {% for riga in competence_areas_summary %}
+                            <li>{{ riga }}</li>
+                        {% endfor %}
+                    </ul>
+                {% else %}—{% endif %}
+            </dd>
         </dl>
     </div>
 </div>

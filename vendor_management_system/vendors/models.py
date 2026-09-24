@@ -106,168 +106,6 @@ class Province(models.Model):
         return f"{self.name} ({self.code})"
 
 
-# ============================================================================
-# Modello Zona di Competenza
-# ============================================================================
-
-
-class CompetenceZone(models.Model):
-    """
-    Zona di competenza geografica, definita tramite regole di
-    inclusione/esclusione a livello di Nazione, Regione o Provincia.
-
-    Esempi:
-    - "Tutta l'Italia" → 1 regola: INCLUDE Nazione=Italia
-    - "Italia escluse isole" → INCLUDE Italia + EXCLUDE Sicilia + EXCLUDE
-      Sardegna
-    - "Lombardia e Veneto" → INCLUDE Lombardia + INCLUDE Veneto
-    - "Lombardia e Ravenna" → INCLUDE Lombardia + INCLUDE Provincia Ravenna
-    """
-
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    name = models.CharField(
-        _("Nome Zona"),
-        max_length=255,
-        unique=True,
-        help_text=_(
-            "Nome descrittivo della zona (es. 'Tutta l'Italia', 'Nord Italia')"
-        ),
-    )
-    description = models.TextField(
-        _("Descrizione"),
-        blank=True,
-        null=True,
-        help_text=_("Descrizione dettagliata della zona di competenza"),
-    )
-    is_active = models.BooleanField(_("È Attiva"), default=True)
-    created_at = models.DateTimeField(_("Creato il"), auto_now_add=True)
-    updated_at = models.DateTimeField(_("Aggiornato il"), auto_now=True)
-
-    class Meta:
-        verbose_name = _("Zona di Competenza")
-        verbose_name_plural = _("Zone di Competenza")
-        ordering = ["name"]
-
-    def __str__(self):
-        return self.name
-
-    @property
-    def rules_summary(self):
-        """Ritorna un riepilogo testuale delle regole"""
-        parts = []
-        for rule in self.rules.all().order_by("rule_type"):
-            prefix = "+" if rule.rule_type == "INCLUDE" else "-"
-            parts.append(f"{prefix} {rule.geographic_target}")
-        return "; ".join(parts) if parts else _("Nessuna regola definita")
-
-
-class CompetenceZoneRule(models.Model):
-    """
-    Singola regola di inclusione/esclusione per una zona di competenza.
-    Esattamente uno tra country, region e province deve essere valorizzato.
-    """
-
-    RULE_TYPE_CHOICES = [
-        ("INCLUDE", _("Includi")),
-        ("EXCLUDE", _("Escludi")),
-    ]
-
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    zone = models.ForeignKey(
-        CompetenceZone,
-        verbose_name=_("Zona di Competenza"),
-        on_delete=models.CASCADE,
-        related_name="rules",
-    )
-    rule_type = models.CharField(
-        _("Tipo Regola"),
-        max_length=10,
-        choices=RULE_TYPE_CHOICES,
-        default="INCLUDE",
-        help_text=_("Includi o escludi questa area geografica"),
-    )
-    country = models.ForeignKey(
-        Country,
-        verbose_name=_("Nazione"),
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True,
-        related_name="zone_rules",
-        help_text=_("Seleziona per regola a livello nazionale"),
-    )
-    region = models.ForeignKey(
-        Region,
-        verbose_name=_("Regione"),
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True,
-        related_name="zone_rules",
-        help_text=_("Seleziona per regola a livello regionale"),
-    )
-    province = models.ForeignKey(
-        Province,
-        verbose_name=_("Provincia"),
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True,
-        related_name="zone_rules",
-        help_text=_("Seleziona per regola a livello provinciale"),
-    )
-
-    class Meta:
-        verbose_name = _("Regola Zona di Competenza")
-        verbose_name_plural = _("Regole Zone di Competenza")
-        ordering = ["rule_type", "id"]
-
-    def __str__(self):
-        return f"{self.get_rule_type_display()} {self.geographic_target}"
-
-    @property
-    def geographic_target(self):
-        """Ritorna la descrizione dell'area geografica di questa regola"""
-        if self.province:
-            return f"Provincia: {self.province.name}"
-        elif self.region:
-            return f"Regione: {self.region.name}"
-        elif self.country:
-            return f"Nazione: {self.country.name}"
-        return _("Non definito")
-
-    @property
-    def level(self):
-        """Ritorna il livello geografico della regola"""
-        if self.province:
-            return "PROVINCE"
-        elif self.region:
-            return "REGION"
-        elif self.country:
-            return "COUNTRY"
-        return None
-
-    def clean(self):
-        """Valida che esattamente uno dei 3 livelli sia valorizzato"""
-        from django.core.exceptions import ValidationError
-
-        filled = sum(
-            [
-                self.country_id is not None,
-                self.region_id is not None,
-                self.province_id is not None,
-            ]
-        )
-        if filled == 0:
-            raise ValidationError(
-                _("Selezionare almeno una tra Nazione, Regione o Provincia.")
-            )
-        if filled > 1:
-            raise ValidationError(
-                _(
-                    "Selezionare solo una tra Nazione, Regione o Provincia "
-                    "per ogni regola."
-                )
-            )
-
-
 # Nuovo Model per Category
 class Category(models.Model):
     """
@@ -1947,22 +1785,32 @@ class Vendor(models.Model):
         related_name="vendors",
         help_text=_("Categoria merceologica del fornitore"),
     )
-    competences_zone = models.CharField(
-        _("Zona Competenze"),
-        max_length=255,
+    # Copertura territoriale del fornitore. Le province sono
+    # l'unica verità: la copertura di una regione è DERIVATA (risulta
+    # coperta quando lo sono tutte le sue province), così non esistono due
+    # fonti in contraddizione. Le nazioni estere stanno in un campo a
+    # parte perché a catalogo non hanno regioni/province.
+    competence_provinces = models.ManyToManyField(
+        Province,
+        verbose_name=_("Province di competenza"),
         blank=True,
-        null=True,
+        related_name="competent_vendors",
         help_text=_(
-            "Zona geografica delle competenze del fornitore (campo legacy)"
+            "Province italiane in cui il fornitore opera. La copertura di "
+            "una regione è derivata: risulta selezionata quando lo sono "
+            "tutte le sue province."
         ),
     )
-    # Nuova relazione strutturata con Zone di Competenza
-    competence_zones = models.ManyToManyField(
-        CompetenceZone,
-        verbose_name=_("Zone di Competenza"),
+    competence_countries = models.ManyToManyField(
+        Country,
+        verbose_name=_("Nazioni estere di competenza"),
         blank=True,
-        related_name="vendors",
-        help_text=_("Zone di competenza geografica del fornitore"),
+        related_name="competent_vendors",
+        help_text=_(
+            "Nazioni senza articolazione in regioni/province a catalogo, "
+            "selezionabili solo a livello nazione. L'Italia non va mai "
+            "qui: la sua copertura si esprime con le province."
+        ),
     )
     first_supply_date = models.DateField(
         _("Data Prima Fornitura"),

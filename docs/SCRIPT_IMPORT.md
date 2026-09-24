@@ -5,7 +5,7 @@ file leggono, quali opzioni accettano e in che ordine vanno lanciati.
 
 Tutti gli script configurano Django da soli (`django.setup()` con
 `config.settings`): si lanciano come normali script Python, **non** servono
-`manage.py` né `manage.py shell`, con l'unica eccezione di `import_geography.py`.
+`manage.py` né `manage.py shell`. `import_geography.py` faceva eccezione, ma è **deprecato**: la geografia si semina con `python manage.py seed_geography` (vedi sotto).
 
 ---
 
@@ -100,8 +100,13 @@ o `riga`, il valore di quella colonna. Il campo richiede la migrazione
 
 **Colonne attese** (nomi tecnici dei campi `Vendor`):
 
+> La colonna `competences_zone` non viene più letta: il campo è stato
+> rimosso. Le zone di competenza si assegnano dall'admin o
+> dal portale fornitori; se il file la contiene viene semplicemente
+> ignorata.
+
 ```
-old_code, name, vat_number, email, phone, vendor_type, competences_zone,
+old_code, name, vat_number, email, phone, vendor_type,
 vendor_management_update, qualification_type, is_ico_consultant, albo_zucchetti,
 vendor_task_description, vendor_medical_service, mobile_device, ambulatory_service,
 laboratory_service, laboratory_independent, year_of_establishment,
@@ -398,14 +403,24 @@ colonne: `code`, `name`, `description`, `document_category`, `is_mandatory`,
 `is_active`, `sort_order`, `updated_at`, `instructions`. Aggiorna per `code` se
 esiste, altrimenti crea.
 
-### `import_geography.py`
+### `import_geography.py` — DEPRECATO
 
-Nazioni, regioni e province: **nessun file**, i dati sono nel sorgente. È l'unico
-che gira dentro la shell di Django:
+Nazioni, regioni e province. **Non usarlo più**: al suo posto c'è il management
+command `seed_geography`, che legge le stesse informazioni dalle fixture
+`vendors/fixtures/geography_italy.json` e `geography_countries.json`, è
+idempotente, non sovrascrive `is_active`/`sort_order` personalizzati da admin, e
+gira automaticamente ad ogni deploy da `compose/django/start`. La geografia è
+inoltre seminata dalla data migration `vendors/0041_seed_geography`, perché è il
+prerequisito delle zone di competenza dei fornitori e `migrate` viene
+eseguito prima dei comandi di seed.
 
 ```bash
-.venv/bin/python manage.py shell < vendor_management_system/import_geography.py
+python manage.py seed_geography              # riallinea nomi e ordinamento
+python manage.py seed_geography --create-only  # crea solo ciò che manca
 ```
+
+Lo script originale resta nel repo come riferimento storico dei dati di
+partenza.
 
 ---
 
