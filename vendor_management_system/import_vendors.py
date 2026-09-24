@@ -232,7 +232,6 @@ def import_vendors(
                     email=safe_str(row.get("email")),
                     phone=safe_str(row.get("phone")),
                     vendor_type=safe_str(row.get("vendor_type")),
-                    competences_zone=safe_str(row.get("competences_zone")),
                     vendor_management_update=safe_str(
                         row.get("vendor_management_update")
                     ),

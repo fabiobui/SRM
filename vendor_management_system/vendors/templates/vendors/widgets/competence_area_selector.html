@@ -1,0 +1,188 @@
+{% comment %}
+Selettore territoriale delle zone di competenza.
+
+Regola da non violare mai: hanno un attributo `name` SOLTANTO le foglie
+(province e nazioni estere). Le checkbox di regione e di nazione-con-regioni
+sono comandi dell'interfaccia e non vengono mai inviate al server, cosi' un
+errore nella logica tri-stato non puo' corrompere i dati salvati.
+
+Ogni <button> porta type="button" esplicito: senza, il default e' "submit" e
+static/admin/js/vendor_form_guard.js lo lascia passare, per cui un click su
+"Seleziona tutto" salverebbe il fornitore.
+
+Nessuna classe Bootstrap: l'admin usa Bootstrap 4 (jazzmin) e il portale
+Bootstrap 5. Tutto lo stile sta nelle classi vms-geo__* del CSS del widget.
+{% endcomment %}
+<div class="vms-geo" data-vms-geo data-geo-name="{{ widget.name }}">
+  <noscript>
+    <style>
+      .vms-geo__js-only { display: none !important; }
+      .vms-geo__children.is-collapsed { display: block !important; }
+    </style>
+  </noscript>
+
+  <div class="vms-geo__toolbar">
+    <input type="search" class="vms-geo__search vms-geo__js-only"
+           data-geo-search autocomplete="off"
+           placeholder="Cerca provincia, regione o nazione..."
+           aria-label="Filtra le aree territoriali">
+    <button type="button" class="vms-geo__btn vms-geo__js-only"
+            data-geo-action="select-all" data-geo-scope="root">
+      Seleziona tutto
+    </button>
+    <button type="button" class="vms-geo__btn vms-geo__js-only"
+            data-geo-action="clear-all" data-geo-scope="root">
+      Deseleziona tutto
+    </button>
+    <button type="button" class="vms-geo__btn vms-geo__js-only"
+            data-geo-action="only-selected" aria-pressed="false">
+      Mostra solo selezionate
+    </button>
+    <span class="vms-geo__counter" role="status" aria-live="polite"
+          data-geo-counter></span>
+  </div>
+
+  <div class="vms-geo__body">
+  {% if widget.tree_detailed %}
+  <ul class="vms-geo__list" role="group"
+      aria-label="Territori con articolazione in regioni e province">
+    {% for country in widget.tree_detailed %}
+    <li class="vms-geo__node vms-geo__node--country"
+        data-geo-node="country" data-geo-id="{{ country.code }}"
+        data-geo-text="{{ country.name|lower }} {{ country.code|lower }}">
+      <div class="vms-geo__row">
+        <button type="button" class="vms-geo__twisty vms-geo__js-only"
+                data-geo-twisty aria-expanded="false"
+                aria-controls="{{ widget.name }}-c-{{ country.code }}">
+          <span class="vms-geo__caret" aria-hidden="true"></span>
+          <span class="vms-geo__sr">Espandi {{ country.name }}</span>
+        </button>
+
+        {# Derivata: nessun name=, non viene mai inviata al server. #}
+        <input type="checkbox" class="vms-geo__cb vms-geo__js-only"
+               id="{{ widget.name }}-cb-c-{{ country.code }}"
+               data-geo-derived="country">
+        <label class="vms-geo__label"
+               for="{{ widget.name }}-cb-c-{{ country.code }}">
+          {{ country.name }}
+        </label>
+        <span class="vms-geo__badge" data-geo-badge></span>
+
+        <span class="vms-geo__cmds vms-geo__js-only">
+          <button type="button" class="vms-geo__btn vms-geo__btn--mini"
+                  data-geo-action="select-all" data-geo-scope="node">
+            Tutte le province
+          </button>
+          <button type="button" class="vms-geo__btn vms-geo__btn--mini"
+                  data-geo-action="clear-all" data-geo-scope="node">
+            Nessuna
+          </button>
+        </span>
+      </div>
+
+      <ul class="vms-geo__children is-collapsed" role="group"
+          id="{{ widget.name }}-c-{{ country.code }}">
+        {% for region in country.regions %}
+        <li class="vms-geo__node vms-geo__node--region"
+            data-geo-node="region" data-geo-id="{{ region.code }}"
+            data-geo-text="{{ region.name|lower }} {{ region.code|lower }}">
+          <div class="vms-geo__row">
+            <button type="button" class="vms-geo__twisty vms-geo__js-only"
+                    data-geo-twisty aria-expanded="false"
+                    aria-controls="{{ widget.name }}-r-{{ region.code }}">
+              <span class="vms-geo__caret" aria-hidden="true"></span>
+              <span class="vms-geo__sr">Espandi {{ region.name }}</span>
+            </button>
+
+            <input type="checkbox" class="vms-geo__cb vms-geo__js-only"
+                   id="{{ widget.name }}-cb-r-{{ region.code }}"
+                   data-geo-derived="region">
+            <label class="vms-geo__label"
+                   for="{{ widget.name }}-cb-r-{{ region.code }}">
+              {{ region.name }}
+            </label>
+            <span class="vms-geo__badge" data-geo-badge></span>
+
+            <span class="vms-geo__cmds vms-geo__js-only">
+              <button type="button" class="vms-geo__btn vms-geo__btn--mini"
+                      data-geo-action="select-all" data-geo-scope="node">
+                Tutte
+              </button>
+              <button type="button" class="vms-geo__btn vms-geo__btn--mini"
+                      data-geo-action="clear-all" data-geo-scope="node">
+                Nessuna
+              </button>
+            </span>
+          </div>
+
+          <ul class="vms-geo__children vms-geo__grid is-collapsed"
+              role="group" id="{{ widget.name }}-r-{{ region.code }}">
+            {% for province in region.provinces %}
+            <li class="vms-geo__node vms-geo__node--province"
+                data-geo-node="province"
+                data-geo-text="{{ province.name|lower }} {{ province.code|lower }}">
+              {# Foglia: l'unico input con name, l'unica verita' nel POST. #}
+              <input type="checkbox" class="vms-geo__cb vms-geo__cb--leaf"
+                     id="{{ widget.name }}-cb-p-{{ province.code }}"
+                     name="{{ widget.nome_province }}"
+                     value="{{ province.code }}"
+                     {% if province.code in widget.selected_provinces %}checked{% endif %}>
+              <label class="vms-geo__label"
+                     for="{{ widget.name }}-cb-p-{{ province.code }}">
+                {{ province.name }}
+                <span class="vms-geo__code">{{ province.code }}</span>
+              </label>
+            </li>
+            {% endfor %}
+          </ul>
+        </li>
+        {% endfor %}
+      </ul>
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+
+  {% if widget.tree_leaf %}
+  <fieldset class="vms-geo__foreign" data-geo-section="foreign">
+    <legend class="vms-geo__legend">
+      Altre nazioni
+      <span class="vms-geo__cmds vms-geo__js-only">
+        <button type="button" class="vms-geo__btn vms-geo__btn--mini"
+                data-geo-action="select-all" data-geo-scope="section">
+          Seleziona tutte
+        </button>
+        <button type="button" class="vms-geo__btn vms-geo__btn--mini"
+                data-geo-action="clear-all" data-geo-scope="section">
+          Deseleziona tutte
+        </button>
+      </span>
+    </legend>
+    <ul class="vms-geo__grid" role="group">
+      {% for country in widget.tree_leaf %}
+      <li class="vms-geo__node vms-geo__node--country-leaf"
+          data-geo-node="country-leaf"
+          data-geo-text="{{ country.name|lower }} {{ country.code|lower }}">
+        <input type="checkbox" class="vms-geo__cb vms-geo__cb--leaf"
+               id="{{ widget.name }}-cb-cl-{{ country.code }}"
+               name="{{ widget.nome_nazioni }}"
+               value="{{ country.code }}"
+               {% if country.code in widget.selected_countries %}checked{% endif %}>
+        <label class="vms-geo__label"
+               for="{{ widget.name }}-cb-cl-{{ country.code }}">
+          {{ country.name }}
+        </label>
+      </li>
+      {% endfor %}
+    </ul>
+  </fieldset>
+  {% endif %}
+
+  {% if not widget.tree_detailed and not widget.tree_leaf %}
+  <p class="vms-geo__empty">
+    Catalogo geografico non popolato. Esegui
+    <code>python manage.py seed_geography</code>.
+  </p>
+  {% endif %}
+  </div>
+</div>

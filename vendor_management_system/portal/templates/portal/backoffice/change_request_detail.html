@@ -49,6 +49,15 @@
     </div>
 </div>
 
+{% if competence_areas_stale %}
+<div class="alert alert-warning">
+    <i class="fas fa-triangle-exclamation"></i>
+    Le zone di competenza del fornitore sono cambiate dopo l'invio di questa
+    richiesta. Valore attuale: <strong>{{ competence_areas_stale }}</strong>.
+    Approvando, verrà sovrascritto con il valore proposto.
+</div>
+{% endif %}
+
 <div class="card mb-3">
     <div class="card-header"><strong>Modifiche proposte</strong></div>
     <div class="table-responsive">

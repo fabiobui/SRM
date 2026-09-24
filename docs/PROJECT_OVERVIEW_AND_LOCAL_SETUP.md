@@ -52,7 +52,7 @@ Layout del progetto: `manage.py` nella root del repo, settings in `config/`, tut
 |---|---|---|
 | `core` | Fondamenta: autenticazione a token JWT-style via query-param, backend di autenticazione LDAP/ibridi, permessi, decoratori, routing di redirect verso la dashboard | — |
 | `users` | Modello utente custom, sistema di ruoli | `User` (ruoli: `admin`, `bo_user`, `vendor`) |
-| `vendors` | Il cuore del sistema: anagrafica fornitori, geografia, categorie, competenze, servizi, contratti, valutazioni | `Vendor`, `Category`, `Address`, `Country`/`Region`/`Province`, `CompetenceZone(+Rule)`, `Competence`, `VendorCompetence`, `CompetenceSet`, `QualificationType`, `ServiceType`, `VendorService`, `ServiceSet`, `Contract`, `EvaluationFrequency`, `EvaluationCriterion`, `Evaluator`, `VendorEvaluation` |
+| `vendors` | Il cuore del sistema: anagrafica fornitori, geografia, categorie, competenze, servizi, contratti, valutazioni | `Vendor`, `Category`, `Address`, `Country`/`Region`/`Province`, `Competence`, `VendorCompetence`, `CompetenceSet`, `QualificationType`, `ServiceType`, `VendorService`, `ServiceSet`, `Contract`, `EvaluationFrequency`, `EvaluationCriterion`, `Evaluator`, `VendorEvaluation` |
 | `documents` | Ciclo di vita dei documenti di compliance (upload, revisione, scadenza) + dashboard per ruolo | `DocumentType`, `Document`, `DocumentSet` |
 | `portal` | Il portale fornitori self-service più recente (`/portale/`) — documenti, requisiti, richieste di modifica profilo, stato di qualificazione | `VendorChangeRequest` |
 | `purchase_orders` | Macchina a stati degli ordini di acquisto (PENDING→ISSUED→ACKNOWLEDGED→DELIVERED / CANCELLED) | `PurchaseOrder` |
@@ -436,7 +436,7 @@ python manage.py seed_service_sets
 python manage.py seed_document_sets
 ```
 Ci sono anche script di import standalone una-tantum nella root del repo (`import_vendors.py`,
-`import_competenze.py`, `import_servizi.py`, `import_titoli.py`, `import_valutazioni.py`, `import_geography.py`,
+`import_competenze.py`, `import_servizi.py`, `import_titoli.py`, `import_valutazioni.py`, `import_geography.py` (deprecato, vedi `seed_geography`),
 `import_documenti.py`) — sono stati scritti per una migrazione dati una-tantum da un sistema legacy/CSV e in
 genere si aspettano file sorgente specifici; leggi l'intestazione di ciascuno script prima di eseguirlo invece di
 assumere che sia un seeder generico.
@@ -503,6 +503,10 @@ L'ordine di esecuzione è importante per un paio di essi, dato che alcuni seedan
 collegano insieme:
 
 ```
+0. seed_geography            →  creates Country/Region/Province rows (30 nazioni, 20 regioni e 107
+                                 province italiane) — prerequisito delle zone di competenza dei
+                                 fornitori. È seminato anche dalla data migration vendors/0041,
+                                 perché `migrate` gira prima di questi comandi
 1. populate_document_types   →  creates DocumentType rows (DURC, ISO 9001, RC Professionale, ...)
 2. populate_competences      →  creates Competence rows (RSPP, ASPP, Energy Manager, ...)
 3. seed_competence_sets      →  creates/links Competence rows *and* groups them into CompetenceSet

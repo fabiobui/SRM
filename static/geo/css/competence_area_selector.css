@@ -1,0 +1,256 @@
+/*
+ * Selettore territoriale delle zone di competenza.
+ *
+ * Autoportante di proposito: il widget vive sia nell'admin (jazzmin,
+ * Bootstrap 4) sia nel portale fornitori (Bootstrap 5). Usare classi di
+ * uno dei due framework lo renderebbe corretto in un contesto e rotto
+ * nell'altro, quindi qui bottoni, griglia e spaziature sono ridefiniti da
+ * zero sotto il prefisso .vms-geo__.
+ */
+
+.vms-geo {
+  width: 100%;
+  max-width: none;
+  border: 1px solid rgba(128, 128, 128, 0.35);
+  border-radius: 4px;
+  padding: 0.6rem;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  box-sizing: border-box;
+}
+
+.vms-geo *,
+.vms-geo *::before,
+.vms-geo *::after {
+  box-sizing: inherit;
+}
+
+/* Jazzmin incapsula il campo in una colonna stretta: qui serve tutto lo
+   spazio disponibile. */
+.field-competence_areas .vms-geo,
+.form-row.field-competence_areas .vms-geo {
+  max-width: none;
+}
+
+/* ---- Barra dei comandi ------------------------------------------------ */
+
+.vms-geo__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.6rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid rgba(128, 128, 128, 0.25);
+}
+
+/* Corpo scrollabile: con l'Italia espansa (20 regioni, 107 province) il
+   box diventerebbe altissimo. La toolbar resta fuori, sempre visibile. */
+.vms-geo__body {
+  max-height: 22rem;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 0.3rem;
+}
+
+.vms-geo__search {
+  flex: 1 1 14rem;
+  min-width: 10rem;
+  padding: 0.3rem 0.5rem;
+  border: 1px solid rgba(128, 128, 128, 0.45);
+  border-radius: 3px;
+  font: inherit;
+  color: inherit;
+  background: transparent;
+}
+
+.vms-geo__btn {
+  padding: 0.25rem 0.6rem;
+  border: 1px solid rgba(128, 128, 128, 0.45);
+  border-radius: 3px;
+  background: rgba(128, 128, 128, 0.08);
+  color: inherit;
+  font: inherit;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.vms-geo__btn:hover {
+  background: rgba(128, 128, 128, 0.2);
+}
+
+.vms-geo__btn[aria-pressed="true"] {
+  background: rgba(23, 162, 184, 0.25);
+  border-color: rgba(23, 162, 184, 0.6);
+}
+
+.vms-geo__btn--mini {
+  padding: 0.05rem 0.4rem;
+  font-size: 0.75rem;
+}
+
+.vms-geo__counter {
+  margin-left: auto;
+  font-size: 0.8125rem;
+  opacity: 0.85;
+  white-space: nowrap;
+}
+
+/* ---- Albero ----------------------------------------------------------- */
+
+.vms-geo__list,
+.vms-geo__children {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.vms-geo__children {
+  margin-left: 1.5rem;
+}
+
+.vms-geo__children.is-collapsed {
+  display: none;
+}
+
+.vms-geo__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.15rem 0;
+}
+
+.vms-geo__node--country > .vms-geo__row {
+  font-weight: 600;
+}
+
+.vms-geo__node--region > .vms-geo__row {
+  font-weight: 500;
+}
+
+.vms-geo__twisty {
+  width: 1.3rem;
+  height: 1.3rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.vms-geo__caret::before {
+  content: "\25B8";
+  display: inline-block;
+  transition: transform 0.12s ease-in-out;
+}
+
+.vms-geo__twisty[aria-expanded="true"] .vms-geo__caret::before {
+  transform: rotate(90deg);
+}
+
+.vms-geo__cb {
+  margin: 0;
+  flex: 0 0 auto;
+}
+
+.vms-geo__label {
+  margin: 0;
+  font-weight: inherit;
+  cursor: pointer;
+}
+
+.vms-geo__code {
+  opacity: 0.6;
+  font-size: 0.75rem;
+}
+
+.vms-geo__badge {
+  font-size: 0.75rem;
+  opacity: 0.7;
+  font-weight: 400;
+}
+
+.vms-geo__badge:empty {
+  display: none;
+}
+
+.vms-geo__cmds {
+  display: inline-flex;
+  gap: 0.25rem;
+  opacity: 0;
+  transition: opacity 0.1s ease-in-out;
+}
+
+.vms-geo__row:hover .vms-geo__cmds,
+.vms-geo__cmds:focus-within,
+.vms-geo__legend .vms-geo__cmds {
+  opacity: 1;
+}
+
+/* ---- Griglie (province, nazioni estere) ------------------------------- */
+
+.vms-geo__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  gap: 0.1rem 0.6rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.vms-geo__grid > .vms-geo__node {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.1rem 0;
+}
+
+/* ---- Sezione nazioni estere ------------------------------------------- */
+
+.vms-geo__foreign {
+  margin: 0.8rem 0 0;
+  padding: 0.5rem 0 0;
+  border: 0;
+  border-top: 1px solid rgba(128, 128, 128, 0.25);
+}
+
+.vms-geo__legend {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: auto;
+  margin: 0 0 0.4rem;
+  padding: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border: 0;
+}
+
+.vms-geo__empty {
+  margin: 0;
+  opacity: 0.75;
+}
+
+/* ---- Accessibilita' ---------------------------------------------------- */
+
+.vms-geo__sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.vms-geo__cb:focus-visible,
+.vms-geo__btn:focus-visible,
+.vms-geo__twisty:focus-visible,
+.vms-geo__search:focus-visible {
+  outline: 2px solid #17a2b8;
+  outline-offset: 1px;
+}

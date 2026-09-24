@@ -27,6 +27,11 @@ from vendor_management_system.core.permissions import (
     VendorRequiredMixin,
 )
 from vendor_management_system.documents.models import Document
+from vendor_management_system.vendors.competence import (
+    current_selection,
+    format_selection,
+    summarize_selection,
+)
 from vendor_management_system.vendors.models import (
     Vendor,
     VendorCompetence,
@@ -43,7 +48,7 @@ from .forms import (
     VendorServiceAddRequestForm,
     VendorServiceChangeForm,
 )
-from .models import VendorChangeRequest
+from .models import COMPETENCE_AREAS_KEY, VendorChangeRequest
 
 # --- helper -----------------------------------------------------------------
 
@@ -663,7 +668,16 @@ class MyVendorProfileView(VendorRequiredMixin, TemplateView):
             vendor_service__isnull=True,
             status=VendorChangeRequest.STATUS_PENDING,
         ).first()
-        ctx.update({"vendor": vendor, "pending_change_request": pending})
+        selezione = current_selection(vendor)
+        ctx.update(
+            {
+                "vendor": vendor,
+                "pending_change_request": pending,
+                "competence_areas_summary": summarize_selection(
+                    selezione["provinces"], selezione["countries"]
+                ),
+            }
+        )
         return ctx
 
 
@@ -816,6 +830,19 @@ class BoChangeRequestDetailView(BackOfficeRequiredMixin, DetailView):
         )
         ctx["back_url"] = reverse("portal:bo-change-requests")
         ctx["back_label"] = "Richieste anagrafica"
+
+        # Le zone potrebbero essere cambiate dopo l'invio della proposta
+        # (un admin le ha toccate nel frattempo). L'applicazione resta
+        # last-write-wins come per ogni altro campo - cambiarla solo qui
+        # creerebbe un'incoerenza - ma chi approva deve saperlo.
+        payload = (self.object.changes or {}).get(COMPETENCE_AREAS_KEY)
+        if payload and self.object.is_pending:
+            selezione = current_selection(self.object.vendor)
+            attuale = format_selection(
+                selezione["provinces"], selezione["countries"]
+            )
+            if attuale != payload.get("old"):
+                ctx["competence_areas_stale"] = attuale
         return ctx
 
 

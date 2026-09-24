@@ -20,7 +20,10 @@ from vendor_management_system.portal.tests.factories import (
     VendorServiceFactory,
 )
 from vendor_management_system.vendors.models import Address, Category, Vendor
-from vendor_management_system.vendors.tests.factories import VendorFactory
+from vendor_management_system.vendors.tests.factories import (
+    ProvinceFactory,
+    VendorFactory,
+)
 
 
 class VendorDashboardTestCase(TestCase):
@@ -181,8 +184,13 @@ class VendorDashboardQueryCountTestCase(TestCase):
         self.client.login(email="perf@test.com", password="testpass123")
 
     def _add_vendors(self, count):
+        # Le province di competenza sono lette per ogni fornitore nel
+        # payload della tabella: senza il prefetch sarebbero altre due
+        # query a testa.
+        province = [ProvinceFactory() for _ in range(3)]
         for _ in range(count):
             vendor = VendorFactory()
+            vendor.competence_provinces.set(province)
             VendorServiceFactory(vendor=vendor, is_primary=True)
             VendorCompetenceFactory(
                 vendor=vendor, is_qualifica=True, has_competence=True

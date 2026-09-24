@@ -42,8 +42,11 @@ def test_pec_fieldset_position():
 def test_first_supply_date_fieldset_position():
     fieldsets = dict(VendorAdmin.fieldsets)
     base_fields = fieldsets[_("Informazioni Base")]["fields"]
+    # `competence_zones` (M2M verso le vecchie zone nominate) e' stato
+    # sostituito dal selettore territoriale `competence_areas`, nella
+    # stessa posizione.
     assert base_fields.index("first_supply_date") == (
-        base_fields.index("competence_zones") + 1
+        base_fields.index("competence_areas") + 1
     )
     assert base_fields.index("first_supply_date") == (
         base_fields.index("vendor_final_evaluation") - 1

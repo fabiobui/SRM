@@ -7,6 +7,8 @@ from vendor_management_system.historical_performances.tests.factories import (
 from vendor_management_system.purchase_orders.tests.factories import (
     PurchaseOrderFactory,
 )
+from vendor_management_system.vendors.geography_seed import seed_geography
+from vendor_management_system.vendors.models import Country, Province, Region
 from vendor_management_system.vendors.tests.factories import (
     VendorFactory,
     VendorOperationalAttributesFactory,
@@ -37,3 +39,16 @@ def purchase_order_factory(db) -> PurchaseOrderFactory:
 @pytest.fixture()
 def historical_performance_factory(db) -> HistoricalPerformanceFactory:
     return HistoricalPerformanceFactory
+
+
+@pytest.fixture
+def geografia_italia(db):
+    """Semina il catalogo geografico reale.
+
+    Serve ai test che hanno bisogno dei codici veri (`IT`, `LOM`, `MI`) e
+    della cardinalita' vera (20 regioni, 107 province). Sta qui e non in
+    `vendors/tests/` perche' la usano anche i test del portale. Per chi
+    ha bisogno solo di "una regione con tre province" bastano le factory
+    `RegionFactory`/`ProvinceFactory`, molto piu' rapide.
+    """
+    seed_geography(Country, Region, Province)

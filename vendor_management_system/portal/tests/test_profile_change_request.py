@@ -15,13 +15,20 @@ from django.urls import reverse
 from vendor_management_system.portal.forms import format_address
 from vendor_management_system.portal.models import VendorChangeRequest
 from vendor_management_system.portal.tests.factories import VendorUserFactory
+from vendor_management_system.vendors.competence import current_selection
 from vendor_management_system.vendors.tests.factories import AddressFactory
 
 PASSWORD = "test-pass-1234"
 
 
 def _valid_profile_payload(vendor, **overrides):
+    # Le zone di competenza sono checkbox: il POST deve ripartire dalla
+    # selezione attuale, altrimenti ogni richiesta proporrebbe anche di
+    # azzerarle.
+    aree = current_selection(vendor)
     payload = {
+        "competence_areas_provinces": aree["provinces"],
+        "competence_areas_countries": aree["countries"],
         "name": vendor.name,
         "email": vendor.email or "",
         "phone": vendor.phone or "",

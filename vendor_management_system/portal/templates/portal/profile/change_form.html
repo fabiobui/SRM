@@ -2,6 +2,9 @@
 
 {% block title %}Modifica anagrafica — Portale Fornitore{% endblock %}
 
+{# Nel portale gli asset dei widget non sono automatici come nell'admin. #}
+{% block extra_head %}{{ form.media.css }}{% endblock %}
+
 {% block content %}
 <nav aria-label="breadcrumb">
     <ol class="breadcrumb">
@@ -29,6 +32,21 @@
             {% endif %}
 
             {% for field in form %}
+                {% if field.name == 'competence_areas' %}
+                    {# L'albero territoriale non sta in una col-sm-9. #}
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold d-block">
+                            {{ field.label }}
+                        </label>
+                        {{ field }}
+                        {% if field.help_text %}
+                            <div class="form-text">{{ field.help_text }}</div>
+                        {% endif %}
+                        {% if field.errors %}
+                            <div class="invalid-feedback d-block">{{ field.errors|join:", " }}</div>
+                        {% endif %}
+                    </div>
+                {% else %}
                 <div class="mb-3 row">
                     <label for="{{ field.id_for_label }}" class="col-sm-3 col-form-label">
                         {{ field.label }}
@@ -43,6 +61,7 @@
                         {% endif %}
                     </div>
                 </div>
+                {% endif %}
             {% endfor %}
         </div>
         <div class="card-footer d-flex gap-2 justify-content-end">
@@ -56,3 +75,5 @@
     </div>
 </form>
 {% endblock %}
+
+{% block extra_js %}{{ form.media.js }}{% endblock %}

@@ -172,7 +172,7 @@ Il sistema implementa un modello **Role-Based Access Control (RBAC)** con tre li
 - **Titoli di Studio**: Titoli professionali e accademici
 - **Competenze Tecniche**: Catalogo competenze con sistema gerarchico
 - **Certificazioni**: ISO 9001, ISO 14001, ISO 45001, SA8000, ecc.
-- **Zone di Competenza**: Aree geografiche di operatività
+- **Zone di competenza**: territori di operatività, selezionati a cascata su Nazione → Regione → Provincia (la copertura di una regione è derivata dalle sue province)
 
 #### Dati Contrattuali
 - Stato contrattuale
