@@ -22,21 +22,21 @@ class Competence(_VendorCompetence):
     class Meta:
         proxy = True
         app_label = "competences"
-        verbose_name = "Requisito professionale assegnato"
-        verbose_name_plural = "Registro Requisiti professionali"
+        verbose_name = "Abilitazione/Requisito professionale assegnato"
+        verbose_name_plural = "Registro Abilitazioni e Requisiti Professionali"
 
 
 class CompetenceCatalog(_Competence):
     class Meta:
         proxy = True
         app_label = "competences"
-        verbose_name = "Requisito professionale"
-        verbose_name_plural = "Catalogo Requisiti Professionali"
+        verbose_name = "Abilitazione/Requisito professionale"
+        verbose_name_plural = "Catalogo Abilitazioni e Requisiti Professionali"
 
 
 class CompetenceSet(_CompetenceSet):
     class Meta:
         proxy = True
         app_label = "competences"
-        verbose_name = "Set Requisiti Professionali"
-        verbose_name_plural = "Set Requisiti Professionali"
+        verbose_name = "Set Abilitazioni e Requisiti Professionali"
+        verbose_name_plural = "Set Abilitazioni e Requisiti Professionali"

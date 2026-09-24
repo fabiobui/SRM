@@ -431,8 +431,10 @@ class Competence(models.Model):
     )
 
     class Meta:
-        verbose_name = _("Requisito Professionale")
-        verbose_name_plural = _("Catalogo Requisiti Professionali")
+        verbose_name = _("Abilitazione/Requisito Professionale")
+        verbose_name_plural = _(
+            "Catalogo Abilitazioni e Requisiti Professionali"
+        )
         ordering = ["competence_category", "sort_order", "name"]
         indexes = [
             models.Index(fields=["code"]),
@@ -574,8 +576,10 @@ class VendorCompetence(models.Model):
     updated_at = models.DateTimeField(_("Aggiornato il"), auto_now=True)
 
     class Meta:
-        verbose_name = _("Requisito Professionale Assegnato")
-        verbose_name_plural = _("Requisiti Professionali Assegnati")
+        verbose_name = _("Abilitazione/Requisito Professionale Assegnato")
+        verbose_name_plural = _(
+            "Abilitazioni e Requisiti Professionali Assegnati"
+        )
         unique_together = [["vendor", "competence"]]
         ordering = ["-created_at"]
         indexes = [
@@ -653,9 +657,9 @@ class CompetenceSet(models.Model):
 
     competences = models.ManyToManyField(
         Competence,
-        verbose_name=_("Requisiti Professionali"),
+        verbose_name=_("Abilitazioni e Requisiti Professionali"),
         related_name="competence_sets",
-        help_text=_("Requisiti professionali inclusi nel set"),
+        help_text=_("Abilitazioni e requisiti professionali inclusi nel set"),
     )
 
     is_active = models.BooleanField(
@@ -667,8 +671,8 @@ class CompetenceSet(models.Model):
     )
 
     class Meta:
-        verbose_name = _("Set Requisiti Professionali")
-        verbose_name_plural = _("Set Requisiti Professionali")
+        verbose_name = _("Set Abilitazioni e Requisiti Professionali")
+        verbose_name_plural = _("Set Abilitazioni e Requisiti Professionali")
         ordering = ["sort_order", "name"]
 
     def __str__(self):
@@ -935,8 +939,8 @@ class ServiceType(models.Model):
     )
 
     class Meta:
-        verbose_name = _("Tipo/Servizio")
-        verbose_name_plural = _("Tipologie e Servizi")
+        verbose_name = _("Tipo/Servizio Erogato")
+        verbose_name_plural = _("Tipologie e Servizi Erogati")
         ordering = ["sort_order", "name"]
 
     def __str__(self):
@@ -1026,8 +1030,8 @@ class VendorService(models.Model):
     updated_at = models.DateTimeField(_("Aggiornato il"), auto_now=True)
 
     class Meta:
-        verbose_name = _("Servizio Fornitore")
-        verbose_name_plural = _("Servizi Fornitori")
+        verbose_name = _("Servizio Erogato")
+        verbose_name_plural = _("Servizi Erogati")
         unique_together = [["vendor", "service_type"]]
         ordering = ["-is_primary", "-created_at"]
         indexes = [
@@ -1079,9 +1083,9 @@ class ServiceSet(models.Model):
 
     service_types = models.ManyToManyField(
         ServiceType,
-        verbose_name=_("Servizi"),
+        verbose_name=_("Servizi Erogati"),
         related_name="service_sets",
-        help_text=_("Servizi inclusi nel set"),
+        help_text=_("Servizi erogati inclusi nel set"),
     )
 
     is_active = models.BooleanField(
@@ -1093,8 +1097,8 @@ class ServiceSet(models.Model):
     )
 
     class Meta:
-        verbose_name = _("Set Servizi")
-        verbose_name_plural = _("Set Servizi")
+        verbose_name = _("Set Servizi Erogati")
+        verbose_name_plural = _("Set Servizi Erogati")
         ordering = ["sort_order", "name"]
 
     def __str__(self):

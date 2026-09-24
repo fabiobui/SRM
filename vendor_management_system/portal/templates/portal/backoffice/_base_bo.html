@@ -54,19 +54,19 @@
                 <li class="nav-item">
                     <a class="nav-link {% if 'service-request' in request.resolver_match.url_name %}active{% endif %}"
                        href="{% url 'portal:bo-service-requests' %}">
-                        <i class="fas fa-concierge-bell"></i>Richieste servizi
+                        <i class="fas fa-concierge-bell"></i>Richieste servizi erogati
                     </a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link {% if 'document' in request.resolver_match.url_name %}active{% endif %}"
                        href="{% url 'portal:bo-documents' %}">
-                        <i class="fas fa-file-alt"></i>Documenti
+                        <i class="fas fa-file-alt"></i>Documenti contrattuali
                     </a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link {% if 'requirement' in request.resolver_match.url_name %}active{% endif %}"
                        href="{% url 'portal:bo-requirements' %}">
-                        <i class="fas fa-user-graduate"></i>Requisiti professionali
+                        <i class="fas fa-user-graduate"></i>Abilitazioni e Requisiti Professionali
                     </a>
                 </li>
                 <li class="nav-item">

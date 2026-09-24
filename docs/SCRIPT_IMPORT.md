@@ -428,8 +428,8 @@ partenza.
 
 ### `sync_sets.py`
 
-Copia i Set dei **Requisiti Professionali** (`vendors.CompetenceSet`) e dei
-**Servizi** (`vendors.ServiceSet`), con le relative voci, da un database SRM a un
+Copia i Set delle **Abilitazioni e Requisiti Professionali** (`vendors.CompetenceSet`) e dei
+**Servizi Erogati** (`vendors.ServiceSet`), con le relative voci, da un database SRM a un
 altro — tipicamente da quello di sviluppo, dove i set vengono preparati, a una
 copia del database di produzione.
 

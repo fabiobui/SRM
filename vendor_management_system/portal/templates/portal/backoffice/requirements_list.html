@@ -1,10 +1,10 @@
 {% extends "portal/backoffice/_base_bo.html" %}
 
-{% block title %}Requisiti professionali — Back Office{% endblock %}
+{% block title %}Abilitazioni e Requisiti Professionali — Back Office{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1 class="h3 mb-0"><i class="fas fa-user-graduate text-primary"></i> Requisiti professionali</h1>
+    <h1 class="h3 mb-0"><i class="fas fa-user-graduate text-primary"></i> Abilitazioni e Requisiti Professionali</h1>
     <form class="d-flex" method="get">
         <select name="verified" class="form-select form-select-sm me-2" onchange="this.form.submit()">
             <option value="expired" {% if verified_filter == "expired" %}selected{% endif %}>Scaduti</option>

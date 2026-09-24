@@ -18,12 +18,12 @@
    - 3.7 [Attributi Operativi](#37-attributi-operativi)
 4. [Lista Fornitori — ricerca e filtri](#4-lista-fornitori--ricerca-e-filtri)
 5. [Azioni massive sui fornitori](#5-azioni-massive-sui-fornitori)
-6. [Servizi del Fornitore](#6-servizi-del-fornitore)
-7. [Requisiti Professionali (Competenze)](#7-requisiti-professionali-competenze)
-   - 7.1 [Catalogo Requisiti](#71-catalogo-requisiti)
-   - 7.2 [Assegnare requisiti a un fornitore](#72-assegnare-requisiti-a-un-fornitore)
-8. [Documenti](#8-documenti)
-   - 8.1 [Tipi di Documento](#81-tipi-di-documento)
+6. [Servizi Erogati del Fornitore](#6-servizi-erogati-del-fornitore)
+7. [Abilitazioni e Requisiti Professionali (Competenze)](#7-abilitazioni-e-requisiti-professionali-competenze)
+   - 7.1 [Catalogo Abilitazioni e Requisiti](#71-catalogo-abilitazioni-e-requisiti)
+   - 7.2 [Assegnare abilitazioni e requisiti a un fornitore](#72-assegnare-abilitazioni-e-requisiti-a-un-fornitore)
+8. [Documenti Contrattuali](#8-documenti-contrattuali)
+   - 8.1 [Tipi di Documento Contrattuale](#81-tipi-di-documento-contrattuale)
    - 8.2 [Caricare un documento per un fornitore](#82-caricare-un-documento-per-un-fornitore)
 9. [Contratti](#9-contratti)
 10. [Valutazioni Fornitore](#10-valutazioni-fornitore)
@@ -32,7 +32,7 @@
 13. [Gestione Utenti](#13-gestione-utenti)
 14. [Tabelle di Supporto](#14-tabelle-di-supporto)
     - 14.1 [Categorie Merceologiche](#141-categorie-merceologiche)
-    - 14.2 [Tipologie / Servizi](#142-tipologie--servizi)
+    - 14.2 [Tipologie / Servizi Erogati](#142-tipologie--servizi-erogati)
     - 14.3 [Titoli di Studio](#143-titoli-di-studio)
     - 14.4 [Nazioni, Regioni e Province](#144-nazioni-regioni-e-province)
     - 14.5 [Criteri e Frequenze di Valutazione](#145-criteri-e-frequenze-di-valutazione)
@@ -65,8 +65,8 @@ Le sezioni principali sono:
 
 | Sezione | Cosa contiene |
 |---------|---------------|
-| **Vendors** | Fornitori, Servizi, Requisiti, Contratti, Valutazioni |
-| **Documents** | Tipi di Documento e Documenti caricati |
+| **Vendors** | Fornitori, Servizi Erogati, Abilitazioni e Requisiti, Contratti, Valutazioni |
+| **Documents** | Tipi di Documento Contrattuale e Documenti Contrattuali caricati |
 | **Purchase Orders** | Ordini di acquisto |
 | **Historical Performances** | Storico delle performance |
 | **Users** | Gestione utenti del sistema |
@@ -297,7 +297,7 @@ Nella lista fornitori è possibile selezionare più righe e applicare **azioni m
 
 ---
 
-## 6. Servizi del Fornitore
+## 6. Servizi Erogati del Fornitore
 
 I servizi vengono gestiti **direttamente nella scheda del fornitore**, tramite la sezione inline in basso.
 
@@ -313,7 +313,7 @@ Ogni riga della tabella rappresenta un servizio erogato:
 | **Contratto** | Contratto collegato (opzionale) |
 | **Note** | Note libere |
 
-**Per aggiungere un servizio:** cliccare il link *Aggiungi un altro Servizio Fornitore* in fondo alla sezione inline.
+**Per aggiungere un servizio:** cliccare il link *Aggiungi un altro Servizio Erogato* in fondo alla sezione inline.
 
 **Per rimuovere un servizio:** spuntare la casella *Elimina* sulla riga corrispondente e salvare.
 
@@ -323,13 +323,13 @@ Ogni riga della tabella rappresenta un servizio erogato:
 
 ---
 
-## 7. Requisiti Professionali (Competenze)
+## 7. Abilitazioni e Requisiti Professionali (Competenze)
 
-### 7.1 Catalogo Requisiti
+### 7.1 Catalogo Abilitazioni e Requisiti
 
 Prima di assegnare requisiti ai fornitori, verificare il catalogo.
 
-Da **Vendors → Requisiti Professionali** si accede all'elenco completo.
+Da **Vendors → Abilitazioni e Requisiti Professionali** si accede all'elenco completo.
 
 Ogni requisito ha:
 
@@ -349,7 +349,7 @@ Ogni requisito ha:
 
 ---
 
-### 7.2 Assegnare requisiti a un fornitore
+### 7.2 Assegnare abilitazioni e requisiti a un fornitore
 
 I requisiti si assegnano **dalla scheda del fornitore**, nella sezione inline dedicata.
 
@@ -387,11 +387,11 @@ Per ogni requisito assegnato compilare:
 
 ---
 
-## 8. Documenti
+## 8. Documenti Contrattuali
 
-### 8.1 Tipi di Documento
+### 8.1 Tipi di Documento Contrattuale
 
-Da **Documents → Tipi di Documento** si configura il catalogo dei documenti gestiti dal sistema.
+Da **Documents → Tipi di Documento Contrattuale** si configura il catalogo dei documenti gestiti dal sistema.
 
 | Campo | Descrizione |
 |-------|-------------|
@@ -587,9 +587,9 @@ Struttura ad albero (genitore → figlio). Ogni categoria ha:
 
 ---
 
-### 14.2 Tipologie / Servizi
+### 14.2 Tipologie / Servizi Erogati
 
-**Vendors → Tipologie/Servizi**
+**Vendors → Tipologie/Servizi Erogati**
 
 Catalogo gerarchico dei servizi erogabili. I servizi senza genitore sono le *categorie*, i figli sono i servizi specifici.
 

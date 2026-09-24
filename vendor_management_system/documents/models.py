@@ -146,8 +146,8 @@ class DocumentCatalog(models.Model):
     )
 
     class Meta:
-        verbose_name = _("Tipo di Documento")
-        verbose_name_plural = _("Catalogo Documenti")
+        verbose_name = _("Tipo di Documento Contrattuale")
+        verbose_name_plural = _("Catalogo Documenti Contrattuali")
         ordering = ["document_category", "sort_order", "name"]
         indexes = [
             models.Index(fields=["code"]),
@@ -251,8 +251,8 @@ class Document(models.Model):
     )
 
     class Meta:
-        verbose_name = _("Documento")
-        verbose_name_plural = _("Registro Documenti")
+        verbose_name = _("Documento Contrattuale")
+        verbose_name_plural = _("Registro Documenti Contrattuali")
         ordering = ["-uploaded_at"]
         unique_together = ["vendor", "document_type"]
 

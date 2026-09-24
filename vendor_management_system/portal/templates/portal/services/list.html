@@ -1,11 +1,11 @@
 {% extends "portal/base_portal.html" %}
 
-{% block title %}I miei servizi — Portale Fornitore{% endblock %}
+{% block title %}I miei servizi erogati — Portale Fornitore{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-        <h1 class="h3 mb-1"><i class="fas fa-concierge-bell text-success"></i> I miei servizi</h1>
+        <h1 class="h3 mb-1"><i class="fas fa-concierge-bell text-success"></i> I miei servizi erogati</h1>
         <p class="text-muted mb-0">{{ vendor.name }} · {{ vendor.vendor_code }}</p>
     </div>
     <a href="{% url 'portal:my-service-add' %}" class="btn btn-success">
