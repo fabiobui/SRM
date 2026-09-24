@@ -20,21 +20,21 @@ class Service(_VendorService):
     class Meta:
         proxy = True
         app_label = "services"
-        verbose_name = "Servizio"
-        verbose_name_plural = "Registro Servizi"
+        verbose_name = "Servizio Erogato"
+        verbose_name_plural = "Registro Servizi Erogati"
 
 
 class ServiceCatalog(_ServiceType):
     class Meta:
         proxy = True
         app_label = "services"
-        verbose_name = "Tipologia di Servizio"
-        verbose_name_plural = "Catalogo Tipologie e Servizi"
+        verbose_name = "Tipologia di Servizio Erogato"
+        verbose_name_plural = "Catalogo Tipologie e Servizi Erogati"
 
 
 class ServiceSet(_ServiceSet):
     class Meta:
         proxy = True
         app_label = "services"
-        verbose_name = "Set Servizi"
-        verbose_name_plural = "Set Servizi"
+        verbose_name = "Set Servizi Erogati"
+        verbose_name_plural = "Set Servizi Erogati"
