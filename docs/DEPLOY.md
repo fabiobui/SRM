@@ -90,18 +90,24 @@ Django, non spostarlo sotto `static/`.
 In alternativa, si può deployare fino a `0043` e tenere `0044` per un rilascio
 successivo, dopo aver sistemato i dati dall'admin.
 
-Controlla se serve anche `collectstatic` (necessario solo con `DEBUG=False` — vedi
-[PROJECT_OVERVIEW_AND_LOCAL_SETUP.md, §10](PROJECT_OVERVIEW_AND_LOCAL_SETUP.md)):
-
-```bash
-grep -E "^DEBUG=" .env
-```
-
-Se il valore è `False`:
+Esegui sempre `collectstatic`, **indipendentemente dal valore di `DEBUG`**:
 
 ```bash
 .venv/bin/python manage.py collectstatic --noinput
 ```
+
+Il "`DEBUG=True` serve automaticamente gli statici" documentato in
+[PROJECT_OVERVIEW_AND_LOCAL_SETUP.md, §10](PROJECT_OVERVIEW_AND_LOCAL_SETUP.md) vale **solo** per il dev server
+locale (`runserver`/`runserver_plus`, usato da Docker): quel comando avvolge l'app in
+`django.contrib.staticfiles.handlers.StaticFilesHandler`, che risolve i file al volo dalle `STATICFILES_DIRS`
+tramite i finder, senza bisogno di `collectstatic`. Le VM di test e produzione girano invece su **Apache +
+`mod_wsgi`** (vedi §7 punto 7), che espone direttamente `config/wsgi.py` senza quel wrapper: l'unica serving view
+attiva è quella aggiunta da `config/urls.py` quando `DEBUG=True` (`urlpatterns += static(...)`), e punta a
+`document_root=settings.STATIC_ROOT` — cioè alla cartella `staticfiles/` popolata da `collectstatic`, non alle
+`STATICFILES_DIRS` sorgente. Su queste VM, quindi, i file statici nuovi o modificati restano in 404 finché non
+si lancia `collectstatic`, a prescindere da `DEBUG` (causa esatta del bug AIDEV-85: il selettore zone di
+competenza compariva senza stile e non cliccabile su test perché `geo/js/competence_area_selector.js` e
+`geo/css/competence_area_selector.css` non erano mai stati copiati in `staticfiles/`).
 
 Riavvia Apache — necessario perché `mod_wsgi` tiene il processo Django caricato nei worker: un `git pull` da solo
 non fa ricaricare il codice:
