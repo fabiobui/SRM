@@ -1393,6 +1393,7 @@ class Vendor(models.Model):
         ("CmaSrl", "CmaSrl"),
         ("Evimed", "Evimed"),
         ("GsProtec", "GsProtec"),
+        ("Igeam", "Igeam"),
         ("Sicura", "Sicura"),
     ]
 
