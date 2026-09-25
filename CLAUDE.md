@@ -19,9 +19,14 @@ l'overview completa e il setup locale (Docker o nativo).
   `manual_scripts/` (tool diagnostici manuali, mai eseguiti da pytest/CI). Vedi la sezione layout più sotto.
 - Se cambi `vendor_management_system/*/models.py`, genera/controlla le migrazioni (`python manage.py
   makemigrations --check --dry-run`) prima di finire.
-- **Ogni nuova feature o servizio deve avere il proprio set di unit test**, nella cartella appropriata: dentro
-  `vendor_management_system/<app>/tests/` se riguarda una app Django esistente, dentro `tests/` nella root se è
-  trasversale/di configurazione (vedi sezione Test più sotto). Non consegnare codice nuovo senza test.
+- **Ogni nuovo sviluppo o fix applicativo deve avere il proprio set di unit test**, nella cartella appropriata:
+  dentro `vendor_management_system/<app>/tests/` se riguarda una app Django esistente, dentro `tests/` nella root
+  se è trasversale/di configurazione (vedi sezione Test più sotto). Non consegnare codice nuovo senza test. Non
+  vale per gli script una tantum di `data_migration_scripts/`/`shell_scripts/`/`manual_scripts/` (vedi layout più
+  sotto): non richiedono una suite di test dedicata, verificali con un'esecuzione reale (es. `--dry-run` quando
+  disponibile) prima di consegnarli. Quando i test servono, preferisci pochi test mirati sul comportamento
+  richiesto invece di una copertura esaustiva di ogni combinazione di input: coprono meglio l'intento e restano
+  più facili da mantenere.
 - **La documentazione va sempre scritta o aggiornata in italiano** (README, `docs/*.md`, `CLAUDE.md`, commenti e
   docstring destinati a chi mantiene il progetto) — coerente con lo stile già usato in tutto il repo.
 - **Se stai testando su Docker (Track A) e modifichi codice Python mentre il container `django` è già in
