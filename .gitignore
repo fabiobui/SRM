@@ -291,3 +291,8 @@ docs/.obsidian/
 
 # Scratch output from Playwright MCP (browser snapshots/console logs during manual verification)
 .playwright-mcp/
+
+# Import fornitori IGEAM: l'estrazione Excel e i report contengono dati
+# fornitore (P.IVA, C.F., recapiti), non vanno committati.
+data_migration_scripts/input/
+data_migration_scripts/reports/igeam_*.csv

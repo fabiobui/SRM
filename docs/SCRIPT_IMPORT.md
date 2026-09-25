@@ -162,7 +162,9 @@ dall'import Excel (`XLS0001`, `XLS0002`, ...).
 etichetta *Società Embyon*): lo stesso fornitore ha un `CODCONTO` diverso per
 ogni Società, quindi il codice da solo non lo identifica. I valori ammessi sono
 le `DITTA` presenti in `Embyon_Fornitori_T` — **CmaSrl, Evimed, GsProtec,
-Sicura** — elencati in `Vendor.EMBYON_COMPANY_CHOICES`. Se Embyon introduce una
+Sicura** — elencati in `Vendor.EMBYON_COMPANY_CHOICES`, più **Igeam**, che non
+è in quella tabella e arriva dall'estrazione dedicata caricata con
+[`import_igeam_vendors.py`](#data_migration_scriptsimport_igeam_vendorspy). Se Embyon introduce una
 Società nuova lo script lo segnala in testa all'esecuzione: va aggiunta alle
 choices del modello, altrimenti il form dell'Admin rifiuta il valore. Il campo
 richiede la migrazione `vendors.0037`.
@@ -207,6 +209,94 @@ origine dopo la sostituzione di `old_code`, e viene riportato nella colonna
 match sono affidabili, perché il lavoro utile lo fa la normalizzazione del nome
 (toglie `SRL`/`SPA`/`DOTT.`/punteggiatura) e non la tolleranza sulla distanza.
 Verifica sempre le colonne `nome_embyon` e `similarita` del report.
+
+### `data_migration_scripts/import_igeam_vendors.py`
+
+Import una tantum dei fornitori **IGEAM** dall'estrazione anagrafica Embyon
+(`IGEAM_ANAGRAFICA FORNITORI_Completa<data>.xlsx`, foglio
+`ANAGRAFICA FORNITORI_Completa`, una riga per `CODCONTO`). Inserisce **solo i
+fornitori non ancora presenti** e non modifica mai quelli esistenti.
+
+Lavora in due passi, da **rieseguire su ogni ambiente**, perché l'esito dipende
+dal database su cui gira:
+
+```bash
+# 1. analisi, sola lettura: scrive i report in data_migration_scripts/reports/
+.venv/bin/python data_migration_scripts/import_igeam_vendors.py analizza \
+    -f data_migration_scripts/input/IGEAM_ANAGRAFICA.xlsx
+# 2. caricamento dei soli nuovi, prima in prova e poi davvero
+.venv/bin/python data_migration_scripts/import_igeam_vendors.py carica \
+    -f data_migration_scripts/reports/igeam_nuovi.csv --dry-run
+.venv/bin/python data_migration_scripts/import_igeam_vendors.py carica \
+    -f data_migration_scripts/reports/igeam_nuovi.csv
+```
+
+| Comando / opzione | Default | Significato |
+|---|---|---|
+| `analizza -f` | — | estrazione Excel IGEAM |
+| `analizza -s`, `--sheet` | `0` | indice o nome del foglio |
+| `carica -f` | — | file dei nuovi fornitori prodotto da `analizza` (si può rivedere e togliere righe prima del carico) |
+| `carica --dry-run` | off | esegue e annulla tutto |
+| `--report-dir` | `data_migration_scripts/reports/` | cartella dei report |
+
+**Report** (`;` come separatore, UTF-8 con BOM: si aprono direttamente in Excel):
+
+- `igeam_analisi.csv`: tutte le righe del file, con riga Excel, esito, motivo e
+  fornitore esistente agganciato;
+- `igeam_nuovi.csv`: solo gli esiti `NUOVO`, già mappati sui campi del
+  fornitore. È l'input di `carica`;
+- `igeam_inseriti.csv`: scritto da `carica`, con `vendor_code` e `old_code` dei
+  fornitori creati.
+
+Contengono P.IVA, C.F. e recapiti, per questo sono esclusi da git (come la
+cartella `data_migration_scripts/input/`, dove va copiato l'Excel).
+
+**Mappatura** (colonna Excel → campo fornitore):
+
+| Campo | Sorgente e regola |
+|---|---|
+| Codice Embyon (`old_code`) | `CODCONTO`, spazi di padding collassati (`F     6` → `F 6`) |
+| Società Embyon | sempre `Igeam` |
+| Nome | `DSCCONTO1` |
+| Partita IVA / Codice Fiscale | `PARTITAIVA` / `CODFISCALE`, normalizzati come in `import_embyon_codes.py`; i segnaposto (`00000000000`, `999…`) valgono come vuoti |
+| Tipo di fornitore | estero (`CODNAZIONE` ≠ 0 o P.IVA con prefisso di paese) → *Internazionale*; tipo Embyon `DIPENDENTI INTERNI` → *Dipendente*; `FLGPERSFISICA=0` con P.IVA italiana → *Società*; `FLGPERSFISICA=1` con P.IVA e C.F. personale → *Libero Professionista*; negli altri casi resta **vuoto** |
+| Attivo su Embyon | sì per `ATTIVO`, `ATTIVO_DA RIQUALIFICARE`, `ANAGRAFICA DA SAGE/DA COMPLETARE`, `IMPORT IGEAM`, `DA QUALIFICARE`; no per tutti gli altri stati |
+| Email | prima email di `TELEX` (in Embyon quella colonna contiene l'email) che non sia una PEC |
+| PEC | prima email di `PEC`; se vuota, un'email di `TELEX` con dominio da PEC (`pec`, `legalmail`) |
+| Telefono | `TELEFONO`, senza il `-` iniziale |
+| Dettagli di contatto | fax ed eventuali altre email |
+| Contatto di riferimento | non compilato: l'estrazione non ha un nome di referente |
+| Sede (`Address`) | `INDIRIZZO`, `LOCALITA`, `CAP`, `PROVINCIA`; `Italia` o `Estero` da `CODNAZIONE`. Creata solo se ci sono indirizzo e località |
+
+La **Riga excel Albo Fornitore** (`albo_excel_row`) resta vuota apposta: è
+l'aggancio che `import_competenze.py` / `import_servizi.py` /
+`import_documenti.py` usano per i fornitori dell'Albo originale, e le righe del
+file IGEAM si sovrapporrebbero a quelle. La riga IGEAM è nella colonna
+`riga_excel` dei report.
+
+**Esiti dell'analisi** (vale il primo applicabile):
+
+| Esito | Significato |
+|---|---|
+| `ESCLUSO_STATO` | stato Embyon `DISMESSO` o `IN VERIFICA -DOPPIO IN SAGE` |
+| `ESCLUSO_MARCATO` | ragione sociale marcata come doppione (`***`, `+++`, `non usare`) |
+| `GIA_IMPORTATO` | Codice Embyon già presente con Società Igeam (rilancio) |
+| `GIA_PRESENTE` | P.IVA o C.F. già usati da un fornitore a database, confrontati in modo incrociato perché per le società C.F. = P.IVA |
+| `COLLISIONE_CODICE` | Codice Embyon già usato da un fornitore di un'altra Società: `old_code` è UNIQUE, quindi il fornitore **non viene inserito** |
+| `GIA_PRESENTE_NOME` | nessuna P.IVA/C.F. valida, ma stessa ragione sociale di un fornitore a database: saltato per prudenza |
+| `DOPPIONE_EXCEL` | stesso soggetto (P.IVA/C.F.) di un'altra riga del file; resta quella con stato attivo e, a parità, creata più di recente su Embyon. Evita doppioni che il controllo duplicati dell'Admin bloccherebbe al primo salvataggio |
+| `NUOVO` | da inserire |
+
+**Sicurezza del carico.** `carica` lavora in un'unica transazione e, prima di
+ogni riga, ricontrolla Codice Embyon, P.IVA e C.F. sul database: se nel
+frattempo il fornitore è stato creato, la riga viene saltata (`SALTATO`). Un
+secondo lancio non duplica nulla. Per annullare un carico:
+
+```bash
+python data_migration_scripts/delete_vendors.py --field old_code --ids "F 6,F 7" --dry-run
+```
+
+con i codici presi da `igeam_inseriti.csv`.
 
 ---
 
