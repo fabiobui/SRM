@@ -1,0 +1,30 @@
+/* Pagina fornitore (AIDEV-84): le caselle select2 multiple non hanno
+   bordo nel tema admin e sembrano assenti quando sono vuote. */
+.field-secondary_managers .select2-selection--multiple,
+.field-additional_categories .select2-selection--multiple {
+    border: 1px solid #ced4da !important;
+    border-radius: 0.25rem;
+    min-height: 38px !important;
+}
+
+/* Utente primario e secondari affiancati: due colonne, ciascuna con
+   etichetta sopra e casella sotto. */
+.form-group.field-managed_by.field-secondary_managers > .row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    grid-auto-flow: column;
+    gap: 0.25rem 2rem;
+    margin: 0;
+}
+
+.form-group.field-managed_by.field-secondary_managers > .row > * {
+    width: auto;
+    max-width: none;
+    padding-left: 0;
+    padding-right: 0;
+}
+
+.form-group.field-managed_by.field-secondary_managers .select2 {
+    width: 100% !important;
+}

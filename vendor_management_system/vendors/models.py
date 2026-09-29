@@ -318,6 +318,27 @@ def category_scope_ids(category):
     return ids
 
 
+def vendor_category_scope_ids(vendor):
+    """Id di tutte le classificazioni del fornitore e dei loro antenati.
+
+    Unione di `Vendor.category` (principale) e `Vendor.additional_categories`
+    (aggiuntive), ciascuna con i propri antenati. Lista vuota se il
+    fornitore non ha alcuna classificazione (o non è ancora salvato).
+    """
+    ids, seen = [], set()
+    categories = []
+    if vendor.category_id:
+        categories.append(vendor.category)
+    if vendor.pk:
+        categories.extend(vendor.additional_categories.all())
+    for category in categories:
+        for pk in category_scope_ids(category):
+            if pk not in seen:
+                seen.add(pk)
+                ids.append(pk)
+    return ids
+
+
 # Model for Competence
 class Competence(models.Model):
     """
@@ -1419,7 +1440,7 @@ class Vendor(models.Model):
 
     managed_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        verbose_name=_("Utente gestione fornitore"),
+        verbose_name=_("Utenti gestione fornitore"),
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
@@ -1427,7 +1448,18 @@ class Vendor(models.Model):
         limit_choices_to={"role__in": ["admin", "bo_user"]},
         help_text=_(
             "Utente Back Office o Admin responsabile della gestione del "
-            "fornitore"
+            "fornitore (utente primario)"
+        ),
+    )
+    secondary_managers = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        verbose_name=_("Utenti gestione fornitore secondari"),
+        blank=True,
+        related_name="secondary_managed_vendors",
+        limit_choices_to={"role__in": ["admin", "bo_user"]},
+        help_text=_(
+            "Ulteriori utenti Back Office o Admin di riferimento per il "
+            "fornitore (opzionali)"
         ),
     )
 
@@ -1788,7 +1820,17 @@ class Vendor(models.Model):
         blank=True,
         on_delete=models.SET_NULL,
         related_name="vendors",
-        help_text=_("Categoria merceologica del fornitore"),
+        help_text=_("Classificazione principale del fornitore"),
+    )
+    additional_categories = models.ManyToManyField(
+        Category,
+        verbose_name=_("Classificazioni aggiuntive"),
+        blank=True,
+        related_name="additional_vendors",
+        help_text=_(
+            "Ulteriori classificazioni del fornitore, oltre a quella "
+            "principale (opzionali)"
+        ),
     )
     # Copertura territoriale del fornitore. Le province sono
     # l'unica verità: la copertura di una regione è DERIVATA (risulta

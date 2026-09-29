@@ -436,6 +436,10 @@ class VendorSerializer(ModelSerializer):
     category_id = serializers.UUIDField(
         write_only=True, required=False, allow_null=True
     )
+    additional_categories = CategoryCompactSerializer(
+        many=True, read_only=True
+    )
+    services = serializers.SerializerMethodField()
     competence_provinces = serializers.SlugRelatedField(
         slug_field="code", many=True, read_only=True
     )
@@ -461,9 +465,7 @@ class VendorSerializer(ModelSerializer):
             "website",
             "vendor_type",
             # Service information
-            "service_type",
-            "service_additional",
-            "service_note",
+            "services",
             # Performance metrics
             "on_time_delivery_rate",
             "quality_rating_avg",
@@ -478,6 +480,7 @@ class VendorSerializer(ModelSerializer):
             # Evaluation and operational capacity
             "category",
             "category_id",
+            "additional_categories",
             "risk_level",
             "competence_provinces",
             "competence_countries",
@@ -493,6 +496,16 @@ class VendorSerializer(ModelSerializer):
             # Computed properties
             "is_qualified",
             "audit_overdue",
+        ]
+
+    def get_services(self, obj):
+        return [
+            {
+                "id": str(vs.service_type_id),
+                "name": vs.service_type.name,
+                "is_primary": vs.is_primary,
+            }
+            for vs in obj.active_services.select_related("service_type")
         ]
 
     def create(self, validated_data):
@@ -561,10 +574,20 @@ class VendorSerializer(ModelSerializer):
         return instance
 
 
+def valid_additional_categories(category_ids, main_category_id):
+    """Classificazioni aggiuntive valide: attive e diverse dalla principale."""
+    return Category.objects.filter(
+        id__in=category_ids, is_active=True
+    ).exclude(pk=main_category_id)
+
+
 # Serializer per Vendor Create/Update aggiornato
 class VendorCreateUpdateSerializer(ModelSerializer):
     address = AddressSerializer(required=False, allow_null=True)
     category_id = serializers.UUIDField(required=False, allow_null=True)
+    additional_category_ids = serializers.ListField(
+        child=serializers.UUIDField(), required=False
+    )
 
     class Meta:
         model = Vendor
@@ -579,9 +602,8 @@ class VendorCreateUpdateSerializer(ModelSerializer):
             "phone",
             "website",
             "vendor_type",
-            "service_additional",
-            "service_note",
             "category_id",
+            "additional_category_ids",
         ]
 
     def validate_category_id(self, value):
@@ -595,15 +617,39 @@ class VendorCreateUpdateSerializer(ModelSerializer):
                 ) from exc
         return value
 
+    def validate(self, attrs):
+        additional_ids = attrs.get("additional_category_ids")
+        if additional_ids is not None:
+            main_id = attrs.get(
+                "category_id",
+                self.instance.category_id if self.instance else None,
+            )
+            found = valid_additional_categories(additional_ids, main_id)
+            if found.count() != len(set(additional_ids)):
+                raise ValidationError(
+                    {
+                        "additional_category_ids": (
+                            "Classificazione non trovata, non attiva o "
+                            "uguale a quella principale."
+                        )
+                    }
+                )
+        return attrs
+
     def create(self, validated_data):
         address_data = validated_data.pop("address", None)
         category_id = validated_data.pop("category_id", None)
+        additional_ids = validated_data.pop("additional_category_ids", None)
 
         # Imposta la categoria
         if category_id:
             validated_data["category"] = Category.objects.get(id=category_id)
 
         vendor = Vendor.objects.create(**validated_data)
+        if additional_ids is not None:
+            vendor.additional_categories.set(
+                valid_additional_categories(additional_ids, vendor.category_id)
+            )
 
         if address_data:
             address = Address.objects.create(**address_data)
@@ -615,6 +661,7 @@ class VendorCreateUpdateSerializer(ModelSerializer):
     def update(self, instance, validated_data):
         address_data = validated_data.pop("address", None)
         category_id = validated_data.pop("category_id", None)
+        additional_ids = validated_data.pop("additional_category_ids", None)
 
         # Gestisce la categoria
         if category_id is not None:
@@ -638,6 +685,12 @@ class VendorCreateUpdateSerializer(ModelSerializer):
                 instance.address = address
 
         instance.save()
+        if additional_ids is not None:
+            instance.additional_categories.set(
+                valid_additional_categories(
+                    additional_ids, instance.category_id
+                )
+            )
         return instance
 
 

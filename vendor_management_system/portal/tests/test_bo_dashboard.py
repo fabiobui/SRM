@@ -103,8 +103,14 @@ class TestBoDashboardPersonalSections:
         )
         my_vendor = VendorFactory(managed_by=bo_user)
         other_vendor = VendorFactory(managed_by=other_manager)
+        # Anche un fornitore di cui l'utente è gestore secondario è "mio".
+        secondary_vendor = VendorFactory(managed_by=other_manager)
+        secondary_vendor.secondary_managers.add(bo_user)
 
         my_document = DocumentFactory(vendor=my_vendor, status="UPLOADED")
+        secondary_document = DocumentFactory(
+            vendor=secondary_vendor, status="UPLOADED"
+        )
         DocumentFactory(vendor=other_vendor, status="UPLOADED")
         my_requirement = VendorCompetenceFactory(
             vendor=my_vendor,
@@ -125,7 +131,10 @@ class TestBoDashboardPersonalSections:
 
         response = client.get(reverse("portal:bo-dashboard"))
 
-        assert list(response.context["my_pending_documents"]) == [my_document]
+        assert set(response.context["my_pending_documents"]) == {
+            my_document,
+            secondary_document,
+        }
         assert list(response.context["my_pending_requirements"]) == [
             my_requirement
         ]

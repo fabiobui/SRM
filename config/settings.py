@@ -143,6 +143,12 @@ AUTHENTICATION_BACKENDS = [
 # Abilita/disabilita autenticazione LDAP
 LDAP_ENABLED = os.getenv("LDAP_ENABLED", "False") == "True"
 
+# Dominio email richiesto agli utenti di gestione fornitore (primario e
+# secondari, AIDEV-84).
+VENDOR_MANAGER_EMAIL_DOMAIN = os.getenv(
+    "VENDOR_MANAGER_EMAIL_DOMAIN", "fulgard.com"
+)
+
 # Variabili lette anche quando LDAP è disabilitato: i comandi diagnostici
 # (test_ldap*, vedi vendor_management_system/*/management/commands/) e il
 # backend realmente usato (HybridAuthBackend/ldap3, sotto) le leggono con

@@ -1178,8 +1178,9 @@ class BoDashboardView(BackOfficeRequiredMixin, TemplateView):
     """Dashboard consolidata per il back-office.
 
     KPI globali di sistema in alto; sezioni personali (fornitori con
-    `managed_by` uguale all'utente loggato) con gli aggiornamenti da
-    revisionare e i fornitori senza documenti/requisiti assegnati.
+    `managed_by` o `secondary_managers` contenenti l'utente loggato) con gli
+    aggiornamenti da revisionare e i fornitori senza documenti/requisiti
+    assegnati.
     """
 
     template_name = "portal/backoffice/dashboard.html"
@@ -1226,9 +1227,12 @@ class BoDashboardView(BackOfficeRequiredMixin, TemplateView):
 
         # Sezioni personali: solo i fornitori gestiti dall'utente loggato.
         user = self.request.user
+        my_vendors = Vendor.objects.filter(
+            Q(managed_by=user) | Q(secondary_managers=user)
+        ).values("pk")
         ctx["my_pending_change_requests"] = (
             profile_requests_qs.filter(
-                vendor__managed_by=user,
+                vendor__in=my_vendors,
                 status=VendorChangeRequest.STATUS_PENDING,
             )
             .select_related("vendor")
@@ -1237,7 +1241,7 @@ class BoDashboardView(BackOfficeRequiredMixin, TemplateView):
         ctx["my_pending_service_requests"] = (
             _service_requests_qs()
             .filter(
-                vendor__managed_by=user,
+                vendor__in=my_vendors,
                 status=VendorChangeRequest.STATUS_PENDING,
             )
             .select_related(
@@ -1246,13 +1250,13 @@ class BoDashboardView(BackOfficeRequiredMixin, TemplateView):
             .order_by("-created_at")[:10]
         )
         ctx["my_pending_documents"] = (
-            Document.objects.filter(vendor__managed_by=user, status="UPLOADED")
+            Document.objects.filter(vendor__in=my_vendors, status="UPLOADED")
             .select_related("vendor", "document_type")
             .order_by("-uploaded_at")[:10]
         )
         ctx["my_pending_requirements"] = (
             VendorCompetence.objects.filter(
-                vendor__managed_by=user, verified=False
+                vendor__in=my_vendors, verified=False
             )
             .exclude(document_file="")
             .select_related("vendor", "competence")
@@ -1260,7 +1264,7 @@ class BoDashboardView(BackOfficeRequiredMixin, TemplateView):
         )
         ctx["my_expired_documents"] = (
             Document.objects.filter(
-                vendor__managed_by=user,
+                vendor__in=my_vendors,
                 expiry_date__isnull=False,
                 expiry_date__lt=today,
             )
@@ -1269,7 +1273,7 @@ class BoDashboardView(BackOfficeRequiredMixin, TemplateView):
         )
         ctx["my_expired_requirements"] = (
             VendorCompetence.objects.filter(
-                vendor__managed_by=user,
+                vendor__in=my_vendors,
                 expiry_date__isnull=False,
                 expiry_date__lt=today,
             )
@@ -1277,10 +1281,10 @@ class BoDashboardView(BackOfficeRequiredMixin, TemplateView):
             .order_by("expiry_date")[:10]
         )
         ctx["my_vendors_without_documents"] = Vendor.objects.filter(
-            managed_by=user, documents__isnull=True
+            pk__in=my_vendors, documents__isnull=True
         )[:10]
         ctx["my_vendors_without_requirements"] = Vendor.objects.filter(
-            managed_by=user, vendor_competences__isnull=True
+            pk__in=my_vendors, vendor_competences__isnull=True
         )[:10]
 
         return ctx
