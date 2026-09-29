@@ -307,8 +307,12 @@ portal/templates/portal/
 
 Rifiuto: `status=REJECTED`, email al richiedente con `review_notes`.
 
-### 7.2 Creazione da admin (oggi già funziona)
-L'admin crea `Vendor` + `User` da Django admin. Aggiungiamo, in fase di salvataggio del nuovo `User(role='vendor')`, l'invio automatico dell'email "imposta password" (toggle nel form admin: "invia invito").
+### 7.2 Creazione da admin (implementata)
+L'admin crea l'accesso direttamente dalla scheda `Vendor` (pulsante "Crea accesso portale"): viene creato
+`User(role='vendor', vendor=<vendor>, email=vendor.email)` senza password e parte l'email "imposta password"
+(token `InviteTokenGenerator`, `vendor_management_system/users/portal_access.py`). Da Utenti → Aggiungi utente
+l'invito parte quando si lascia vuota la password di un Fornitore (al posto del toggle "invia invito" ipotizzato
+inizialmente).
 
 ### 7.3 Upload documento
 ```
@@ -403,6 +407,12 @@ Job periodici (Celery beat):
 - View BO per gestire `VendorChangeRequest`.
 
 ### Fase 3 — Onboarding fornitore (2-3 gg)
+> **Stato:** implementati l'invito da admin (pulsante "Crea accesso portale" sulla scheda Vendor e
+> invito automatico da Utenti → Aggiungi utente per i Fornitori senza password), il flow "imposta password" via
+> token e il reset password pubblico ("Password dimenticata?" sul login). Restano da fare
+> `VendorRegistrationRequest`, il form pubblico di registrazione e la relativa approvazione BO. Dettagli di
+> configurazione email in `docs/PROJECT_OVERVIEW_AND_LOCAL_SETUP.md`, §8 A8.
+
 - Modello `VendorRegistrationRequest`.
 - Form pubblico `/portale/registrazione/` con anti‑spam.
 - View BO di approvazione → crea Vendor + User + invio invito email.

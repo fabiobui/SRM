@@ -1,10 +1,19 @@
 # vendor_management_system/core/auth_views.py
 
 from django import forms
+from django.conf import settings
 from django.contrib import messages
-from django.contrib.auth import authenticate, login
+from django.contrib.auth import authenticate, get_user_model, login
+from django.contrib.auth import views as auth_views
+from django.contrib.auth.forms import PasswordResetForm
 from django.shortcuts import redirect, render
+from django.urls import reverse, reverse_lazy
 from django.views.generic import View
+
+from vendor_management_system.core.emails import send_templated_email
+from vendor_management_system.users.portal_access import (
+    invite_token_generator,
+)
 
 
 class LoginForm(forms.Form):
@@ -124,3 +133,105 @@ class CustomLogoutView(View):
         messages.success(request, "Logout effettuato con successo.")
 
         return redirect("login")
+
+
+# -----------------------------------------------------------------------------
+# Impostazione / reset password
+# -----------------------------------------------------------------------------
+
+PASSWORD_RESET_SUBJECT = (
+    "Fulgard — Reimposta la password del Portale Fornitori"
+)
+
+
+class PortalPasswordResetForm(PasswordResetForm):
+    """Form "Password dimenticata?" con i template email del progetto.
+
+    A differenza del form Django include anche gli utenti senza password
+    utilizzabile (es. un fornitore con invito scaduto può ripartire da solo),
+    ma esclude gli utenti LDAP: la loro password si gestisce in Active
+    Directory, non qui. Un errore di invio viene solo loggato (da
+    `send_templated_email`): la pagina di conferma resta identica per non
+    rivelare quali email sono registrate.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["email"].widget.attrs.update(
+            {"class": "form-control", "placeholder": "Inserisci la tua email"}
+        )
+
+    def get_users(self, email):
+        return get_user_model()._default_manager.filter(
+            email__iexact=email, is_active=True, is_ldap_user=False
+        )
+
+    def send_mail(
+        self,
+        subject_template_name,
+        email_template_name,
+        context,
+        from_email,
+        to_email,
+        html_email_template_name=None,
+    ):
+        base_url = f"{context['protocol']}://{context['domain']}"
+        reset_path = reverse(
+            "password_reset_confirm",
+            kwargs={"uidb64": context["uid"], "token": context["token"]},
+        )
+        try:
+            send_templated_email(
+                subject=PASSWORD_RESET_SUBJECT,
+                template_name="password_reset",
+                context={
+                    "user": context["user"],
+                    "greeting_name": context["user"].name,
+                    "reset_url": base_url + reset_path,
+                    "login_url": base_url + reverse("login"),
+                    "reset_hours": settings.PASSWORD_RESET_TIMEOUT // 3600,
+                },
+                to=[to_email],
+            )
+        except Exception:  # noqa: BLE001 - già loggato dall'helper
+            pass
+
+
+class PortalPasswordResetView(auth_views.PasswordResetView):
+    template_name = "auth/password_reset_form.html"
+    form_class = PortalPasswordResetForm
+    success_url = reverse_lazy("password_reset_done")
+
+
+class PortalPasswordResetDoneView(auth_views.PasswordResetDoneView):
+    template_name = "auth/password_reset_done.html"
+
+
+class PortalSetPasswordView(auth_views.PasswordResetConfirmView):
+    """Impostazione password da link a token (reset password)."""
+
+    template_name = "auth/password_set.html"
+    success_url = reverse_lazy("password_reset_complete")
+    is_invite = False
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        for field in form.fields.values():
+            field.widget.attrs.update({"class": "form-control"})
+        return form
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["is_invite"] = self.is_invite
+        return context
+
+
+class PortalInviteSetPasswordView(PortalSetPasswordView):
+    """Primo accesso: impostazione password dal link dell'email d'invito."""
+
+    token_generator = invite_token_generator
+    is_invite = True
+
+
+class PortalPasswordSetDoneView(auth_views.PasswordResetCompleteView):
+    template_name = "auth/password_set_done.html"

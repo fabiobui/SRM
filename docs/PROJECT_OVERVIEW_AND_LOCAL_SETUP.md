@@ -309,6 +309,8 @@ docker compose exec django python manage.py seed_document_sets
 
 - App: `http://localhost:8000/` (→ login → atterraggio basato sul ruolo, vedi §4)
 - Swagger: `http://localhost:8000/swagger/`
+- Mailpit: `http://localhost:8025/` — tutte le email inviate dall'app in locale (inviti portale, reset password),
+  vedi A8
 - Flower: `http://localhost:5555/` (basic-auth: `CELERY_FLOWER_USER`/`CELERY_FLOWER_PASSWORD` da
   `.envs/.django.env`)
 - MySQL: `localhost:13306` se vuoi connettere un client GUI (credenziali in `.envs/.mysql.env`; la porta è
@@ -326,6 +328,77 @@ docker compose down -v               # ferma E cancella i volumi dati di MySQL/R
 ```
 Le modifiche al codice sull'host vengono recepite live (il repo è montato via bind mount in `/app`, e
 `start`/`start-celery*` usano `watchfiles` / l'autoreload di Django).
+
+#### A8 — Email in locale (Mailpit) e invito fornitori
+
+Tutte le email dell'app passano da `vendor_management_system/core/emails.py` (`send_templated_email`, template in
+`vendor_management_system/templates/emails/`). In locale le cattura il servizio `mailpit` di `docker-compose.yml`:
+nessun invio reale, le leggi su `http://localhost:8025/`.
+
+Variabili in `.envs/.django.env` (elenco completo con commenti in `env_example/.env.email.example`):
+
+```env
+EMAIL_HOST=mailpit
+EMAIL_PORT=1025
+DEFAULT_FROM_EMAIL=<la tua email aziendale>
+EMAIL_REDIRECT_TO=<la tua email aziendale>
+```
+
+`EMAIL_REDIRECT_TO` (lista separata da virgole) dirotta **tutte** le email a quegli indirizzi invece che ai
+destinatari reali: subject con prefisso `[REDIRECT → <originale>]` e banner "Ambiente di prova" nel corpo. Serve a
+non scrivere ai fornitori veri quando il DB contiene dati reali (es. import IGEAM). Dopo aver cambiato le variabili
+serve `docker compose up -d --force-recreate django` (un semplice `restart` non rilegge `env_file`).
+
+Prova del flusso d'invito:
+
+1. Admin → Fornitori → scheda di un fornitore con il campo **Email** compilato → pulsante **Crea accesso
+   portale** → conferma. Viene creato un `User(role="vendor")` collegato al fornitore, senza password, e parte
+   l'email con il link "Imposta la tua password" (valido `PORTAL_INVITE_TIMEOUT_DAYS` giorni, default 3).
+2. Da Mailpit apri il link, imposta la password, poi accedi da `/auth/login/`: il fornitore atterra su `/portale/`.
+3. Dalla stessa pagina (**Gestisci accesso portale**) puoi reinviare l'invito finché l'utente non ha impostato la
+   password. Anche Utenti → Aggiungi utente con ruolo Fornitore e password **vuota** invia l'invito; con la
+   password compilata resta il comportamento manuale di prima.
+4. "Password dimenticata?" sul login invia il link di reset (valido `PASSWORD_RESET_TIMEOUT_HOURS` ore, default
+   24) agli utenti locali; gli utenti LDAP sono esclusi (password gestita in Active Directory).
+
+**Test/Prod.** Stesso schema di FApp (SRM e FApp girano sulle stesse VM): l'app invia in SMTP a `localhost:25`
+(default di `EMAIL_HOST`/`EMAIL_PORT`, da non impostare), dove il Postfix della VM fa da relay autenticato verso
+Exchange Online (`[smtp.office365.com]:587`, TLS obbligatorio) con la casella di servizio indicata in
+`/etc/postfix/sasl_passwd`. Le credenziali stanno solo nel Postfix, mai nell'app.
+
+Exchange accetta come mittente solo la casella di servizio del relay o una casella su cui questa ha il permesso
+**Send As** (altrimenti risponde `554 5.2.252 SendAsDenied`). Scelta per SRM: mittente dedicato
+**`portale.fornitori@fulgard.com`**, casella condivisa di Microsoft 365 (senza licenza) con permesso Send As
+concesso alla casella del relay — lo stesso meccanismo già usato per altri mittenti applicativi che passano dallo
+stesso relay. Così gli inviti ai fornitori partono da un indirizzo riconoscibile, le eventuali risposte finiscono in
+una casella leggibile e non serve alcuna credenziale nuova né modifica a Postfix. Una volta attiva la casella basta,
+su ciascuna VM:
+
+```env
+DEFAULT_FROM_EMAIL=portale.fornitori@fulgard.com
+# oppure, con nome visualizzato: DEFAULT_FROM_EMAIL=Portale Fornitori Fulgard <portale.fornitori@fulgard.com>
+EMAIL_REDIRECT_TO=            # prod: vuoto; test: valorizzato se il DB contiene email reali di fornitori
+```
+
+seguito dal riavvio del servizio dell'app (le variabili vengono lette solo all'avvio). Finché la casella non è
+attiva si può usare temporaneamente la casella di servizio del relay come `DEFAULT_FROM_EMAIL`.
+
+Verifiche sulla VM (sola lettura, tranne l'invio di prova):
+
+```bash
+postconf -n | grep -E 'relayhost|smtp_sasl|smtp_tls_security_level|sender_canonical'
+sudo awk '{split($2,a,":"); print $1, a[1]}' /etc/postfix/sasl_passwd   # casella del relay, senza password
+sudo cat /etc/postfix/sender_canonical   # se presente: non deve riscrivere il mittente di SRM
+python manage.py sendtestemail <tua-email>   # dal venv di SRM: usa DEFAULT_FROM_EMAIL
+sudo tail -n 20 /var/log/mail.log        # oppure: sudo journalctl -u postfix@- -n 50 (non "postfix.service")
+```
+
+Nel log `status=sent (250 2.0.0 OK ...)` conferma la consegna; `SendAsDenied` indica permesso Send As mancante o
+non ancora propagato (può richiedere fino a circa un'ora); `535 5.7.139` credenziali del relay non valide.
+`432 4.3.2 Concurrent connections limit exceeded` è un limite temporaneo di Exchange: Postfix riprova da solo.
+
+Un errore di invio non è mai silenzioso: finisce nel log (logger `vendor_management_system.core.emails`) e l'admin
+vede un avviso con l'invito a riprovare.
 
 ---
 

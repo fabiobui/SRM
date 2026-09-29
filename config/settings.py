@@ -149,6 +149,41 @@ VENDOR_MANAGER_EMAIL_DOMAIN = os.getenv(
     "VENDOR_MANAGER_EMAIL_DOMAIN", "fulgard.com"
 )
 
+# EMAIL
+# -----------------------------------------------------------------------------
+# Su test/prod l'app invia in SMTP a localhost:25, dove il Postfix della VM fa
+# da relay autenticato verso Exchange Online (stesso schema di FApp): le
+# credenziali stanno solo nel Postfix, mai qui. DEFAULT_FROM_EMAIL deve essere
+# la casella con cui si autentica il relay o una su cui questa ha il permesso
+# "Send As" (per SRM: portale.fornitori@fulgard.com), altrimenti Exchange
+# rifiuta l'invio (554 SendAsDenied). In locale EMAIL_HOST/EMAIL_PORT puntano
+# a Mailpit (docker-compose). Vedi env_example/.env.email.example.
+EMAIL_BACKEND = os.getenv(
+    "EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend"
+)
+EMAIL_HOST = os.getenv("EMAIL_HOST", "localhost")
+EMAIL_PORT = int(os.getenv("EMAIL_PORT", "25"))
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
+EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "False") == "True"
+EMAIL_USE_SSL = os.getenv("EMAIL_USE_SSL", "False") == "True"
+EMAIL_TIMEOUT = int(os.getenv("EMAIL_TIMEOUT", "10"))
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "webmaster@localhost")
+SERVER_EMAIL = DEFAULT_FROM_EMAIL
+# Se valorizzato (lista separata da virgole) TUTTE le email del progetto
+# vengono dirottate a questi indirizzi invece che ai destinatari reali: da
+# usare in locale/test per non scrivere ai fornitori veri. Vuoto in prod.
+EMAIL_REDIRECT_TO = [
+    addr.strip()
+    for addr in os.getenv("EMAIL_REDIRECT_TO", "").split(",")
+    if addr.strip()
+]
+# Validità del link d'invito al portale fornitori e del link di reset password.
+PORTAL_INVITE_TIMEOUT_DAYS = int(os.getenv("PORTAL_INVITE_TIMEOUT_DAYS", "3"))
+PASSWORD_RESET_TIMEOUT = (
+    int(os.getenv("PASSWORD_RESET_TIMEOUT_HOURS", "24")) * 60 * 60
+)
+
 # Variabili lette anche quando LDAP è disabilitato: i comandi diagnostici
 # (test_ldap*, vedi vendor_management_system/*/management/commands/) e il
 # backend realmente usato (HybridAuthBackend/ldap3, sotto) le leggono con

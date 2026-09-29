@@ -1,11 +1,15 @@
 from django import forms
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.contrib.auth import admin as auth_admin
 from django.contrib.auth.forms import UserChangeForm, UserCreationForm
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 
 from vendor_management_system.users.models import User
+from vendor_management_system.users.portal_access import (
+    invite_and_notify,
+    pending_invite,
+)
 
 
 # Custom User Creation Form with Role selection
@@ -75,11 +79,20 @@ class CustomUserCreationForm(UserCreationForm):
         password2 = cleaned_data.get("password2")
         vendor = cleaned_data.get("vendor")
 
-        # Validazione password per utenti locali
+        # Validazione password per utenti locali. Per i Fornitori è
+        # facoltativa: se vuota l'utente nasce senza password e riceve
+        # l'email d'invito per impostarla (vedi UserAdmin.save_model).
+        # Così l'admin non deve inventare e comunicare una password
+        # provvisoria.
         if user_type == "local":
-            if not password1 or not password2:
+            invite = role == "vendor" and not password1 and not password2
+            if not invite and (not password1 or not password2):
                 raise ValidationError(
-                    _("La password è obbligatoria per gli utenti locali.")
+                    _(
+                        "La password è obbligatoria per gli utenti locali "
+                        "(per i Fornitori lasciala vuota per inviare "
+                        "l'invito via email)."
+                    )
                 )
 
         # Validazione vendor per utenti vendor
@@ -101,8 +114,11 @@ class CustomUserCreationForm(UserCreationForm):
         user_type = self.cleaned_data.get("user_type", "local")
         user.is_ldap_user = user_type == "ldap"
 
-        # Per utenti LDAP, imposta una password inutilizzabile
-        if user.is_ldap_user:
+        # Per utenti LDAP, e per i Fornitori creati senza password (invito
+        # via email), imposta una password inutilizzabile: UserCreationForm
+        # farebbe altrimenti set_password(""), cioè una password vuota
+        # valida.
+        if user.is_ldap_user or not self.cleaned_data.get("password1"):
             user.set_unusable_password()
 
         if commit:
@@ -273,7 +289,9 @@ class UserAdmin(auth_admin.UserAdmin):
                 "description": _(
                     "Per utenti locali (non LDAP) compila entrambi i "
                     "campi: Password e Conferma password. Lascia vuoto "
-                    "solo per utenti LDAP - la password non è necessaria."
+                    "per utenti LDAP - la password non è necessaria - e "
+                    "per i Fornitori a cui vuoi inviare l'invito via "
+                    "email per impostarla da soli."
                 ),
             },
         ),
@@ -296,6 +314,7 @@ class UserAdmin(auth_admin.UserAdmin):
     # Campi di sola lettura per utenti LDAP (alcune informazioni vengono
     # da LDAP)
     readonly_fields = ["is_ldap_user", "last_login", "date_joined"]
+    actions = ["resend_portal_invite"]
 
     def get_readonly_fields(self, request, obj=None):
         """Imposta campi di sola lettura dinamicamente"""
@@ -358,6 +377,29 @@ class UserAdmin(auth_admin.UserAdmin):
         # Dopo il salvataggio, assegna ai gruppi appropriati
         if not change:  # Solo per nuovi utenti
             obj.assign_to_group()
+            # Fornitore creato senza password: invito via email
+            if pending_invite(obj) and obj.vendor_id:
+                invite_and_notify(self, request, obj, created=False)
+
+    @admin.action(description=_("Reinvia invito portale fornitori"))
+    def resend_portal_invite(self, request, queryset):
+        skipped = 0
+        for user in queryset:
+            if pending_invite(user) and user.vendor_id and user.is_active:
+                invite_and_notify(self, request, user, created=False)
+            else:
+                skipped += 1
+        if skipped:
+            self.message_user(
+                request,
+                _(
+                    "%(count)d utenti saltati: l'invito si reinvia solo a "
+                    "Fornitori attivi che non hanno ancora impostato la "
+                    "password."
+                )
+                % {"count": skipped},
+                messages.WARNING,
+            )
 
     def get_form(self, request, obj=None, **kwargs):
         """Personalizza il form in base al contesto"""

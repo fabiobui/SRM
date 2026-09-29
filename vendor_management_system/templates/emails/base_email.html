@@ -1,0 +1,49 @@
+{# Layout comune delle email: tabelle + CSS inline, compatibile con Outlook. #}
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light">
+  <title>{% block title %}Fulgard · Portale Fornitori{% endblock %}</title>
+</head>
+<body style="margin:0; padding:0; background-color:#f6f8fa; font-family:Segoe UI, Arial, Helvetica, sans-serif; color:#212529;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#f6f8fa;">
+    <tr>
+      <td align="center" style="padding:24px 12px;">
+        <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="width:100%; max-width:600px; background-color:#ffffff; border-radius:8px; border:1px solid #e3e6ea;">
+
+          {% if original_recipients %}
+          <tr>
+            <td style="background-color:#fff3cd; color:#664d03; padding:12px 24px; font-size:13px; border-bottom:1px solid #ffe69c; border-radius:8px 8px 0 0;">
+              <strong>Ambiente di prova</strong> — email dirottata. Destinatario originale:
+              {{ original_recipients|join:", " }}
+            </td>
+          </tr>
+          {% endif %}
+
+          <tr>
+            <td style="background-color:#1a7a3a; padding:24px; color:#ffffff;{% if not original_recipients %} border-radius:8px 8px 0 0;{% endif %}">
+              <div style="font-size:13px; letter-spacing:1px; text-transform:uppercase; opacity:0.85;">Fulgard</div>
+              <div style="font-size:22px; font-weight:bold; margin-top:4px;">Portale Fornitori</div>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:32px 24px 8px 24px; font-size:15px; line-height:1.6;">
+              {% block content %}{% endblock %}
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:16px 24px 24px 24px; font-size:12px; line-height:1.5; color:#6c757d; border-top:1px solid #e3e6ea;">
+              Questa è un'email automatica inviata dal Portale Fornitori Fulgard: non rispondere a questo messaggio.
+              Per assistenza contatta il tuo referente Fulgard.
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
