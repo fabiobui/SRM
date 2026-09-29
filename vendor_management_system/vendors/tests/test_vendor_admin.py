@@ -1,8 +1,9 @@
 """Test dell'admin Django per `Vendor` (`/admin/vendors/vendor/`).
 
-Copre il filtro per `managed_by` ("Utente gestione fornitore"), che
+Copre il filtro per `managed_by` ("Utenti gestione fornitore"), che
 permette di isolare i fornitori seguiti da un certo referente
-back-office/admin.
+back-office/admin, la validazione dei gestori (dominio email, primario
+non secondario) e delle classificazioni aggiuntive.
 """
 
 import pytest
@@ -10,7 +11,8 @@ from django.contrib.auth import get_user_model
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 
-from vendor_management_system.vendors.admin import VendorAdmin
+from vendor_management_system.portal.tests.factories import CategoryFactory
+from vendor_management_system.vendors.admin import VendorAdmin, VendorAdminForm
 from vendor_management_system.vendors.tests.factories import VendorFactory
 
 User = get_user_model()
@@ -19,6 +21,13 @@ PASSWORD = "test-pass-1234"
 
 def test_list_filter_includes_managed_by():
     assert "managed_by" in VendorAdmin.list_filter
+    assert "secondary_managers" in VendorAdmin.list_filter
+
+
+def test_managers_share_a_row_in_base_info_fieldset():
+    base_fields = dict(VendorAdmin.fieldsets)[_("Informazioni Base")]["fields"]
+    assert ("managed_by", "secondary_managers") in base_fields
+    assert "additional_categories" in base_fields
 
 
 def test_vendor_code_is_first_in_list_display():
@@ -70,6 +79,8 @@ def test_vendor_changelist_filters_by_managed_by(client):
     )
     vendor_a = VendorFactory(managed_by=bo_user_a)
     vendor_b = VendorFactory(managed_by=bo_user_b)
+    vendor_c = VendorFactory(managed_by=bo_user_b)
+    vendor_c.secondary_managers.add(bo_user_a)
 
     url = reverse("admin:vendors_vendor_changelist")
     response = client.get(url, {"managed_by__id__exact": bo_user_a.pk})
@@ -78,3 +89,39 @@ def test_vendor_changelist_filters_by_managed_by(client):
     results = list(response.context["cl"].result_list)
     assert vendor_a in results
     assert vendor_b not in results
+
+    response = client.get(url, {"secondary_managers__id__exact": bo_user_a.pk})
+    assert list(response.context["cl"].result_list) == [vendor_c]
+
+
+@pytest.mark.django_db
+def test_admin_form_validates_managers_and_additional_categories(settings):
+    settings.VENDOR_MANAGER_EMAIL_DOMAIN = "fulgard.com"
+    ok = User.objects.create_user(
+        email="ok@fulgard.com", password=PASSWORD, role="bo_user"
+    )
+    other = User.objects.create_user(
+        email="other@fulgard.com", password=PASSWORD, role="bo_user"
+    )
+    foreign = User.objects.create_user(
+        email="bo@example.invalid", password=PASSWORD, role="bo_user"
+    )
+    category = CategoryFactory()
+    vendor = VendorFactory(category=category)
+
+    def errors(**data):
+        form = VendorAdminForm(data=data, instance=vendor)
+        form.is_valid()
+        return form.errors
+
+    assert "managed_by" in errors(managed_by=foreign.pk)
+    assert "secondary_managers" in errors(secondary_managers=[foreign.pk])
+    assert "secondary_managers" in errors(
+        managed_by=ok.pk, secondary_managers=[ok.pk, other.pk]
+    )
+    assert "managed_by" not in errors(
+        managed_by=ok.pk, secondary_managers=[other.pk]
+    )
+    assert "additional_categories" in errors(
+        category=category.pk, additional_categories=[category.pk]
+    )

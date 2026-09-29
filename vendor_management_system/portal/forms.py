@@ -32,7 +32,7 @@ from vendor_management_system.vendors.models import (
     VendorCompetence,
     VendorOperationalAttributes,
     VendorService,
-    category_scope_ids,
+    vendor_category_scope_ids,
 )
 from vendor_management_system.vendors.widgets import CompetenceAreaField
 
@@ -362,7 +362,8 @@ def available_service_types_for_vendor(vendor):
 
     Esclude i servizi già assegnati e quelli con una richiesta ADD_SERVICE
     già in attesa (evita duplicati). Se il vendor ha una classificazione
-    (`Vendor.category`) e questa — o un suo antenato — ha almeno un
+    (`Vendor.category` o `Vendor.additional_categories`) e questa — o un
+    suo antenato — ha almeno un
     `ServiceSet` collegato, filtra ai soli servizi di quei set (coerenza
     con la classificazione, vedi `vendors/admin.py:service_sets_view` per lo
     stesso meccanismo lato back-office). Altrimenti (nessuna classificazione,
@@ -382,8 +383,8 @@ def available_service_types_for_vendor(vendor):
         is_active=True, parent__isnull=False
     ).exclude(pk__in=list(already_assigned) + list(pending_add))
 
-    if vendor.category_id:
-        scope = category_scope_ids(vendor.category)
+    scope = vendor_category_scope_ids(vendor)
+    if scope:
         scoped_queryset = queryset.filter(
             service_sets__category_id__in=scope, service_sets__is_active=True
         ).distinct()

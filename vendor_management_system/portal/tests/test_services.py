@@ -255,6 +255,30 @@ class TestAvailableServiceTypesForVendor:
 
         assert in_set in available
 
+    def test_additional_category_service_set_is_included(self):
+        main_category = CategoryFactory()
+        extra_category = CategoryFactory()
+        vendor = VendorUserFactory(password=PASSWORD).vendor
+        vendor.category = main_category
+        vendor.save()
+        vendor.additional_categories.add(extra_category)
+        section = ServiceTypeFactory()
+        main_service = ServiceTypeFactory(parent=section)
+        extra_service = ServiceTypeFactory(parent=section)
+        out_of_set = ServiceTypeFactory(parent=section)
+        ServiceSetFactory(category=main_category).service_types.add(
+            main_service
+        )
+        ServiceSetFactory(category=extra_category).service_types.add(
+            extra_service
+        )
+
+        available = available_service_types_for_vendor(vendor)
+
+        assert main_service in available
+        assert extra_service in available
+        assert out_of_set not in available
+
     def test_category_without_linked_service_set_falls_back_to_catalog(self):
         category = CategoryFactory()
         vendor = VendorUserFactory(password=PASSWORD).vendor

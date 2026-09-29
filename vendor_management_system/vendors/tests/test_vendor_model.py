@@ -172,3 +172,28 @@ def test_vendor_pec_rejects_invalid_email(db, vendor_factory):
 
     with pytest.raises(ValidationError):
         vendor.full_clean()
+
+
+@pytest.mark.django_db
+def test_vendor_category_scope_unites_main_additional_and_ancestors(
+    db, vendor_factory
+):
+    from vendor_management_system.portal.tests.factories import (
+        CategoryFactory,
+    )
+    from vendor_management_system.vendors.models import (
+        vendor_category_scope_ids,
+    )
+
+    parent = CategoryFactory()
+    main = CategoryFactory(parent=parent)
+    extra = CategoryFactory()
+    vendor = vendor_factory(category=main)
+    vendor.additional_categories.add(extra)
+
+    assert set(vendor_category_scope_ids(vendor)) == {
+        parent.pk,
+        main.pk,
+        extra.pk,
+    }
+    assert vendor_category_scope_ids(vendor_factory(category=None)) == []

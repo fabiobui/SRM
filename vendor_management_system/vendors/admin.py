@@ -2,6 +2,7 @@
 
 # Imports (aggiorna le imports esistenti)
 from django import forms
+from django.conf import settings
 from django.contrib import admin
 from django.db.models import Q
 from django.http import JsonResponse
@@ -51,7 +52,7 @@ from .models import (
     VendorEvaluation,
     VendorOperationalAttributes,
     VendorService,
-    category_scope_ids,
+    vendor_category_scope_ids,
 )
 from .widgets import CompetenceAreaField
 
@@ -1039,6 +1040,46 @@ class VendorAdminForm(forms.ModelForm):
             country_codes=selezione.get("countries", []),
         )
 
+    def _check_manager_domain(self, user):
+        domain = settings.VENDOR_MANAGER_EMAIL_DOMAIN.lower()
+        if user and not (user.email or "").lower().endswith(f"@{domain}"):
+            raise forms.ValidationError(
+                _("L'utente %(user)s non ha un'email @%(domain)s."),
+                params={"user": user, "domain": domain},
+            )
+
+    def clean_managed_by(self):
+        user = self.cleaned_data.get("managed_by")
+        self._check_manager_domain(user)
+        return user
+
+    def clean_secondary_managers(self):
+        users = self.cleaned_data.get("secondary_managers")
+        for user in users or []:
+            self._check_manager_domain(user)
+        return users
+
+    def clean(self):
+        cleaned = super().clean()
+        primary = cleaned.get("managed_by")
+        if primary and primary in (cleaned.get("secondary_managers") or []):
+            self.add_error(
+                "secondary_managers",
+                _("L'utente primario non può essere anche secondario."),
+            )
+        category = cleaned.get("category")
+        if category and category in (
+            cleaned.get("additional_categories") or []
+        ):
+            self.add_error(
+                "additional_categories",
+                _(
+                    "La classificazione principale non può essere anche "
+                    "aggiuntiva."
+                ),
+            )
+        return cleaned
+
     def _check_duplicate(self, value, label, lookup):
         from django.urls import reverse
 
@@ -1109,6 +1150,7 @@ class VendorAdmin(admin.ModelAdmin):
         "embyon_company",
         "embyon_active",
         "managed_by",
+        "secondary_managers",
         # Zone di competenza, a cascata: la Regione mostra solo quelle
         # della Nazione scelta, la Provincia solo quelle della Regione
         # scelta.
@@ -1146,8 +1188,10 @@ class VendorAdmin(admin.ModelAdmin):
     autocomplete_fields = [
         "address",
         "category",
+        "additional_categories",
         "qualification_type",
         "managed_by",
+        "secondary_managers",
     ]
     inlines = [
         VendorServiceInline,
@@ -1415,21 +1459,23 @@ class VendorAdmin(admin.ModelAdmin):
             "document_types"
         )
 
-        category_id = None
+        category_ids = []
         vendor_id = request.GET.get("vendor")
         if vendor_id:
-            vendor = (
-                Vendor.objects.filter(pk=vendor_id).only("category").first()
-            )
+            vendor = Vendor.objects.filter(pk=vendor_id).first()
             if vendor:
-                category_id = vendor.category_id
+                if vendor.category_id:
+                    category_ids.append(vendor.category_id)
+                category_ids.extend(
+                    vendor.additional_categories.values_list("pk", flat=True)
+                )
 
-        # Con classificazione nota: set universali (category nullo) + set
-        # della classificazione.
+        # Con classificazione nota (principale e/o aggiuntive): set
+        # universali (category nullo) + set di quelle classificazioni.
         # Senza classificazione (o in creazione): tutti i set attivi.
-        if category_id:
+        if category_ids:
             qs = qs.filter(
-                Q(category__isnull=True) | Q(category_id=category_id)
+                Q(category__isnull=True) | Q(category_id__in=category_ids)
             )
 
         sets = [
@@ -1447,7 +1493,8 @@ class VendorAdmin(admin.ModelAdmin):
         return JsonResponse({"sets": sets})
 
     def _vendor_category_scope(self, request):
-        """Classificazione del fornitore in URL, con i suoi antenati.
+        """Classificazioni del fornitore in URL (principale e aggiuntive), con
+        i loro antenati.
         Restituisce None quando il fornitore non è noto (form di
         creazione) o è privo di classificazione: in quel caso vanno
         mostrati tutti i set attivi."""
@@ -1459,9 +1506,9 @@ class VendorAdmin(admin.ModelAdmin):
             .select_related("category")
             .first()
         )
-        if not vendor or not vendor.category:
+        if not vendor:
             return None
-        return category_scope_ids(vendor.category)
+        return vendor_category_scope_ids(vendor) or None
 
     def competence_sets_view(self, request):
         """Restituisce i set di requisiti professionali attivi (filtrati per la
@@ -1530,7 +1577,12 @@ class VendorAdmin(admin.ModelAdmin):
             "admin/js/embyon_search.js",
             "admin/js/vendor_duplicate_check.js",
         )
-        css = {"all": ("admin/css/vendor_operational_attributes.css",)}
+        css = {
+            "all": (
+                "admin/css/vendor_operational_attributes.css",
+                "admin/css/vendor_managers.css",
+            )
+        }
 
     fieldsets = (
         (
@@ -1541,13 +1593,14 @@ class VendorAdmin(admin.ModelAdmin):
                     "old_code",
                     "embyon_company",
                     "albo_excel_row",
-                    "managed_by",
+                    ("managed_by", "secondary_managers"),
                     "name",
                     "vendor_type",
                     "vat_number",
                     "fiscal_code",
                     "qualification_type",
                     "category",
+                    "additional_categories",
                     "competence_areas",
                     "first_supply_date",
                     "vendor_final_evaluation",
