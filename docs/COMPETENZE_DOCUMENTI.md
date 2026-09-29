@@ -18,7 +18,7 @@ Gestisce le competenze/qualifiche che i fornitori possono possedere.
 - `requires_certification`: Se richiede una certificazione formale
 - `requires_renewal`: Se ha scadenza
 - `renewal_period_months`: Periodo di rinnovo in mesi
-- `is_mandatory`: Se è obbligatoria per alcune categorie
+- `is_mandatory`: Se è obbligatoria ("È obbligatorio"): condiziona lo stato di qualifica del fornitore, vedi sotto
 - `applicable_categories`: Categorie di fornitori per cui è rilevante
 
 **Competenze pre-caricate (28 totali):**
@@ -55,7 +55,7 @@ Gestisce i tipi di documenti richiesti ai fornitori.
 - `code`: Codice univoco (es. "DURC", "VISURA_CAM")
 - `name`: Nome del documento
 - `document_category`: Categoria (Legale, Finanziario, Sicurezza, Qualità, Tecnico, Assicurativo, Certificazioni, Altro)
-- `is_mandatory`: Se obbligatorio
+- `is_required`: Se obbligatorio (etichetta "È obbligatorio"): condiziona lo stato di qualifica del fornitore, vedi sotto
 - `requires_renewal`: Se ha scadenza
 - `default_validity_days`: Validità standard in giorni
 - `alert_days_before_expiry`: Giorni preavviso scadenza
@@ -90,6 +90,31 @@ Associa documenti specifici ai fornitori con tracking.
 - `days_to_expiry`: Giorni rimanenti
 - `expiry_status`: Stato scadenza
 - `is_valid`: Se approvato, non scaduto e verificato
+
+## Obbligatorietà e stato di qualifica
+
+Un fornitore può avere `qualification_status = APPROVED` solo se tutti i documenti
+(`DocumentCatalog.is_required`) e requisiti (`Competence.is_mandatory`)
+**obbligatori** a lui assegnati sono:
+
+- **caricati** (file presente);
+- **approvati/verificati** dal gestore (`Document.status = APPROVED`,
+  `VendorCompetence.verified = True`);
+- **non scaduti** (se hanno scadenza).
+
+I record facoltativi non bloccano. Se la regola non è rispettata lo stato passa a
+`TO_REVIEW` (`Vendor.save()`, modifica/cancellazione di documenti e requisiti,
+salvataggio del catalogo); il sistema non riapprova mai in automatico.
+`Vendor.qualification_blockers` elenca cosa manca e `Vendor.is_qualified` lo
+considera. Per riallineare i dati esistenti:
+
+```bash
+python manage.py sync_qualification_status --dry-run
+python manage.py sync_qualification_status
+```
+
+Dall'admin, approvare un documento o spuntare "Verificata" compila revisore e
+data. Lo "Stato validità" dei documenti è calcolato da stato e scadenza.
 
 ## Estensioni al Modello Vendor
 
@@ -169,11 +194,11 @@ python manage.py populate_document_types
 
 2. **Associare competenze richieste a categorie**
    - Da admin: Category → seleziona categoria → aggiungi "required_competences"
-   - Le competenze con `is_mandatory=True` saranno richieste
+   - Le competenze con `is_mandatory=True` sono obbligatorie
 
 3. **Associare documenti richiesti a categorie**
    - Da admin: Category → seleziona categoria → aggiungi "required_documents"
-   - I documenti con `is_mandatory=True` saranno richiesti
+   - I documenti con `is_required=True` sono obbligatori
 
 4. **Aggiungere competenze a un fornitore**
    - Da admin Vendor: apri fornitore → sezione "Vendor competences" (inline)

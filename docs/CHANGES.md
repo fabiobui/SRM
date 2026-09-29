@@ -1,6 +1,35 @@
 
 ## Change Requests
 
+### 29/9/26 — Documenti e requisiti obbligatori e stato di qualifica (AIDEV-100)
+
+L'obbligatorietà di documenti contrattuali e abilitazioni/requisiti professionali
+si imposta a catalogo (nessun nuovo campo): **`DocumentCatalog.is_required`**,
+ora etichettato "È obbligatorio", e **`Competence.is_mandatory`**.
+
+- **Stato di qualifica**: un fornitore può risultare *Approvato* solo se tutti i
+  documenti e requisiti **obbligatori** a lui assegnati sono caricati (file
+  presente), verificati/approvati dal gestore e non scaduti. Altrimenti lo stato
+  passa a *Da Revisionare*. I record facoltativi non bloccano. Il sistema non
+  riapprova mai da solo.
+- **Quando scatta il controllo**: al salvataggio del fornitore, a ogni modifica o
+  cancellazione di un suo documento/requisito e a ogni salvataggio del catalogo
+  (se un tipo diventa obbligatorio, i fornitori coinvolti vengono riesaminati).
+  "Qualificato" (`is_qualified`) tiene conto anche della scadenza nel tempo.
+- **Azione admin "Approva fornitori selezionati"**: approva solo i fornitori in
+  regola e segnala cosa manca agli altri.
+- **Revisione da admin**: approvare/respingere un documento o spuntare
+  "Verificata" su un requisito compila in automatico revisore e data, come già
+  fa il portale back-office. Lo "Stato validità" dei documenti è calcolato da
+  stato e scadenza, quindi non richiede aggiornamenti manuali.
+- **UI**: scrollbar verticale (intestazione fissa) nelle tabelle Servizi
+  Erogati, Abilitazioni e Requisiti Assegnati e Registro Documenti Contrattuali
+  del fornitore, e nelle liste admin di `documents/`, `services/` e
+  `competences/`.
+- ⚠️ **Dopo il deploy** lanciare `python manage.py sync_qualification_status
+  --dry-run` e poi senza `--dry-run`: i fornitori oggi *Approvati* ma non in
+  regola passano a *Da Revisionare* (in locale erano 30 su 49).
+
 ### 24/9/26 — Zone di competenza territoriali
 
 Le "zone di competenza" del fornitore non sono più un catalogo di zone nominate

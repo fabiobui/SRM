@@ -1202,6 +1202,29 @@ class VendorAdmin(admin.ModelAdmin):
         VendorOperationalAttributesInline,
     ]
 
+    def save_formset(self, request, form, formset, change):
+        """Negli inline Documenti e Requisiti, l'approvazione/verifica fatta
+        dal gestore compila in automatico revisore e data (come fa il
+        portale back-office)."""
+        instances = formset.save(commit=False)
+        changed = {
+            f.instance.pk: f.changed_data for f in formset.forms if f.instance
+        }
+        for obj in formset.deleted_objects:
+            obj.delete()
+        for obj in instances:
+            fields = changed.get(obj.pk, [])
+            if isinstance(obj, Document) and "status" in fields:
+                if obj.status in ("APPROVED", "REJECTED"):
+                    obj.reviewed_by = request.user
+                    obj.reviewed_at = timezone.now()
+            elif isinstance(obj, VendorCompetence) and "verified" in fields:
+                if obj.verified:
+                    obj.verified_by = request.user.name or request.user.email
+                    obj.verified_date = timezone.now().date()
+            obj.save()
+        formset.save_m2m()
+
     def get_queryset(self, request):
         # La colonna "Zone di competenza" legge i due M2M: senza prefetch
         # sarebbero due query per riga.
@@ -1581,6 +1604,7 @@ class VendorAdmin(admin.ModelAdmin):
             "all": (
                 "admin/css/vendor_operational_attributes.css",
                 "admin/css/vendor_managers.css",
+                "admin/css/vendor_inline_scroll.css",
             )
         }
 
@@ -1665,9 +1689,24 @@ class VendorAdmin(admin.ModelAdmin):
     actions = ["approve_vendors", "reject_vendors", "mark_for_audit"]
 
     def approve_vendors(self, request, queryset):
-        updated = queryset.update(qualification_status="APPROVED")
+        # Approva solo i fornitori con documenti e requisiti obbligatori in
+        # regola (caricati, verificati, non scaduti).
+        approved = 0
+        for vendor in queryset:
+            blockers = vendor.qualification_blockers
+            if blockers:
+                self.message_user(
+                    request,
+                    f"{vendor.name} non approvato, in sospeso: "
+                    f"{'; '.join(blockers)}.",
+                    "warning",
+                )
+                continue
+            vendor.qualification_status = "APPROVED"
+            vendor.save()
+            approved += 1
         self.message_user(
-            request, f"{updated} fornitori approvati.", "success"
+            request, f"{approved} fornitori approvati.", "success"
         )
 
     approve_vendors.short_description = _("Approva fornitori selezionati")

@@ -351,6 +351,8 @@ JAZZMIN_SETTINGS = {
     "welcome_sign": "Benvenuto nell'area amministrativa",
     "navigation_expanded": True,
     "copyright": "Fabio Bui - Fulgard",
+    # Scrollbar verticale nelle liste di documents/services/competences.
+    "custom_css": "admin/css/changelist_scroll.css",
     # Whether to display the side menu
     "show_sidebar": True,
     "default_icon_parents": "fas fa-folder-open",
