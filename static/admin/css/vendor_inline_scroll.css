@@ -1,0 +1,20 @@
+/* Scrollbar verticale nelle tabelle degli inline del fornitore con molti
+   record (Servizi Erogati, Abilitazioni e Requisiti Professionali Assegnati,
+   Registro Documenti Contrattuali). Resta la scrollbar orizzontale già
+   presente; l'intestazione rimane visibile durante lo scorrimento. */
+
+#vendor_services-group .tabular.inline-related,
+#vendor_competences-group .tabular.inline-related,
+#documents-group .tabular.inline-related {
+    max-height: 60vh;
+    overflow-y: auto;
+    overflow-x: auto;
+}
+
+#vendor_services-group .tabular.inline-related thead th,
+#vendor_competences-group .tabular.inline-related thead th,
+#documents-group .tabular.inline-related thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+}

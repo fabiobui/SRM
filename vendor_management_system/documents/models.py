@@ -72,7 +72,7 @@ class DocumentCatalog(models.Model):
 
     # Requirements (is_required già esiste, manteniamo quello)
     is_required = models.BooleanField(
-        _("Required"),
+        _("È obbligatorio"),
         default=True,
         help_text=_(
             "Whether this document is required for vendor qualification"
@@ -279,6 +279,12 @@ class Document(models.Model):
         """Documento valido solo se lo stato di lavorazione è 'Approvato'
         e il documento non è scaduto. Qualunque altro stato è NOT VALID."""
         return self.status == "APPROVED" and not self.is_expired
+
+    @property
+    def satisfies_requirement(self):
+        """Documento che soddisfa un requisito di qualifica: caricato (file
+        presente), approvato dal gestore e non scaduto."""
+        return bool(self.file) and self.is_valid
 
     @property
     def validity_status(self):

@@ -1,0 +1,19 @@
+/* Scrollbar verticale nelle liste admin di cataloghi, registri e set delle
+   sezioni Documents, Services e Vendor Professional Competences (e relativi
+   sottopercorsi). L'intestazione resta visibile durante lo scorrimento. */
+
+body.change-list.app-documents #changelist .table-responsive,
+body.change-list.app-services #changelist .table-responsive,
+body.change-list.app-competences #changelist .table-responsive {
+    max-height: 70vh;
+    overflow: auto;
+}
+
+body.change-list.app-documents #changelist .table-responsive thead th,
+body.change-list.app-services #changelist .table-responsive thead th,
+body.change-list.app-competences #changelist .table-responsive thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: #fff;
+}

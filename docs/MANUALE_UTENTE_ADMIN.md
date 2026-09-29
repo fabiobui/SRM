@@ -208,6 +208,13 @@ Questa sezione gestisce il processo di qualificazione e gli audit periodici.
 | **Audit Scaduto** | Solo lettura | ✅ se la data del prossimo audit è passata |
 | **Note di Revisione** | Sì | Annotazioni sulla revisione |
 
+> **Regola di approvazione.** Un fornitore risulta *Approvato* solo se tutti i
+> documenti contrattuali e i requisiti professionali **obbligatori** a lui
+> assegnati sono caricati, verificati dal gestore e non scaduti; altrimenti lo
+> stato torna a *Da Revisionare* (l'azione "Approva fornitori selezionati"
+> segnala cosa manca). L'obbligatorietà si imposta nei cataloghi (campo
+> "È obbligatorio").
+
 <!-- 📸 SCREENSHOT: Sezione "Qualifica e Audit" -->
 
 ---

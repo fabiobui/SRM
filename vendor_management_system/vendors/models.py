@@ -4,6 +4,8 @@ import uuid
 from django.conf import settings
 from django.core import validators
 from django.db import models
+from django.db.models.signals import post_delete, post_save
+from django.dispatch import receiver
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
@@ -618,6 +620,17 @@ class VendorCompetence(models.Model):
         if self.expiry_date:
             return self.expiry_date < timezone.now().date()
         return False
+
+    @property
+    def satisfies_requirement(self):
+        """Requisito che soddisfa la qualifica: posseduto, documento
+        caricato, verificato dal gestore e non scaduto."""
+        return (
+            self.has_competence
+            and bool(self.document_file)
+            and self.verified
+            and not self.is_expired
+        )
 
     @property
     def days_to_expiry(self):
@@ -1942,15 +1955,59 @@ class Vendor(models.Model):
             # Generate a new vendor code
             self.vendor_code = str(uuid.uuid4()).replace("-", "")[:10].upper()
 
+        # Un fornitore esistente non può restare "Approvato" se la
+        # documentazione obbligatoria non è in regola.
+        if (
+            not self._state.adding
+            and self.qualification_status == "APPROVED"
+            and self.qualification_blockers
+        ):
+            self.qualification_status = "TO_REVIEW"
+
         # Save the model
         super().save(*args, **kwargs)
+
+    @property
+    def qualification_blockers(self):
+        """Elenco (stringhe leggibili) dei documenti e requisiti OBBLIGATORI
+        assegnati che impediscono la qualifica: non caricati, non verificati
+        dal gestore o scaduti. Lista vuota = fornitore approvabile."""
+        if self._state.adding:
+            return []
+        blockers = []
+        # L'obbligatorietà è definita a catalogo: Document.document_type
+        # .is_required e Competence.is_mandatory.
+        for doc in Document.objects.filter(
+            vendor=self, document_type__is_required=True
+        ).select_related("document_type"):
+            if not doc.satisfies_requirement:
+                blockers.append(f"Documento: {doc.document_type.name}")
+        for req in self.vendor_competences.filter(
+            competence__is_mandatory=True
+        ).select_related("competence"):
+            if not req.satisfies_requirement:
+                blockers.append(f"Requisito: {req.competence.name}")
+        return blockers
+
+    def sync_qualification_status(self):
+        """Riallinea lo stato di qualifica dopo una modifica ai record
+        assegnati: se è 'Approvato' ma non è più in regola passa a 'Da
+        Revisionare'. Non riapprova mai in automatico."""
+        if self.qualification_status == "APPROVED" and self.pk:
+            if self.qualification_blockers:
+                Vendor.objects.filter(pk=self.pk).update(
+                    qualification_status="TO_REVIEW"
+                )
+                self.qualification_status = "TO_REVIEW"
 
     # Properties for better data visualization
     @property
     def is_qualified(self):
-        """Returns True if vendor is approved and qualification is not
-        expired"""
+        """Returns True if vendor is approved, documentation is in order and
+        qualification is not expired"""
         if self.qualification_status != "APPROVED":
+            return False
+        if self.qualification_blockers:
             return False
         if self.qualification_expiry:
             return self.qualification_expiry > timezone.now().date()
@@ -2392,3 +2449,47 @@ class VendorEvaluation(models.Model):
             f"{self.vendor.name} - {self.criterion.name}: "
             f"{self.get_score_display()}"
         )
+
+
+@receiver([post_save, post_delete], sender=Document)
+def _sync_vendor_on_document_change(sender, instance, **kwargs):
+    vendor = Vendor.objects.filter(pk=instance.vendor_id).first()
+    if vendor:
+        vendor.sync_qualification_status()
+
+
+@receiver([post_save, post_delete], sender=VendorCompetence)
+def _sync_vendor_on_competence_change(sender, instance, **kwargs):
+    vendor = Vendor.objects.filter(pk=instance.vendor_id).first()
+    if vendor:
+        vendor.sync_qualification_status()
+
+
+def _sync_approved_vendors(vendors):
+    for vendor in vendors.filter(qualification_status="APPROVED"):
+        vendor.sync_qualification_status()
+
+
+@receiver(post_save, sender=DocumentCatalog)
+def _sync_vendors_on_document_catalog_change(sender, instance, **kwargs):
+    """Se cambia l'obbligatorietà di un tipo di documento, riallinea lo stato
+    di qualifica dei fornitori a cui è assegnato."""
+    _sync_approved_vendors(
+        Vendor.objects.filter(
+            pk__in=Document.objects.filter(document_type=instance).values(
+                "vendor"
+            )
+        )
+    )
+
+
+@receiver(post_save, sender=Competence)
+def _sync_vendors_on_competence_catalog_change(sender, instance, **kwargs):
+    """Come sopra, per i requisiti professionali."""
+    _sync_approved_vendors(
+        Vendor.objects.filter(
+            pk__in=VendorCompetence.objects.filter(competence=instance).values(
+                "vendor"
+            )
+        )
+    )

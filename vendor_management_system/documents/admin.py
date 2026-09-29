@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.utils import timezone
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 
@@ -91,6 +92,16 @@ class DocumentAdmin(admin.ModelAdmin):
     search_fields = ["vendor__name", "document_type__name"]
     ordering = ["-uploaded_at"]
     readonly_fields = ["id", "uploaded_at"]
+
+    def save_model(self, request, obj, form, change):
+        """Approvazione/rifiuto dall'admin: compila revisore e data."""
+        if "status" in form.changed_data and obj.status in (
+            "APPROVED",
+            "REJECTED",
+        ):
+            obj.reviewed_by = request.user
+            obj.reviewed_at = timezone.now()
+        super().save_model(request, obj, form, change)
 
     fieldsets = (
         (None, {"fields": ("vendor", "document_type", "file", "status")}),
