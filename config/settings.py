@@ -155,7 +155,7 @@ VENDOR_MANAGER_EMAIL_DOMAIN = os.getenv(
 # da relay autenticato verso Exchange Online (stesso schema di FApp): le
 # credenziali stanno solo nel Postfix, mai qui. DEFAULT_FROM_EMAIL deve essere
 # la casella con cui si autentica il relay o una su cui questa ha il permesso
-# "Send As" (per SRM: portale.fornitori@fulgard.com), altrimenti Exchange
+# "Send As" (per SRM: albo.fornitori@fulgard.com), altrimenti Exchange
 # rifiuta l'invio (554 SendAsDenied). In locale EMAIL_HOST/EMAIL_PORT puntano
 # a Mailpit (docker-compose). Vedi env_example/.env.email.example.
 EMAIL_BACKEND = os.getenv(

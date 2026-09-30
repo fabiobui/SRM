@@ -368,15 +368,27 @@ Exchange Online (`[smtp.office365.com]:587`, TLS obbligatorio) con la casella di
 
 Exchange accetta come mittente solo la casella di servizio del relay o una casella su cui questa ha il permesso
 **Send As** (altrimenti risponde `554 5.2.252 SendAsDenied`). Scelta per SRM: mittente dedicato
-**`portale.fornitori@fulgard.com`**, casella condivisa di Microsoft 365 (senza licenza) con permesso Send As
+**`albo.fornitori@fulgard.com`**, casella condivisa di Microsoft 365 (senza licenza) con permesso Send As
 concesso alla casella del relay — lo stesso meccanismo già usato per altri mittenti applicativi che passano dallo
 stesso relay. Così gli inviti ai fornitori partono da un indirizzo riconoscibile, le eventuali risposte finiscono in
-una casella leggibile e non serve alcuna credenziale nuova né modifica a Postfix. Una volta attiva la casella basta,
-su ciascuna VM:
+una casella leggibile e non serve alcuna credenziale nuova né modifica a Postfix.
+
+Attivazione (a cura dell'admin IT, su Exchange Online — non sulle VM né in Active Directory): creare la casella
+condivisa, poi concedere il Send As alla casella del relay, da Exchange admin center (Destinatari → Cassette
+postali → casella → Delega → Invia come) oppure da PowerShell con il modulo `ExchangeOnlineManagement`:
+
+```powershell
+Connect-ExchangeOnline -UserPrincipalName <admin>@fulgard.com
+Add-RecipientPermission -Identity albo.fornitori@fulgard.com -Trustee <casella-del-relay> -AccessRights SendAs
+Get-RecipientPermission -Identity albo.fornitori@fulgard.com   # verifica
+```
+
+Il permesso può richiedere fino a circa un'ora per diventare effettivo. Una volta attiva la casella basta, su
+ciascuna VM:
 
 ```env
-DEFAULT_FROM_EMAIL=portale.fornitori@fulgard.com
-# oppure, con nome visualizzato: DEFAULT_FROM_EMAIL=Portale Fornitori Fulgard <portale.fornitori@fulgard.com>
+DEFAULT_FROM_EMAIL=albo.fornitori@fulgard.com
+# oppure, con nome visualizzato: DEFAULT_FROM_EMAIL=Portale Fornitori Fulgard <albo.fornitori@fulgard.com>
 EMAIL_REDIRECT_TO=            # prod: vuoto; test: valorizzato se il DB contiene email reali di fornitori
 ```
 
