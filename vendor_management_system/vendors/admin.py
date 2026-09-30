@@ -1203,10 +1203,7 @@ class VendorAdmin(admin.ModelAdmin):
         VendorEvaluationInline,
         VendorOperationalAttributesInline,
     ]
-    # Jazzmin unifica fieldset e inline in un'unica lista di tab; senza
-    # questo attributo le mostra a blocchi separati (prima i fieldset, poi
-    # gli inline nell'ordine di `inlines` sopra) invece che nell'ordine
-    # intercalato voluto qui.
+    # Questa tupla definisce l'ordine dei tab
     jazzmin_section_order = (
         _("Informazioni Base"),
         _("Contatti"),
