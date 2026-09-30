@@ -1,0 +1,38 @@
+{% extends "emails/base_email.html" %}
+{% block title %}Attivazione accesso al Portale Fornitori{% endblock %}
+{% block content %}
+  <p style="margin:0 0 16px 0;">Gentile {{ greeting_name|default:"fornitore" }},</p>
+  <p style="margin:0 0 16px 0;">
+    è stato creato il tuo accesso al <strong>Portale Fornitori Fulgard</strong>{% if vendor %} per
+    <strong>{{ vendor.name }}</strong>{% endif %}: dal portale potrai consultare e aggiornare la tua
+    anagrafica, caricare i documenti contrattuali, di qualifica, di requisiti e abilitazione e infine gestire i
+    servizi erogati.
+  </p>
+
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="width:100%; background-color:#f6f8fa; border-radius:6px; margin:0 0 8px 0;">
+    <tr>
+      <td style="padding:12px 16px; font-size:14px;">
+        <span style="color:#6c757d;">Utente (email di accesso):</span><br>
+        <strong>{{ user.email }}</strong>
+      </td>
+    </tr>
+  </table>
+
+  <p style="margin:16px 0 0 0;">Per iniziare imposta la tua password personale:</p>
+  {% include "emails/_button.html" with url=set_password_url label="Imposta la tua password" %}
+
+  <p style="margin:0 0 16px 0; font-size:14px;">
+    Il link è valido per <strong>{{ invite_days }} giorn{{ invite_days|pluralize:"o,i" }}</strong> ed è utilizzabile una sola volta.
+    Dopo aver impostato la password potrai accedere in qualsiasi momento da:<br>
+    <a href="{{ login_url }}" style="color:#1a7a3a; font-weight:bold;">{{ login_url }}</a>
+  </p>
+  <p style="margin:0 0 16px 0; font-size:14px;">
+    Se il link è scaduto, usa la funzione
+    <a href="{{ password_reset_url }}" style="color:#1a7a3a;">Password dimenticata?</a>
+    nella pagina di accesso per riceverne uno nuovo.
+  </p>
+  <p style="margin:0 0 16px 0; font-size:13px; color:#6c757d;">
+    Se non ti aspettavi questa email puoi ignorarla: senza impostare la password l'accesso resta inattivo.
+  </p>
+  <p style="margin:0 0 8px 0;">Cordiali saluti,<br>Il team Fulgard</p>
+{% endblock %}

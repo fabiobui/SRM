@@ -1,0 +1,26 @@
+{% autoescape off %}{% if original_recipients %}[AMBIENTE DI PROVA] Email dirottata. Destinatario originale: {{ original_recipients|join:", " }}
+
+{% endif %}Gentile {{ greeting_name|default:"fornitore" }},
+
+è stato creato il tuo accesso al Portale Fornitori Fulgard{% if vendor %} per {{ vendor.name }}{% endif %}: dal portale potrai consultare e aggiornare la tua anagrafica, caricare i documenti contrattuali, di qualifica, di requisiti e abilitazione e infine gestire i servizi erogati.
+
+Utente (email di accesso): {{ user.email }}
+
+Per iniziare imposta la tua password personale da questo link:
+{{ set_password_url }}
+
+Il link è valido per {{ invite_days }} giorn{{ invite_days|pluralize:"o,i" }} ed è utilizzabile una sola volta.
+Dopo aver impostato la password potrai accedere in qualsiasi momento da:
+{{ login_url }}
+
+Se il link è scaduto, usa la funzione "Password dimenticata?" nella pagina di accesso:
+{{ password_reset_url }}
+
+Se non ti aspettavi questa email puoi ignorarla: senza impostare la password l'accesso resta inattivo.
+
+Cordiali saluti,
+Il team Fulgard
+
+--
+Email automatica inviata dal Portale Fornitori Fulgard: non rispondere a questo messaggio.
+{% endautoescape %}

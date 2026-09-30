@@ -14,6 +14,7 @@ services:
         depends_on:
             - mysql
             - redis
+            - mailpit
         volumes:
             - .:/app:z # Mount the current directory to /app in the container
         env_file:
@@ -42,6 +43,15 @@ services:
             - local_redis_data:/data # Mount volume for Redis data
         ports:
             - 16379:6379 # Host 16379 -> container 6379 (6379 is taken locally by another project's stack)
+
+    # Mailpit: cattura in locale tutte le email inviate da Django (SMTP
+    # mailpit:1025, vedi EMAIL_HOST/EMAIL_PORT in .envs/.django.env) e le
+    # mostra nella web UI su http://localhost:8025. Nessun invio reale.
+    mailpit:
+        image: axllent/mailpit:latest
+        container_name: vendor_management_system_local_mailpit
+        ports:
+            - 8025:8025 # Web UI (SMTP 1025 resta interno alla rete compose)
 
     # Celery worker service
     celeryworker:

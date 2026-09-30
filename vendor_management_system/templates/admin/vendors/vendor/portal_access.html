@@ -1,0 +1,109 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls jazzmin %}
+{% get_jazzmin_ui_tweaks as jazzmin_ui %}
+
+{# Conferma creazione / reinvio invito accesso portale fornitore #}
+
+{% block bodyclass %}{{ block.super }} app-{{ opts.app_label }} model-{{ opts.model_name }} portal-access{% endblock %}
+
+{% block breadcrumbs %}
+<ol class="breadcrumb">
+  <li class="breadcrumb-item"><a href="{% url 'admin:index' %}">{% trans 'Home' %}</a></li>
+  <li class="breadcrumb-item"><a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a></li>
+  <li class="breadcrumb-item"><a href="{% url opts|admin_urlname:'changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a></li>
+  <li class="breadcrumb-item"><a href="{{ change_url }}">{{ original|truncatewords:"18" }}</a></li>
+  <li class="breadcrumb-item active">Accesso portale</li>
+</ol>
+{% endblock %}
+
+{% block content_title %} Accesso al portale fornitori {% endblock %}
+
+{% block content %}
+<div class="col-12">
+  <div class="card card-success card-outline">
+    <div class="card-header with-border">
+      <h4 class="card-title">{{ original.name|default:original.pk }}</h4>
+    </div>
+    <div class="card-body">
+
+      {% if email_redirect_to %}
+        <div class="alert alert-warning">
+          <i class="fas fa-flask"></i>
+          <strong>Ambiente di prova:</strong> le email vengono dirottate a
+          {{ email_redirect_to|join:", " }} invece che al destinatario reale.
+        </div>
+      {% endif %}
+
+      {% if portal_users %}
+        <p>Utenti del portale collegati a questo fornitore:</p>
+        <div class="table-responsive">
+        <table class="table table-sm table-striped">
+          <thead>
+            <tr><th>Email</th><th>Nome</th><th>Stato</th><th></th></tr>
+          </thead>
+          <tbody>
+            {% for portal_user, pending in portal_users %}
+              <tr>
+                <td>{{ portal_user.email }}</td>
+                <td>{{ portal_user.name|default:"-" }}</td>
+                <td>
+                  {% if not portal_user.is_active %}
+                    <span class="badge badge-secondary">Disattivato</span>
+                  {% elif pending %}
+                    <span class="badge badge-warning">Invito in attesa</span>
+                  {% else %}
+                    <span class="badge badge-success">Attivo</span>
+                  {% endif %}
+                </td>
+                <td class="text-right text-nowrap">
+                  {% if pending and portal_user.is_active %}
+                    <form method="post" class="d-inline">{% csrf_token %}
+                      <input type="hidden" name="action" value="resend">
+                      <input type="hidden" name="user" value="{{ portal_user.pk }}">
+                      <button type="submit" class="btn btn-sm text-nowrap {{ jazzmin_ui.button_classes.warning }}">
+                        <i class="fas fa-paper-plane"></i> Reinvia invito
+                      </button>
+                    </form>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        </div>
+        <p class="text-muted small mb-0">
+          Un utente "Attivo" ha già impostato la password: se l'ha dimenticata può usare
+          "Password dimenticata?" nella pagina di login.
+        </p>
+      {% elif not original.email %}
+        <div class="alert alert-danger">
+          <i class="fas fa-exclamation-circle"></i>
+          Il fornitore non ha un'email di contatto: compila il campo <strong>Email</strong>
+          nella scheda (sezione Contatti) prima di creare l'accesso al portale.
+        </div>
+      {% elif can_create %}
+        <p>
+          Verrà creato un utente con ruolo <strong>Fornitore</strong> collegato a questa anagrafica,
+          con utente di accesso <strong>{{ original.email }}</strong>, e gli verrà inviata un'email
+          con il link per impostare la password (valido {{ invite_days }} giorn{{ invite_days|pluralize:"o,i" }}).
+        </p>
+        <form method="post">{% csrf_token %}
+          <input type="hidden" name="action" value="create">
+          <button type="submit" class="btn {{ jazzmin_ui.button_classes.success }}">
+            <i class="fas fa-user-plus"></i> Crea accesso e invia invito
+          </button>
+        </form>
+      {% else %}
+        <div class="alert alert-info mb-0">
+          Non hai i permessi per creare utenti: chiedi a un amministratore.
+        </div>
+      {% endif %}
+
+      <hr>
+      <a href="{{ change_url }}" class="btn btn-sm {{ jazzmin_ui.button_classes.secondary }}">
+        <i class="fas fa-arrow-left"></i> Torna alla scheda fornitore
+      </a>
+    </div>
+  </div>
+</div>
+{% endblock %}

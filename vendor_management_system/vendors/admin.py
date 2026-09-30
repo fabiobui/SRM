@@ -3,10 +3,14 @@
 # Imports (aggiorna le imports esistenti)
 from django import forms
 from django.conf import settings
-from django.contrib import admin
+from django.contrib import admin, messages
+from django.contrib.admin.utils import quote, unquote
+from django.core.exceptions import PermissionDenied
 from django.db.models import Q
-from django.http import JsonResponse
-from django.urls import path
+from django.http import Http404, HttpResponseNotAllowed, JsonResponse
+from django.shortcuts import redirect
+from django.template.response import TemplateResponse
+from django.urls import path, reverse
 from django.utils import timezone
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
@@ -19,6 +23,13 @@ from vendor_management_system.documents.models import (
     Document,
     DocumentCatalog,
     DocumentSet,
+)
+from vendor_management_system.users.portal_access import (
+    PortalAccessError,
+    create_portal_user,
+    invite_and_notify,
+    pending_invite,
+    portal_users,
 )
 
 from .admin_filters import (
@@ -1287,8 +1298,87 @@ class VendorAdmin(admin.ModelAdmin):
                 self.admin_site.admin_view(self.duplicate_check_view),
                 name="vendors_vendor_duplicate_check",
             ),
+            path(
+                "<path:object_id>/accesso-portale/",
+                self.admin_site.admin_view(self.portal_access_view),
+                name="vendors_vendor_portal_access",
+            ),
         ]
         return custom + urls
+
+    def change_view(self, request, object_id, form_url="", extra_context=None):
+        # Stato dell'accesso al portale, per l'etichetta del pulsante
+        # "Crea/Gestisci accesso portale".
+        extra_context = extra_context or {}
+        obj = self.get_object(request, unquote(object_id))
+        if obj is not None:
+            extra_context["has_portal_users"] = portal_users(obj).exists()
+        return super().change_view(request, object_id, form_url, extra_context)
+
+    def portal_access_view(self, request, object_id):
+        """Crea l'utenza portale del fornitore e invia l'invito.
+
+        GET mostra la pagina di conferma (la toolbar della scheda sta dentro
+        il form principale, quindi non può ospitare un secondo form POST);
+        POST `action=create` crea l'utente con l'email dell'anagrafica e
+        invia il link "imposta password", `action=resend` reinvia l'invito a
+        un utente che non ha ancora impostato la password.
+        """
+        vendor = self.get_object(request, unquote(object_id))
+        if vendor is None:
+            raise Http404
+        if not self.has_change_permission(request, vendor):
+            raise PermissionDenied
+        can_add_user = request.user.has_perm("users.add_user")
+        change_url = reverse(
+            "admin:vendors_vendor_change", args=[quote(vendor.pk)]
+        )
+
+        if request.method == "POST":
+            action = request.POST.get("action")
+            if action == "create":
+                if not can_add_user:
+                    raise PermissionDenied
+                try:
+                    user = create_portal_user(vendor)
+                except PortalAccessError as exc:
+                    self.message_user(request, str(exc), messages.ERROR)
+                    return redirect(request.path)
+                invite_and_notify(self, request, user, created=True)
+                return redirect(change_url)
+            if action == "resend":
+                user = (
+                    portal_users(vendor)
+                    .filter(pk=request.POST.get("user"))
+                    .first()
+                )
+                if user is None or not pending_invite(user):
+                    self.message_user(
+                        request,
+                        "Reinvio non possibile: l'utente non esiste o ha "
+                        "già impostato la password.",
+                        messages.ERROR,
+                    )
+                    return redirect(request.path)
+                invite_and_notify(self, request, user, created=False)
+                return redirect(change_url)
+            return HttpResponseNotAllowed(["GET", "POST"])
+
+        users = [(user, pending_invite(user)) for user in portal_users(vendor)]
+        context = {
+            **self.admin_site.each_context(request),
+            "opts": self.model._meta,
+            "original": vendor,
+            "title": _("Accesso al portale fornitori"),
+            "portal_users": users,
+            "can_create": can_add_user and not users,
+            "change_url": change_url,
+            "email_redirect_to": settings.EMAIL_REDIRECT_TO,
+            "invite_days": settings.PORTAL_INVITE_TIMEOUT_DAYS,
+        }
+        return TemplateResponse(
+            request, "admin/vendors/vendor/portal_access.html", context
+        )
 
     def duplicate_check_view(self, request):
         """Controllo live (AJAX) di duplicati su Codice Embyon, Partita IVA

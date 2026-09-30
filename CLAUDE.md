@@ -35,6 +35,17 @@ l'overview completa e il setup locale (Docker o nativo).
   (`.:/app` in `docker-compose.yml`) le modifiche fatte da fuori al container spesso non vengono rilevate in
   modo affidabile: il refresh del browser da solo non basta.
 
+## Email
+
+- **Ogni email applicativa passa da `vendor_management_system/core/emails.py::send_templated_email`** (template
+  `templates/emails/<nome>.txt|.html`): lì viene applicato `EMAIL_REDIRECT_TO`, che in locale/test dirotta tutti i
+  destinatari. Non usare `send_mail`/`EmailMessage` direttamente, altrimenti il redirect salta e si rischia di
+  scrivere ai fornitori reali. Niente `fail_silently=True`: l'errore va loggato e mostrato all'operatore.
+- In locale le email finiscono in Mailpit (`http://localhost:8025`); su test/prod SMTP verso il Postfix locale della
+  VM (relay verso Exchange Online, stesso schema di FApp), con mittente `albo.fornitori@fulgard.com` (casella
+  condivisa con permesso Send As per la casella del relay: cambia solo il `.env`, non il codice). Vedi §8 A8 di
+  `docs/PROJECT_OVERVIEW_AND_LOCAL_SETUP.md`. Nei test pytest il backend è `locmem` (`mail.outbox`).
+
 ## Ambiente Python
 
 - Gestione dipendenze via **pip**, **un solo file**: `requirements.txt` — **non uv**. Contiene sia le dipendenze
