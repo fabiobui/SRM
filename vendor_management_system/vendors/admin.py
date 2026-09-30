@@ -271,6 +271,7 @@ class CompetenceAdmin(ImportExportModelAdmin):
 class VendorCompetenceInline(admin.TabularInline):
     model = VendorCompetence
     extra = 1
+    verbose_name_plural = _("Abilitazioni e Requisiti Professionali")
     fields = [
         "competence",
         "is_competenza",
@@ -533,6 +534,7 @@ class DocumentInline(admin.TabularInline):
     model = Document
     form = DocumentInlineForm
     extra = 1
+    verbose_name_plural = _("Documenti Contrattuali")
     fields = [
         "document_type",
         "status",
@@ -1201,6 +1203,21 @@ class VendorAdmin(admin.ModelAdmin):
         VendorEvaluationInline,
         VendorOperationalAttributesInline,
     ]
+    # Jazzmin unifica fieldset e inline in un'unica lista di tab; senza
+    # questo attributo le mostra a blocchi separati (prima i fieldset, poi
+    # gli inline nell'ordine di `inlines` sopra) invece che nell'ordine
+    # intercalato voluto qui.
+    jazzmin_section_order = (
+        _("Informazioni Base"),
+        _("Contatti"),
+        _("Documenti Contrattuali"),
+        _("Contratti"),
+        _("Servizi Erogati"),
+        _("Abilitazioni e Requisiti Professionali"),
+        _("Attributi Operativi"),
+        _("Qualifica e Audit"),
+        _("Valutazioni"),
+    )
 
     def save_formset(self, request, form, formset, change):
         """Negli inline Documenti e Requisiti, l'approvazione/verifica fatta
