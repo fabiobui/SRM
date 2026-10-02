@@ -21,12 +21,13 @@ from collections import defaultdict
 from django import forms
 from django.utils.translation import gettext_lazy as _
 
-from vendor_management_system.documents.models import Document
+from vendor_management_system.documents.models import Document, DocumentCatalog
 from vendor_management_system.vendors.competence import (
     current_selection,
     format_selection,
 )
 from vendor_management_system.vendors.models import (
+    Competence,
     ServiceType,
     Vendor,
     VendorCompetence,
@@ -170,6 +171,75 @@ class CompetenceDocumentUploadForm(forms.ModelForm):
         if f.size > max_size:
             raise forms.ValidationError(_("File troppo grande (max 20 MB)."))
         return f
+
+
+def available_document_types_for_vendor(vendor):
+    """Tipi di documento a catalogo che il vendor può ancora caricare.
+
+    Solo tipi attivi e non ancora presenti tra i suoi `Document` (vincolo
+    `unique_together` vendor+tipo).
+    """
+    already_present = Document.objects.filter(vendor=vendor).values_list(
+        "document_type_id", flat=True
+    )
+    return DocumentCatalog.objects.filter(is_active=True).exclude(
+        pk__in=list(already_present)
+    )
+
+
+def available_competences_for_vendor(vendor):
+    """Requisiti professionali a catalogo non ancora assegnati al vendor."""
+    already_present = VendorCompetence.objects.filter(
+        vendor=vendor
+    ).values_list("competence_id", flat=True)
+    return Competence.objects.filter(is_active=True).exclude(
+        pk__in=list(already_present)
+    )
+
+
+class DocumentAddForm(DocumentUploadForm):
+    """Il fornitore sceglie un tipo dal catalogo e carica subito il file.
+
+    Il queryset di `document_type` è ri-filtrato lato server, quindi un pk
+    manomesso (tipo già presente o disattivato) viene rifiutato. La view
+    imposta vendor e stato `UPLOADED`.
+    """
+
+    class Meta(DocumentUploadForm.Meta):
+        fields = ("document_type", *DocumentUploadForm.Meta.fields)
+        widgets = {
+            **DocumentUploadForm.Meta.widgets,
+            "document_type": forms.Select(attrs={"class": "form-select"}),
+        }
+
+    def __init__(self, vendor, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields[
+            "document_type"
+        ].queryset = available_document_types_for_vendor(vendor).order_by(
+            "name"
+        )
+
+
+class RequirementAddForm(CompetenceDocumentUploadForm):
+    """Il fornitore sceglie un requisito dal catalogo e carica l'attestato.
+
+    Stesso schema di `DocumentAddForm`: queryset ri-filtrato lato server; la
+    view imposta il vendor e lascia `verified=False` per la revisione BO.
+    """
+
+    class Meta(CompetenceDocumentUploadForm.Meta):
+        fields = ("competence", *CompetenceDocumentUploadForm.Meta.fields)
+        widgets = {
+            **CompetenceDocumentUploadForm.Meta.widgets,
+            "competence": forms.Select(attrs={"class": "form-select"}),
+        }
+
+    def __init__(self, vendor, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["competence"].queryset = available_competences_for_vendor(
+            vendor
+        ).order_by("name")
 
 
 class VendorProfileChangeForm(forms.ModelForm):

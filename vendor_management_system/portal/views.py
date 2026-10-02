@@ -12,7 +12,7 @@ Convenzioni:
 from django.contrib import messages
 from django.db.models import Count, Q
 from django.http import HttpResponseRedirect
-from django.shortcuts import get_object_or_404, redirect
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.views import View
@@ -41,7 +41,9 @@ from vendor_management_system.vendors.models import (
 
 from .forms import (
     CompetenceDocumentUploadForm,
+    DocumentAddForm,
     DocumentUploadForm,
+    RequirementAddForm,
     VendorChangeReviewForm,
     VendorOperationalAttributesForm,
     VendorProfileChangeForm,
@@ -260,6 +262,40 @@ class MyDocumentUploadView(VendorRequiredMixin, View):
         return redirect("portal:my-document-detail", pk=document.pk)
 
 
+class MyDocumentAddView(VendorRequiredMixin, View):
+    """Il fornitore aggiunge in autonomia un documento dal catalogo.
+
+    Sceglie un tipo non ancora presente e carica subito il file: il
+    `Document` nasce `UPLOADED` e finisce nella coda di revisione BO già
+    esistente (`BoDocumentReviewView`), senza un passaggio di approvazione
+    aggiuntivo.
+    """
+
+    template_name = "portal/documents/add_form.html"
+
+    def get(self, request, *args, **kwargs):
+        form = DocumentAddForm(request.user.vendor)
+        return render(request, self.template_name, {"form": form})
+
+    def post(self, request, *args, **kwargs):
+        vendor = request.user.vendor
+        form = DocumentAddForm(vendor, request.POST, request.FILES)
+        if not form.is_valid():
+            return render(request, self.template_name, {"form": form})
+
+        document = form.save(commit=False)
+        document.vendor = vendor
+        document.status = "UPLOADED"
+        document.save()
+
+        messages.success(
+            request,
+            f"Documento '{document.document_type.name}' "
+            "caricato correttamente.",
+        )
+        return redirect("portal:my-document-detail", pk=document.pk)
+
+
 class MyDocumentDetailView(VendorRequiredMixin, DetailView):
     """Dettaglio di un singolo documento del proprio vendor.
 
@@ -368,6 +404,38 @@ class MyRequirementUploadView(VendorRequiredMixin, View):
         messages.success(
             request,
             f"Documento del requisito '{requirement.competence.name}' "
+            "caricato correttamente.",
+        )
+        return redirect("portal:my-requirement-detail", pk=requirement.pk)
+
+
+class MyRequirementAddView(VendorRequiredMixin, View):
+    """Il fornitore aggiunge in autonomia un'abilitazione/requisito.
+
+    Sceglie un requisito non ancora assegnato e carica l'attestato: la
+    `VendorCompetence` nasce non verificata e resta in revisione BO
+    (`BoRequirementReviewView`).
+    """
+
+    template_name = "portal/requirements/add_form.html"
+
+    def get(self, request, *args, **kwargs):
+        form = RequirementAddForm(request.user.vendor)
+        return render(request, self.template_name, {"form": form})
+
+    def post(self, request, *args, **kwargs):
+        vendor = request.user.vendor
+        form = RequirementAddForm(vendor, request.POST, request.FILES)
+        if not form.is_valid():
+            return render(request, self.template_name, {"form": form})
+
+        requirement = form.save(commit=False)
+        requirement.vendor = vendor
+        requirement.save()
+
+        messages.success(
+            request,
+            f"Requisito '{requirement.competence.name}' "
             "caricato correttamente.",
         )
         return redirect("portal:my-requirement-detail", pk=requirement.pk)
