@@ -27,7 +27,7 @@ class Command(BaseCommand):
                 "competence_category": "SAFETY",
                 "requires_certification": True,
                 "requires_renewal": True,
-                "renewal_period_months": 60,
+                "validity_period_days": 1825,
                 "is_mandatory": True,
             },
             {
@@ -39,7 +39,7 @@ class Command(BaseCommand):
                 "competence_category": "SAFETY",
                 "requires_certification": True,
                 "requires_renewal": True,
-                "renewal_period_months": 60,
+                "validity_period_days": 1825,
                 "is_mandatory": False,
             },
             {
@@ -49,7 +49,7 @@ class Command(BaseCommand):
                 "competence_category": "SAFETY",
                 "requires_certification": True,
                 "requires_renewal": True,
-                "renewal_period_months": 60,
+                "validity_period_days": 1825,
                 "is_mandatory": False,
             },
             {
@@ -59,7 +59,7 @@ class Command(BaseCommand):
                 "competence_category": "SAFETY",
                 "requires_certification": True,
                 "requires_renewal": True,
-                "renewal_period_months": 36,
+                "validity_period_days": 1095,
                 "is_mandatory": False,
             },
             {
@@ -71,7 +71,7 @@ class Command(BaseCommand):
                 "competence_category": "SAFETY",
                 "requires_certification": True,
                 "requires_renewal": True,
-                "renewal_period_months": 60,
+                "validity_period_days": 1825,
                 "is_mandatory": False,
             },
             {
@@ -83,7 +83,7 @@ class Command(BaseCommand):
                 "competence_category": "SAFETY",
                 "requires_certification": True,
                 "requires_renewal": True,
-                "renewal_period_months": 60,
+                "validity_period_days": 1825,
                 "is_mandatory": False,
             },
             {
@@ -93,7 +93,7 @@ class Command(BaseCommand):
                 "competence_category": "SAFETY",
                 "requires_certification": True,
                 "requires_renewal": True,
-                "renewal_period_months": 36,
+                "validity_period_days": 1095,
                 "is_mandatory": False,
             },
             {
@@ -103,7 +103,7 @@ class Command(BaseCommand):
                 "competence_category": "SAFETY",
                 "requires_certification": True,
                 "requires_renewal": True,
-                "renewal_period_months": 36,
+                "validity_period_days": 1095,
                 "is_mandatory": False,
             },
             {
@@ -113,7 +113,7 @@ class Command(BaseCommand):
                 "competence_category": "SAFETY",
                 "requires_certification": True,
                 "requires_renewal": True,
-                "renewal_period_months": 36,
+                "validity_period_days": 1095,
                 "is_mandatory": False,
             },
             {
@@ -126,7 +126,7 @@ class Command(BaseCommand):
                 "competence_category": "SAFETY",
                 "requires_certification": True,
                 "requires_renewal": True,
-                "renewal_period_months": 36,
+                "validity_period_days": 1095,
                 "is_mandatory": False,
             },
             {
@@ -139,7 +139,7 @@ class Command(BaseCommand):
                 "competence_category": "SAFETY",
                 "requires_certification": True,
                 "requires_renewal": True,
-                "renewal_period_months": 36,
+                "validity_period_days": 1095,
                 "is_mandatory": False,
             },
             # Tecnico
@@ -150,7 +150,7 @@ class Command(BaseCommand):
                 "competence_category": "TECHNICAL",
                 "requires_certification": True,
                 "requires_renewal": False,
-                "renewal_period_months": None,
+                "validity_period_days": None,
                 "is_mandatory": False,
             },
             {
@@ -162,7 +162,7 @@ class Command(BaseCommand):
                 "competence_category": "TECHNICAL",
                 "requires_certification": True,
                 "requires_renewal": True,
-                "renewal_period_months": 60,
+                "validity_period_days": 1825,
                 "is_mandatory": False,
             },
             {
@@ -172,7 +172,7 @@ class Command(BaseCommand):
                 "competence_category": "TECHNICAL",
                 "requires_certification": True,
                 "requires_renewal": True,
-                "renewal_period_months": 36,
+                "validity_period_days": 1095,
                 "is_mandatory": False,
             },
             {
@@ -182,7 +182,7 @@ class Command(BaseCommand):
                 "competence_category": "TECHNICAL",
                 "requires_certification": True,
                 "requires_renewal": True,
-                "renewal_period_months": 36,
+                "validity_period_days": 1095,
                 "is_mandatory": False,
             },
             {
@@ -192,7 +192,7 @@ class Command(BaseCommand):
                 "competence_category": "TECHNICAL",
                 "requires_certification": True,
                 "requires_renewal": True,
-                "renewal_period_months": 24,
+                "validity_period_days": 730,
                 "is_mandatory": False,
             },
             {
@@ -204,7 +204,7 @@ class Command(BaseCommand):
                 "competence_category": "TECHNICAL",
                 "requires_certification": True,
                 "requires_renewal": True,
-                "renewal_period_months": 36,
+                "validity_period_days": 1095,
                 "is_mandatory": False,
             },
             {
@@ -214,7 +214,7 @@ class Command(BaseCommand):
                 "competence_category": "TECHNICAL",
                 "requires_certification": True,
                 "requires_renewal": True,
-                "renewal_period_months": 60,
+                "validity_period_days": 1825,
                 "is_mandatory": False,
             },
             {
@@ -224,7 +224,7 @@ class Command(BaseCommand):
                 "competence_category": "TECHNICAL",
                 "requires_certification": True,
                 "requires_renewal": False,
-                "renewal_period_months": None,
+                "validity_period_days": None,
                 "is_mandatory": False,
             },
             # Energia
@@ -235,7 +235,7 @@ class Command(BaseCommand):
                 "competence_category": "ENERGY",
                 "requires_certification": True,
                 "requires_renewal": True,
-                "renewal_period_months": 12,
+                "validity_period_days": 365,
                 "is_mandatory": False,
             },
             {
@@ -248,7 +248,7 @@ class Command(BaseCommand):
                 "competence_category": "ENERGY",
                 "requires_certification": True,
                 "requires_renewal": True,
-                "renewal_period_months": 48,
+                "validity_period_days": 1460,
                 "is_mandatory": False,
             },
             {
@@ -258,7 +258,7 @@ class Command(BaseCommand):
                 "competence_category": "ENERGY",
                 "requires_certification": True,
                 "requires_renewal": True,
-                "renewal_period_months": 12,
+                "validity_period_days": 365,
                 "is_mandatory": False,
             },
             # Qualità/Ergonomia
@@ -269,7 +269,7 @@ class Command(BaseCommand):
                 "competence_category": "QUALITY",
                 "requires_certification": True,
                 "requires_renewal": True,
-                "renewal_period_months": 60,
+                "validity_period_days": 1825,
                 "is_mandatory": False,
             },
             # Audit e Certificazioni
@@ -282,7 +282,7 @@ class Command(BaseCommand):
                 "competence_category": "AUDIT",
                 "requires_certification": True,
                 "requires_renewal": True,
-                "renewal_period_months": 36,
+                "validity_period_days": 1095,
                 "is_mandatory": False,
             },
             {
@@ -295,7 +295,7 @@ class Command(BaseCommand):
                 "competence_category": "AUDIT",
                 "requires_certification": True,
                 "requires_renewal": True,
-                "renewal_period_months": 36,
+                "validity_period_days": 1095,
                 "is_mandatory": False,
             },
             {
@@ -307,7 +307,7 @@ class Command(BaseCommand):
                 "competence_category": "AUDIT",
                 "requires_certification": True,
                 "requires_renewal": True,
-                "renewal_period_months": 36,
+                "validity_period_days": 1095,
                 "is_mandatory": False,
             },
             {
@@ -319,7 +319,7 @@ class Command(BaseCommand):
                 "competence_category": "AUDIT",
                 "requires_certification": True,
                 "requires_renewal": True,
-                "renewal_period_months": 36,
+                "validity_period_days": 1095,
                 "is_mandatory": False,
             },
             {
@@ -332,7 +332,7 @@ class Command(BaseCommand):
                 "competence_category": "AUDIT",
                 "requires_certification": True,
                 "requires_renewal": True,
-                "renewal_period_months": 36,
+                "validity_period_days": 1095,
                 "is_mandatory": False,
             },
         ]
@@ -349,7 +349,7 @@ class Command(BaseCommand):
                     "competence_category": data["competence_category"],
                     "requires_certification": data["requires_certification"],
                     "requires_renewal": data["requires_renewal"],
-                    "renewal_period_months": data.get("renewal_period_months"),
+                    "validity_period_days": data.get("validity_period_days"),
                     "is_mandatory": data.get("is_mandatory", False),
                     "is_active": True,
                 },

@@ -17,7 +17,8 @@ Gestisce le competenze/qualifiche che i fornitori possono possedere.
 - `competence_category`: Categoria (Sicurezza, Qualità, Tecnico, Energia, Ambiente, Audit, Altro)
 - `requires_certification`: Se richiede una certificazione formale
 - `requires_renewal`: Se ha scadenza
-- `renewal_period_months`: Periodo di rinnovo in mesi
+- `validity_period_days`: Periodo validità (giorni); solo se richiede rinnovo, usato per calcolare la scadenza dalla data di rilascio
+- `reminder_days_before`: Giorni di preavviso scadenza (10-90, default 30); solo se richiede rinnovo, soglia di EXPIRING_SOON e del primo promemoria email
 - `is_mandatory`: Se è obbligatoria ("È obbligatorio"): condiziona lo stato di qualifica del fornitore, vedi sotto
 - `applicable_categories`: Categorie di fornitori per cui è rilevante
 
@@ -46,7 +47,7 @@ Tabella di associazione tra Vendor e Competence con dettagli certificazione.
 **Property utili:**
 - `is_expired`: Verifica se scaduta
 - `days_to_expiry`: Giorni rimanenti
-- `expiry_status`: Stato (VALID, EXPIRING, EXPIRING_SOON, EXPIRED, NO_EXPIRY)
+- `expiry_status`: Stato (VALID, EXPIRING_SOON, EXPIRED, NO_EXPIRY); EXPIRING_SOON entro i giorni di preavviso del requisito
 
 ### 3. DocumentType (Tipi Documento)
 Gestisce i tipi di documenti richiesti ai fornitori.
@@ -57,8 +58,8 @@ Gestisce i tipi di documenti richiesti ai fornitori.
 - `document_category`: Categoria (Legale, Finanziario, Sicurezza, Qualità, Tecnico, Assicurativo, Certificazioni, Altro)
 - `is_required`: Se obbligatorio (etichetta "È obbligatorio"): condiziona lo stato di qualifica del fornitore, vedi sotto
 - `requires_renewal`: Se ha scadenza
-- `default_validity_days`: Validità standard in giorni
-- `alert_days_before_expiry`: Giorni preavviso scadenza
+- `validity_period_days`: Periodo validità (giorni); solo se richiede rinnovo
+- `reminder_days_before`: Giorni di preavviso scadenza (10-90, default 30); solo se richiede rinnovo
 - `applicable_categories`: Categorie fornitori per cui è richiesto
 - `template_file`: Template del documento
 - `instructions`: Istruzioni per il fornitore
@@ -126,7 +127,7 @@ data. Lo "Stato validità" dei documenti è calcolato da stato e scadenza.
 **Competenze:**
 - `active_competences`: Competenze attive del fornitore
 - `expired_competences`: Competenze scadute
-- `expiring_competences`: Competenze in scadenza nei prossimi 90 giorni
+- `expiring_competences`: Competenze in scadenza (entro i giorni di preavviso del requisito)
 - `missing_mandatory_competences`: Competenze obbligatorie mancanti per la categoria
 
 **Documenti:**

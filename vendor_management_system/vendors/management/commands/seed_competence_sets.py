@@ -37,17 +37,17 @@ def _norm(code):
 
 # Requisiti professionali come da file.
 #   code, name, competence_category, is_mandatory, requires_certification,
-#   renewal_period_months (None = nessun rinnovo)
+#   validity_period_days (None = nessun rinnovo)
 COMPETENCES = [
     # --- Set Requisiti Professionali MDL ---
-    ("MDL-R01", "Albo Medici Competenti", "DOCTOR", True, True, 12),
-    ("MDL-R02", "Albo Infermieri", "DOCTOR", True, True, 12),
-    ("MDL-R03", "Albo Medici Autorizzati", "DOCTOR", True, True, 12),
-    ("MDL-R04", "Autodichiarazione crediti ECM", "DOCTOR", True, True, 36),
+    ("MDL-R01", "Albo Medici Competenti", "DOCTOR", True, True, 365),
+    ("MDL-R02", "Albo Infermieri", "DOCTOR", True, True, 365),
+    ("MDL-R03", "Albo Medici Autorizzati", "DOCTOR", True, True, 365),
+    ("MDL-R04", "Autodichiarazione crediti ECM", "DOCTOR", True, True, 1095),
     # Obbligatorio solo per gli infermieri di presidio: a catalogo resta non
     # obbligatorio, l'obbligo è espresso dall'appartenenza al set.
-    ("MDL-R05", "BLSD", "DOCTOR", False, True, 24),
-    ("MDL-R06", "Albo medico professionista", "DOCTOR", True, True, 12),
+    ("MDL-R05", "BLSD", "DOCTOR", False, True, 730),
+    ("MDL-R06", "Albo medico professionista", "DOCTOR", True, True, 365),
     # --- Set Requisiti Subappaltatori ---
     ("Patente a crediti", "Patente a crediti", "SAFETY", False, True, None),
     ("SOA", "Attestazione SOA", "SAFETY", False, True, None),
@@ -228,10 +228,10 @@ class Command(BaseCommand):
             _norm(c.code): c for c in Competence.objects.all() if c.code
         }
 
-        for order, (code, name, cat, mandatory, cert, months) in enumerate(
+        for order, (code, name, cat, mandatory, cert, days) in enumerate(
             COMPETENCES, start=1
         ):
-            renewal = months is not None or code in RENEWAL_WITHOUT_PERIOD
+            renewal = days is not None or code in RENEWAL_WITHOUT_PERIOD
             existing = by_norm.get(_norm(code))
             values = {
                 "name": name,
@@ -239,7 +239,7 @@ class Command(BaseCommand):
                 "is_mandatory": mandatory,
                 "requires_certification": cert,
                 "requires_renewal": renewal,
-                "renewal_period_months": months,
+                "validity_period_days": days,
                 "is_active": True,
                 "sort_order": order,
             }

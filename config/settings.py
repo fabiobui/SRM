@@ -183,6 +183,14 @@ PORTAL_INVITE_TIMEOUT_DAYS = int(os.getenv("PORTAL_INVITE_TIMEOUT_DAYS", "3"))
 PASSWORD_RESET_TIMEOUT = (
     int(os.getenv("PASSWORD_RESET_TIMEOUT_HOURS", "24")) * 60 * 60
 )
+# URL pubblico del portale (es. https://fornitori.fulgard.com), usato per i
+# link nelle email inviate fuori da una richiesta HTTP (task Celery). Se vuoto
+# l'email non mostra il link al portale.
+PORTAL_BASE_URL = os.getenv("PORTAL_BASE_URL", "").rstrip("/")
+# Promemoria scadenze al fornitore: il primo parte alla soglia del tipo
+# documento o del requisito (reminder_days_before), il secondo sempre a
+# EXPIRY_REMINDER_SECOND_DAYS.
+EXPIRY_REMINDER_SECOND_DAYS = 7
 
 # Variabili lette anche quando LDAP è disabilitato: i comandi diagnostici
 # (test_ldap*, vedi vendor_management_system/*/management/commands/) e il
@@ -606,6 +614,10 @@ CELERY_BEAT_SCHEDULE = {
     "record_historical_performance": {
         "task": "vendor_management_system.historical_performances.tasks.record_historical_performance",  # noqa: E501
         "schedule": crontab(hour="*/6"),  # Run every 6 hours
+    },
+    "send_expiry_reminders": {
+        "task": "vendor_management_system.vendors.tasks.send_expiry_reminders_task",  # noqa: E501
+        "schedule": crontab(hour=7, minute=0),  # Ogni giorno alle 7:00
     },
 }
 

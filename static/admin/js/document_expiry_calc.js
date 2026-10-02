@@ -1,14 +1,15 @@
 /*
- * Calcolo automatico Data di Scadenza documenti
- * ---------------------------------------------
- * Nel tab "Documentazione" del VendorAdmin, quando l'utente inserisce la
- * Data di Emissione (o cambia il Tipo di Documento) di una riga dell'inline
- * Documenti, la Data di Scadenza viene calcolata automaticamente come:
+ * Calcolo automatico Data di Scadenza (documenti e abilitazioni)
+ * --------------------------------------------------------------
+ * Nel VendorAdmin, quando l'utente inserisce la Data di Emissione/Rilascio
+ * (o cambia il Tipo di Documento / il Requisito) di una riga dell'inline
+ * Documenti o Abilitazioni, la Data di Scadenza viene calcolata come:
  *
- *     scadenza = emissione + validity_period_days (del tipo documento)
+ *     scadenza = emissione + validity_period_days (del tipo o requisito)
  *
- * La durata di validità in giorni di ogni tipo documento viene caricata una
- * volta dall'endpoint admin `document-type-validity/`.
+ * La durata di validità in giorni viene caricata una volta dall'endpoint
+ * admin `document-type-validity/` (documenti) o `competence-validity/`
+ * (abilitazioni). I tipi senza rinnovo non hanno durata: nessun calcolo.
  *
  * Rispetta le modifiche manuali: se l'utente edita a mano la Data di Scadenza,
  * quella riga non viene più ricalcolata in automatico.
@@ -27,14 +28,25 @@
         }
     }
 
+    // Un inline per ogni coppia (select del tipo, endpoint di validità).
+    var GROUPS = [
+        { typeField: 'document_type', endpoint: 'document-type-validity/' },
+        { typeField: 'competence', endpoint: 'competence-validity/' }
+    ];
+
     ready(function () {
-        var group = findDocumentsGroup();
+        GROUPS.forEach(setupGroup);
+    });
+
+    function setupGroup(cfg) {
+        var group = findGroup(cfg.typeField);
         if (!group) return;
 
-        var endpoint = buildEndpoint();
+        var endpoint = buildEndpoint(cfg.endpoint);
         if (!endpoint) return;
 
-        var validityMap = {};   // { <document_type_id>: {days, requires_renewal} }
+        var typeRe = new RegExp('-' + cfg.typeField + '$');
+        var validityMap = {};   // { <id tipo>: {days, requires_renewal} }
         var loaded = false;
 
         fetch(endpoint, { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
@@ -51,7 +63,7 @@
             var t = ev.target;
             if (!t || !t.name) return;
 
-            if (/-issue_date$/.test(t.name) || /-document_type$/.test(t.name)) {
+            if (/-issue_date$/.test(t.name) || typeRe.test(t.name)) {
                 var row = t.closest('tr');
                 if (row) recalcRow(row);
             } else if (/-expiry_date$/.test(t.name)) {
@@ -73,7 +85,7 @@
 
             var issueInput = row.querySelector('input[name$="-issue_date"]');
             var expiryInput = row.querySelector('input[name$="-expiry_date"]');
-            var typeSelect = row.querySelector('select[name$="-document_type"]');
+            var typeSelect = row.querySelector('select[name$="-' + cfg.typeField + '"]');
             if (!issueInput || !expiryInput || !typeSelect) return;
 
             // Non sovrascrivere una scadenza modificata a mano dall'utente.
@@ -103,25 +115,25 @@
             }
             input.dataset.manualEdit = '1';
         }
-    });
+    }
 
     // ----------------------------------------------------------------------
 
-    function findDocumentsGroup() {
+    function findGroup(typeField) {
         var groups = document.querySelectorAll('.inline-group');
         for (var i = 0; i < groups.length; i++) {
-            if (groups[i].querySelector('select[name$="-document_type"]')) {
+            if (groups[i].querySelector('select[name$="-' + typeField + '"]')) {
                 return groups[i];
             }
         }
-        return document.getElementById('documents-group');
+        return null;
     }
 
-    function buildEndpoint() {
+    function buildEndpoint(path) {
         // .../vendors/vendor/<pk>/change/ oppure .../vendors/vendor/add/
         var m = window.location.pathname.match(/^(.*\/vendors\/vendor\/)/);
         if (!m) return null;
-        return m[1] + 'document-type-validity/';
+        return m[1] + path;
     }
 
     // Interpreta una data dal formato admin italiano (gg/mm/aaaa) oppure ISO

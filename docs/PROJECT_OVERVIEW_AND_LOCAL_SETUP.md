@@ -119,8 +119,32 @@ sotto un prefisso `/fornitori` (anche static/media). Lascia questo a `False` per
 
 - Broker & result backend: Redis (`CELERY_BROKER_URL`, la stessa istanza Redis usata come cache)
 - Scheduler: `django_celery_beat` (schedule salvato nel DB, modificabile da Django Admin)
-- Task schedulato: `record_historical_performance` ogni 6 ore (`config/settings.py` → `CELERY_BEAT_SCHEDULE`)
+- Task schedulati (`config/settings.py` → `CELERY_BEAT_SCHEDULE`):
+  - `record_historical_performance` ogni 6 ore;
+  - `send_expiry_reminders_task` ogni giorno alle 7:00: promemoria email di scadenza al fornitore (vedi sotto).
 - UI di monitoraggio: **Flower** sulla porta `5555`
+
+### Promemoria scadenze al fornitore
+
+- **Cosa notifica:** documenti in stato *Approvato* e abilitazioni/requisiti posseduti con una data di scadenza,
+  solo se il loro tipo/requisito a catalogo ha **"Richiede Rinnovo"** attivo.
+  Va all'email principale del fornitore, solo se nell'anagrafica (sezione Contatti) è attivo **"Notifiche scadenze
+  via email"** (default disattivo) e il fornitore è attivo.
+- **Quando:**
+  - primo promemoria alla soglia del tipo documento o del requisito ("Giorni di preavviso scadenza", default 30, tra
+    10 e 90 — è la stessa soglia dello stato EXPIRING_SOON);
+  - ultimo avviso a 7 giorni.
+- **Tipi documento e requisiti senza rinnovo:** "Periodo validità (giorni)" e "Giorni di preavviso scadenza"
+  restano vuoti (li svuota il salvataggio), quindi niente EXPIRING_SOON e niente promemoria. Per i tipi con
+  rinnovo i campi sono obbligatori. Il periodo validità serve a calcolare in automatico la data di scadenza dalla
+  data di emissione/rilascio nei tab Documenti e Abilitazioni del fornitore.
+- **Formato:** una sola email al giorno per fornitore, con tutti gli elementi in scadenza.
+- **Niente doppioni:** gli invii sono registrati in *Promemoria scadenze inviati* (admin, sola lettura). Un giorno
+  saltato dal job viene recuperato al giro successivo. Un rinnovo (nuova data di scadenza) fa ripartire i promemoria.
+- **Link al portale:** nell'email usa `PORTAL_BASE_URL` (vedi `env_example/.env.email.example`). Se vuoto il link
+  non compare.
+- **Lancio manuale** (stessa logica del job, utile in locale o dove beat non gira):
+  `python manage.py send_expiry_reminders [--dry-run] [--date YYYY-MM-DD]`.
 
 ---
 

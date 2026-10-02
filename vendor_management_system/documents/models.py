@@ -1,8 +1,32 @@
 import uuid
 
+from django.core.exceptions import ValidationError
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
+
+# Limiti della soglia di preavviso scadenza configurabile per tipo documento.
+REMINDER_DAYS_DEFAULT = 30
+REMINDER_DAYS_MIN = 10
+REMINDER_DAYS_MAX = 90
+
+# Campi dei cataloghi (documenti e requisiti) significativi solo se il tipo
+# "richiede rinnovo".
+RENEWAL_ONLY_FIELDS = ("validity_period_days", "reminder_days_before")
+
+
+def clear_renewal_fields(catalog, save_kwargs):
+    """Svuota i campi di rinnovo se il tipo non richiede rinnovo, anche con un
+    save(update_fields=...) parziale."""
+    if catalog.requires_renewal:
+        return
+    for field in RENEWAL_ONLY_FIELDS:
+        setattr(catalog, field, None)
+    update_fields = save_kwargs.get("update_fields")
+    if update_fields is not None:
+        save_kwargs["update_fields"] = {*update_fields, *RENEWAL_ONLY_FIELDS}
+
 
 # Etichetta e colore per ogni codice di validity_status (usato dagli admin).
 VALIDITY_STATUS_META = {
@@ -75,7 +99,8 @@ class DocumentCatalog(models.Model):
         _("È obbligatorio"),
         default=True,
         help_text=_(
-            "Whether this document is required for vendor qualification"
+            "Indica se il documento è obbligatorio per la qualifica del "
+            "fornitore"
         ),
     )
 
@@ -85,18 +110,35 @@ class DocumentCatalog(models.Model):
         help_text=_("Documento con scadenza che necessita rinnovo"),
     )
 
-    # validity_period_days già esiste, manteniamo quello
-    validity_period_days = models.IntegerField(
-        _("Validity Period (Days)"),
-        help_text=_("How many days this document is valid for"),
+    # Vuoto per i tipi senza rinnovo (lo svuota save()).
+    validity_period_days = models.PositiveIntegerField(
+        _("Periodo validità (giorni)"),
+        help_text=_(
+            "Solo per i documenti che richiedono rinnovo: giorni di validità "
+            "dalla data di emissione, usati per calcolare la data di scadenza."
+        ),
         default=365,
+        null=True,
+        blank=True,
     )
 
-    # reminder_days_before già esiste, manteniamo quello
+    # Soglia di EXPIRING_SOON e del primo promemoria email al fornitore.
+    # Vuota per i tipi senza rinnovo, che restano fuori dai promemoria.
     reminder_days_before = models.IntegerField(
-        _("Reminder Days Before Expiry"),
-        help_text=_("Send reminder X days before expiry"),
-        default=30,
+        _("Giorni di preavviso scadenza"),
+        help_text=_(
+            "Solo per i documenti che richiedono rinnovo (tra 10 e 90): "
+            "giorni prima della scadenza in cui il documento passa a "
+            "EXPIRING_SOON e parte il primo promemoria email al fornitore. "
+            "Il secondo promemoria parte sempre a 7 giorni."
+        ),
+        default=REMINDER_DAYS_DEFAULT,
+        null=True,
+        blank=True,
+        validators=[
+            MinValueValidator(REMINDER_DAYS_MIN),
+            MaxValueValidator(REMINDER_DAYS_MAX),
+        ],
     )
 
     # Business rules
@@ -160,9 +202,24 @@ class DocumentCatalog(models.Model):
             return f"{self.code} - {self.name}"
         return self.name
 
+    def clean(self):
+        super().clean()
+        if self.requires_renewal:
+            required = _(
+                "Obbligatorio per i documenti che richiedono rinnovo."
+            )
+            errors = {
+                field: required
+                for field in RENEWAL_ONLY_FIELDS
+                if getattr(self, field) is None
+            }
+            if errors:
+                raise ValidationError(errors)
+
     def save(self, *args, **kwargs):
         if not self.id:
             self.id = str(uuid.uuid4()).replace("-", "")[:10].upper()
+        clear_renewal_fields(self, kwargs)
         super().save(*args, **kwargs)
 
 
@@ -261,11 +318,13 @@ class Document(models.Model):
 
     @property
     def is_expiring_soon(self):
-        """Check if document expires within reminder period"""
-        if not self.expiry_date:
+        """Documento entro i giorni di preavviso del suo tipo. Mai per i tipi
+        senza rinnovo, che non hanno preavviso."""
+        reminder_days = self.document_type.reminder_days_before
+        if not self.expiry_date or reminder_days is None:
             return False
         days_to_expiry = (self.expiry_date - timezone.now().date()).days
-        return days_to_expiry <= self.document_type.reminder_days_before
+        return days_to_expiry <= reminder_days
 
     @property
     def is_expired(self):

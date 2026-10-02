@@ -37,7 +37,10 @@ Restano **fuori scope** in questa fase: ordini di acquisto (PO), storico perform
 - `DocumentUploadView` POST funzionante ma senza form integrato in pagina.
 
 ### 2.4 Notifiche
-- Esiste il template [emails/document_expiry_alert.html](../vendor_management_system/documents/templates/emails/document_expiry_alert.html) e `documents/tasks.py`. Da verificare il job periodico Celery e completare i casi d'uso.
+- Promemoria scadenza al fornitore (documenti e abilitazioni) **implementati** con job Celery giornaliero: vedi
+  `vendors/expiry_reminders.py` e §6 di [PROJECT_OVERVIEW_AND_LOCAL_SETUP.md](PROJECT_OVERVIEW_AND_LOCAL_SETUP.md).
+  Il template [emails/document_expiry_alert.html](../vendor_management_system/documents/templates/emails/document_expiry_alert.html)
+  e `documents/tasks.py` restano scheletri vuoti non usati.
 
 ---
 

@@ -35,6 +35,14 @@
             </td>
           </tr>
 
+          {% if logo_cid %}
+          <tr>
+            <td style="padding:8px 24px 24px 24px;">
+              <img src="cid:{{ logo_cid }}" alt="Fulgard" width="160" style="display:block; width:160px; max-width:100%; height:auto; border:0;">
+            </td>
+          </tr>
+          {% endif %}
+
           <tr>
             <td style="padding:16px 24px 24px 24px; font-size:12px; line-height:1.5; color:#6c757d; border-top:1px solid #e3e6ea;">
               Questa è un'email automatica inviata dal Portale Fornitori Fulgard: non rispondere a questo messaggio.
