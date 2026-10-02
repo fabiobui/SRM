@@ -53,6 +53,7 @@ from .models import (
     EvaluationCriterion,
     EvaluationFrequency,
     Evaluator,
+    ExpiryReminderLog,
     Province,
     QualificationType,
     Region,
@@ -216,7 +217,8 @@ class CompetenceResource(resources.ModelResource):
             "competence_category",
             "requires_certification",
             "requires_renewal",
-            "renewal_period_months",
+            "validity_period_days",
+            "reminder_days_before",
             "is_mandatory",
             "is_active",
             "sort_order",
@@ -251,6 +253,9 @@ class CompetenceAdmin(ImportExportModelAdmin):
     filter_horizontal = ["applicable_categories"]
     readonly_fields = ["created_at", "updated_at"]
 
+    class Media:
+        js = ("admin/js/renewal_fields_toggle.js",)
+
     fieldsets = (
         (
             _("Informazioni Base"),
@@ -262,7 +267,8 @@ class CompetenceAdmin(ImportExportModelAdmin):
                 "fields": (
                     "requires_certification",
                     "requires_renewal",
-                    "renewal_period_months",
+                    "validity_period_days",
+                    "reminder_days_before",
                 )
             },
         ),
@@ -707,6 +713,31 @@ class EvaluatorAdmin(admin.ModelAdmin):
     list_filter = ["is_active", "department"]
     search_fields = ["first_name", "last_name", "email", "role", "department"]
     ordering = ["last_name", "first_name"]
+
+
+@admin.register(ExpiryReminderLog)
+class ExpiryReminderLogAdmin(admin.ModelAdmin):
+    """Storico in sola lettura dei promemoria scadenza inviati: le righe le
+    scrive solo il job giornaliero."""
+
+    list_display = [
+        "sent_at",
+        "vendor",
+        "item_kind",
+        "item_label",
+        "expiry_date",
+        "stage",
+        "recipients",
+    ]
+    list_filter = ["item_kind", "stage", "sent_at"]
+    search_fields = ["vendor__name", "vendor__vendor_code", "item_label"]
+    list_select_related = ["vendor"]
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
 
 
 # VendorEvaluation Inline
@@ -1289,6 +1320,11 @@ class VendorAdmin(admin.ModelAdmin):
                 name="vendors_vendor_document_type_validity",
             ),
             path(
+                "competence-validity/",
+                self.admin_site.admin_view(self.competence_validity_view),
+                name="vendors_vendor_competence_validity",
+            ),
+            path(
                 "embyon-search/",
                 self.admin_site.admin_view(self.embyon_search_view),
                 name="vendors_vendor_embyon_search",
@@ -1577,6 +1613,21 @@ class VendorAdmin(admin.ModelAdmin):
         }
         return JsonResponse({"types": types})
 
+    def competence_validity_view(self, request):
+        """Come document_type_validity_view, per i requisiti professionali:
+        serve al JS che calcola la Data Scadenza dalla Data Rilascio nel tab
+        Abilitazioni e Requisiti."""
+        types = {
+            str(c.pk): {
+                "days": c.validity_period_days,
+                "requires_renewal": c.requires_renewal,
+            }
+            for c in Competence.objects.filter(is_active=True).only(
+                "pk", "validity_period_days", "requires_renewal"
+            )
+        }
+        return JsonResponse({"types": types})
+
     def document_sets_view(self, request):
         """Restituisce i set documentali attivi (filtrati per la
         Classificazione del fornitore, se nota) con i relativi tipi di
@@ -1743,6 +1794,7 @@ class VendorAdmin(admin.ModelAdmin):
             {
                 "fields": (
                     "email",
+                    "expiry_notifications_enabled",
                     "phone",
                     "reference_contact",
                     "pec",

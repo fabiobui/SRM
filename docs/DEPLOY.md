@@ -168,6 +168,17 @@ campi, esiti, rollback) sono in
 Se sulla VM è attivo un worker/beat Celery per questa app, riavvialo allo stesso modo dopo il pull (verifica il
 nome del servizio con `systemctl list-units | grep celery` se non lo conosci già).
 
+**I promemoria scadenze al fornitore richiedono worker + beat Celery attivi** (task giornaliero
+`send_expiry_reminders_task`, vedi §6 di `PROJECT_OVERVIEW_AND_LOCAL_SETUP.md`). Se sulla VM Celery non gira,
+l'alternativa è un cron giornaliero che lancia lo stesso job:
+
+```bash
+0 7 * * * cd /percorso/app && /percorso/venv/bin/python manage.py send_expiry_reminders
+```
+
+Imposta anche `PORTAL_BASE_URL` nel `.env` della VM (URL pubblico del portale, senza `/` finale), altrimenti
+l'email parte senza link al portale.
+
 ## Rollback rapido
 
 Se qualcosa si rompe dopo il deploy:

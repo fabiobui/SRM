@@ -73,7 +73,8 @@
                 var expiryInput = row.querySelector('input[name$="-expiry_date"]');
                 var typeSel = row.querySelector('select[name$="-document_type"]');
                 var info = (typeSel && typeSel.value) ? validityMap[typeSel.value] : null;
-                var reminder = (info && typeof info.reminder === 'number') ? info.reminder : 0;
+                // Tipi senza rinnovo: nessun preavviso, quindi mai EXPIRING_SOON.
+                var reminder = (info && typeof info.reminder === 'number') ? info.reminder : -1;
 
                 var expiry = parseLocalizedDate(expiryInput ? expiryInput.value : '');
                 if (!expiry) {

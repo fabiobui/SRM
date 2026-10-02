@@ -7,12 +7,45 @@ ripetere in ogni punto di invio.
 """
 
 import logging
+from email.message import MIMEPart
+from email.mime.image import MIMEImage
 
+import django
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 
 logger = logging.getLogger(__name__)
+
+# Logo in fondo a tutte le email HTML, allegato inline (CID) e non come URL
+# remoto: non dipende dagli static pubblicati e Outlook non lo blocca.
+LOGO_PATH = settings.BASE_DIR / "static" / "img" / "fulgard-logo.jpg"
+LOGO_CID = "fulgard-logo"
+
+
+def _logo_image():
+    """Parte MIME del logo, o None se il file non c'è (l'email parte senza)."""
+    try:
+        data = LOGO_PATH.read_bytes()
+    except OSError:
+        logger.warning("Logo email non trovato in %s", LOGO_PATH)
+        return None
+    if django.VERSION >= (6, 0):
+        # Django 6 accetta solo MIMEPart come allegato già costruito.
+        image = MIMEPart()
+        image.set_content(
+            data,
+            maintype="image",
+            subtype="jpeg",
+            disposition="inline",
+            filename=LOGO_PATH.name,
+            cid=f"<{LOGO_CID}>",
+        )
+        return image
+    image = MIMEImage(data, _subtype="jpeg")
+    image.add_header("Content-ID", f"<{LOGO_CID}>")
+    image.add_header("Content-Disposition", "inline", filename=LOGO_PATH.name)
+    return image
 
 
 def send_templated_email(*, subject, template_name, context, to):
@@ -26,9 +59,11 @@ def send_templated_email(*, subject, template_name, context, to):
     redirect_to = list(getattr(settings, "EMAIL_REDIRECT_TO", []) or [])
     recipients = redirect_to or original_recipients
 
+    logo = _logo_image()
     context = {
         **context,
         "original_recipients": original_recipients if redirect_to else [],
+        "logo_cid": LOGO_CID if logo else "",
     }
     if redirect_to:
         subject = f"[REDIRECT → {', '.join(original_recipients)}] {subject}"
@@ -43,6 +78,12 @@ def send_templated_email(*, subject, template_name, context, to):
         to=recipients,
     )
     message.attach_alternative(html_body, "text/html")
+    if logo:
+        if django.VERSION < (6, 0):
+            # "related" lega l'immagine all'HTML che la referenzia via cid:
+            # (Django 6 ha rimosso l'opzione e usa sempre "mixed").
+            message.mixed_subtype = "related"
+        message.attach(logo)
     try:
         message.send()
     except Exception:

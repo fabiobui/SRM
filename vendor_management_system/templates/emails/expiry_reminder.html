@@ -1,0 +1,47 @@
+{% extends "emails/base_email.html" %}
+{% block title %}Promemoria scadenze - Albo Fornitori Fulgard{% endblock %}
+{% block content %}
+  <p style="margin:0 0 16px 0;">Gentile {{ greeting_name|default:"fornitore" }},</p>
+  <p style="margin:0 0 16px 0;">
+    ti ricordiamo che i seguenti documenti e abilitazioni registrati per
+    <strong>{{ vendor.name }}</strong> nell'Albo Fornitori Fulgard sono in scadenza:
+  </p>
+
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="width:100%; border-collapse:collapse; font-size:14px; margin:0 0 16px 0;">
+    <tr>
+      <th align="left" style="padding:8px; border-bottom:2px solid #e3e6ea; color:#6c757d; font-weight:normal;">Tipo</th>
+      <th align="left" style="padding:8px; border-bottom:2px solid #e3e6ea; color:#6c757d; font-weight:normal;">Elemento</th>
+      <th align="left" style="padding:8px; border-bottom:2px solid #e3e6ea; color:#6c757d; font-weight:normal;">Scadenza</th>
+    </tr>
+    {% for item in items %}
+    <tr>
+      <td style="padding:8px; border-bottom:1px solid #e3e6ea; color:#6c757d;">{{ item.kind_label }}</td>
+      <td style="padding:8px; border-bottom:1px solid #e3e6ea;"><strong>{{ item.label }}</strong></td>
+      <td style="padding:8px; border-bottom:1px solid #e3e6ea; white-space:nowrap;">
+        {{ item.expiry_date|date:"d/m/Y" }}<br>
+        {% if item.is_last_notice %}
+          <span style="color:#b02a37; font-weight:bold;">{% if item.days_left == 0 %}scade oggi{% else %}tra {{ item.days_left }} giorn{{ item.days_left|pluralize:"o,i" }}{% endif %} · ultimo avviso</span>
+        {% else %}
+          <span style="color:#997404;">tra {{ item.days_left }} giorni</span>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+
+  <p style="margin:0 0 16px 0;">
+    Per non perdere la qualifica, carica la versione aggiornata dal Portale Fornitori prima della scadenza.
+  </p>
+  {% if portal_url %}
+    {% include "emails/_button.html" with url=portal_url label="Accedi al Portale Fornitori" %}
+  {% endif %}
+  {% if has_last_notice %}
+  <p style="margin:0 0 16px 0; font-size:14px; color:#b02a37;">
+    Gli elementi segnati come "ultimo avviso" non riceveranno altri promemoria prima della scadenza.
+  </p>
+  {% endif %}
+  <p style="margin:0 0 16px 0; font-size:13px; color:#6c757d;">
+    Se hai già inviato il rinnovo puoi ignorare questa email: verrà aggiornato dopo la verifica di Fulgard.
+  </p>
+  <p style="margin:0 0 8px 0;">Cordiali saluti,<br>Il team Fulgard</p>
+{% endblock %}

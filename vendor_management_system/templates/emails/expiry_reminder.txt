@@ -1,0 +1,22 @@
+{% autoescape off %}{% if original_recipients %}[AMBIENTE DI PROVA] Email dirottata. Destinatario originale: {{ original_recipients|join:", " }}
+
+{% endif %}Gentile {{ greeting_name|default:"fornitore" }},
+
+ti ricordiamo che i seguenti documenti e abilitazioni registrati per {{ vendor.name }} nell'Albo Fornitori Fulgard sono in scadenza:
+{% for item in items %}
+- {{ item.kind_label }}: {{ item.label }}, scade il {{ item.expiry_date|date:"d/m/Y" }} ({% if item.days_left == 0 %}oggi{% else %}tra {{ item.days_left }} giorn{{ item.days_left|pluralize:"o,i" }}{% endif %}){% if item.is_last_notice %} - ULTIMO AVVISO{% endif %}{% endfor %}
+
+Per non perdere la qualifica, carica la versione aggiornata dal Portale Fornitori prima della scadenza.{% if portal_url %}
+Accedi al portale da:
+{{ portal_url }}{% endif %}
+{% if has_last_notice %}
+Gli elementi segnati come "ULTIMO AVVISO" non riceveranno altri promemoria prima della scadenza.
+{% endif %}
+Se hai già inviato il rinnovo puoi ignorare questa email: verrà aggiornato dopo la verifica di Fulgard.
+
+Cordiali saluti,
+Il team Fulgard
+
+--
+Email automatica inviata dal Portale Fornitori Fulgard: non rispondere a questo messaggio.
+{% endautoescape %}

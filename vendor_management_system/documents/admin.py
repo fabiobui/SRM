@@ -34,6 +34,9 @@ class DocumentCatalogAdmin(admin.ModelAdmin):
     filter_horizontal = ["applicable_categories"]
     readonly_fields = ["created_at", "updated_at"]
 
+    class Media:
+        js = ("admin/js/renewal_fields_toggle.js",)
+
     fieldsets = (
         (
             _("Informazioni Base"),

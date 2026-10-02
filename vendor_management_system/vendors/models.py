@@ -3,6 +3,7 @@ import uuid
 
 from django.conf import settings
 from django.core import validators
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
@@ -10,7 +11,15 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 # Import DocumentCatalog and Document from documents app
-from vendor_management_system.documents.models import Document, DocumentCatalog
+from vendor_management_system.documents.models import (
+    REMINDER_DAYS_DEFAULT,
+    REMINDER_DAYS_MAX,
+    REMINDER_DAYS_MIN,
+    RENEWAL_ONLY_FIELDS,
+    Document,
+    DocumentCatalog,
+    clear_renewal_fields,
+)
 
 # ============================================================================
 # Modelli Geografici (Nazione, Regione, Provincia)
@@ -410,11 +419,34 @@ class Competence(models.Model):
         ),
     )
 
-    renewal_period_months = models.PositiveIntegerField(
-        _("Periodo Rinnovo (mesi)"),
+    # Vuoti per i requisiti senza rinnovo (li svuota save()).
+    validity_period_days = models.PositiveIntegerField(
+        _("Periodo validità (giorni)"),
+        default=365,
         null=True,
         blank=True,
-        help_text=_("Numero di mesi prima della scadenza (es. 12, 24, 36)"),
+        help_text=_(
+            "Solo per i requisiti che richiedono rinnovo: giorni di validità "
+            "dalla data di rilascio, usati per calcolare la data di "
+            "scadenza (es. 365, 730, 1095)."
+        ),
+    )
+
+    reminder_days_before = models.PositiveIntegerField(
+        _("Giorni di preavviso scadenza"),
+        default=REMINDER_DAYS_DEFAULT,
+        null=True,
+        blank=True,
+        validators=[
+            validators.MinValueValidator(REMINDER_DAYS_MIN),
+            validators.MaxValueValidator(REMINDER_DAYS_MAX),
+        ],
+        help_text=_(
+            "Solo per i requisiti che richiedono rinnovo (tra 10 e 90): "
+            "giorni prima della scadenza in cui il requisito passa a "
+            "EXPIRING_SOON e parte il primo promemoria email al fornitore. "
+            "Il secondo promemoria parte sempre a 7 giorni."
+        ),
     )
 
     # Business rules
@@ -466,6 +498,24 @@ class Competence(models.Model):
 
     def __str__(self):
         return f"{self.code} - {self.name}"
+
+    def clean(self):
+        super().clean()
+        if self.requires_renewal:
+            required = _(
+                "Obbligatorio per i requisiti che richiedono rinnovo."
+            )
+            errors = {
+                field: required
+                for field in RENEWAL_ONLY_FIELDS
+                if getattr(self, field) is None
+            }
+            if errors:
+                raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        clear_renewal_fields(self, kwargs)
+        super().save(*args, **kwargs)
 
 
 # Model for VendorCompetence (through table)
@@ -649,10 +699,12 @@ class VendorCompetence(models.Model):
         days = self.days_to_expiry
         if days < 0:
             return "EXPIRED"
-        elif days <= 30:
-            return "EXPIRING_SOON"
-        elif days <= 90:
-            return "EXPIRING"
+        # Come per i documenti: soglia del requisito a catalogo, assente
+        # per i requisiti senza rinnovo.
+        reminder_days = self.competence.reminder_days_before
+        if self.competence.requires_renewal and reminder_days is not None:
+            if days <= reminder_days:
+                return "EXPIRING_SOON"
         return "VALID"
 
 
@@ -1536,6 +1588,14 @@ class Vendor(models.Model):
     email = models.EmailField(
         _("Email"), help_text=_("Email principale"), blank=True, null=True
     )
+    expiry_notifications_enabled = models.BooleanField(
+        _("Notifiche scadenze via email"),
+        default=False,
+        help_text=_(
+            "Invia all'email principale i promemoria di scadenza di documenti "
+            "e abilitazioni. Senza email il promemoria non parte."
+        ),
+    )
     reference_contact = models.CharField(
         _("Contatto di Riferimento"),
         max_length=100,
@@ -2050,15 +2110,15 @@ class Vendor(models.Model):
 
     @property
     def expiring_competences(self):
-        """Ritorna le competenze in scadenza nei prossimi 90 giorni"""
-        from datetime import timedelta
-
-        expiry_threshold = timezone.now().date() + timedelta(days=90)
-        return self.vendor_competences.filter(
+        """Ritorna le competenze in scadenza (entro i giorni di preavviso
+        del requisito, solo per i requisiti che richiedono rinnovo)"""
+        today = timezone.now().date()
+        candidates = self.vendor_competences.filter(
             has_competence=True,
-            expiry_date__lte=expiry_threshold,
-            expiry_date__gte=timezone.now().date(),
-        )
+            expiry_date__gte=today,
+            competence__requires_renewal=True,
+        ).select_related("competence")
+        return [vc for vc in candidates if vc.expiry_status == "EXPIRING_SOON"]
 
     @property
     def missing_mandatory_competences(self):
@@ -2449,6 +2509,60 @@ class VendorEvaluation(models.Model):
             f"{self.vendor.name} - {self.criterion.name}: "
             f"{self.get_score_display()}"
         )
+
+
+class ExpiryReminderLog(models.Model):
+    """Promemoria di scadenza già inviati al fornitore.
+
+    Una riga per elemento, scadenza e stadio: impedisce di reinviare lo
+    stesso promemoria. Se l'elemento viene rinnovato la scadenza cambia,
+    quindi i promemoria ripartono per il nuovo ciclo.
+    """
+
+    KIND_DOCUMENT = "DOCUMENT"
+    KIND_COMPETENCE = "COMPETENCE"
+    KIND_CHOICES = [
+        (KIND_DOCUMENT, _("Documento")),
+        (KIND_COMPETENCE, _("Abilitazione/Requisito")),
+    ]
+
+    STAGE_FIRST = "FIRST"
+    STAGE_SECOND = "SECOND"
+    STAGE_CHOICES = [
+        (STAGE_FIRST, _("Primo promemoria")),
+        (STAGE_SECOND, _("Ultimo avviso (7 giorni)")),
+    ]
+
+    vendor = models.ForeignKey(
+        Vendor,
+        verbose_name=_("Fornitore"),
+        on_delete=models.CASCADE,
+        related_name="expiry_reminders",
+    )
+    item_kind = models.CharField(
+        _("Tipo elemento"), max_length=20, choices=KIND_CHOICES
+    )
+    # Document ha un id CharField, VendorCompetence un uuid: niente FK.
+    item_id = models.CharField(_("ID elemento"), max_length=64)
+    item_label = models.CharField(_("Elemento"), max_length=255)
+    expiry_date = models.DateField(_("Data scadenza"))
+    stage = models.CharField(_("Stadio"), max_length=10, choices=STAGE_CHOICES)
+    recipients = models.CharField(_("Destinatari"), max_length=500)
+    sent_at = models.DateTimeField(_("Inviato il"), auto_now_add=True)
+
+    class Meta:
+        verbose_name = _("Promemoria scadenza inviato")
+        verbose_name_plural = _("Promemoria scadenze inviati")
+        ordering = ["-sent_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["item_kind", "item_id", "expiry_date", "stage"],
+                name="unique_expiry_reminder_per_stage",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.vendor.name} - {self.item_label} ({self.stage})"
 
 
 @receiver([post_save, post_delete], sender=Document)
