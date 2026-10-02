@@ -182,8 +182,6 @@ def send_expiry_reminders(today=None, dry_run=False):
     """Invia i promemoria del giorno. Con ``dry_run`` non invia e non scrive
     log. Restituisce un riepilogo con i fornitori notificati e quelli in
     errore (che verranno ritentati al giro successivo)."""
-    # now().date() e non localdate(): con USE_TZ=False (valore su test) now()
-    # è naive e localdate() solleva ValueError. Come nel resto del progetto.
     today = today or timezone.now().date()
     summary = {"sent": [], "failed": [], "items": 0}
     for vendor in notifiable_vendors():
