@@ -15,9 +15,15 @@ urlpatterns = [
     # Home portale
     path("", views.PortalDashboardView.as_view(), name="dashboard"),
     # I miei documenti — i Document sono pre-creati dal BO (vedi DocumentInline
-    # in vendors/admin.py); il fornitore carica il file sul singolo Document
-    # identificato dal pk in URL.
+    # in vendors/admin.py) oppure aggiunti dal fornitore scegliendo un tipo dal
+    # catalogo; il fornitore carica il file sul singolo Document identificato
+    # dal pk in URL. "aggiungi/" precede `<str:pk>/` per non esserne catturato.
     path("documenti/", views.MyDocumentsView.as_view(), name="my-documents"),
+    path(
+        "documenti/aggiungi/",
+        views.MyDocumentAddView.as_view(),
+        name="my-document-add",
+    ),
     path(
         "documenti/<str:pk>/",
         views.MyDocumentDetailView.as_view(),
@@ -36,6 +42,11 @@ urlpatterns = [
         "requisiti/",
         views.MyRequirementsView.as_view(),
         name="my-requirements",
+    ),
+    path(
+        "requisiti/aggiungi/",
+        views.MyRequirementAddView.as_view(),
+        name="my-requirement-add",
     ),
     path(
         "requisiti/<uuid:pk>/",
