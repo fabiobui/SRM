@@ -1,6 +1,6 @@
 """Promemoria email di scadenza documenti e abilitazioni al fornitore."""
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from io import StringIO
 from unittest.mock import patch
 
@@ -269,12 +269,22 @@ def test_celery_task_returns_summary():
     make_document(make_vendor(), 30)
 
     with patch(
-        "vendor_management_system.vendors.expiry_reminders.timezone.localdate",
-        return_value=TODAY,
+        "vendor_management_system.vendors.expiry_reminders.timezone.now",
+        return_value=datetime(2026, 10, 1, 7, 0),
     ):
         result = send_expiry_reminders_task.apply().get()
 
     assert result == {"sent": 1, "items": 1, "failed": 0}
+
+
+@pytest.mark.django_db
+def test_runs_without_timezone_support(settings):
+    # Su test USE_TZ=False: now() è naive e localdate() solleverebbe errore.
+    settings.USE_TZ = False
+
+    summary = send_expiry_reminders()
+
+    assert summary["failed"] == []
 
 
 @pytest.mark.django_db
