@@ -106,6 +106,32 @@ Un fornitore può avere `qualification_status = APPROVED` solo se tutti i docume
 I record facoltativi non bloccano. Se la regola non è rispettata lo stato passa a
 `TO_REVIEW` (`Vendor.save()`, modifica/cancellazione di documenti e requisiti,
 salvataggio del catalogo); il sistema non riapprova mai in automatico.
+
+### Automatismi sullo stato
+
+- Un fornitore nuovo parte sempre `PENDING`: admin e API ignorano il valore
+  eventualmente passato alla creazione.
+- Se è `PENDING` o `REJECTED` e dal portale carica un documento/requisito
+  obbligatorio, quando ha **consegnato** tutti gli obbligatori (file presente,
+  non scaduti, non respinti, anche se non ancora approvati) passa a `TO_REVIEW`
+  (`Vendor.submit_for_review_if_complete()`). I facoltativi non lo fanno mai.
+- **Revisione in attesa.** Se il fornitore ricarica un documento/requisito già
+  approvato e ancora valido, la nuova versione non lo sostituisce: resta nei
+  campi `pending_*` (una sola per record) e il record approvato, con la sua
+  scadenza, resta in vigore. Lo stato del fornitore non cambia. L'ufficio la
+  vede nelle code di revisione del back-office: se approva, file e date
+  sostituiscono quelli attuali (`apply_pending_revision()`); se rifiuta, la
+  revisione viene scartata e resta il record approvato. Vale anche per i
+  facoltativi, che però non incidono sullo stato di qualifica.
+- Se il record non è valido (mancante, non approvato, scaduto) l'upload lo
+  sostituisce subito, come prima, e va approvato dall'ufficio.
+- **Requisiti respinti.** Come i documenti, un requisito rifiutato dall'ufficio
+  si distingue da uno non ancora verificato (`VendorCompetence.rejected`): il
+  fornitore lo vede "Respinto - da ricaricare", non conta come consegnato e
+  resta fuori dalla coda di default del back-office (filtro "Respinti"). Un nuovo
+  upload o la verifica azzerano il rifiuto.
+- Dall'admin le revisioni in attesa non sono gestite: si approvano o rifiutano
+  dal back-office del portale.
 `Vendor.qualification_blockers` elenca cosa manca e `Vendor.is_qualified` lo
 considera. Per riallineare i dati esistenti:
 

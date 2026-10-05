@@ -120,19 +120,40 @@ class PortalDashboardView(VendorRequiredMixin, TemplateView):
             "in_review": pending_review_count,
             "approved": approved_count,
             "expired": expired_count,
+            "rejected": rejected_count,
         }
         req_stats = {
             "to_upload": requirements_to_upload_count,
             "in_review": requirements.exclude(
                 Q(document_file="") | Q(document_file__isnull=True)
             )
-            .filter(verified=False)
+            .filter(verified=False, rejected=False)
             .count(),
             "approved": requirements.filter(verified=True).count(),
             "expired": requirements.filter(
                 expiry_date__isnull=False,
                 expiry_date__lt=timezone.now().date(),
             ).count(),
+            "rejected": requirements.filter(rejected=True).count(),
+        }
+
+        # Avvisi in cima alla home, uno per area con il suo link: il
+        # fornitore deve accorgersi di cosa è da caricare, respinto o in
+        # scadenza senza aprire ogni singolo record.
+        requirements_expiring_count = sum(
+            1 for r in requirements if r.expiry_status == "EXPIRING_SOON"
+        )
+        docs_alert = {
+            "to_upload": to_upload_count,
+            "rejected": rejected_count,
+            "expired": expired_count,
+            "expiring": expiring_count,
+        }
+        reqs_alert = {
+            "to_upload": requirements_to_upload_count,
+            "rejected": req_stats["rejected"],
+            "expired": req_stats["expired"],
+            "expiring": requirements_expiring_count,
         }
 
         def _change_request_stats(vendor_service_isnull):
@@ -168,6 +189,8 @@ class PortalDashboardView(VendorRequiredMixin, TemplateView):
                 "total_documents": documents.count(),
                 "doc_stats": doc_stats,
                 "req_stats": req_stats,
+                "docs_alert": docs_alert if any(docs_alert.values()) else None,
+                "reqs_alert": reqs_alert if any(reqs_alert.values()) else None,
                 "anagrafica_stats": anagrafica_stats,
                 "servizi_stats": servizi_stats,
             }
@@ -248,16 +271,28 @@ class MyDocumentUploadView(VendorRequiredMixin, View):
                     messages.error(request, f"{field}: {err}")
             return redirect("portal:my-document-detail", pk=document.pk)
 
-        document = form.save(commit=False)
-        document.status = "UPLOADED"
-        document.reviewed_by = None
-        document.reviewed_at = None
-        document.save()
+        data = form.cleaned_data
+        # Il form ha già modificato l'istanza in memoria: si riparte dal DB,
+        # perché un documento approvato e valido non va toccato.
+        document = Document.objects.get(pk=document.pk)
+        staged = document.submit_upload(
+            file=data["file"],
+            issue_date=data.get("issue_date"),
+            expiry_date=data.get("expiry_date"),
+            notes=data.get("notes", ""),
+        )
+        if document.document_type.is_required:
+            document.vendor.submit_for_review_if_complete()
 
         messages.success(
             request,
             f"Documento '{document.document_type.name}' "
-            "caricato correttamente.",
+            + (
+                "caricato: la nuova versione è in attesa di revisione, "
+                "intanto resta valida quella attuale."
+                if staged
+                else "caricato correttamente."
+            ),
         )
         return redirect("portal:my-document-detail", pk=document.pk)
 
@@ -287,6 +322,8 @@ class MyDocumentAddView(VendorRequiredMixin, View):
         document.vendor = vendor
         document.status = "UPLOADED"
         document.save()
+        if document.document_type.is_required:
+            vendor.submit_for_review_if_complete()
 
         messages.success(
             request,
@@ -394,17 +431,29 @@ class MyRequirementUploadView(VendorRequiredMixin, View):
                     messages.error(request, f"{field}: {err}")
             return redirect("portal:my-requirement-detail", pk=requirement.pk)
 
-        requirement = form.save(commit=False)
-        # Un nuovo file va rivalutato dal back-office: reset della verifica.
-        requirement.verified = False
-        requirement.verified_by = None
-        requirement.verified_date = None
-        requirement.save()
+        data = form.cleaned_data
+        # Il form ha già modificato l'istanza in memoria: si riparte dal DB,
+        # perché un requisito verificato e valido non va toccato.
+        requirement = VendorCompetence.objects.get(pk=requirement.pk)
+        staged = requirement.submit_upload(
+            document_file=data["document_file"],
+            certification_number=data.get("certification_number"),
+            issue_date=data.get("issue_date"),
+            expiry_date=data.get("expiry_date"),
+            notes=data.get("notes", ""),
+        )
+        if requirement.competence.is_mandatory:
+            requirement.vendor.submit_for_review_if_complete()
 
         messages.success(
             request,
             f"Documento del requisito '{requirement.competence.name}' "
-            "caricato correttamente.",
+            + (
+                "caricato: la nuova versione è in attesa di revisione, "
+                "intanto resta valida quella attuale."
+                if staged
+                else "caricato correttamente."
+            ),
         )
         return redirect("portal:my-requirement-detail", pk=requirement.pk)
 
@@ -432,6 +481,8 @@ class MyRequirementAddView(VendorRequiredMixin, View):
         requirement = form.save(commit=False)
         requirement.vendor = vendor
         requirement.save()
+        if requirement.competence.is_mandatory:
+            vendor.submit_for_review_if_complete()
 
         messages.success(
             request,
@@ -1088,8 +1139,20 @@ class BoRequirementListView(BackOfficeRequiredMixin, ListView):
         qs = VendorCompetence.objects.select_related(
             "vendor", "competence"
         ).exclude(document_file="")
-        if verified in ("true", "false"):
-            qs = qs.filter(verified=(verified == "true"))
+        if verified == "rejected":
+            qs = qs.filter(rejected=True)
+        elif verified == "false":
+            # Da verificare: i non ancora verificati e non respinti, più le
+            # nuove versioni in attesa di requisiti già verificati.
+            qs = qs.filter(
+                Q(verified=False, rejected=False)
+                | (
+                    Q(pending_document_file__isnull=False)
+                    & ~Q(pending_document_file="")
+                )
+            )
+        elif verified == "true":
+            qs = qs.filter(verified=True)
         return qs.order_by("-updated_at")
 
     def get_context_data(self, **kwargs):
@@ -1127,7 +1190,17 @@ class BoRequirementReviewView(BackOfficeRequiredMixin, View):
         action = form.cleaned_data["action"]
         notes = form.cleaned_data.get("review_notes", "")
 
-        requirement.verified = action == "approve"
+        if requirement.has_pending_revision:
+            # Come per i documenti: la nuova versione sostituisce quella
+            # verificata solo se approvata, altrimenti viene scartata.
+            if action == "approve":
+                requirement.apply_pending_revision()
+            else:
+                requirement.discard_pending_revision()
+            requirement.verified = True
+        else:
+            requirement.verified = action == "approve"
+            requirement.rejected = action != "approve"
         requirement.verified_by = request.user.name or request.user.email
         requirement.verified_date = timezone.now().date()
         if notes:
@@ -1172,7 +1245,14 @@ class BoDocumentListView(BackOfficeRequiredMixin, ListView):
                 expiry_date__isnull=False,
                 expiry_date__lt=timezone.now().date(),
             ).order_by("expiry_date")
-        if status in dict(Document.STATUS_CHOICES):
+        if status == "UPLOADED":
+            # Da revisionare anche le nuove versioni in attesa di documenti
+            # già approvati.
+            qs = qs.filter(
+                Q(status="UPLOADED")
+                | (Q(pending_file__isnull=False) & ~Q(pending_file=""))
+            )
+        elif status in dict(Document.STATUS_CHOICES):
             qs = qs.filter(status=status)
         return qs.order_by("-uploaded_at")
 
@@ -1217,7 +1297,17 @@ class BoDocumentReviewView(BackOfficeRequiredMixin, View):
         action = form.cleaned_data["action"]
         notes = form.cleaned_data.get("review_notes", "")
 
-        document.status = "APPROVED" if action == "approve" else "REJECTED"
+        if document.has_pending_revision:
+            # Revisione di una nuova versione di un documento già approvato:
+            # se approvata sostituisce quello in vigore, altrimenti viene
+            # scartata e il documento approvato resta com'è.
+            if action == "approve":
+                document.apply_pending_revision()
+            else:
+                document.discard_pending_revision()
+            document.status = "APPROVED"
+        else:
+            document.status = "APPROVED" if action == "approve" else "REJECTED"
         document.reviewed_by = request.user
         document.reviewed_at = timezone.now()
         if notes:
@@ -1264,7 +1354,7 @@ class BoDashboardView(BackOfficeRequiredMixin, TemplateView):
         ctx["total_requirements"] = VendorCompetence.objects.count()
         ctx["requirements_pending_review"] = (
             VendorCompetence.objects.exclude(document_file="")
-            .filter(verified=False)
+            .filter(verified=False, rejected=False)
             .count()
         )
         # "Richieste anagrafica" = sole richieste su Vendor (non su servizi,
@@ -1324,7 +1414,7 @@ class BoDashboardView(BackOfficeRequiredMixin, TemplateView):
         )
         ctx["my_pending_requirements"] = (
             VendorCompetence.objects.filter(
-                vendor__in=my_vendors, verified=False
+                vendor__in=my_vendors, verified=False, rejected=False
             )
             .exclude(document_file="")
             .select_related("vendor", "competence")

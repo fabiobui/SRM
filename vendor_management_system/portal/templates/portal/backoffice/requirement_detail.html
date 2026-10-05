@@ -18,6 +18,8 @@
         </div>
         {% if requirement.verified %}
             <span class="badge badge-cr-APPROVED fs-6">Verificato</span>
+        {% elif requirement.rejected %}
+            <span class="badge badge-cr-REJECTED fs-6">Respinto</span>
         {% else %}
             <span class="badge badge-cr-PENDING fs-6">Da verificare</span>
         {% endif %}
@@ -63,6 +65,40 @@
         </dl>
     </div>
 </div>
+
+{% if requirement.has_pending_revision %}
+<div class="card mb-3 border-warning">
+    <div class="card-header"><strong>Nuova versione in attesa di revisione</strong></div>
+    <div class="card-body">
+        <p class="text-muted">Il requisito attuale resta in vigore: verificando, file e dati qui sotto lo sostituiscono.</p>
+        <dl class="row mb-0">
+            <dt class="col-sm-3">Caricata il</dt>
+            <dd class="col-sm-9">{{ requirement.pending_uploaded_at|date:"d/m/Y H:i" }}</dd>
+
+            <dt class="col-sm-3">N. certificazione</dt>
+            <dd class="col-sm-9">{{ requirement.pending_certification_number|default:"—" }}</dd>
+
+            <dt class="col-sm-3">Data rilascio</dt>
+            <dd class="col-sm-9">{{ requirement.pending_issue_date|date:"d/m/Y"|default:"—" }}</dd>
+
+            <dt class="col-sm-3">Data scadenza</dt>
+            <dd class="col-sm-9">{{ requirement.pending_expiry_date|date:"d/m/Y"|default:"—" }}</dd>
+
+            <dt class="col-sm-3">Documento</dt>
+            <dd class="col-sm-9">
+                <a href="{{ requirement.pending_document_file.url }}" target="_blank" rel="noopener">
+                    <i class="fas fa-file-download"></i> Scarica nuova versione
+                </a>
+            </dd>
+
+            {% if requirement.pending_notes %}
+            <dt class="col-sm-3">Note</dt>
+            <dd class="col-sm-9">{{ requirement.pending_notes|linebreaksbr }}</dd>
+            {% endif %}
+        </dl>
+    </div>
+</div>
+{% endif %}
 
 <div class="card">
     <div class="card-header"><strong>Decisione</strong></div>

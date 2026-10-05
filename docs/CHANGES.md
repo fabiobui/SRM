@@ -1,6 +1,33 @@
 
 ## Change Requests
 
+### 5/10/26 — Automatismi sullo stato di qualifica (AIDEV-22)
+
+- **Creazione**: un fornitore nuovo parte sempre *In attesa*, anche se da admin
+  o API viene indicato un altro stato.
+- **Upload dal portale**: se il fornitore è *In attesa* o *Respinto* e, caricando
+  un documento/requisito obbligatorio, ha consegnato tutti gli obbligatori
+  mancanti o scaduti, passa a *Da Revisionare*. I caricamenti facoltativi non
+  cambiano lo stato.
+- **Ricarico anticipato**: se un documento/requisito già approvato e ancora
+  valido viene ricaricato, la nuova versione resta *in attesa di revisione*
+  (una sola per record) e quella approvata, con la sua scadenza, resta in vigore:
+  lo stato del fornitore non cambia. L'ufficio la approva o la rifiuta dalle
+  code di revisione del back-office; se approvata, file e date dell'anagrafica
+  vengono sostituiti. Vale anche per i facoltativi. Nuovi campi `pending_*` su
+  documenti e requisiti (migrazioni `documents/0013` e `vendors/0050`).
+- **Requisiti respinti**: ora distinti da quelli non ancora verificati (nuovo
+  campo `rejected`, migrazione `vendors/0051`, esistenti non respinti). Il
+  fornitore li vede "Respinto - da ricaricare", escono dalla coda di default del
+  back-office e dai KPI "da revisionare", e non contano come consegnati.
+- **Home del portale fornitore**: due avvisi separati, uno per i documenti e uno
+  per i requisiti (da caricare, respinti da ricaricare, scaduti, in scadenza),
+  ciascuno col proprio link; diventano rossi se c'è qualcosa di respinto. I
+  riquadri KPI hanno una colonna "Respinti" per documenti e requisiti.
+- La regola di AIDEV-100 per approvare il fornitore resta invariata: obbligatori
+  caricati, approvati dall'ufficio e non scaduti. L'approvazione/rifiuto manuale
+  del fornitore da parte dell'ufficio non cambia.
+
 ### 29/9/26 — Documenti e requisiti obbligatori e stato di qualifica (AIDEV-100)
 
 L'obbligatorietà di documenti contrattuali e abilitazioni/requisiti professionali

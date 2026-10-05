@@ -1258,6 +1258,13 @@ class VendorAdmin(admin.ModelAdmin):
         _("Valutazioni"),
     )
 
+    def save_model(self, request, obj, form, change):
+        # Un fornitore nuovo parte sempre "In attesa", qualunque valore
+        # sia stato scelto nel form.
+        if not change:
+            obj.qualification_status = "PENDING"
+        super().save_model(request, obj, form, change)
+
     def save_formset(self, request, form, formset, change):
         """Negli inline Documenti e Requisiti, l'approvazione/verifica fatta
         dal gestore compila in automatico revisore e data (come fa il

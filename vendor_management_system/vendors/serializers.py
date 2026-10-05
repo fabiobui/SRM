@@ -512,6 +512,7 @@ class VendorSerializer(ModelSerializer):
         # Gestisce la creazione dell'indirizzo se fornito
         address_data = validated_data.pop("address", None)
         category_id = validated_data.pop("category_id", None)
+        validated_data.pop("qualification_status", None)
 
         # Imposta la categoria se fornita
         if category_id:
@@ -640,6 +641,7 @@ class VendorCreateUpdateSerializer(ModelSerializer):
         address_data = validated_data.pop("address", None)
         category_id = validated_data.pop("category_id", None)
         additional_ids = validated_data.pop("additional_category_ids", None)
+        validated_data.pop("qualification_status", None)
 
         # Imposta la categoria
         if category_id:

@@ -14,16 +14,30 @@
     </div>
 </div>
 
-{% if to_upload_count or expired_count or expiring_count or rejected_count %}
-<div class="alert alert-warning d-flex align-items-center" role="alert">
+{% if docs_alert %}
+<div class="alert {% if docs_alert.rejected %}alert-danger{% else %}alert-warning{% endif %} d-flex align-items-center" role="alert">
     <i class="fas fa-exclamation-triangle fa-lg me-3"></i>
     <div>
-        Hai
-        {% if to_upload_count %}<strong>{{ to_upload_count }}</strong> documento/i da caricare{% endif %}
-        {% if rejected_count %}{% if to_upload_count %}, {% endif %}<strong>{{ rejected_count }}</strong> respinto/i da ricaricare{% endif %}
-        {% if expired_count %}{% if to_upload_count or rejected_count %}, {% endif %}<strong>{{ expired_count }}</strong> scaduto/i{% endif %}
-        {% if expiring_count %}{% if to_upload_count or rejected_count or expired_count %}, {% endif %}<strong>{{ expiring_count }}</strong> in scadenza{% endif %}.
+        <strong>Documenti</strong>:
+        {% if docs_alert.to_upload %}<span class="me-2"><strong>{{ docs_alert.to_upload }}</strong> da caricare</span>{% endif %}
+        {% if docs_alert.rejected %}<span class="me-2"><strong>{{ docs_alert.rejected }}</strong> respinto/i da ricaricare</span>{% endif %}
+        {% if docs_alert.expired %}<span class="me-2"><strong>{{ docs_alert.expired }}</strong> scaduto/i</span>{% endif %}
+        {% if docs_alert.expiring %}<span class="me-2"><strong>{{ docs_alert.expiring }}</strong> in scadenza</span>{% endif %}
         <a href="{% url 'portal:my-documents' %}" class="alert-link">Vai ai documenti →</a>
+    </div>
+</div>
+{% endif %}
+
+{% if reqs_alert %}
+<div class="alert {% if reqs_alert.rejected %}alert-danger{% else %}alert-warning{% endif %} d-flex align-items-center" role="alert">
+    <i class="fas fa-exclamation-triangle fa-lg me-3"></i>
+    <div>
+        <strong>Requisiti</strong>:
+        {% if reqs_alert.to_upload %}<span class="me-2"><strong>{{ reqs_alert.to_upload }}</strong> da caricare</span>{% endif %}
+        {% if reqs_alert.rejected %}<span class="me-2"><strong>{{ reqs_alert.rejected }}</strong> respinto/i da ricaricare</span>{% endif %}
+        {% if reqs_alert.expired %}<span class="me-2"><strong>{{ reqs_alert.expired }}</strong> scaduto/i</span>{% endif %}
+        {% if reqs_alert.expiring %}<span class="me-2"><strong>{{ reqs_alert.expiring }}</strong> in scadenza</span>{% endif %}
+        <a href="{% url 'portal:my-requirements' %}" class="alert-link">Vai ai requisiti →</a>
     </div>
 </div>
 {% endif %}
@@ -54,21 +68,25 @@
             <div class="card-body">
                 <h5 class="card-title"><i class="fas fa-file-alt"></i> Documenti Contrattuali</h5>
                 <div class="row text-center g-2 my-2">
-                    <div class="col-3">
+                    <div class="col">
                         <div class="fs-4 fw-semibold">{{ doc_stats.to_upload }}</div>
                         <div class="text-muted small">Da caricare</div>
                     </div>
-                    <div class="col-3">
+                    <div class="col">
                         <div class="fs-4 fw-semibold text-warning">{{ doc_stats.in_review }}</div>
                         <div class="text-muted small">In revisione</div>
                     </div>
-                    <div class="col-3">
+                    <div class="col">
                         <div class="fs-4 fw-semibold text-success">{{ doc_stats.approved }}</div>
                         <div class="text-muted small">Approvati</div>
                     </div>
-                    <div class="col-3">
+                    <div class="col">
                         <div class="fs-4 fw-semibold text-danger">{{ doc_stats.expired }}</div>
                         <div class="text-muted small">Scaduti</div>
+                    </div>
+                    <div class="col">
+                        <div class="fs-4 fw-semibold text-danger">{{ doc_stats.rejected }}</div>
+                        <div class="text-muted small">Respinti</div>
                     </div>
                 </div>
                 <a href="{% url 'portal:my-documents' %}" class="btn btn-success">Gestisci documenti</a>
@@ -80,21 +98,25 @@
             <div class="card-body">
                 <h5 class="card-title"><i class="fas fa-user-graduate"></i> Abilitazioni e Requisiti Professionali</h5>
                 <div class="row text-center g-2 my-2">
-                    <div class="col-3">
+                    <div class="col">
                         <div class="fs-4 fw-semibold">{{ req_stats.to_upload }}</div>
                         <div class="text-muted small">Da caricare</div>
                     </div>
-                    <div class="col-3">
+                    <div class="col">
                         <div class="fs-4 fw-semibold text-warning">{{ req_stats.in_review }}</div>
                         <div class="text-muted small">In revisione</div>
                     </div>
-                    <div class="col-3">
+                    <div class="col">
                         <div class="fs-4 fw-semibold text-success">{{ req_stats.approved }}</div>
                         <div class="text-muted small">Approvati</div>
                     </div>
-                    <div class="col-3">
+                    <div class="col">
                         <div class="fs-4 fw-semibold text-danger">{{ req_stats.expired }}</div>
                         <div class="text-muted small">Scaduti</div>
+                    </div>
+                    <div class="col">
+                        <div class="fs-4 fw-semibold text-danger">{{ req_stats.rejected }}</div>
+                        <div class="text-muted small">Respinti</div>
                     </div>
                 </div>
                 <a href="{% url 'portal:my-requirements' %}" class="btn btn-outline-success">Gestisci requisiti</a>

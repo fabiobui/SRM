@@ -307,6 +307,26 @@ class Document(models.Model):
         blank=True,
     )
 
+    # Nuova versione caricata dal fornitore mentre quella approvata è ancora
+    # valida: resta qui in attesa di revisione e sostituisce i campi sopra
+    # solo se l'ufficio la approva. Una sola per documento.
+    pending_file = models.FileField(
+        _("Nuova versione: file"),
+        upload_to="vendor_documents/pending/%Y/%m/",
+        null=True,
+        blank=True,
+    )
+    pending_issue_date = models.DateField(
+        _("Nuova versione: data di emissione"), null=True, blank=True
+    )
+    pending_expiry_date = models.DateField(
+        _("Nuova versione: data di scadenza"), null=True, blank=True
+    )
+    pending_notes = models.TextField(_("Nuova versione: note"), blank=True)
+    pending_uploaded_at = models.DateTimeField(
+        _("Nuova versione: caricata il"), null=True, blank=True
+    )
+
     class Meta:
         verbose_name = _("Documento Contrattuale")
         verbose_name_plural = _("Registro Documenti Contrattuali")
@@ -344,6 +364,63 @@ class Document(models.Model):
         """Documento che soddisfa un requisito di qualifica: caricato (file
         presente), approvato dal gestore e non scaduto."""
         return bool(self.file) and self.is_valid
+
+    @property
+    def is_delivered(self):
+        """Documento consegnato dal fornitore: file presente, non scaduto e
+        non respinto (in attesa di revisione oppure già approvato)."""
+        return (
+            bool(self.file)
+            and self.status in ("UPLOADED", "APPROVED")
+            and not self.is_expired
+        )
+
+    @property
+    def has_pending_revision(self):
+        return bool(self.pending_file)
+
+    def submit_upload(self, file, issue_date=None, expiry_date=None, notes=""):
+        """Upload del fornitore. Se il documento è approvato e ancora valido
+        la nuova versione resta in attesa di revisione (ritorna True) e il
+        documento non cambia; altrimenti lo sostituisce subito (False)."""
+        if self.satisfies_requirement:
+            self.pending_file = file
+            self.pending_issue_date = issue_date
+            self.pending_expiry_date = expiry_date
+            self.pending_notes = notes or ""
+            self.pending_uploaded_at = timezone.now()
+            self.save()
+            return True
+        self.file = file
+        self.issue_date = issue_date
+        self.expiry_date = expiry_date
+        self.notes = notes or ""
+        self.status = "UPLOADED"
+        self.reviewed_by = None
+        self.reviewed_at = None
+        self._clear_pending_revision()
+        self.save()
+        return False
+
+    def apply_pending_revision(self):
+        """La revisione in attesa diventa il documento in vigore."""
+        self.file = self.pending_file
+        self.issue_date = self.pending_issue_date
+        self.expiry_date = self.pending_expiry_date
+        self.notes = self.pending_notes
+        self._clear_pending_revision()
+        self.save()
+
+    def discard_pending_revision(self):
+        self._clear_pending_revision()
+        self.save()
+
+    def _clear_pending_revision(self):
+        self.pending_file = None
+        self.pending_issue_date = None
+        self.pending_expiry_date = None
+        self.pending_notes = ""
+        self.pending_uploaded_at = None
 
     @property
     def validity_status(self):
