@@ -306,6 +306,322 @@ SERVICE_SETS = [
 ]
 
 
+# Categorie (ServiceType radice) sotto cui vivono i servizi dei set IGEAM:
+# codice -> (nome, ordinamento). Come per gli altri blocchi, sono create solo
+# se mancano; quelle già a catalogo non vengono toccate.
+IGEAM_SERVICE_ROOTS = {
+    "624": ("624", 10),
+    "AMB": ("Amb", 20),
+    "BASI": ("BASI", 30),
+    "CGHS": ("consulenza generale HS", 40),
+    "FORM": ("Formazione", 50),
+    "IGIND": ("IGIENE  INDUSTRIALE", 60),
+    "INGEGN": ("Ingegn", 70),
+    "RISK": ("RISK", 80),
+    "RISKPSICO": ("RISK Psicosociali", 90),
+    "SICCANT": ("Sicurezza Cantieri", 100),
+    "STRUMENTI": ("STRUMENTI DI MISURA", 610),
+}
+
+# Set Servizi IGEAM (AIDEV-118), senza classificazione fornitore. Fonte:
+# "FORNITORI_SET SERVIZI con descrizioni.xlsx", foglio "SET SERVIZI". Ogni
+# servizio è (codice, nome, codice categoria in IGEAM_SERVICE_ROOTS,
+# ordinamento). I raggruppamenti del file sono indipendenti dall'albero
+# categoria/servizio del catalogo: il padre indicato serve solo se il
+# servizio manca e va creato (SERV-0114..0123 sono i servizi "da codificare").
+IGEAM_SERVICE_SETS = [
+    {
+        "name": "RISCHIO MINERARIO",
+        "description": "Servizi per il settore minerario ed estrattivo.",
+        "category_code": None,
+        "services": [
+            ("SERV-0016", "RISCHIO MINERARIO", "624", 16),
+            ("SERV-0017", "DSS/PEI", "624", 17),
+        ],
+    },
+    {
+        "name": "AMBIENTE",
+        "description": "Servizi di consulenza ambientale ed energetica.",
+        "category_code": None,
+        "services": [
+            ("SERV-0014", "ADR & RID", "AMB", 14),
+            ("SERV-0054", "TCAA", "AMB", 54),
+            ("SERV-0055", "ACUSTICA AMBIENTALE", "AMB", 55),
+            ("SERV-0056", "SUOLO", "AMB", 56),
+            ("SERV-0057", "VIA - VAS", "AMB", 57),
+            ("SERV-0058", "AIA - AUA", "AMB", 58),
+            ("SERV-0059", "WASTE MANAGEMENT", "AMB", 59),
+            ("SERV-0060", "ACQUA", "AMB", 60),
+            ("SERV-0061", "ARIA", "AMB", 61),
+            ("SERV-0062", "Mobilty Manager /PIANI MOBILITA'", "AMB", 62),
+            ("SERV-0063", "ENERGY MANAGEMENT", "AMB", 63),
+            ("SERV-0064", "APE", "AMB", 64),
+            ("SERV-0065", "TERMOGRAFIA", "AMB", 65),
+            ("SERV-0066", "LCA", "AMB", 66),
+        ],
+    },
+    {
+        "name": "CERTIFICAZIONI",
+        "description": "Servizi di consulenza su certificazioni e sistemi.",
+        "category_code": None,
+        "services": [
+            ("SERV-0067", "HSE Manager - UNI 11720", "BASI", 67),
+            ("SERV-0068", "DLgs 231 - MOGC", "BASI", 68),
+            ("SERV-0069", "ISO 37301 - Compliance", "BASI", 69),
+            ("SERV-0070", "Serie ISO 9000", "BASI", 70),
+            ("SERV-0071", "Serie ISO 14000", "BASI", 71),
+            ("SERV-0072", "Serie ISO 45000", "BASI", 72),
+            ("SERV-0073", "ISO 50001", "BASI", 73),
+            ("SERV-0074", "EMAS", "BASI", 74),
+            ("SERV-0075", "Serei ISO 14064", "BASI", 75),
+            ("SERV-0076", "Indicatori EFRAG", "BASI", 76),
+            ("SERV-0077", "SA 8000 - ISO 26000", "BASI", 77),
+            ("SERV-0078", "PdR 125", "BASI", 78),
+            ("SERV-0079", "Ecovadis", "BASI", 79),
+            ("SERV-0080", "SGI", "BASI", 80),
+        ],
+    },
+    {
+        "name": "CONSULENZA GENERALE HS",
+        "description": "Servizi di consulenza generale su salute e sicurezza.",
+        "category_code": None,
+        "services": [
+            ("SERV-0001", "RSPP/ASPP", "CGHS", 1),
+            ("SERV-0002", "DVR", "CGHS", 2),
+            ("SERV-0003", "DUVRI", "CGHS", 3),
+            ("SERV-0007", "PIANI EMERGENZA", "CGHS", 7),
+            ("SERV-0114", "PLANIMETRIE PIANO DI EMERGENZA", "CGHS", 114),
+        ],
+    },
+    {
+        "name": "FORMAZIONE",
+        "description": "Servizi di docenza e formazione.",
+        "category_code": None,
+        "services": [
+            ("SERV-0081", "DOC - RIFIUTI", "FORM", 81),
+            ("SERV-0082", "E-LEARNING", "FORM", 82),
+            ("SERV-0083", "DOC - SGI", "FORM", 83),
+            ("SERV-0084", "DOC - REACH/CLP", "FORM", 84),
+            ("SERV-0085", "DOC - ADR", "FORM", 85),
+            ("SERV-0086", "DOC - 624", "FORM", 86),
+            ("SERV-0087", "DOC - HAZOP/HAZID", "FORM", 87),
+            ("SERV-0088", "Doc - In Inglese", "FORM", 88),
+            ("SERV-0089", "Realtà Virtuale", "FORM", 89),
+            ("SERV-0090", "00 - DM 16/01/1997 - RLS", "FORM", 90),
+            (
+                "SERV-0091",
+                "02 - DGR n.5702 del 06/12/1999 - Amianto",
+                "FORM",
+                91,
+            ),
+            (
+                "SERV-0092",
+                "03 - DM 388 del 15/07/2003 - Primo Soccorso",
+                "FORM",
+                92,
+            ),
+            (
+                "SERV-0093",
+                "04 - ASR 26/01/2006 - Addetti Fune Portante",
+                "FORM",
+                93,
+            ),
+            (
+                "SERV-0094",
+                "05 - ASR 26/01/2006 - Addetti Ponteggi",
+                "FORM",
+                94,
+            ),
+            (
+                "SERV-0095",
+                "06 - Artt. 37 e 77 D.Lgs 81/08 - DPI 3 cat.",
+                "FORM",
+                95,
+            ),
+            (
+                "SERV-0096",
+                "07 - Artt. 66, 73 D.Lgs. 81/08 - Spazi Confinati",
+                "FORM",
+                96,
+            ),
+            (
+                "SERV-0097",
+                "08 - ASR 21/12/2011 - Datore di Lavoro",
+                "FORM",
+                97,
+            ),
+            (
+                "SERV-0098",
+                "09 - ASR 21/12/2011 linee applicative 27/07/2012 - "
+                "Lavoratori",
+                "FORM",
+                98,
+            ),
+            ("SERV-0099", "10 - ASR 22/02/2012 - Attrezzature", "FORM", 99),
+            (
+                "SERV-0100",
+                "11 - DM 06/03/2013 - Formatori Sicurezza",
+                "FORM",
+                100,
+            ),
+            (
+                "SERV-0101",
+                "12 - CEI 11-27 del 2021 - PES/PAV/PEI",
+                "FORM",
+                101,
+            ),
+            ("SERV-0102", "13 - ASR 07/07/2016 - RSPP ASPP", "FORM", 102),
+            ("SERV-0103", "14 - ASR 07/07/2016 - CSP CSE", "FORM", 103),
+            (
+                "SERV-0104",
+                "15 - DM 22/01/2019 - Segnaletica Stradale",
+                "FORM",
+                104,
+            ),
+            ("SERV-0105", "16 - BLSD/ISTRUTTORI/INFERMIERI", "FORM", 105),
+            (
+                "SERV-0106",
+                "17 - Reg.to CE 178/2002 e 852/2004 - HACCP",
+                "FORM",
+                106,
+            ),
+            (
+                "SERV-0107",
+                "18 - Dlgs. 152/2006 – Codice Ambientale",
+                "FORM",
+                107,
+            ),
+            ("SERV-0108", "19 - DM 02/09/2021 - Antincendio", "FORM", 108),
+            (
+                "SERV-0109",
+                "19.1 - SOLO TEORIA - DM 02/09/2021 - Antincendio",
+                "FORM",
+                109,
+            ),
+            (
+                "SERV-0110",
+                "19.2 - SOLO ATTREZZATURE - DM 02/09/2021 - Antincendio",
+                "FORM",
+                110,
+            ),
+            (
+                "SERV-0111",
+                "20 - D.Lgs. 152 del 03/04/2006 TU Ambiente",
+                "FORM",
+                111,
+            ),
+            ("SERV-0112", "21 - Competenze Trasversali", "FORM", 112),
+            ("SERV-0113", "22 - HACCP - 1993/43/CEE", "FORM", 113),
+        ],
+    },
+    {
+        "name": "IGIENE INDUSTRIALE",
+        "description": "Servizi di igiene industriale.",
+        "category_code": None,
+        "services": [
+            ("SERV-0038", "AMIANTO", "IGIND", 38),
+            ("SERV-0039", "BIOL", "IGIND", 39),
+            ("SERV-0040", "cangerogeni, mutageni, reprotossici", "IGIND", 40),
+            ("SERV-0041", "rischio chimico", "IGIND", 41),
+            ("SERV-0042", "HACCP", "IGIND", 42),
+            ("SERV-0043", "IAQ (chimica e microbiologica)", "IGIND", 43),
+            ("SERV-0044", "Stress Termico", "IGIND", 44),
+            ("SERV-0045", "MMC e movimenti ripetuti", "IGIND", 45),
+            ("SERV-0046", "Microclima amb. moderati", "IGIND", 46),
+            ("SERV-0047", "Illuminamento", "IGIND", 47),
+            ("SERV-0048", "LASER", "IGIND", 48),
+            ("SERV-0049", "VIBRAZIONI", "IGIND", 49),
+            ("SERV-0050", "RUMORE", "IGIND", 50),
+            ("SERV-0051", "ROA", "IGIND", 51),
+            ("SERV-0053", "RI (Radon)", "IGIND", 53),
+            ("SERV-0115", "CEM", "IGIND", 115),
+        ],
+    },
+    {
+        "name": "INGEGNERIA",
+        "description": "Servizi di ingegneria e analisi di rischio.",
+        "category_code": None,
+        "services": [
+            ("SERV-0008", "PROG. ANTINCENDIO", "INGEGN", 8),
+            ("SERV-0012", "VULNERAB. SISMICA", "INGEGN", 12),
+            ("SERV-0018", "BONIF-ACUS", "INGEGN", 18),
+            ("SERV-0019", "HAZOP SIL Chairman", "INGEGN", 19),
+            ("SERV-0020", "HAZOP SIL Scribe", "INGEGN", 20),
+            ("SERV-0021", "RAM Analysis", "INGEGN", 21),
+            ("SERV-0022", "3D F&G MAPPING", "INGEGN", 22),
+            ("SERV-0023", "HAZID, FMEA, SIMOPS", "INGEGN", 23),
+            ("SERV-0024", "SIL ALLOCATION", "INGEGN", 24),
+            ("SERV-0025", "FERA, QRA, EERA, ESSA", "INGEGN", 25),
+            (
+                "SERV-0026",
+                "AIR DISPERSION AND FLARE HEAT RADIATION",
+                "INGEGN",
+                26,
+            ),
+            ("SERV-0027", "SIL VERIFICATION/SRS/FSA", "INGEGN", 27),
+            ("SERV-0028", "BOW TIE/SECE PERFORM. STANDARD", "INGEGN", 28),
+            ("SERV-0029", "SAFOP & ALARM MNG.", "INGEGN", 29),
+            ("SERV-0030", "RIR (RDS, NAR, SGS)", "INGEGN", 30),
+        ],
+    },
+    {
+        "name": "VALUTAZIONE RISCHI",
+        "description": "Servizi di valutazione dei rischi.",
+        "category_code": None,
+        "services": [
+            ("SERV-0004", "ATEX", "RISK", 4),
+            ("SERV-0005", "RISCHIO ELETTRICO", "RISK", 5),
+            ("SERV-0006", "FULMINAZIONE", "RISK", 6),
+            ("SERV-0009", "VALUTAZIONE RISCHIO INCENDIO", "RISK", 9),
+            ("SERV-0010", "RISCHIO MACCHINE", "RISK", 10),
+            ("SERV-0011", "VERIFICA PED", "RISK", 11),
+            ("SERV-0013", "SPAZI CONFINATI", "RISK", 13),
+            ("SERV-0015", "REACH/CLP", "RISK", 15),
+            ("SERV-0052", "Lavori in quota", "RISK", 52),
+            (
+                "SERV-0035",
+                "RISCHIO VIOLENZA INTERNA E AGGRESSIONI",
+                "RISKPSICO",
+                35,
+            ),
+            ("SERV-0036", "Età e differenze di genere", "RISKPSICO", 36),
+            ("SERV-0037", "SLC", "RISKPSICO", 37),
+        ],
+    },
+    {
+        "name": "SICUREZZA CANTIERI",
+        "description": "Servizi di sicurezza nei cantieri.",
+        "category_code": None,
+        "services": [
+            ("SERV-0031", "Direzione Lavori", "SICCANT", 31),
+            ("SERV-0032", "Incarico CSE", "SICCANT", 32),
+            ("SERV-0033", "POS", "SICCANT", 33),
+            ("SERV-0034", "Incarico CSP -elaborazione PSC", "SICCANT", 34),
+        ],
+    },
+    {
+        "name": "STRUMENTI DI MISURA",
+        "description": "Strumentazione di misura del fornitore.",
+        "category_code": None,
+        "services": [
+            ("SERV-0116", "FONOMETRO", "STRUMENTI", 116),
+            ("SERV-0117", "DINAMOMETRO", "STRUMENTI", 117),
+            ("SERV-0118", "CENTRALINA MICROCLIMATICA", "STRUMENTI", 118),
+            ("SERV-0119", "ACCELEROMETRO", "STRUMENTI", 119),
+            ("SERV-0120", "SONDA CAMPI ELETTROMAGNETICI", "STRUMENTI", 120),
+            (
+                "SERV-0121",
+                "POMPE PER CAMPIONAMENTO AGENTI CHIMICI",
+                "STRUMENTI",
+                121,
+            ),
+            ("SERV-0122", "LUXMETRO", "STRUMENTI", 122),
+            ("SERV-0123", "TERMOCAMERA", "STRUMENTI", 123),
+        ],
+    },
+]
+
+
 class Command(BaseCommand):
     help = (
         "Popola il catalogo Servizi e i Set Servizi usati nel tab "
@@ -355,9 +671,31 @@ class Command(BaseCommand):
                 spec, order, resolved, categories, create_only=create_only
             )
 
+        self._seed_igeam_sets(
+            len(SERVICE_SETS), by_norm, categories, create_only
+        )
+
         self.stdout.write(
             self.style.NOTICE("Popolamento Set Servizi completato.")
         )
+
+    def _seed_igeam_sets(self, offset, by_norm, categories, create_only):
+        """Set IGEAM: ogni servizio ha il proprio padre, creato se manca."""
+        for order, spec in enumerate(IGEAM_SERVICE_SETS, start=offset + 1):
+            resolved = []
+            for code, name, parent_code, sort_order in spec["services"]:
+                root_name, root_order = IGEAM_SERVICE_ROOTS[parent_code]
+                parent = self._resolve_parent(
+                    (parent_code, root_name, root_order), by_norm, False
+                )
+                resolved.append(
+                    self._resolve_service(
+                        (code, name, sort_order), parent, by_norm, False
+                    )
+                )
+            self._sync_set(
+                spec, order, resolved, categories, create_only=create_only
+            )
 
     def _resolve_parent(self, spec, by_norm, update):
         """ServiceType categoria (senza padre) del blocco, creato se

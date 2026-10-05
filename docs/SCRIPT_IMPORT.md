@@ -707,6 +707,31 @@ python data_migration_scripts/fix_documentset_migration.py --dry-run   # solo di
 python data_migration_scripts/fix_documentset_migration.py             # esegue
 ```
 
+### Formatore, Consulente, Laboratorio: da Tipo Fornitore a Classificazione (AIDEV-118)
+
+Formatore, Consulente e Laboratorio non sono più valori di *Tipo di Fornitore*
+ma Classificazioni radice (senza padre). Due script **una-tantum**, da lanciare
+**in quest'ordine** su ogni ambiente dopo `python manage.py migrate`; entrambi
+sono idempotenti e supportano `--dry-run`.
+
+```bash
+python data_migration_scripts/migrate_vendor_types_to_categories.py --dry-run
+python data_migration_scripts/migrate_vendor_types_to_categories.py
+python data_migration_scripts/associate_sets_to_new_categories.py --dry-run
+python data_migration_scripts/associate_sets_to_new_categories.py
+```
+
+| Script | Cosa fa |
+|---|---|
+| `migrate_vendor_types_to_categories.py` | Crea le Classificazioni `106` FORMATORE, `107` CONSULENTE, `108` LABORATORIO (se mancanti). Per ogni fornitore con il vecchio tipo assegna la nuova classificazione (principale se vuota, altrimenti aggiuntiva) e **svuota il Tipo di Fornitore**, da compilare a mano |
+| `associate_sets_to_new_categories.py` | Collega i Set Documentali e i Set Abilitazioni e Requisiti `FORMATORE`, `CONSULENTE`, `LABORATORIO` alla classificazione omonima, solo se oggi non ne hanno una. Si ferma se le classificazioni non esistono ancora |
+
+I 10 nuovi Set Servizi del file IGEAM (Rischio minerario, Ambiente,
+Certificazioni, Consulenza generale HS, Formazione, Igiene industriale,
+Ingegneria, Valutazione rischi, Sicurezza cantieri, Strumenti di misura) sono
+invece creati in automatico, senza classificazione, da `seed_service_sets
+--create-only` a ogni deploy.
+
 ---
 
 ## Problemi frequenti
