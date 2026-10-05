@@ -10,6 +10,7 @@
             <option value="expired" {% if verified_filter == "expired" %}selected{% endif %}>Scaduti</option>
             <option value="false" {% if verified_filter == "false" %}selected{% endif %}>Da verificare</option>
             <option value="true" {% if verified_filter == "true" %}selected{% endif %}>Verificati</option>
+            <option value="rejected" {% if verified_filter == "rejected" %}selected{% endif %}>Respinti</option>
         </select>
         <noscript><button class="btn btn-sm btn-primary">Filtra</button></noscript>
     </form>
@@ -46,8 +47,13 @@
                             <span class="badge badge-cr-REJECTED">Scaduto</span>
                         {% elif r.verified %}
                             <span class="badge badge-cr-APPROVED">Verificato</span>
+                        {% elif r.rejected %}
+                            <span class="badge badge-cr-REJECTED">Respinto</span>
                         {% else %}
                             <span class="badge badge-cr-PENDING">Da verificare</span>
+                        {% endif %}
+                        {% if r.has_pending_revision %}
+                            <span class="badge bg-warning text-dark">Nuova versione</span>
                         {% endif %}
                     </td>
                     <td class="text-end">

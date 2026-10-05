@@ -612,6 +612,14 @@ class VendorCompetence(models.Model):
         help_text=_("Competenza verificata dall'azienda"),
     )
 
+    rejected = models.BooleanField(
+        _("Respinta"),
+        default=False,
+        help_text=_(
+            "Documento respinto dal gestore, in attesa di un nuovo caricamento"
+        ),
+    )
+
     verified_by = models.CharField(
         _("Verificata da"),
         max_length=255,
@@ -643,6 +651,32 @@ class VendorCompetence(models.Model):
         help_text=_("Note aggiuntive sulla competenza"),
     )
 
+    # Nuova versione caricata dal fornitore mentre il requisito verificato è
+    # ancora valido: resta in attesa di revisione e sostituisce i campi sopra
+    # solo se l'ufficio la approva. Una sola per requisito.
+    pending_document_file = models.FileField(
+        _("Nuova versione: file"),
+        upload_to="vendor_competences/pending/%Y/%m/",
+        null=True,
+        blank=True,
+    )
+    pending_certification_number = models.CharField(
+        _("Nuova versione: numero certificazione"),
+        max_length=100,
+        null=True,
+        blank=True,
+    )
+    pending_issue_date = models.DateField(
+        _("Nuova versione: data rilascio"), null=True, blank=True
+    )
+    pending_expiry_date = models.DateField(
+        _("Nuova versione: data scadenza"), null=True, blank=True
+    )
+    pending_notes = models.TextField(_("Nuova versione: note"), blank=True)
+    pending_uploaded_at = models.DateTimeField(
+        _("Nuova versione: caricata il"), null=True, blank=True
+    )
+
     # Metadata
     created_at = models.DateTimeField(_("Creato il"), auto_now_add=True)
 
@@ -664,6 +698,12 @@ class VendorCompetence(models.Model):
     def __str__(self):
         return f"{self.vendor.name} - {self.competence.name}"
 
+    def save(self, *args, **kwargs):
+        # Un requisito verificato non può risultare anche respinto.
+        if self.verified:
+            self.rejected = False
+        super().save(*args, **kwargs)
+
     @property
     def is_expired(self):
         """Verifica se la certificazione è scaduta"""
@@ -681,6 +721,76 @@ class VendorCompetence(models.Model):
             and self.verified
             and not self.is_expired
         )
+
+    @property
+    def is_delivered(self):
+        """Requisito consegnato dal fornitore: posseduto, documento caricato,
+        non scaduto e non respinto (anche se non ancora verificato)."""
+        return (
+            self.has_competence
+            and bool(self.document_file)
+            and not self.rejected
+            and not self.is_expired
+        )
+
+    @property
+    def has_pending_revision(self):
+        return bool(self.pending_document_file)
+
+    def submit_upload(
+        self,
+        document_file,
+        certification_number=None,
+        issue_date=None,
+        expiry_date=None,
+        notes="",
+    ):
+        """Upload del fornitore. Se il requisito è verificato e ancora valido
+        la nuova versione resta in attesa di revisione (ritorna True) e il
+        requisito non cambia; altrimenti lo sostituisce subito (False)."""
+        if self.satisfies_requirement:
+            self.pending_document_file = document_file
+            self.pending_certification_number = certification_number
+            self.pending_issue_date = issue_date
+            self.pending_expiry_date = expiry_date
+            self.pending_notes = notes or ""
+            self.pending_uploaded_at = timezone.now()
+            self.save()
+            return True
+        self.document_file = document_file
+        self.certification_number = certification_number
+        self.issue_date = issue_date
+        self.expiry_date = expiry_date
+        self.notes = notes or ""
+        self.verified = False
+        self.rejected = False
+        self.verified_by = None
+        self.verified_date = None
+        self._clear_pending_revision()
+        self.save()
+        return False
+
+    def apply_pending_revision(self):
+        """La revisione in attesa diventa il requisito in vigore."""
+        self.document_file = self.pending_document_file
+        self.certification_number = self.pending_certification_number
+        self.issue_date = self.pending_issue_date
+        self.expiry_date = self.pending_expiry_date
+        self.notes = self.pending_notes
+        self._clear_pending_revision()
+        self.save()
+
+    def discard_pending_revision(self):
+        self._clear_pending_revision()
+        self.save()
+
+    def _clear_pending_revision(self):
+        self.pending_document_file = None
+        self.pending_certification_number = None
+        self.pending_issue_date = None
+        self.pending_expiry_date = None
+        self.pending_notes = ""
+        self.pending_uploaded_at = None
 
     @property
     def days_to_expiry(self):
@@ -2015,6 +2125,10 @@ class Vendor(models.Model):
             # Generate a new vendor code
             self.vendor_code = str(uuid.uuid4()).replace("-", "")[:10].upper()
 
+        # Un fornitore nuovo senza stato parte sempre "In attesa".
+        if self._state.adding and not self.qualification_status:
+            self.qualification_status = "PENDING"
+
         # Un fornitore esistente non può restare "Approvato" se la
         # documentazione obbligatoria non è in regola.
         if (
@@ -2030,24 +2144,28 @@ class Vendor(models.Model):
     @property
     def qualification_blockers(self):
         """Elenco (stringhe leggibili) dei documenti e requisiti OBBLIGATORI
-        assegnati che impediscono la qualifica: non caricati, non verificati
+        assegnati che impediscono la qualifica: non caricati, non approvati
         dal gestore o scaduti. Lista vuota = fornitore approvabile."""
+        return self._mandatory_gaps("satisfies_requirement")
+
+    def _mandatory_gaps(self, check):
+        """Obbligatori assegnati per cui la property `check` è falsa."""
         if self._state.adding:
             return []
-        blockers = []
+        gaps = []
         # L'obbligatorietà è definita a catalogo: Document.document_type
         # .is_required e Competence.is_mandatory.
         for doc in Document.objects.filter(
             vendor=self, document_type__is_required=True
         ).select_related("document_type"):
-            if not doc.satisfies_requirement:
-                blockers.append(f"Documento: {doc.document_type.name}")
+            if not getattr(doc, check):
+                gaps.append(f"Documento: {doc.document_type.name}")
         for req in self.vendor_competences.filter(
             competence__is_mandatory=True
         ).select_related("competence"):
-            if not req.satisfies_requirement:
-                blockers.append(f"Requisito: {req.competence.name}")
-        return blockers
+            if not getattr(req, check):
+                gaps.append(f"Requisito: {req.competence.name}")
+        return gaps
 
     def sync_qualification_status(self):
         """Riallinea lo stato di qualifica dopo una modifica ai record
@@ -2055,6 +2173,18 @@ class Vendor(models.Model):
         Revisionare'. Non riapprova mai in automatico."""
         if self.qualification_status == "APPROVED" and self.pk:
             if self.qualification_blockers:
+                Vendor.objects.filter(pk=self.pk).update(
+                    qualification_status="TO_REVIEW"
+                )
+                self.qualification_status = "TO_REVIEW"
+
+    def submit_for_review_if_complete(self):
+        """Dopo un upload del fornitore: se è 'In attesa' o 'Respinto' e ha
+        consegnato tutti i documenti/requisiti obbligatori (caricati, non
+        scaduti, non respinti) passa a 'Da Revisionare'. Chi è 'Approvato'
+        non viene mai toccato qui."""
+        if self.qualification_status in ("PENDING", "REJECTED", "", None):
+            if not self._mandatory_gaps("is_delivered"):
                 Vendor.objects.filter(pk=self.pk).update(
                     qualification_status="TO_REVIEW"
                 )

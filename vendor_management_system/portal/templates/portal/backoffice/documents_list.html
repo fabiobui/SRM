@@ -45,6 +45,9 @@
                         {% else %}
                             <span class="badge badge-cr-{{ d.status }}">{{ d.get_status_display }}</span>
                         {% endif %}
+                        {% if d.has_pending_revision %}
+                            <span class="badge bg-warning text-dark">Nuova versione</span>
+                        {% endif %}
                     </td>
                     <td class="text-end">
                         <a href="{% url 'portal:bo-document-detail' pk=d.pk %}" class="btn btn-sm btn-outline-primary">

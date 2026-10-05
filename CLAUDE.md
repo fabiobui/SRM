@@ -35,6 +35,25 @@ l'overview completa e il setup locale (Docker o nativo).
   (`.:/app` in `docker-compose.yml`) le modifiche fatte da fuori al container spesso non vengono rilevate in
   modo affidabile: il refresh del browser da solo non basta.
 
+## Verifica locale nel browser (Playwright)
+
+- **Dopo un nuovo sviluppo o la risoluzione di un bug puoi (e, se la modifica è visibile all'utente, dovresti)
+  verificarla nel browser con il plugin Playwright** (strumenti `mcp__plugin_playwright_playwright__*`), contro lo
+  stack Docker locale (`docker compose up -d`, app su `http://localhost:8000/`; i container esistenti si riavviano
+  senza `--build`). I test pytest restano obbligatori: Playwright li affianca, non li sostituisce.
+- **Mai toccare utenti o dati veri del DB locale** (contiene fornitori importati): per il giro end to end crea
+  fornitori e utenti di prova dedicati con uno script temporaneo (`docker compose exec -T -e E2E_PASSWORD=... django
+  python manage.py shell < script.py`), da tenere fuori dai commit (es. in `.playwright-mcp/`).
+  La password di prova va passata da variabile d'ambiente, mai scritta nel codice o nei commit.
+- Per entrare nell'admin Django l'utente di prova deve avere `is_staff`/`is_superuser`, oltre al ruolo `admin`.
+- Upload di file: `browser_file_upload` accetta solo percorsi dentro il repo o `.playwright-mcp/`; in alternativa
+  crea il file direttamente nella pagina con `browser_evaluate` (`DataTransfer` + `File`) e invia il form.
+- Salva gli screenshot in `.playwright-mcp/` (già in `.gitignore`), mai nella root del repo. Per controllare lo stato
+  nel DB dopo un passaggio usa `docker compose exec -T django python manage.py shell`.
+- Evita snapshot completi delle pagine admin (sono enormi): preferisci `browser_evaluate` mirati o screenshot.
+- Le modifiche ai modelli applicano le migrazioni al DB locale al riavvio del container `django`: è voluto, ma
+  tienine conto se poi passi a un altro branch.
+
 ## Email
 
 - **Ogni email applicativa passa da `vendor_management_system/core/emails.py::send_templated_email`** (template

@@ -3,6 +3,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Count
 from django.shortcuts import get_object_or_404, redirect
 from django.utils import timezone
+from django.utils.dateparse import parse_date
 from django.views import View
 from django.views.generic import TemplateView
 
@@ -166,13 +167,17 @@ class DocumentUploadView(VendorRequiredMixin, View):
             )
 
             if not created:
-                # Update existing document
-                document.file = file
-                document.issue_date = issue_date if issue_date else None
-                document.expiry_date = expiry_date if expiry_date else None
-                document.notes = notes
-                document.status = "UPLOADED"
-                document.save()
+                # Un documento approvato e valido riceve la nuova versione
+                # solo "in attesa di revisione" (vedi Document.submit_upload).
+                document.submit_upload(
+                    file=file,
+                    issue_date=parse_date(issue_date or ""),
+                    expiry_date=parse_date(expiry_date or ""),
+                    notes=notes,
+                )
+
+            if document_type.is_required:
+                vendor.submit_for_review_if_complete()
 
             messages.success(
                 request,
