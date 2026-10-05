@@ -8,13 +8,15 @@
         <h1 class="h3 mb-1"><i class="fas fa-file-alt text-success"></i> Documenti contrattuali</h1>
         <p class="text-muted mb-0">{{ vendor.name }} · {{ vendor.vendor_code }}</p>
     </div>
+    <a href="{% url 'portal:my-document-add' %}" class="btn btn-success">
+        <i class="fas fa-plus"></i> Aggiungi documento
+    </a>
 </div>
 
 <div class="alert alert-light border">
     <i class="fas fa-info-circle text-muted"></i>
-    L'elenco dei documenti richiesti è definito dal back-office. Qui puoi caricare i file
-    sui documenti già previsti per la tua qualifica. Per richiedere un nuovo tipo di
-    documento, contatta il tuo referente.
+    Qui puoi caricare i file sui documenti già previsti per la tua qualifica e aggiungere
+    in autonomia un documento scegliendolo dalla lista dei tipi disponibili.
 </div>
 
 {% if expiring_docs %}
