@@ -108,17 +108,22 @@ def _carica_indice():
 
 
 def _carica_regole():
-    """Regole INCLUDE/EXCLUDE, raggruppate per zona."""
+    """Regole INCLUDE/EXCLUDE, raggruppate per zona, con gli id geografici
+    risolti in codici come fa la migrazione."""
+    codici = migrazione.codici_per_id(
+        _righe("SELECT id, code FROM vendors_country"),
+        _righe("SELECT id, code FROM vendors_region"),
+        _righe("SELECT id, code FROM vendors_province"),
+    )
     righe = _righe(
-        f"SELECT rl.zone_id, rl.rule_type, c.code, r.code, p.code "
-        f"FROM {TABELLA_REGOLE} rl "
-        "LEFT JOIN vendors_country c ON c.id = rl.country_id "
-        "LEFT JOIN vendors_region r ON r.id = rl.region_id "
-        "LEFT JOIN vendors_province p ON p.id = rl.province_id"
+        "SELECT zone_id, rule_type, country_id, region_id, province_id "
+        f"FROM {TABELLA_REGOLE}"
     )
     per_zona = {}
     for zona_id, tipo, naz, reg, prov in righe:
-        per_zona.setdefault(zona_id, []).append((tipo, naz, reg, prov))
+        per_zona.setdefault(zona_id, []).append(
+            migrazione.risolvi_regola(tipo, naz, reg, prov, codici)
+        )
     return per_zona
 
 
@@ -189,24 +194,23 @@ def main():
             testo = (testo_grezzo or "").strip()
             zone = zone_per_vendor.get(vendor_code, [])
 
-            regole = []
-            for zona_id, _nome_zona in zone:
-                regole.extend(regole_per_zona.get(zona_id, []))
-            province_zone, nazioni_zone = migrazione.espandi_zone(
-                regole, indice
+            copertura = migrazione.calcola_copertura(
+                [
+                    (nome_zona, regole_per_zona.get(zona_id, []))
+                    for zona_id, nome_zona in zone
+                ],
+                testo,
+                indice,
             )
-            (
-                province_testo,
-                nazioni_testo,
-                riconosciuti,
-                non_riconosciuti,
-            ) = migrazione.match_testo(testo, indice)
-
-            province = province_zone | province_testo
-            nazioni = nazioni_zone | nazioni_testo
+            province_zone = copertura["provinces_da_zone"]
+            province = copertura["provinces"]
+            nazioni = copertura["countries"]
+            riconosciuti = copertura["riconosciuti"]
+            non_riconosciuti = copertura["non_riconosciuti"]
             esito = _esito(
-                province_zone or nazioni_zone,
-                province_testo or nazioni_testo,
+                province_zone or copertura["countries_da_zone"],
+                copertura["provinces_da_testo"]
+                or copertura["countries_da_testo"],
                 non_riconosciuti,
                 bool(zone),
                 bool(testo),

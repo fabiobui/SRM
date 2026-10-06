@@ -72,17 +72,37 @@ contenuto nei nuovi campi territoriali, ma quello che non riesce a interpretare
 (es. macro-aree ambigue come "Nord Italia") va sistemato a mano, e dopo `0044`
 non c'è più modo di sapere cosa fosse.
 
-Quindi, **prima** di lanciare `migrate` in produzione:
+Quindi in produzione si migra in due tempi, con il report in mezzo:
 
 ```bash
+# 1. Fino alla 0042: popola il catalogo geografico, non cancella nulla.
+.venv/bin/python manage.py migrate vendors 0042
+# 2. Report dell'esito previsto (sola lettura).
 .venv/bin/python data_migration_scripts/report_competence_zone_migration.py
+# 3. Solo dopo aver rivisto il report: resto delle migrazioni (0043, 0044, ...).
+.venv/bin/python manage.py migrate
 ```
+
+Il report ha bisogno del catalogo geografico già popolato (lo semina la
+`0041`): lanciato prima, considererebbe tutto senza match.
 
 Lo script è di sola lettura e scrive
 `data_migration_scripts/reports/competence_zone_migration.csv` con l'esito
 previsto fornitore per fornitore. Se i casi `NESSUN_MATCH` + `PARZIALE`
 superano il 30% lo segnala esplicitamente: conviene allora estendere gli alias
 in `vendors/migrations/0043_migrate_competence_zones.py` prima di procedere.
+
+Come interpreta il testo la `0043`:
+
+- i nomi noti si riconoscono anche separati solo da spazi ("LAZIO ROMA");
+- una regione citata insieme a una sua provincia vale solo la provincia
+  ("Puglia - Taranto" → Taranto); citata da sola vale tutte le sue province;
+- forme brevi di province e comuni presenti nei dati legacy sono ricondotti
+  alla loro provincia tramite alias ("Monza", "Jesi" → AN, ...);
+- le macro-aree ("Nord Italia", "Centro") non vengono mai indovinate;
+- una zona nominata senza regole utilizzabili viene interpretata dal suo nome.
+  Le regole che puntano agli id delle fixture geografiche vengono risolte per
+  codice anche dove la geografia era stata creata con altri id.
 
 Il report contiene ragioni sociali: la cartella `reports/` non è servita da
 Django, non spostarlo sotto `static/`.
