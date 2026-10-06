@@ -11,6 +11,7 @@ cifra.
 """
 
 import importlib
+import uuid
 
 import pytest
 
@@ -202,3 +203,109 @@ def test_nazione_estera_resta_nazione_anche_nelle_regole(indice):
 
 def test_nessuna_regola_nessuna_copertura(indice):
     assert migrazione.espandi_zone([], indice) == (set(), set())
+
+
+# --------------------------------------------------------------------------
+# Testi "REGIONE PROVINCIA" e alias (formati reali dei dati legacy)
+# --------------------------------------------------------------------------
+
+
+def test_nomi_separati_solo_da_spazio(indice):
+    """ "LOMBARDIA RAVENNA": i nomi noti si riconoscono anche senza
+    separatore esplicito."""
+    province, _n, ko = _match("LOMBARDIA RAVENNA", indice)
+
+    assert province == {"MI", "BG", "RA"}
+    assert ko == []
+
+
+def test_regione_con_sua_provincia_vale_la_provincia(indice):
+    """La regione citata insieme a una sua provincia fa da contesto."""
+    assert _match("LOMBARDIA MILANO", indice)[0] == {"MI"}
+    assert _match("Lombardia - Milano", indice)[0] == {"MI"}
+    assert _match("Milano, Lombardia", indice)[0] == {"MI"}
+
+
+def test_parole_di_contorno_ignorate(indice):
+    province, _n, ko = _match("Milano e provincia", indice)
+
+    assert province == {"MI"}
+    assert ko == []
+
+
+def test_comune_ricondotto_alla_sua_provincia(indice):
+    assert _match("Cervia", indice)[0] == {"RA"}
+
+
+def test_sigla_tra_parentesi(indice):
+    assert _match("Cervia (RA)", indice)[0] == {"RA"}
+
+
+def test_area_romagna(indice):
+    """Le sigle assenti dal catalogo (qui FC) vengono semplicemente
+    saltate."""
+    assert _match("Romagna", indice)[0] == {"RA", "RN"}
+
+
+def test_macro_area_non_diventa_tutta_italia(indice):
+    """ "Sud Italia" non deve fare match con "italia"."""
+    province, _n, ko = _match("Sud Italia", indice)
+
+    assert province == set()
+    assert ko == ["Sud Italia"]
+
+
+def test_parola_sconosciuta_rende_il_pezzo_parziale(indice):
+    province, _n, ko = _match("LOMBARDIA FORSE MILANO", indice)
+
+    assert province == {"MI"}
+    assert ko == ["LOMBARDIA FORSE MILANO"]
+
+
+# --------------------------------------------------------------------------
+# Regole con id geografici e zone senza regole
+# --------------------------------------------------------------------------
+
+ID_FIXTURE_LOMBARDIA = "10000000000000000000000000000003"
+
+
+def test_id_delle_fixture_risolti_anche_se_la_tabella_ha_altri_id():
+    """In produzione la geografia ha id casuali, ma le regole delle zone
+    puntano agli id delle fixture: si risolvono comunque per codice."""
+    codici = migrazione.codici_per_id([], [(uuid.uuid4(), "LOM")], [])
+
+    regola = migrazione.risolvi_regola(
+        "INCLUDE", None, ID_FIXTURE_LOMBARDIA, None, codici
+    )
+
+    assert regola == ("INCLUDE", None, "LOM", None)
+
+
+def test_id_sconosciuto_diventa_none():
+    codici = migrazione.codici_per_id([], [], [])
+
+    regola = migrazione.risolvi_regola(
+        "INCLUDE", uuid.uuid4(), None, None, codici
+    )
+
+    assert regola == ("INCLUDE", None, None, None)
+
+
+def test_zona_senza_regole_interpretata_dal_nome(indice):
+    copertura = migrazione.calcola_copertura(
+        [("Lombardia - Bergamo", [])], "", indice
+    )
+
+    assert copertura["provinces_da_zone"] == {"BG"}
+    assert copertura["non_riconosciuti"] == []
+
+
+def test_zona_con_regole_ignora_il_nome(indice):
+    copertura = migrazione.calcola_copertura(
+        [("Nome qualsiasi", [("INCLUDE", None, None, "RA")])],
+        "Rimini",
+        indice,
+    )
+
+    assert copertura["provinces_da_zone"] == {"RA"}
+    assert copertura["provinces"] == {"RA", "RN"}

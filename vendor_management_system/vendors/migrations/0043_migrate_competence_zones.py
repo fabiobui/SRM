@@ -3,7 +3,8 @@
 Due sorgenti, unite (mai una che sostituisce l'altra):
 
 1. Le `CompetenceZone` assegnate al fornitore, espanse applicando le
-   regole INCLUDE meno quelle EXCLUDE.
+   regole INCLUDE meno quelle EXCLUDE. Una zona senza regole utilizzabili
+   viene interpretata dal suo nome, come il testo libero.
 2. Il vecchio campo testuale libero `Vendor.competences_zone`, popolato a
    suo tempo dall'import Excel, riconosciuto con un match best-effort.
 
@@ -24,8 +25,15 @@ accent-insensitive, su SQLite no, e i test veloci girano su SQLite.
 
 import re
 import unicodedata
+import uuid
 
 from django.db import migrations
+
+from vendor_management_system.vendors.geography_seed import (
+    FIXTURE_ITALIA,
+    FIXTURE_NAZIONI,
+    carica_fixture,
+)
 
 # Sinonimi che la sola normalizzazione non riconcilia.
 ALIAS_REGIONI = {
@@ -34,7 +42,84 @@ ALIAS_REGIONI = {
     "alto adige": "trentino alto adige",
     "val d aosta": "valle d aosta",
     "friuli": "friuli venezia giulia",
+    "fvg": "friuli venezia giulia",
     "emilia": "emilia romagna",
+}
+
+# Forme brevi dei nomi di provincia e comuni presenti nei dati legacy,
+# ricondotti alla sigla della loro provincia.
+ALIAS_PROVINCE = {
+    "trentino": "TN",
+    "bozen": "BZ",
+    "monza": "MB",
+    "brianza": "MB",
+    "monza brianza": "MB",
+    "pesaro": "PU",
+    "urbino": "PU",
+    "pesaro urbino": "PU",
+    "massa": "MS",
+    "carrara": "MS",
+    "forli": "FC",
+    "cesena": "FC",
+    "barletta": "BT",
+    "andria": "BT",
+    "trani": "BT",
+    "verbania": "VB",
+    "aquila": "AQ",
+    "spezia": "SP",
+    # Comuni
+    "albano": "RM",
+    "albano laziale": "RM",
+    "albenga": "SV",
+    "aprilia": "LT",
+    "avenza": "MS",
+    "avezzano": "AQ",
+    "bitonto": "BA",
+    "busto arsizio": "VA",
+    "carate brianza": "MB",
+    "cengio": "SV",
+    "cervia": "RA",
+    "chianciano": "SI",
+    "chianciano terme": "SI",
+    "ciampino": "RM",
+    "conegliano": "TV",
+    "follonica": "GR",
+    "gaeta": "LT",
+    "gavorrano": "GR",
+    "gela": "CL",
+    "guidonia": "RM",
+    "jesi": "AN",
+    "lamezia": "CZ",
+    "lamezia terme": "CZ",
+    "lavagna": "GE",
+    "manfredonia": "FG",
+    "marghera": "VE",
+    "mesagne": "BR",
+    "mestre": "VE",
+    "moliterno": "PZ",
+    "montalto uffugo": "CS",
+    "montevarchi": "AR",
+    "novi ligure": "AL",
+    "olbia": "SS",
+    "osimo": "AN",
+    "ostia": "RM",
+    "pomezia": "RM",
+    "porto marghera": "VE",
+    "sant antimo": "NA",
+    "valbruna": "UD",
+    "viggiano": "PZ",
+    "villapiana": "CS",
+    "villapiana lido": "CS",
+}
+
+# Nomi alternativi di nazioni estere a catalogo.
+ALIAS_NAZIONI = {
+    "inghilterra": "regno unito",
+}
+
+# Aree sub-regionali con confini netti, espresse come elenco di province.
+ALIAS_AREE = {
+    "romagna": ("RA", "FC", "RN"),
 }
 
 # Testi che significano "tutto il territorio nazionale".
@@ -69,35 +154,49 @@ MACRO_AREE = {
     "centro sud",
 }
 
+# Parole di contorno ignorate quando non fanno parte di un nome noto.
+PAROLE_VUOTE = {
+    "a",
+    "al",
+    "alta",
+    "area",
+    "bassa",
+    "d",
+    "da",
+    "dei",
+    "del",
+    "della",
+    "delle",
+    "di",
+    "e",
+    "ed",
+    "in",
+    "l",
+    "la",
+    "le",
+    "prov",
+    "provincia",
+    "province",
+    "regione",
+    "regioni",
+    "zona",
+    "zone",
+}
+
 SEPARATORI = re.compile(r"[,;/|+]| e | - | ed ")
+
+
+def _senza_accenti(testo):
+    decomposto = unicodedata.normalize("NFKD", str(testo))
+    return "".join(c for c in decomposto if not unicodedata.combining(c))
 
 
 def normalizza(testo):
     """Minuscolo, senza accenti, senza punteggiatura, spazi collassati."""
     if not testo:
         return ""
-    decomposto = unicodedata.normalize("NFKD", str(testo))
-    senza_accenti = "".join(
-        c for c in decomposto if not unicodedata.combining(c)
-    )
-    solo_alfanumerico = re.sub(r"[^0-9a-zA-Z]+", " ", senza_accenti)
+    solo_alfanumerico = re.sub(r"[^0-9a-zA-Z]+", " ", _senza_accenti(testo))
     return " ".join(solo_alfanumerico.split()).casefold()
-
-
-def _spoglia_prefissi(token):
-    """Toglie "provincia di", "prov.", "regione", "zona" dal token."""
-    for prefisso in (
-        "provincia di ",
-        "provincia ",
-        "prov di ",
-        "prov ",
-        "regione ",
-        "zona ",
-        "area ",
-    ):
-        if token.startswith(prefisso):
-            return token[len(prefisso) :].strip()
-    return token
 
 
 def costruisci_indice(nazioni, regioni, province):
@@ -125,6 +224,7 @@ def costruisci_indice(nazioni, regioni, province):
         "regione_per_nome": {normalizza(n): c for c, n, _ in regioni},
         "provincia_per_nome": {normalizza(n): c for c, n, _ in province},
         "provincia_per_sigla": {c.upper(): c for c, _n, _r in province},
+        "regione_di_provincia": {c: r for c, _n, r in province},
         "province_per_regione": province_per_regione,
         "province_per_nazione": province_per_nazione,
         "nazioni_foglia": {
@@ -133,85 +233,139 @@ def costruisci_indice(nazioni, regioni, province):
     }
 
 
+def _vocabolario(indice):
+    """Frasi riconoscibili -> (tipo, valore). A parita' di frase vince il
+    tipo piu' specifico inserito per ultimo (provincia su nazione, ecc.)."""
+    voci = {}
+    for nome, codice in indice["nazione_per_nome"].items():
+        voci[nome] = ("nazione", codice)
+    for alias, nome in ALIAS_NAZIONI.items():
+        codice = indice["nazione_per_nome"].get(nome)
+        if codice:
+            voci[alias] = ("nazione", codice)
+    for nome, codice in indice["regione_per_nome"].items():
+        voci[nome] = ("regione", codice)
+    for alias, nome in ALIAS_REGIONI.items():
+        codice = indice["regione_per_nome"].get(nome)
+        if codice:
+            voci[alias] = ("regione", codice)
+    for nome, codice in indice["provincia_per_nome"].items():
+        voci[nome] = ("provincia", codice)
+    for alias, sigla in ALIAS_PROVINCE.items():
+        codice = indice["provincia_per_sigla"].get(sigla)
+        if codice:
+            voci[alias] = ("provincia", codice)
+    for alias, sigle in ALIAS_AREE.items():
+        codici = tuple(
+            indice["provincia_per_sigla"][s]
+            for s in sigle
+            if s in indice["provincia_per_sigla"]
+        )
+        if codici:
+            voci[alias] = ("area", codici)
+    for frase in TUTTA_ITALIA:
+        voci[frase] = ("italia", None)
+    for frase in MACRO_AREE:
+        voci[frase] = ("macro", None)
+    return voci
+
+
+def _scomponi(pezzo, voci, indice, lunghezza_massima):
+    """Riconosce le frasi note dentro un pezzo, cercando sempre la frase
+    piu' lunga (cosi' "sud sardegna" batte "sud", "nord italia" batte
+    "italia"). Ritorna `(voci_trovate, parole_sconosciute)`."""
+    originali = [
+        p for p in re.split(r"[^0-9A-Za-z]+", _senza_accenti(pezzo)) if p
+    ]
+    parole = [p.casefold() for p in originali]
+    trovate, sconosciute = [], []
+    i = 0
+    while i < len(parole):
+        for n in range(min(lunghezza_massima, len(parole) - i), 0, -1):
+            voce = voci.get(" ".join(parole[i : i + n]))
+            if voce:
+                trovate.append(voce)
+                i += n
+                break
+        else:
+            parola = originali[i]
+            # Sigla provincia: solo se nel testo ORIGINALE e' esattamente
+            # due lettere maiuscole. Senza questo vincolo "pa", "si", "an",
+            # "re", "co", "mo" farebbero strage di falsi positivi.
+            if (
+                len(parola) == 2
+                and parola.isalpha()
+                and parola.isupper()
+                and parola in indice["provincia_per_sigla"]
+            ):
+                trovate.append(
+                    ("provincia", indice["provincia_per_sigla"][parola])
+                )
+            elif parole[i] not in PAROLE_VUOTE:
+                sconosciute.append(parole[i])
+            i += 1
+    return trovate, sconosciute
+
+
 def match_testo(testo, indice):
     """Interpreta il vecchio testo libero.
 
     Ritorna `(province, nazioni, riconosciuti, non_riconosciuti)`, dove i
-    primi due sono insiemi di codici e gli altri due liste di token, utili
-    al report.
+    primi due sono insiemi di codici e gli altri due liste di pezzi di
+    testo, utili al report.
+
+    Una regione citata insieme a una sua provincia (es. "LAZIO ROMA",
+    "Puglia - Taranto") fa solo da contesto: vale la provincia. Citata da
+    sola vale invece tutte le sue province.
     """
     province = set()
     nazioni = set()
+    regioni = set()
     riconosciuti = []
     non_riconosciuti = []
 
     if not testo or not str(testo).strip():
         return province, nazioni, riconosciuti, non_riconosciuti
 
+    voci = _vocabolario(indice)
+    lunghezza_massima = max(len(frase.split()) for frase in voci)
+
     for grezzo in SEPARATORI.split(str(testo)):
         grezzo = grezzo.strip()
-        if not grezzo:
+        trovate, sconosciute = _scomponi(
+            grezzo, voci, indice, lunghezza_massima
+        )
+        if not trovate and not sconosciute:
             continue
-        token = _spoglia_prefissi(normalizza(grezzo))
-        if not token:
-            continue
-        token = ALIAS_REGIONI.get(token, token)
 
-        if token in MACRO_AREE:
+        utili = [v for v in trovate if v[0] != "macro"]
+        if sconosciute or len(utili) < len(trovate) or not utili:
             non_riconosciuti.append(grezzo)
-            continue
+        else:
+            riconosciuti.append(grezzo)
 
-        if token in TUTTA_ITALIA:
-            nazione = indice["nazione_per_nome"].get("italia")
-            if nazione:
+        for tipo, valore in utili:
+            if tipo == "provincia":
+                province.add(valore)
+            elif tipo == "area":
+                province.update(valore)
+            elif tipo == "regione":
+                regioni.add(valore)
+            elif tipo == "italia":
+                nazione = indice["nazione_per_nome"].get("italia")
                 province.update(
                     indice["province_per_nazione"].get(nazione, [])
                 )
-                riconosciuti.append(grezzo)
+            elif valore in indice["nazioni_foglia"]:
+                nazioni.add(valore)
             else:
-                non_riconosciuti.append(grezzo)
-            continue
+                province.update(indice["province_per_nazione"].get(valore, []))
 
-        codice_regione = indice["regione_per_nome"].get(token)
-        if codice_regione:
-            province.update(
-                indice["province_per_regione"].get(codice_regione, [])
-            )
-            riconosciuti.append(grezzo)
-            continue
-
-        codice_provincia = indice["provincia_per_nome"].get(token)
-        if codice_provincia:
-            province.add(codice_provincia)
-            riconosciuti.append(grezzo)
-            continue
-
-        # Sigla provincia: solo se nel testo ORIGINALE il token e'
-        # esattamente due lettere maiuscole. Senza questo vincolo "pa",
-        # "si", "an", "re", "co", "mo" farebbero strage di falsi positivi
-        # su parole comuni.
-        if (
-            len(grezzo) == 2
-            and grezzo.isalpha()
-            and grezzo.isupper()
-            and grezzo in indice["provincia_per_sigla"]
-        ):
-            province.add(indice["provincia_per_sigla"][grezzo])
-            riconosciuti.append(grezzo)
-            continue
-
-        codice_nazione = indice["nazione_per_nome"].get(token)
-        if codice_nazione:
-            if codice_nazione in indice["nazioni_foglia"]:
-                nazioni.add(codice_nazione)
-            else:
-                province.update(
-                    indice["province_per_nazione"].get(codice_nazione, [])
-                )
-            riconosciuti.append(grezzo)
-            continue
-
-        non_riconosciuti.append(grezzo)
+    regioni_contesto = {
+        indice["regione_di_provincia"].get(codice) for codice in province
+    }
+    for regione in regioni - regioni_contesto:
+        province.update(indice["province_per_regione"].get(regione, []))
 
     return province, nazioni, riconosciuti, non_riconosciuti
 
@@ -248,6 +402,87 @@ def espandi_zone(regole, indice):
     return include_p - exclude_p, include_n - exclude_n
 
 
+def _chiave(valore):
+    """Id geografico come UUID, sia dall'ORM sia da SQL diretto."""
+    if valore is None:
+        return None
+    return valore if isinstance(valore, uuid.UUID) else uuid.UUID(str(valore))
+
+
+def codici_per_id(nazioni, regioni, province):
+    """Mappe id -> codice per nazioni, regioni e province.
+
+    Gli argomenti sono righe `(id, code)` lette dal database. Le regole
+    delle zone legacy possono puntare agli id delle fixture del catalogo
+    geografico anche dove la geografia e' stata creata con altri id (dal
+    vecchio `import_geography.py`): anche quegli id vengono risolti, per
+    codice. A parita' di id vince la riga in tabella.
+    """
+    mappe = {
+        "vendors.country": {},
+        "vendors.region": {},
+        "vendors.province": {},
+    }
+    fixture = carica_fixture(FIXTURE_ITALIA) + carica_fixture(FIXTURE_NAZIONI)
+    for record in fixture:
+        codice = record["fields"]["code"]
+        mappe[record["model"]][_chiave(record["pk"])] = codice
+    for modello, righe in (
+        ("vendors.country", nazioni),
+        ("vendors.region", regioni),
+        ("vendors.province", province),
+    ):
+        for id_riga, codice in righe:
+            mappe[modello][_chiave(id_riga)] = codice
+    return {
+        "nazioni": mappe["vendors.country"],
+        "regioni": mappe["vendors.region"],
+        "province": mappe["vendors.province"],
+    }
+
+
+def risolvi_regola(tipo, nazione_id, regione_id, provincia_id, codici):
+    """Regola con id geografici -> regola con codici (None se ignoti)."""
+    return (
+        tipo,
+        codici["nazioni"].get(_chiave(nazione_id)),
+        codici["regioni"].get(_chiave(regione_id)),
+        codici["province"].get(_chiave(provincia_id)),
+    )
+
+
+def calcola_copertura(zone, testo, indice):
+    """Copertura di un fornitore: zone espanse piu' testo libero.
+
+    `zone` e' una lista di `(nome_zona, regole)`, con le regole gia'
+    risolte in codici. Una zona le cui regole non producono nulla (zona
+    senza regole, o con riferimenti geografici irrisolvibili) viene
+    interpretata dal suo nome.
+    """
+    province_zone, nazioni_zone = set(), set()
+    riconosciuti, non_riconosciuti = [], []
+    for nome, regole in zone:
+        province, nazioni = espandi_zone(regole, indice)
+        if not province and not nazioni:
+            province, nazioni, ok, ko = match_testo(nome, indice)
+            riconosciuti.extend(ok)
+            non_riconosciuti.extend(ko)
+        province_zone |= province
+        nazioni_zone |= nazioni
+
+    da_testo_p, da_testo_n, ok, ko = match_testo(testo, indice)
+    return {
+        "provinces": province_zone | da_testo_p,
+        "countries": nazioni_zone | da_testo_n,
+        "provinces_da_zone": province_zone,
+        "countries_da_zone": nazioni_zone,
+        "provinces_da_testo": da_testo_p,
+        "countries_da_testo": da_testo_n,
+        "riconosciuti": riconosciuti + ok,
+        "non_riconosciuti": non_riconosciuti + ko,
+    }
+
+
 def carica_indice(apps):
     """Costruisce l'indice leggendo il catalogo geografico (3 query)."""
     Country = apps.get_model("vendors", "Country")
@@ -261,29 +496,12 @@ def carica_indice(apps):
     )
 
 
-def calcola_copertura(vendor, regole_per_zona, indice):
-    """Copertura di un fornitore: zone espanse piu' testo libero."""
-    regole = []
-    for zona in vendor.competence_zones.all():
-        regole.extend(regole_per_zona.get(zona.pk, []))
-    province, nazioni = espandi_zone(regole, indice)
-
-    da_testo_p, da_testo_n, riconosciuti, non_riconosciuti = match_testo(
-        vendor.competences_zone, indice
-    )
-    return {
-        "provinces": province | da_testo_p,
-        "countries": nazioni | da_testo_n,
-        "provinces_da_zone": province,
-        "countries_da_zone": nazioni,
-        "riconosciuti": riconosciuti,
-        "non_riconosciuti": non_riconosciuti,
-    }
-
-
 def travasa(apps, schema_editor):
     Vendor = apps.get_model("vendors", "Vendor")
+    Country = apps.get_model("vendors", "Country")
+    Region = apps.get_model("vendors", "Region")
     Province = apps.get_model("vendors", "Province")
+    CompetenceZone = apps.get_model("vendors", "CompetenceZone")
     CompetenceZoneRule = apps.get_model("vendors", "CompetenceZoneRule")
 
     da_migrare = Vendor.objects.exclude(
@@ -299,6 +517,11 @@ def travasa(apps, schema_editor):
         )
 
     indice = carica_indice(apps)
+    codici = codici_per_id(
+        Country.objects.values_list("id", "code"),
+        Region.objects.values_list("id", "code"),
+        Province.objects.values_list("id", "code"),
+    )
 
     regole_per_zona = {}
     for (
@@ -310,14 +533,16 @@ def travasa(apps, schema_editor):
     ) in CompetenceZoneRule.objects.values_list(
         "zone_id",
         "rule_type",
-        "country__code",
-        "region__code",
-        "province__code",
+        "country_id",
+        "region_id",
+        "province_id",
     ):
-        regole_per_zona.setdefault(zona_id, []).append((tipo, naz, reg, prov))
+        regole_per_zona.setdefault(zona_id, []).append(
+            risolvi_regola(tipo, naz, reg, prov, codici)
+        )
+    nome_zona = dict(CompetenceZone.objects.values_list("id", "name"))
 
     id_provincia = dict(Province.objects.values_list("code", "id"))
-    Country = apps.get_model("vendors", "Country")
     id_nazione = dict(Country.objects.values_list("code", "id"))
 
     LegameProvincia = Vendor.competence_provinces.through
@@ -330,10 +555,14 @@ def travasa(apps, schema_editor):
 
     queryset = Vendor.objects.prefetch_related("competence_zones")
     for vendor in queryset.iterator(chunk_size=500):
-        copertura = calcola_copertura(vendor, regole_per_zona, indice)
+        zone = [
+            (nome_zona.get(z.pk, ""), regole_per_zona.get(z.pk, []))
+            for z in vendor.competence_zones.all()
+        ]
+        copertura = calcola_copertura(zone, vendor.competences_zone, indice)
 
         aveva_dati = bool((vendor.competences_zone or "").strip()) or bool(
-            copertura["provinces_da_zone"] or copertura["countries_da_zone"]
+            zone
         )
         if aveva_dati:
             esaminati += 1
