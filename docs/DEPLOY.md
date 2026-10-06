@@ -57,6 +57,17 @@ esistenti col contenuto hardcoded nello script, cancellando eventuali personaliz
 quindi lanciati **ad ogni deploy**, non solo la prima volta — con `--create-only` è sicuro farlo
 incondizionatamente.
 
+Una volta per ambiente, dopo il primo `migrate` che porta `documents/0007` (rinomina DocumentType in
+DocumentCatalog) e le app proxy `services`/`competences`, riallinea i permessi admin degli utenti staff non
+superuser: senza, perdono l'accesso al Catalogo Documenti e alle sezioni Servizi/Requisiti (403):
+
+```bash
+.venv/bin/python data_migration_scripts/allinea_permessi_admin.py --dry-run
+.venv/bin/python data_migration_scripts/allinea_permessi_admin.py
+```
+
+Lo script copia ogni permesso esistente sul modello nuovo corrispondente e non ne toglie mai; è idempotente.
+
 **Non lanciare `populate_competences`** in questa sequenza: usa una codifica (`RSPP`, `ASPP`...) diversa da
 quella già a catalogo (`REQ-001`, `REQ-002`...) e duplicherebbe requisiti già censiti sotto un altro codice.
 Richiede un confronto manuale caso per caso, non un comando da deploy automatico.
