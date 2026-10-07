@@ -133,7 +133,9 @@ salvataggio del catalogo); il sistema non riapprova mai in automatico.
 - Dall'admin le revisioni in attesa non sono gestite: si approvano o rifiutano
   dal back-office del portale.
 `Vendor.qualification_blockers` elenca cosa manca e `Vendor.is_qualified` lo
-considera. Per riallineare i dati esistenti:
+considera. Le scadenze che arrivano col tempo le recupera il job giornaliero
+`sync_qualification_status_task` (Celery beat, 6:30), che riallinea anche la
+Valutazione Finale del fornitore. Per lanciarlo a mano:
 
 ```bash
 python manage.py sync_qualification_status --dry-run

@@ -105,10 +105,9 @@ Questa è la prima sezione del form, contiene i dati identificativi del fornitor
 | 8 | **Titolo di Studio / Tipo di Qualifica** | No | Titolo di studio o tipo di qualifica del fornitore |
 | 9 | **Categoria** | No | Categoria merceologica di appartenenza |
 | 10 | **Zone di competenza** | No | Territori in cui il fornitore opera, scelti con un selettore ad albero Nazione → Regione → Provincia (vedi [§14.4](#144-nazioni-regioni-e-province)) |
-| 11 | **Valutazione Finale del Fornitore** | No | `Da Valutare`, `Negativo`, `Positivo`, `Molto Positivo` |
-| 12 | **Livello di Affidabilità/Rischio** | No | `Basso`, `Medio` o `Alto` |
-| 13 | **Bloccato in Embyon** | No | Spuntare se il fornitore risulta bloccato lato Embyon |
-| 14 | **È Attivo** | Sì | Spuntare per rendere il fornitore operativo |
+| 11 | **Livello di Affidabilità/Rischio** | No | `Basso`, `Medio` o `Alto` |
+| 12 | **Attivo in Embyon** | No | Spuntare se il fornitore risulta attivo in Embyon; concorre alla *Valutazione Finale del Fornitore* (vedi [§3.6](#36-qualifica-e-audit)) |
+| 13 | **È Attivo** | Sì | Spuntare per rendere il fornitore operativo |
 
 **Tipi Fornitore disponibili:**
 
@@ -199,6 +198,7 @@ Questa sezione gestisce il processo di qualificazione e gli audit periodici.
 | Campo | Modificabile | Descrizione |
 |-------|:---:|-------------|
 | **Stato Qualifica** | Sì | `In Attesa`, `Approvato`, `Rifiutato`, `Da Revisionare` |
+| **Valutazione Finale del Fornitore** | Solo lettura | Bollino calcolato in automatico: 🟢 *Positivo* se lo stato è *Approvato* e il fornitore è attivo in Embyon; 🔴 *Negativo* se è *Respinto* o non attivo in Embyon; ⚪ *Da Valutare* negli altri casi (qualifica in corso) |
 | **Punteggio Qualifica** | Sì | Valore numerico da 0 a 100 |
 | **Data Qualifica** | Sì | Data in cui è stata effettuata la qualifica |
 | **Scadenza Qualifica** | Sì | Data di scadenza della qualifica |
@@ -253,18 +253,19 @@ sul campo. All'interno della tab è organizzata in riquadri per gruppo tematico.
 
 ## 4. Lista Fornitori — ricerca e filtri
 
-La lista fornitori mostra le colonne principali:
+La lista fornitori mostra le colonne principali, in una tabella con scrollbar
+verticale (l'intestazione resta visibile durante lo scorrimento):
 
 | Colonna | Descrizione |
 |---------|-------------|
+| Codice Fornitore | Codice interno generato dal sistema |
 | Codice Embyon | Codice Embyon (ex *Vecchio codice fornitore*) |
+| Società Embyon | Società Embyon di riferimento |
 | Nome | Ragione sociale |
-| Categoria | Categoria merceologica |
+| Classificazione | Categoria merceologica |
 | Stato Qualifica | `In Attesa` / `Approvato` / `Rifiutato` / `Da Revisionare` |
-| Valutazione Finale | `Da Valutare` / `Negativo` / `Positivo` / `Molto Positivo` |
-| Bloccato in Embyon | Spuntato se il fornitore è bloccato lato Embyon |
-| Attivo | Stato attivo/disattivo |
-| Punteggio | Punteggio di qualifica |
+| Attivo in Embyon | Spuntato se il fornitore è attivo in Embyon |
+| Valutazione Finale | Bollino 🟢 `Positivo` / 🔴 `Negativo` / ⚪ `Da Valutare` (calcolato, vedi §3.6) |
 
 **Ricerca:** digitare nel campo di ricerca in alto per cercare per *codice fornitore*, *codice Embyon*, *nome*, *partita IVA*, *codice fiscale* o *email*.
 
@@ -275,7 +276,7 @@ La lista fornitori mostra le colonne principali:
 - Categoria
 - Tipo Fornitore
 - Valutazione Finale
-- Bloccato in Embyon
+- Attivo in Embyon
 
 > **Suggerimento:** combinare più filtri per restringere rapidamente la ricerca. Ad esempio: *Stato Qualifica = Approvato* + *Attivo = Sì* per vedere solo i fornitori operativi.
 

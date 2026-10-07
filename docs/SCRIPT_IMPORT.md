@@ -113,7 +113,7 @@ laboratory_service, laboratory_independent, year_of_establishment,
 licensed_physician_year, other_medical_service, doctor_registration,
 doctor_cv, doctor_cv2, contractual_status, contractual_start_date,
 contractual_end_date, contractual_terms, reference_contact / reference_person,
-vendor_final_evaluation, review_notes,
+review_notes,
 address.street_address, address.city, address.state_province,
 address.region, address.country
 ```
@@ -124,8 +124,9 @@ Note sulle colonne:
 - `year_of_establishment` finisce in `date_of_establishment`.
 - I booleani accettano `SI`, `YES`, `TRUE`, `1`, `X`, `Y`.
 - I valori devono rispettare le *choices* del modello: `contractual_status` sono i
-  codici `00`, `02`, `03`, `04`, `05`, `06`, `99`; `vendor_final_evaluation` è
-  `DA VALUTARE` / `NEGATIVO` / `POSITIVO` / `MOLTO POSITIVO`.
+  codici `00`, `02`, `03`, `04`, `05`, `06`, `99`.
+- `vendor_final_evaluation` non viene più letta: la Valutazione Finale è
+  calcolata da stato di qualifica e *Attivo in Embyon* al salvataggio.
 
 **Attenzione**: l'import è in un'unica `transaction.atomic()` con `raise` sugli
 errori — se una riga fallisce, viene annullato **tutto**.

@@ -50,12 +50,7 @@ def vendor_dashboard_view(request):
     total_vendors = vendors.count()
     active_vendors = vendors.filter(is_active=True).count()
     positive_vendors = vendors.filter(
-        vendor_final_evaluation__in=[
-            "POSITIVO",
-            "MOLTO POSITIVO",
-            "Positivo",
-            "Molto Positivo",
-        ]
+        vendor_final_evaluation="POSITIVO"
     ).count()
     pending_qualification = vendors.filter(
         qualification_status__in=["PENDING", "IN_PROGRESS", "NOT_STARTED"]
@@ -668,7 +663,7 @@ def export_vendors_excel(request):
         "Telefono",
         "Regione",
         "Provincia",
-        "Valutazione Complessiva",
+        "Valutazione Finale",
         "Zone di Competenza",
         "Province Competenza",
     ]
@@ -701,7 +696,8 @@ def export_vendors_excel(request):
         ws.cell(
             row=row,
             column=7,
-            value=vendor.vendor_final_evaluation or "DA VALUTARE",
+            value=vendor.get_vendor_final_evaluation_display()
+            or "Da Valutare",
         )
         ws.cell(
             row=row,

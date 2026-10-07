@@ -94,8 +94,9 @@ sotto un prefisso `/fornitori` (anche static/media). Lascia questo a `False` per
 
 - **Ciclo di vita del fornitore**: un fornitore viene registrato (da BO/Admin) con geografia, categoria,
   competenze, servizi, contratti; i documenti richiesti dalla sua categoria devono essere caricati e approvati; un
-  punteggio di qualificazione/valutazione determina `qualification_status` (PENDING/APPROVED/REJECTED/TO_REVIEW) e
-  `vendor_final_evaluation`. Un fornitore resta *Approvato* solo se i documenti e requisiti **obbligatori**
+  punteggio di qualificazione/valutazione determina `qualification_status` (PENDING/APPROVED/REJECTED/TO_REVIEW);
+  `vendor_final_evaluation` è un bollino calcolato (verde se *Approvato* e `embyon_active`, rosso se *Respinto* o
+  non attivo in Embyon, grigio altrimenti) e non è modificabile a mano. Un fornitore resta *Approvato* solo se i documenti e requisiti **obbligatori**
   (`DocumentCatalog.is_required`, `Competence.is_mandatory`) assegnati sono caricati, verificati e non scaduti,
   altrimenti passa a `TO_REVIEW` (vedi `docs/COMPETENZE_DOCUMENTI.md`).
 - **Ordini di acquisto**: semplice macchina a stati PENDING → ISSUED → ACKNOWLEDGED → DELIVERED, annullabile da

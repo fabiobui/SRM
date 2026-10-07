@@ -28,8 +28,8 @@ const filterFields = {
     'phone': { label: 'Telefono', type: 'text' },
     'vat_number': { label: 'Partita IVA', type: 'text' },
     'fiscal_code': { label: 'Codice Fiscale', type: 'text' },
-    'qualification_status': { label: 'Stato Qualifica', type: 'select', options: ['PENDING', 'APPROVED', 'REJECTED'] },
-    'vendor_final_evaluation': { label: 'Valutazione Finale', type: 'select', options: ['DA VALUTARE', 'NEGATIVO', 'POSITIVO', 'MOLTO POSITIVO'] },
+    'qualification_status': { label: 'Stato Qualifica', type: 'select', options: ['PENDING', 'TO_REVIEW', 'APPROVED', 'REJECTED'] },
+    'vendor_final_evaluation': { label: 'Valutazione Finale', type: 'select', options: ['DA VALUTARE', 'NEGATIVO', 'POSITIVO'] },
     'quality_rating_avg': { label: 'Valutazione Qualità', type: 'number' },
     'fulfillment_rate': { label: 'Tasso Adempimento', type: 'number' },
     'is_active': { label: 'Attivo', type: 'boolean' },
@@ -233,8 +233,7 @@ function updateStatistics() {
 
     // Filtra i fornitori positivi TRA QUELLI SELEZIONATI
     const positiveVendors = filteredVendors.filter(v => {
-        const evaluation = v.vendor_final_evaluation;
-        return evaluation && (evaluation === 'Positivo' || evaluation === 'Molto Positivo');
+        return v.vendor_final_evaluation === 'POSITIVO';
     }).length;
 
     document.getElementById('total-vendors').textContent = totalVendors;
@@ -1753,6 +1752,12 @@ function filterVendors() {
     updateAdvancedFiltersDisplay();
 }
 
+const FINAL_EVALUATION_BADGES = {
+    'POSITIVO': { css: 'bg-success', label: 'Positivo' },
+    'NEGATIVO': { css: 'bg-danger', label: 'Negativo' },
+    'DA VALUTARE': { css: 'bg-secondary', label: 'Da Valutare' }
+};
+
 function renderVendorsTable() {
     const tbody = document.getElementById('vendors-table-body');
     document.getElementById('filtered-count').textContent = filteredVendors.length;
@@ -1774,14 +1779,7 @@ function renderVendorsTable() {
         const region = vendor.address?.region || '<span class="text-muted">N/A</span>';
         const province = vendor.address?.state_province || '<span class="text-muted">N/A</span>';
         const phone = vendor.phone || '<span class="text-muted">N/A</span>';
-        const evaluation = vendor.vendor_final_evaluation || 'DA VALUTARE';
-
-        // Map evaluation to badge class
-        let evaluationBadge = 'bg-secondary';
-        if (evaluation === 'MOLTO POSITIVO') evaluationBadge = 'bg-success';
-        else if (evaluation === 'POSITIVO') evaluationBadge = 'bg-info';
-        else if (evaluation === 'NEGATIVO') evaluationBadge = 'bg-danger';
-        else if (evaluation === 'DA VALUTARE') evaluationBadge = 'bg-warning';
+        const evaluation = FINAL_EVALUATION_BADGES[vendor.vendor_final_evaluation] || FINAL_EVALUATION_BADGES['DA VALUTARE'];
 
         const vendorTypeLabel = vendor.vendor_type || '<span class="text-muted">N/A</span>';
 
@@ -1792,7 +1790,7 @@ function renderVendorsTable() {
             <td>${phone}</td>
             <td>${region}</td>
             <td>${province}</td>
-            <td><span class="badge ${evaluationBadge}">${evaluation}</span></td>
+            <td><span class="badge ${evaluation.css}"><i class="fas fa-circle me-1"></i>${evaluation.label}</span></td>
             <td><a href="${typeof SCRIPT_PREFIX !== 'undefined' ? SCRIPT_PREFIX : ''}/admin/vendors/vendor/${vendor.vendor_code}/change/" class="btn btn-sm btn-outline-primary" target="_blank"><i class="fas fa-eye"></i></a></td>
         </tr>`;
     }).join('');

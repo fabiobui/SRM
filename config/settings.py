@@ -615,6 +615,11 @@ CELERY_BEAT_SCHEDULE = {
         "task": "vendor_management_system.historical_performances.tasks.record_historical_performance",  # noqa: E501
         "schedule": crontab(hour="*/6"),  # Run every 6 hours
     },
+    # Prima dei promemoria: le scadenze del giorno declassano i fornitori.
+    "sync_qualification_status": {
+        "task": "vendor_management_system.vendors.tasks.sync_qualification_status_task",  # noqa: E501
+        "schedule": crontab(hour=6, minute=30),  # Ogni giorno alle 6:30
+    },
     "send_expiry_reminders": {
         "task": "vendor_management_system.vendors.tasks.send_expiry_reminders_task",  # noqa: E501
         "schedule": crontab(hour=7, minute=0),  # Ogni giorno alle 7:00

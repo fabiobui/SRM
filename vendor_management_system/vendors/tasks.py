@@ -5,6 +5,7 @@ from celery import shared_task
 from vendor_management_system.vendors.expiry_reminders import (
     send_expiry_reminders,
 )
+from vendor_management_system.vendors.qualification_sync import sync_all
 
 logger = logging.getLogger(__name__)
 
@@ -26,4 +27,23 @@ def send_expiry_reminders_task():
         "sent": len(summary["sent"]),
         "items": summary["items"],
         "failed": len(summary["failed"]),
+    }
+
+
+@shared_task(soft_time_limit=15 * 60, time_limit=20 * 60)
+def sync_qualification_status_task():
+    """Job giornaliero (Celery beat): declassa gli Approvati con obbligatori
+    scaduti o non in regola e riallinea la Valutazione Finale."""
+    summary = sync_all()
+    logger.info(
+        "Sync qualifica: %d fornitori declassati su %d approvati, "
+        "%d valutazioni finali riallineate",
+        len(summary["downgraded"]),
+        summary["approved"],
+        summary["realigned"],
+    )
+    return {
+        "downgraded": len(summary["downgraded"]),
+        "approved": summary["approved"],
+        "realigned": summary["realigned"],
     }
