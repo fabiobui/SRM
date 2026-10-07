@@ -8,6 +8,7 @@ import pytest
 from django.core import mail
 from django.core.exceptions import ValidationError
 from django.core.management import call_command
+from django.utils import timezone
 
 from vendor_management_system.core.emails import send_templated_email
 from vendor_management_system.documents.models import Document, DocumentCatalog
@@ -29,6 +30,15 @@ TODAY = date(2026, 10, 1)
 def _no_redirect(settings):
     settings.EMAIL_REDIRECT_TO = []
     settings.PORTAL_BASE_URL = "https://portale.example.invalid"
+
+
+@pytest.fixture(autouse=True)
+def _freeze_today():
+    # Validità e stato dei documenti usano la data reale: la si allinea a
+    # TODAY, altrimenti i test scadono col passare del calendario.
+    frozen = timezone.make_aware(datetime(2026, 10, 1, 7, 0))
+    with patch("django.utils.timezone.now", return_value=frozen):
+        yield
 
 
 def make_vendor(**kwargs):
