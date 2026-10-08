@@ -1758,13 +1758,27 @@ const FINAL_EVALUATION_BADGES = {
     'DA VALUTARE': { css: 'bg-secondary', label: 'Da Valutare' }
 };
 
+// Indirizzo dell'anagrafica (sede). Regione/provincia non si mostrano qui:
+// i filtri dei grafici lavorano sulle zone di competenza, non sulla sede.
+function formatVendorAddress(address) {
+    if (!address) return '<span class="text-muted">N/A</span>';
+    const localita = [address.postal_code, address.city].filter(Boolean).join(' ');
+    const provincia = address.state_province ? `(${address.state_province})` : '';
+    const riga = [address.street_address, [localita, provincia].filter(Boolean).join(' ')]
+        .filter(Boolean).join(', ');
+    if (!riga) return '<span class="text-muted">N/A</span>';
+    const div = document.createElement('div');
+    div.textContent = riga;
+    return div.innerHTML;
+}
+
 function renderVendorsTable() {
     const tbody = document.getElementById('vendors-table-body');
     document.getElementById('filtered-count').textContent = filteredVendors.length;
     document.getElementById('showing-count').textContent = filteredVendors.length;
 
     if (filteredVendors.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4"><div class="text-muted"><i class="fas fa-search fa-2x mb-2"></i><p>Nessun fornitore trovato</p></div></td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4"><div class="text-muted"><i class="fas fa-search fa-2x mb-2"></i><p>Nessun fornitore trovato</p></div></td></tr>';
         return;
     }
 
@@ -1776,8 +1790,7 @@ function renderVendorsTable() {
     };
 
     tbody.innerHTML = filteredVendors.map(vendor => {
-        const region = vendor.address?.region || '<span class="text-muted">N/A</span>';
-        const province = vendor.address?.state_province || '<span class="text-muted">N/A</span>';
+        const address = formatVendorAddress(vendor.address);
         const phone = vendor.phone || '<span class="text-muted">N/A</span>';
         const evaluation = FINAL_EVALUATION_BADGES[vendor.vendor_final_evaluation] || FINAL_EVALUATION_BADGES['DA VALUTARE'];
 
@@ -1788,8 +1801,7 @@ function renderVendorsTable() {
             <td>${vendorTypeLabel}</td>
             <td><small>${vendor.email || '<span class="text-muted">N/A</span>'}</small></td>
             <td>${phone}</td>
-            <td>${region}</td>
-            <td>${province}</td>
+            <td><small>${address}</small></td>
             <td><span class="badge ${evaluation.css}"><i class="fas fa-circle me-1"></i>${evaluation.label}</span></td>
             <td><a href="${typeof SCRIPT_PREFIX !== 'undefined' ? SCRIPT_PREFIX : ''}/admin/vendors/vendor/${vendor.vendor_code}/change/" class="btn btn-sm btn-outline-primary" target="_blank"><i class="fas fa-eye"></i></a></td>
         </tr>`;
