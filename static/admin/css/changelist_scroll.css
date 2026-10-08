@@ -17,3 +17,16 @@ body.change-list.app-competences #changelist .table-responsive thead th {
     z-index: 2;
     background: #fff;
 }
+
+/* Lista fornitori (admin/vendors/vendor/): stessa scrollbar, box più basso. */
+body.change-list.app-vendors.model-vendor #changelist .table-responsive {
+    max-height: 55vh;
+    overflow: auto;
+}
+
+body.change-list.app-vendors.model-vendor #changelist .table-responsive thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: #fff;
+}

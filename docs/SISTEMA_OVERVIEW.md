@@ -185,7 +185,7 @@ Il sistema implementa un modello **Role-Based Access Control (RBAC)** con tre li
 - Valutazione qualità media
 - Tempo di risposta medio
 - Tasso di adempimento
-- Valutazione finale aggregata (Da Valutare, Negativo, Positivo, Molto Positivo)
+- Valutazione finale del fornitore (bollino calcolato: Da Valutare, Negativo, Positivo)
 
 **Accesso**:
 - Admin: CRUD completo
@@ -308,11 +308,9 @@ Ogni categoria ha criteri specifici configurabili:
 Score Finale = Σ(Punteggio Criterio × Peso) / Σ(Pesi)
 ```
 
-**Classificazione Finale**:
-- **DA VALUTARE**: Nessuna valutazione
-- **NEGATIVO**: Score < 4
-- **POSITIVO**: Score 4-6
-- **MOLTO POSITIVO**: Score > 6
+> Lo score delle valutazioni **non** determina la *Valutazione Finale del
+> Fornitore*: quella è un bollino calcolato da stato di qualifica e *Attivo in
+> Embyon* (vedi §4).
 
 ---
 
@@ -324,6 +322,20 @@ Score Finale = Σ(Punteggio Criterio × Peso) / Σ(Pesi)
 - **PENDING**: In attesa di qualifica
 - **APPROVED**: Qualificato e operativo
 - **REJECTED**: Non qualificato
+- **TO_REVIEW**: Da revisionare (obbligatori consegnati o non più in regola)
+
+#### Valutazione Finale del Fornitore (bollino)
+
+`vendor_final_evaluation` è calcolata in automatico e non è modificabile a mano
+(admin, API, import):
+
+- 🟢 **POSITIVO**: stato *APPROVED* e `embyon_active` vero
+- 🔴 **NEGATIVO**: stato *REJECTED* oppure non attivo in Embyon
+- ⚪ **DA VALUTARE**: attivo in Embyon con qualifica in corso (*PENDING*, *TO_REVIEW*)
+
+Si aggiorna a ogni salvataggio del fornitore e a ogni cambio automatico di
+stato; un job giornaliero (Celery beat, 6:30) declassa gli approvati con
+obbligatori scaduti e riallinea i bollini.
 
 #### Requisiti di Qualifica
 
@@ -578,7 +590,6 @@ trend = calculate_trend(performances, metric="quality_rating")
    └─ Determina valutazione finale
 
 4. Sistema aggiorna stato fornitore
-   ├─ Aggiorna vendor_final_evaluation
    ├─ Registra in storico
    └─ Notifica se cambio stato
 

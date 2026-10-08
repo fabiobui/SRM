@@ -279,9 +279,6 @@ def import_vendors(
                     reference_contact=safe_str(
                         row.get("reference_contact / reference_person")
                     ),
-                    vendor_final_evaluation=safe_str(
-                        row.get("vendor_final_evaluation")
-                    ),
                     review_notes=safe_str(row.get("review_notes")),
                     address=address,
                 )

@@ -38,9 +38,7 @@ from .admin_filters import (
     CompetenceRegionFilter,
 )
 from .competence import (
-    competence_summary,
     current_selection,
-    prefetch_competence,
     set_vendor_competence,
 )
 from .models import (
@@ -1180,10 +1178,8 @@ class VendorAdmin(admin.ModelAdmin):
         "name",
         "category",
         "qualification_status",
-        "vendor_final_evaluation",
         "embyon_active",
-        "qualification_score",
-        "competence_areas_display",
+        "final_evaluation_badge",
     ]
     list_filter = [
         "qualification_status",
@@ -1215,6 +1211,7 @@ class VendorAdmin(admin.ModelAdmin):
     ]
     readonly_fields = [
         "vendor_code",
+        "final_evaluation_badge",
         "is_qualified",
         "audit_overdue",
         "is_documentation_complete",
@@ -1287,16 +1284,6 @@ class VendorAdmin(admin.ModelAdmin):
                     obj.verified_date = timezone.now().date()
             obj.save()
         formset.save_m2m()
-
-    def get_queryset(self, request):
-        # La colonna "Zone di competenza" legge i due M2M: senza prefetch
-        # sarebbero due query per riga.
-        return prefetch_competence(super().get_queryset(request))
-
-    def competence_areas_display(self, obj):
-        return competence_summary(obj)
-
-    competence_areas_display.short_description = _("Zone di competenza")
 
     def get_form(self, request, obj=None, **kwargs):
         # Salva l'oggetto corrente per usarlo negli inline
@@ -1789,7 +1776,6 @@ class VendorAdmin(admin.ModelAdmin):
                     "additional_categories",
                     "competence_areas",
                     "first_supply_date",
-                    "vendor_final_evaluation",
                     "risk_level",
                     "embyon_active",
                     "is_active",
@@ -1823,6 +1809,7 @@ class VendorAdmin(admin.ModelAdmin):
             {
                 "fields": (
                     "qualification_status",
+                    "final_evaluation_badge",
                     "qualification_score",
                     "qualification_date",
                     "qualification_expiry",
@@ -1848,6 +1835,25 @@ class VendorAdmin(admin.ModelAdmin):
         )
 
     is_qualified_display.short_description = _("Qualificato")
+
+    FINAL_EVALUATION_COLORS = {
+        "POSITIVO": "#28a745",
+        "NEGATIVO": "#dc3545",
+        "DA VALUTARE": "#6c757d",
+    }
+
+    def final_evaluation_badge(self, obj):
+        value = obj.vendor_final_evaluation or "DA VALUTARE"
+        return format_html(
+            '<span style="color: {}; font-weight: bold;">&#9679; {}</span>',
+            self.FINAL_EVALUATION_COLORS.get(value, "#6c757d"),
+            obj.get_vendor_final_evaluation_display() or value,
+        )
+
+    final_evaluation_badge.short_description = _(
+        "Valutazione Finale del Fornitore"
+    )
+    final_evaluation_badge.admin_order_field = "vendor_final_evaluation"
 
     actions = ["approve_vendors", "reject_vendors", "mark_for_audit"]
 
@@ -1875,7 +1881,11 @@ class VendorAdmin(admin.ModelAdmin):
     approve_vendors.short_description = _("Approva fornitori selezionati")
 
     def reject_vendors(self, request, queryset):
-        updated = queryset.update(qualification_status="REJECTED")
+        # update() salta save(): il bollino va scritto insieme allo stato.
+        updated = queryset.update(
+            qualification_status="REJECTED",
+            vendor_final_evaluation="NEGATIVO",
+        )
         self.message_user(request, f"{updated} fornitori respinti.", "warning")
 
     reject_vendors.short_description = _("Respingi fornitori selezionati")

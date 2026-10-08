@@ -1,6 +1,29 @@
 
 ## Change Requests
 
+### 7/10/26 — Valutazione Finale del Fornitore automatica
+
+- **Bollino calcolato**: la *Valutazione Finale del Fornitore* non si imposta
+  più a mano (admin, API, import) ma è calcolata da stato di qualifica e
+  *Attivo in Embyon*: 🟢 *Positivo* se *Approvato* e attivo in Embyon, 🔴
+  *Negativo* se *Respinto* o non attivo in Embyon, ⚪ *Da Valutare* se la
+  qualifica è in corso. Il valore *Molto Positivo* sparisce (migrazione
+  `vendors/0053`, che ricalcola tutti i fornitori).
+- **Admin**: il bollino è in sola lettura nella sezione *Qualifica e Audit* e
+  come ultima colonna della lista fornitori, dove resta il filtro "Valutazione
+  Finale". Dalla lista sono state tolte le colonne *Punteggio di Qualifica* e
+  *Zone di competenza*; la tabella ha una scrollbar verticale con intestazione
+  fissa.
+- **Dashboard**: la tabella mostra il bollino nella colonna "Valutazione
+  Finale", filtrabile dai filtri avanzati; la card "Positivi" conta i bollini
+  verdi anche dopo un filtro. Il filtro "Stato Qualifica" include ora
+  *Da Revisionare*.
+- **Job giornaliero** (Celery beat, 6:30): declassa a *Da Revisionare* gli
+  approvati con documenti/requisiti obbligatori scaduti e riallinea i bollini.
+  Stessa logica del comando `sync_qualification_status`.
+- ⚠️ **Dopo il deploy** lanciare `python manage.py sync_qualification_status`
+  (prima con `--dry-run`) e riavviare Celery beat per registrare il nuovo job.
+
 ### 5/10/26 — Automatismi sullo stato di qualifica (AIDEV-22)
 
 - **Creazione**: un fornitore nuovo parte sempre *In attesa*, anche se da admin

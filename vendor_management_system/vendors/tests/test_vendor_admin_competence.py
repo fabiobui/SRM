@@ -223,15 +223,3 @@ def test_una_combinazione_incoerente_viene_ignorata(geografia_italia, client):
 
     assert risposta.status_code == 200
     assert list(risposta.context["cl"].result_list) == [vendor]
-
-
-@pytest.mark.django_db
-def test_la_colonna_mostra_il_riepilogo(geografia_italia):
-    vendor = VendorFactory()
-    competence.set_vendor_competence(
-        vendor, province_codes=["MI"], country_codes=[]
-    )
-
-    testo = _admin().competence_areas_display(vendor)
-
-    assert "Milano" in testo

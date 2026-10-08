@@ -5,6 +5,7 @@ from django.conf import settings
 from django.core import validators
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.db.models import Q
 from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 from django.utils import timezone
@@ -1553,11 +1554,11 @@ class Vendor(models.Model):
         ("99", "Non Usare"),
     ]
 
+    # Bollino calcolato da Vendor.final_evaluation_for: grigio, rosso, verde.
     VENDOR_FINAL_EVALUATION_CHOICES = [
         ("DA VALUTARE", _("Da Valutare")),
         ("NEGATIVO", _("Negativo")),
         ("POSITIVO", _("Positivo")),
-        ("MOLTO POSITIVO", _("Molto Positivo")),
     ]
 
     VENDOR_MEDICAL_SERVICE_CHOICES = [
@@ -1988,9 +1989,14 @@ class Vendor(models.Model):
         max_length=20,
         choices=VENDOR_FINAL_EVALUATION_CHOICES,
         default="DA VALUTARE",
-        help_text=_("Valutazione finale complessiva del fornitore"),
+        help_text=_(
+            "Calcolata in automatico: Positivo se Approvato e attivo in "
+            "Embyon, Negativo se Respinto o non attivo in Embyon, altrimenti "
+            "Da Valutare"
+        ),
         blank=True,
         null=True,
+        editable=False,
     )
 
     category = models.ForeignKey(
@@ -2135,8 +2141,55 @@ class Vendor(models.Model):
         ):
             self.qualification_status = "TO_REVIEW"
 
+        self.vendor_final_evaluation = self.final_evaluation_for(
+            self.qualification_status, self.embyon_active
+        )
+        # Con update_fields il bollino va salvato insieme ai campi da cui
+        # dipende, altrimenti resterebbe solo in memoria.
+        update_fields = kwargs.get("update_fields")
+        if update_fields is not None and {
+            "qualification_status",
+            "embyon_active",
+        } & set(update_fields):
+            kwargs["update_fields"] = {
+                *update_fields,
+                "vendor_final_evaluation",
+            }
+
         # Save the model
         super().save(*args, **kwargs)
+
+    @staticmethod
+    def final_evaluation_for(qualification_status, embyon_active):
+        """Bollino della Valutazione Finale: verde se Approvato e attivo in
+        Embyon, rosso se Respinto o non attivo in Embyon, grigio se la
+        qualifica è ancora in corso."""
+        if not embyon_active or qualification_status == "REJECTED":
+            return "NEGATIVO"
+        if qualification_status == "APPROVED":
+            return "POSITIVO"
+        return "DA VALUTARE"
+
+    @classmethod
+    def realign_final_evaluations(cls):
+        """Riallinea il bollino di tutti i fornitori a stato di qualifica ed
+        Embyon (copre le scritture che saltano save(), es. update() massivi).
+        Restituisce il numero di fornitori corretti."""
+        negative = Q(embyon_active=False) | Q(qualification_status="REJECTED")
+        positive = Q(embyon_active=True, qualification_status="APPROVED")
+        to_evaluate = ~negative & ~positive
+        changed = 0
+        for value, condition in (
+            ("NEGATIVO", negative),
+            ("POSITIVO", positive),
+            ("DA VALUTARE", to_evaluate),
+        ):
+            changed += (
+                cls.objects.filter(condition)
+                .exclude(vendor_final_evaluation=value)
+                .update(vendor_final_evaluation=value)
+            )
+        return changed
 
     @property
     def qualification_blockers(self):
@@ -2170,10 +2223,7 @@ class Vendor(models.Model):
         Revisionare'. Non riapprova mai in automatico."""
         if self.qualification_status == "APPROVED" and self.pk:
             if self.qualification_blockers:
-                Vendor.objects.filter(pk=self.pk).update(
-                    qualification_status="TO_REVIEW"
-                )
-                self.qualification_status = "TO_REVIEW"
+                self._update_qualification_status("TO_REVIEW")
 
     def submit_for_review_if_complete(self):
         """Dopo un upload del fornitore: se è 'In attesa' o 'Respinto' e ha
@@ -2182,10 +2232,19 @@ class Vendor(models.Model):
         non viene mai toccato qui."""
         if self.qualification_status in ("PENDING", "REJECTED", "", None):
             if not self._mandatory_gaps("is_delivered"):
-                Vendor.objects.filter(pk=self.pk).update(
-                    qualification_status="TO_REVIEW"
-                )
-                self.qualification_status = "TO_REVIEW"
+                self._update_qualification_status("TO_REVIEW")
+
+    def _update_qualification_status(self, status):
+        """Cambia lo stato senza passare da save() (niente altri campi
+        riscritti), aggiornando anche il bollino che ne dipende."""
+        self.qualification_status = status
+        self.vendor_final_evaluation = self.final_evaluation_for(
+            status, self.embyon_active
+        )
+        Vendor.objects.filter(pk=self.pk).update(
+            qualification_status=status,
+            vendor_final_evaluation=self.vendor_final_evaluation,
+        )
 
     # Properties for better data visualization
     @property

@@ -62,7 +62,7 @@ vengono poi ricalcolate in tempo reale lato client al variare dei filtri):
 | Fornitori Totali | `total_vendors` | Conteggio statico di tutti i fornitori; il click chiama `clearAllFilters()` |
 | Attivi | `active_vendors` | Fornitori con `is_active=True` |
 | Selezionati | `total_vendors` inizialmente, poi in tempo reale | Conteggio dei fornitori che attualmente corrispondono a tutti i filtri attivi |
-| Positivi | `positive_vendors` | Fornitori (all'interno dell'insieme filtrato corrente) con `vendor_final_evaluation` pari a `Positivo`/`Molto Positivo` |
+| Positivi | `positive_vendors` | Fornitori (all'interno dell'insieme filtrato corrente) con `vendor_final_evaluation` pari a `POSITIVO` (bollino verde) |
 
 Nove grafici cliccabili (canvas `chart-clickable`), ciascuno costruito a partire da `chart_data_json` e ciascuno
 che, al click, attiva/disattiva una voce nell'oggetto `activeFilters` descritto in §4:
@@ -121,8 +121,8 @@ aggiornata):
 | `phone` | Telefono | text | |
 | `vat_number` | Partita IVA | text | |
 | `fiscal_code` | Codice Fiscale | text | |
-| `qualification_status` | Stato Qualifica | select | PENDING, APPROVED, REJECTED |
-| `vendor_final_evaluation` | Valutazione Finale | select | DA VALUTARE, NEGATIVO, POSITIVO, MOLTO POSITIVO |
+| `qualification_status` | Stato Qualifica | select | PENDING, TO_REVIEW, APPROVED, REJECTED |
+| `vendor_final_evaluation` | Valutazione Finale | select | DA VALUTARE, NEGATIVO, POSITIVO (bollino calcolato da stato qualifica + Attivo in Embyon) |
 | `quality_rating_avg` | Valutazione Qualità | number | 0–5 |
 | `fulfillment_rate` | Tasso Adempimento | number | 0–100 (percentuale) |
 | `is_active` | Attivo | boolean | |
@@ -167,8 +167,8 @@ Società senza Partita IVA
   vendor_type          è uguale a       Società
   vat_number            è vuoto
 
-Fornitori con valutazione ottima e alto adempimento
-  vendor_final_evaluation   è uguale a         MOLTO POSITIVO
+Fornitori con bollino verde e alto adempimento
+  vendor_final_evaluation   è uguale a         POSITIVO
   fulfillment_rate           è maggiore o uguale a   90
 
 Contratti scaduti tra i fornitori attivi
@@ -232,7 +232,7 @@ inviato dal template/JS attuale, ma l'endpoint continua ad accettarli se si cost
 
 - **Colonne esportate** (codice attuale — molto più ridotto delle "22 colonne" pubblicizzate dai vecchi
   documenti, che descrivevano una versione precedente di questo endpoint): **Nome, Tipo, Email, Telefono,
-  Regione, Provincia, Valutazione Complessiva, Zone di Competenza, Province Competenza**. Nessun codice fornitore, nessuna Partita IVA/Codice Fiscale,
+  Regione, Provincia, Valutazione Finale, Zone di Competenza, Province Competenza**. Nessun codice fornitore, nessuna Partita IVA/Codice Fiscale,
   nessun indirizzo (via/CAP), nessuna metrica di performance oltre alla valutazione finale. Se serve un export
   più completo, `export_vendors_excel` è il punto in cui estenderlo.
 - **File**: foglio singolo "Fornitori", riga di intestazione in grassetto bianco su sfondo blu, colonne a
@@ -286,7 +286,6 @@ addr = Address.objects.create(
 )
 
 vendor_types = ["Società", "Professionista", "Internazionale"]
-evaluations = ["DA VALUTARE", "POSITIVO", "MOLTO POSITIVO", "NEGATIVO"]
 
 for i in range(20):
     Vendor.objects.create(
@@ -296,8 +295,9 @@ for i in range(20):
         category=cat1 if i % 2 == 0 else cat2,
         address=addr,
         vendor_type=vendor_types[i % len(vendor_types)],
+        # Il bollino (vendor_final_evaluation) lo calcola save().
         qualification_status="APPROVED" if i % 3 == 0 else "PENDING",
-        vendor_final_evaluation=evaluations[i % len(evaluations)],
+        embyon_active=i % 5 != 0,
         risk_level=["LOW", "MEDIUM", "HIGH"][i % 3],
         quality_rating_avg=round(3.0 + (i % 5) * 0.4, 1),
         fulfillment_rate=round(60 + (i % 5) * 8, 1),
@@ -310,7 +310,7 @@ for i in range(20):
 print("Created 20 test vendors")
 ```
 
-Adatta i valori `vendor_type`/`vendor_final_evaluation`/`contractual_status` allo specifico scenario di filtro
+Adatta i valori `vendor_type`/`qualification_status`/`embyon_active`/`contractual_status` allo specifico scenario di filtro
 che stai testando (vedi gli elenchi di opzioni al §5.1).
 
 ## 9. Test automatici

@@ -57,8 +57,9 @@ def test_first_supply_date_fieldset_position():
     assert base_fields.index("first_supply_date") == (
         base_fields.index("competence_areas") + 1
     )
+    # La Valutazione Finale e' calcolata e sta in "Qualifica e Audit".
     assert base_fields.index("first_supply_date") == (
-        base_fields.index("vendor_final_evaluation") - 1
+        base_fields.index("risk_level") - 1
     )
 
 
