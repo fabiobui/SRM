@@ -146,6 +146,8 @@ sotto un prefisso `/fornitori` (anche static/media). Lascia questo a `False` per
   non compare.
 - **Lancio manuale** (stessa logica del job, utile in locale o dove beat non gira):
   `python manage.py send_expiry_reminders [--dry-run] [--date YYYY-MM-DD]`.
+- **In produzione** il job parte da cron di sistema (utente `redmine`, ogni giorno alle 7:00), non da Celery Beat:
+  vedi [DEPLOY.md](DEPLOY.md#celery-e-promemoria-scadenze).
 
 ---
 
@@ -389,7 +391,10 @@ Prova del flusso d'invito:
 **Test/Prod.** Stesso schema di FApp (SRM e FApp girano sulle stesse VM): l'app invia in SMTP a `localhost:25`
 (default di `EMAIL_HOST`/`EMAIL_PORT`, da non impostare), dove il Postfix della VM fa da relay autenticato verso
 Exchange Online (`[smtp.office365.com]:587`, TLS obbligatorio) con la casella di servizio indicata in
-`/etc/postfix/sasl_passwd`. Le credenziali stanno solo nel Postfix, mai nell'app.
+`/etc/postfix/sasl_passwd`. Le credenziali stanno solo nel Postfix, mai nell'app. Sulla VM di produzione (verificato
+il 2026-10-12) il relay accetta l'invio da `spoc.fulgard.com:25` senza AUTH né TLS: `EMAIL_HOST_USER` e
+`EMAIL_HOST_PASSWORD` vanno lasciati vuoti, altrimenti Django tenta il login e l'invio fallisce con
+`SMTPNotSupportedError`.
 
 Exchange accetta come mittente solo la casella di servizio del relay o una casella su cui questa ha il permesso
 **Send As** (altrimenti risponde `554 5.2.252 SendAsDenied`). Scelta per SRM: mittente dedicato
