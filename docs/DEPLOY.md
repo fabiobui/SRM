@@ -194,21 +194,43 @@ campi, esiti, rollback) sono in
 - Apri l'app nel browser e controlla che il login risponda normalmente.
 - In caso di errori: `sudo tail -n 50 /var/log/apache2/error.log`.
 
-## Se gira anche Celery
+## Celery e promemoria scadenze
 
 Se sulla VM è attivo un worker/beat Celery per questa app, riavvialo allo stesso modo dopo il pull (verifica il
 nome del servizio con `systemctl list-units | grep celery` se non lo conosci già).
 
-**I promemoria scadenze al fornitore richiedono worker + beat Celery attivi** (task giornaliero
-`send_expiry_reminders_task`, vedi §6 di `PROJECT_OVERVIEW_AND_LOCAL_SETUP.md`). Se sulla VM Celery non gira,
-l'alternativa è un cron giornaliero che lancia lo stesso job:
+I promemoria scadenze al fornitore partono dal task Celery Beat `send_expiry_reminders_task` (vedi §6 di
+`PROJECT_OVERVIEW_AND_LOCAL_SETUP.md`). Dove beat non gira, lo stesso job può girare da cron di sistema. Sulla VM di
+produzione (verificato il 2026-10-12) non c'è un worker/beat Celery di SRM: il job è un cron dell'utente `redmine`:
 
 ```bash
-0 7 * * * cd /percorso/app && /percorso/venv/bin/python manage.py send_expiry_reminders
+0 7 * * * cd /home/redmine/SRM && .venv/bin/python manage.py send_expiry_reminders >> /home/redmine/SRM/send_expiry_reminders.log 2>&1
 ```
+
+Verifica con `crontab -l | grep send_expiry_reminders`. Usa un solo meccanismo per VM: il registro degli invii evita
+i doppioni, ma due job che girano insieme sono comunque un errore di configurazione.
 
 Imposta anche `PORTAL_BASE_URL` nel `.env` della VM (URL pubblico del portale, senza `/` finale), altrimenti
 l'email parte senza link al portale.
+
+### Attivazione dei promemoria in produzione
+
+Con `EMAIL_REDIRECT_TO` vuoto il job scrive ai fornitori reali. Prima di lasciarlo attivo:
+
+1. controlla `PORTAL_BASE_URL` nel `.env`;
+2. verifica l'elenco del giorno con il dry-run, che non invia e non registra nulla:
+
+   ```bash
+   .venv/bin/python manage.py send_expiry_reminders --dry-run --date AAAA-MM-GG
+   ```
+
+   Un fornitore riceve la mail solo se ha attivo "Notifiche scadenze via email" e se il suo documento o requisito
+   ha "Richiede Rinnovo" (vedi §6 di `PROJECT_OVERVIEW_AND_LOCAL_SETUP.md`);
+3. dopo il primo run del cron, controlla il log:
+
+   ```bash
+   tail -n 50 /home/redmine/SRM/send_expiry_reminders.log
+   ```
 
 ## Rollback rapido
 
