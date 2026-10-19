@@ -18,3 +18,93 @@
     top: 0;
     z-index: 2;
 }
+
+/* Righe compatte: le note del servizio occupano una riga e si espandono
+   quando ricevono il focus (o con il quadratino di ridimensionamento). */
+#vendor_services-group td.field-notes textarea {
+    height: 2.2rem;
+    min-height: 2.2rem;
+    min-width: 14rem;
+    resize: vertical;
+    overflow: hidden;
+    transition: height 0.15s ease;
+}
+
+#vendor_services-group td.field-notes textarea:focus {
+    height: 8rem;
+    overflow: auto;
+}
+
+#vendor_services-group tbody td,
+#vendor_competences-group tbody td,
+#documents-group tbody td {
+    padding-top: 0.25rem;
+    padding-bottom: 0.25rem;
+    vertical-align: middle;
+}
+
+/* Cestino spostato accanto all'occhio; la colonna "Cancellare?" sparisce. */
+td.trash-moved,
+th.trash-moved {
+    display: none;
+}
+
+a.inline-trash {
+    margin-left: 0.4rem;
+}
+
+a.inline-trash,
+a.inline-trash i {
+    color: #dc3545 !important;
+}
+
+a.inline-trash.active,
+a.inline-trash.active i {
+    color: #fff !important;
+    background: #dc3545;
+    border-radius: 3px;
+    padding: 0 0.3rem;
+}
+
+tr.to-delete td {
+    opacity: 0.5;
+    text-decoration: line-through;
+}
+
+/* Righe nuove uniformi a quelle salvate: niente icona "+" di Jazzmin. */
+#vendor_services-group td.original i.fa-plus,
+#vendor_competences-group td.original i.fa-plus,
+#documents-group td.original i.fa-plus {
+    display: none;
+}
+
+/* Il link "Elimina" delle righe nuove ha lo stile a blocco rosso di
+   Django/Jazzmin: lo si riporta a una semplice icona, come per le righe
+   salvate. */
+a.inline-deletelink.inline-trash {
+    display: inline-block;
+    float: none;
+    width: auto;
+    height: auto;
+    padding: 0;
+    margin: 0 0 0 0.4rem;
+    background: none !important;
+    border: 0;
+    text-indent: 0;
+    line-height: 1;
+    vertical-align: middle;
+}
+
+a.inline-deletelink.inline-trash::before,
+a.inline-deletelink.inline-trash::after {
+    content: none;
+}
+
+/* Stessa larghezza per il campo principale di ogni riga, salvata o nuova
+   (select2 calcola la larghezza in modo diverso nelle righe aggiunte). */
+#vendor_services-group .related-widget-wrapper .select2-container,
+#vendor_competences-group .related-widget-wrapper .select2-container,
+#documents-group .related-widget-wrapper .select2-container {
+    width: 24rem !important;
+    max-width: 24rem;
+}

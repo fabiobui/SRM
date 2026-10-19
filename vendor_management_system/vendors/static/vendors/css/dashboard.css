@@ -186,3 +186,13 @@
     color: #495057;
     min-width: 60px;
 }
+
+/* Colonna "Note operative" della lista fornitori: testo a capo, senza
+   troncamento. */
+.operational-notes {
+    display: inline-block;
+    min-width: 200px;
+    max-width: 320px;
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+}

@@ -6,6 +6,9 @@ scadenza che arriva "da sola" non genera alcuna modifica: il job giornaliero
 ``sync_qualification_status`` usano ``sync_all`` per recuperarle.
 """
 
+from django.utils import timezone
+
+from vendor_management_system.documents.models import Document
 from vendor_management_system.vendors.models import Vendor
 
 
@@ -13,7 +16,15 @@ def sync_all(dry_run=False):
     """Porta a 'Da Revisionare' gli Approvati con obbligatori non in regola
     (non riapprova mai nessuno) e riallinea i bollini. Restituisce il
     riepilogo: fornitori declassati con i loro blocchi, numero di approvati
-    esaminati e di bollini corretti."""
+    esaminati e di bollini corretti. Prima porta a "Scaduto" lo stato salvato
+    dei documenti la cui scadenza è passata."""
+    scaduti = Document.objects.filter(
+        expiry_date__lt=timezone.now().date(),
+        status__in=("PENDING", "UPLOADED", "APPROVED"),
+    )
+    expired_documents = scaduti.count()
+    if not dry_run:
+        scaduti.update(status="EXPIRED")
     approved = list(Vendor.objects.filter(qualification_status="APPROVED"))
     downgraded = []
     for vendor in approved:
@@ -28,4 +39,5 @@ def sync_all(dry_run=False):
         "downgraded": downgraded,
         "approved": len(approved),
         "realigned": realigned,
+        "expired_documents": expired_documents,
     }

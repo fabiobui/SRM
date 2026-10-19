@@ -265,7 +265,7 @@ cartella `data_migration_scripts/input/`, dove va copiato l'Excel).
 | Email | prima email di `TELEX` (in Embyon quella colonna contiene l'email) che non sia una PEC |
 | PEC | prima email di `PEC`; se vuota, un'email di `TELEX` con dominio da PEC (`pec`, `legalmail`) |
 | Telefono | `TELEFONO`, senza il `-` iniziale |
-| Dettagli di contatto | fax ed eventuali altre email |
+| Note operative | fax ed eventuali altre email |
 | Contatto di riferimento | non compilato: l'estrazione non ha un nome di referente |
 | Sede (`Address`) | `INDIRIZZO`, `LOCALITA`, `CAP`, `PROVINCIA`; `Italia` o `Estero` da `CODNAZIONE`. Creata solo se ci sono indirizzo e località |
 

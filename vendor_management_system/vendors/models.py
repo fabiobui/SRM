@@ -1671,8 +1671,8 @@ class Vendor(models.Model):
         blank=True,
     )
     contact_details = models.TextField(
-        _("Dettagli di Contatto del Fornitore"),
-        help_text=_("Dettagli di contatto del fornitore"),
+        _("Note operative"),
+        help_text=_("Note operative sul fornitore"),
         blank=True,
     )
     # address = models.TextField(_("Address of Vendor"),
@@ -2190,6 +2190,22 @@ class Vendor(models.Model):
                 .update(vendor_final_evaluation=value)
             )
         return changed
+
+    @property
+    def is_subappaltatore(self):
+        """True se il fornitore ha tra le classificazioni (principale o
+        aggiuntive) "SUBAPPALTATORE", o come tipo fornitore "Subappaltatore".
+        Decide se mostrare gli Attributi operativi (admin e portale)."""
+        if self.vendor_type == "Subappaltatore":
+            return True
+        names = []
+        if self.category_id:
+            names.append(self.category.name)
+        if self.pk:
+            names.extend(c.name for c in self.additional_categories.all())
+        return any(
+            (name or "").strip().upper() == "SUBAPPALTATORE" for name in names
+        )
 
     @property
     def qualification_blockers(self):

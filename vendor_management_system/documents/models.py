@@ -438,9 +438,25 @@ class Document(models.Model):
         if not self.id:
             self.id = str(uuid.uuid4()).replace("-", "")[:10].upper()
 
-        # Auto-update status based on expiry
-        if self.is_expired and self.status != "EXPIRED":
+        # Lo stato segue la scadenza. Un documento Respinto resta tale.
+        if self.is_expired and self.status in (
+            "PENDING",
+            "UPLOADED",
+            "APPROVED",
+        ):
             self.status = "EXPIRED"
+        elif (
+            self.status == "EXPIRED"
+            and self.expiry_date
+            and not self.is_expired
+        ):
+            # Scadenza spostata nel futuro (es. dall'admin): lo stato torna
+            # quello di prima. "reviewed_at" valorizzato = era stato
+            # approvato; altrimenti era in attesa di verifica o di file.
+            if self.reviewed_at:
+                self.status = "APPROVED"
+            else:
+                self.status = "UPLOADED" if self.file else "PENDING"
 
         super().save(*args, **kwargs)
 

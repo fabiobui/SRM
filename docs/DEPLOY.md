@@ -232,6 +232,24 @@ Con `EMAIL_REDIRECT_TO` vuoto il job scrive ai fornitori reali. Prima di lasciar
    tail -n 50 /home/redmine/SRM/send_expiry_reminders.log
    ```
 
+### Disattivare il redirect delle email (VM test e produzione)
+
+Il redirect (`EMAIL_REDIRECT_TO`, vedi `core/emails.py`) è nel `.env` della VM, fuori da git: va tolto a mano su
+ciascuna VM per le email dell'accesso al portale (invito, reset password) e per i promemoria.
+
+1. nel `.env` della VM lascia `EMAIL_REDIRECT_TO=` vuoto (oppure togli la riga);
+2. riavvia l'applicazione, perché le variabili sono lette solo all'avvio, e Celery per il job dei promemoria:
+
+   ```bash
+   sudo systemctl restart apache2
+   ```
+
+3. controlla `PORTAL_BASE_URL`, `DEFAULT_FROM_EMAIL=albo.fornitori@fulgard.com` e il permesso Send As della casella
+   condivisa (§8 A8 di `PROJECT_OVERVIEW_AND_LOCAL_SETUP.md`);
+4. verifica con un invito a un fornitore di prova: senza redirect la mail parte verso l'indirizzo vero del fornitore.
+
+Con il redirect vuoto ogni email esce ai destinatari reali: attivalo solo quando i dati sul DB sono quelli giusti.
+
 ## Rollback rapido
 
 Se qualcosa si rompe dopo il deploy:

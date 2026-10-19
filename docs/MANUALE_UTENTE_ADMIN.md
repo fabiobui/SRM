@@ -137,7 +137,7 @@ Questa è la prima sezione del form, contiene i dati identificativi del fornitor
 | **Contatto di Riferimento** | No | Nome della persona di riferimento |
 | **Sito Web** | No | URL del sito web |
 | **Indirizzo** | No | Selezionare un indirizzo dalla lente di ricerca (vedi [§3.4](#34-indirizzo-sede)) |
-| **Dettagli Contatto** | No | Note aggiuntive sui contatti |
+| **Note operative** | No | Note aggiuntive sul fornitore (contatti e dettagli utili), mostrate anche nella lista della dashboard |
 
 <!-- 📸 SCREENSHOT: Sezione "Contatti" del form fornitore -->
 

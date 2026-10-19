@@ -39,6 +39,9 @@ class Command(BaseCommand):
                 f"{vendor.vendor_code} {vendor.name}: {len(blockers)} "
                 "elementi bloccanti"
             )
+        verb_doc = "da segnare" if dry_run else "segnati"
+        scaduti = summary["expired_documents"]
+        self.stdout.write(f"{scaduti} documenti {verb_doc} come scaduti.")
         verb = "da declassare" if dry_run else "declassati"
         self.stdout.write(
             self.style.SUCCESS(

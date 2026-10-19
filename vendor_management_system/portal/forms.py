@@ -19,6 +19,7 @@ I form definiti qui sono usati dalle view dell'area /portale/. Il pattern è:
 from collections import defaultdict
 
 from django import forms
+from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 
 from vendor_management_system.documents.models import Document, DocumentCatalog
@@ -431,15 +432,17 @@ def available_service_types_for_vendor(vendor):
     """Servizi del catalogo che il vendor può proporre di aggiungere.
 
     Esclude i servizi già assegnati e quelli con una richiesta ADD_SERVICE
-    già in attesa (evita duplicati). Se il vendor ha una classificazione
-    (`Vendor.category` o `Vendor.additional_categories`) e questa — o un
-    suo antenato — ha almeno un
-    `ServiceSet` collegato, filtra ai soli servizi di quei set (coerenza
-    con la classificazione, vedi `vendors/admin.py:service_sets_view` per lo
-    stesso meccanismo lato back-office). Altrimenti (nessuna classificazione,
-    o nessun set collegato) ritorna l'intero catalogo attivo: un fornitore
-    non deve mai trovarsi con una tendina vuota solo perché per la sua
-    classificazione non è stato configurato nessun set.
+    già in attesa (evita duplicati). Dei servizi rimasti mostra quelli dei
+    `ServiceSet` attivi che sono:
+
+    - collegati a una classificazione del fornitore (`Vendor.category` o
+      `Vendor.additional_categories`, antenati compresi), oppure
+    - senza classificazione: valgono per tutti i fornitori.
+
+    Se così non resta nessun servizio (nessun set configurato) ritorna
+    l'intero catalogo attivo: un fornitore non deve mai trovarsi con una
+    tendina vuota. Stesso criterio dei set del back-office
+    (`vendors/admin.py:service_sets_view`).
     """
     already_assigned = VendorService.objects.filter(vendor=vendor).values_list(
         "service_type_id", flat=True
@@ -454,27 +457,53 @@ def available_service_types_for_vendor(vendor):
     ).exclude(pk__in=list(already_assigned) + list(pending_add))
 
     scope = vendor_category_scope_ids(vendor)
-    if scope:
-        scoped_queryset = queryset.filter(
-            service_sets__category_id__in=scope, service_sets__is_active=True
-        ).distinct()
-        if scoped_queryset.exists():
-            return scoped_queryset
+    # Un solo filter(): is_active e classificazione valgono per lo stesso set
+    in_set = queryset.filter(
+        Q(service_sets__category__isnull=True)
+        | Q(service_sets__category_id__in=scope),
+        service_sets__is_active=True,
+    ).distinct()
+    if in_set.exists():
+        return in_set
     return queryset.distinct()
 
 
-def _grouped_service_type_choices(queryset):
+def priority_service_type_ids(vendor, queryset):
+    """Id dei servizi di `queryset` che stanno in un set attivo collegato a
+    una classificazione del fornitore (antenati compresi): in tendina
+    vengono prima degli altri."""
+    scope = vendor_category_scope_ids(vendor)
+    if not scope:
+        return set()
+    return set(
+        queryset.filter(
+            service_sets__category_id__in=scope,
+            service_sets__is_active=True,
+        ).values_list("pk", flat=True)
+    )
+
+
+def _grouped_service_type_choices(queryset, priority_ids=frozenset()):
     """Costruisce le `choices` di un `ChoiceField` raggruppate per sezione
     (optgroup = tipologia padre), stesso ordinamento già usato in
-    `VendorServiceInline.formfield_for_foreignkey` (vendors/admin.py)."""
-    grouped = defaultdict(list)
+    `VendorServiceInline.formfield_for_foreignkey` (vendors/admin.py).
+
+    Prima vengono i servizi in `priority_ids` (quelli delle classificazioni
+    del fornitore), poi tutti gli altri: la stessa sezione può comparire due
+    volte, una per blocco."""
+    blocks = (defaultdict(list), defaultdict(list))
     for service_type in queryset.select_related("parent").order_by(
         "parent__sort_order", "parent__name", "sort_order", "name"
     ):
-        grouped[service_type.parent.name].append(
+        block = blocks[0 if service_type.pk in priority_ids else 1]
+        block[service_type.parent.name].append(
             (str(service_type.pk), service_type.name)
         )
-    return [(section, items) for section, items in grouped.items()]
+    return [
+        (section, items)
+        for block in blocks
+        for section, items in block.items()
+    ]
 
 
 class VendorServiceAddRequestForm(forms.Form):
@@ -519,9 +548,22 @@ class VendorServiceAddRequestForm(forms.Form):
         super().__init__(*args, **kwargs)
         self.vendor = vendor
         self._queryset = available_service_types_for_vendor(vendor)
+        priority_ids = priority_service_type_ids(vendor, self._queryset)
         self.fields["service_type"].choices = _grouped_service_type_choices(
-            self._queryset
+            self._queryset, priority_ids
         )
+        # Id dei servizi "per la tua classificazione", per le intestazioni
+        # dei due blocchi nella tendina
+        self.service_priority_ids = sorted(str(pk) for pk in priority_ids)
+        # Descrizioni per l'icona info della tendina (solo i servizi che
+        # ne hanno una)
+        self.service_descriptions = {
+            str(pk): description.strip()
+            for pk, description in self._queryset.values_list(
+                "pk", "description"
+            )
+            if description and description.strip()
+        }
 
     def clean_service_type(self):
         # Ri-valida sempre contro lo stesso queryset filtrato: non fidarsi
