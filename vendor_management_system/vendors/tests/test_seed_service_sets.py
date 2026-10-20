@@ -48,7 +48,7 @@ def test_create_only_still_creates_missing_sets():
 
 IGEAM_SET_SIZES = {
     "624": 2,
-    "AMB": 14,
+    "AMBIENTE": 14,
     "CERTIFICAZIONI": 14,
     "CONSULENZA GENERALE HS": 5,
     "FORMAZIONE - ALTRI CORSI": 24,
@@ -58,7 +58,7 @@ IGEAM_SET_SIZES = {
     "FORMAZIONE - ANTINCENDIO": 3,
     "IGIENE INDUSTRIALE": 16,
     "INGEGNERIA": 15,
-    "RISK": 12,
+    "VALUTAZIONE RISCHI": 12,
     "SICUREZZA CANTIERI": 4,
     "STRUMENTI": 8,
 }

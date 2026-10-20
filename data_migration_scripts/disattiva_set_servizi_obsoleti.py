@@ -33,12 +33,11 @@ from django.db import transaction  # noqa: E402
 
 from vendor_management_system.vendors.models import ServiceSet  # noqa: E402
 
-# Set IGEAM della prima versione, non più presenti nel file.
+# Set IGEAM della prima versione, non più presenti nel file. AMBIENTE e
+# VALUTAZIONE RISCHI restano nel file con lo stesso nome: non vanno qui.
 SET_OBSOLETI = [
     "RISCHIO MINERARIO",
-    "AMBIENTE",
     "FORMAZIONE",
-    "VALUTAZIONE RISCHI",
     "STRUMENTI DI MISURA",
 ]
 

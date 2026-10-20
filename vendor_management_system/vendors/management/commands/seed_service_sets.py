@@ -359,7 +359,7 @@ IGEAM_SERVICE_SETS = [
         ],
     },
     {
-        "name": "AMB",
+        "name": "AMBIENTE",
         "description": "Servizi di consulenza ambientale ed energetica.",
         "category_code": None,
         "services": [
@@ -614,7 +614,7 @@ IGEAM_SERVICE_SETS = [
         ],
     },
     {
-        "name": "RISK",
+        "name": "VALUTAZIONE RISCHI",
         "description": "Servizi di valutazione dei rischi.",
         "category_code": None,
         "services": [
