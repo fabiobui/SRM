@@ -17,10 +17,17 @@ INCENDI"); vengono creati solo quelli mancanti, sotto il padre del proprio
 blocco. Un servizio già esistente sotto un altro padre resta dov'è e viene
 semplicemente collegato al set.
 
-Uso: python manage.py seed_service_sets
+Le descrizioni dei servizi IGEAM (colonna DESCRIZIONE del foglio "SET SERVIZI")
+stanno in seed_data/descrizioni_servizi_igeam.json, per codice servizio. Sul
+catalogo esistente la descrizione viene scritta solo dove è vuota (con
+--update-catalog viene riallineata al file).
+
+Uso: python manage.py seed_service_sets [--dry-run]
 """
 
+import json
 import re
+from pathlib import Path
 
 from django.core.management.base import BaseCommand
 from django.db import transaction
@@ -30,6 +37,18 @@ from vendor_management_system.vendors.models import (
     ServiceSet,
     ServiceType,
 )
+
+DESCRIZIONI_PATH = (
+    Path(__file__).resolve().parent
+    / "seed_data"
+    / "descrizioni_servizi_igeam.json"
+)
+
+
+def _load_descrizioni():
+    """Descrizioni dei servizi per codice normalizzato."""
+    with DESCRIZIONI_PATH.open(encoding="utf-8") as fh:
+        return {_norm(code): text for code, text in json.load(fh).items()}
 
 
 def _norm(code):
@@ -638,6 +657,11 @@ class Command(BaseCommand):
             ),
         )
         parser.add_argument(
+            "--dry-run",
+            action="store_true",
+            help="Esegue tutto e annulla le modifiche a fine comando.",
+        )
+        parser.add_argument(
             "--create-only",
             action="store_true",
             help=(
@@ -656,6 +680,8 @@ class Command(BaseCommand):
 
         update = options["update_catalog"]
         create_only = options["create_only"]
+        self.descrizioni = _load_descrizioni()
+        self.descrizioni_scritte = 0
         by_norm = {
             _norm(s.code): s for s in ServiceType.objects.all() if s.code
         }
@@ -675,6 +701,14 @@ class Command(BaseCommand):
             len(SERVICE_SETS), by_norm, categories, create_only
         )
 
+        self.stdout.write(
+            f"Descrizioni servizio scritte: {self.descrizioni_scritte}."
+        )
+        if options["dry_run"]:
+            transaction.set_rollback(True)
+            self.stdout.write(
+                self.style.WARNING("--dry-run: modifiche annullate.")
+            )
         self.stdout.write(
             self.style.NOTICE("Popolamento Set Servizi completato.")
         )
@@ -726,15 +760,18 @@ class Command(BaseCommand):
     def _resolve_service(self, spec, parent, by_norm, update):
         """Servizio specifico del blocco, creato sotto `parent` se assente."""
         code, name, sort_order = spec
+        description = self.descrizioni.get(_norm(code), "")
         service = by_norm.get(_norm(code))
         if service is None:
             service = ServiceType.objects.create(
                 code=code,
                 name=name,
+                description=description,
                 sort_order=sort_order,
                 is_active=True,
                 parent=parent,
             )
+            self.descrizioni_scritte += bool(description)
             by_norm[_norm(code)] = service
             self.stdout.write(
                 self.style.SUCCESS(f"  Creato servizio '{code}' - {name}.")
@@ -746,6 +783,11 @@ class Command(BaseCommand):
             service.sort_order = sort_order
             service.is_active = True
             service.save(update_fields=["name", "sort_order", "is_active"])
+        if description and (update or not service.description):
+            if service.description != description:
+                service.description = description
+                service.save(update_fields=["description"])
+                self.descrizioni_scritte += 1
         return service
 
     def _sync_set(self, spec, order, services, categories, create_only=False):

@@ -36,6 +36,9 @@
                     </label>
                     <div class="col-sm-9">
                         {{ field }}
+                        {% if field.name == "service_type" %}
+                            <div id="service-picker" class="position-relative"></div>
+                        {% endif %}
                         {% if field.help_text %}
                             <div class="form-text">{{ field.help_text }}</div>
                         {% endif %}
@@ -56,4 +59,130 @@
         </div>
     </div>
 </form>
+
+{% endblock %}
+
+{% block extra_js %}
+{{ form.service_descriptions|json_script:"service-descriptions-data" }}
+{{ form.service_priority_ids|json_script:"service-priority-data" }}
+<script>
+/* Tendina servizi con icona info sui servizi che hanno una descrizione: una
+   <select> nativa non può mostrare icone né tooltip per opzione, quindi la
+   select resta il campo vero del form (nascosta) e questa lista la comanda. */
+(function () {
+    var select = document.getElementById("id_service_type");
+    var host = document.getElementById("service-picker");
+    if (!select || !host) return;
+    var descriptions = JSON.parse(document.getElementById("service-descriptions-data").textContent);
+    var priority = JSON.parse(document.getElementById("service-priority-data").textContent);
+
+    select.classList.add("d-none");
+
+    var button = document.createElement("button");
+    button.type = "button";
+    button.className = "form-select text-start";
+    var panel = document.createElement("div");
+    panel.className = "border rounded bg-white shadow-sm position-absolute w-100 d-none";
+    panel.style.zIndex = "1050";
+    var search = document.createElement("input");
+    search.type = "search";
+    search.className = "form-control form-control-sm m-2";
+    search.style.width = "calc(100% - 1rem)";
+    search.placeholder = "Cerca servizio...";
+    var list = document.createElement("div");
+    list.style.maxHeight = "20rem";
+    list.style.overflowY = "auto";
+    panel.appendChild(search);
+    panel.appendChild(list);
+    host.appendChild(button);
+    host.appendChild(panel);
+
+    function tooltipFor(icon) {
+        if (window.bootstrap) new bootstrap.Tooltip(icon, {placement: "right", container: "body"});
+    }
+
+    function label(option) {
+        return option.value ? option.text : "-- Seleziona un servizio --";
+    }
+
+    function render(filter) {
+        list.innerHTML = "";
+        var needle = (filter || "").toLowerCase();
+        var lastBlock = null;
+        Array.prototype.forEach.call(select.children, function (node) {
+            var options = node.tagName === "OPTGROUP" ? Array.prototype.slice.call(node.children) : [];
+            if (!options.length) return;
+            var shown = options.filter(function (o) { return !needle || o.text.toLowerCase().indexOf(needle) !== -1; });
+            if (!shown.length) return;
+            // due blocchi: prima i servizi delle classificazioni del
+            // fornitore, poi quelli validi per tutti
+            if (priority.length) {
+                var block = priority.indexOf(options[0].value) !== -1 ? 0 : 1;
+                if (block !== lastBlock) {
+                    var title = document.createElement("div");
+                    title.className = "px-3 py-1 mt-1 fw-bold bg-light border-top border-bottom small";
+                    title.textContent = block === 0
+                        ? "Servizi per la tua classificazione"
+                        : "Servizi validi per tutti";
+                    list.appendChild(title);
+                    lastBlock = block;
+                }
+            }
+            var head = document.createElement("div");
+            head.className = "px-3 pt-2 small fw-semibold text-uppercase text-muted";
+            head.textContent = node.label;
+            list.appendChild(head);
+            shown.forEach(function (o) {
+                var item = document.createElement("div");
+                item.className = "px-3 py-1 d-flex justify-content-between align-items-center" + (o.value === select.value ? " bg-success-subtle" : "");
+                item.style.cursor = "pointer";
+                var name = document.createElement("span");
+                name.textContent = o.text;
+                item.appendChild(name);
+                var text = descriptions[o.value];
+                if (text) {
+                    var icon = document.createElement("i");
+                    icon.className = "fas fa-info-circle text-info ms-2";
+                    icon.setAttribute("title", text);
+                    icon.setAttribute("aria-label", "Descrizione: " + text);
+                    item.appendChild(icon);
+                    tooltipFor(icon);
+                }
+                item.addEventListener("mouseenter", function () { item.classList.add("bg-light"); });
+                item.addEventListener("mouseleave", function () { item.classList.remove("bg-light"); });
+                item.addEventListener("click", function () {
+                    select.value = o.value;
+                    select.dispatchEvent(new Event("change", {bubbles: true}));
+                    button.textContent = label(o);
+                    close();
+                });
+                list.appendChild(item);
+            });
+        });
+    }
+
+    function open() {
+        render("");
+        search.value = "";
+        panel.classList.remove("d-none");
+        search.focus();
+    }
+    function close() {
+        panel.classList.add("d-none");
+        document.querySelectorAll(".tooltip").forEach(function (t) { t.remove(); });
+    }
+
+    button.textContent = label(select.options[select.selectedIndex] || {value: "", text: ""});
+    button.addEventListener("click", function () {
+        panel.classList.contains("d-none") ? open() : close();
+    });
+    search.addEventListener("input", function () { render(search.value); });
+    document.addEventListener("click", function (e) {
+        if (!host.contains(e.target)) close();
+    });
+    document.addEventListener("keydown", function (e) {
+        if (e.key === "Escape") close();
+    });
+})();
+</script>
 {% endblock %}

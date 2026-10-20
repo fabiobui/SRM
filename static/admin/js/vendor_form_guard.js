@@ -14,18 +14,14 @@
         // Intercetta click sui pulsanti di salvataggio a livello documento
         // (funziona anche se i bottoni sono fuori dal <form> in alcuni temi admin)
         document.addEventListener('click', function(e) {
-            var target = e.target;
+            // closest(): il click può cadere su un'icona/span dentro il pulsante
+            var target = e.target && e.target.closest
+                ? e.target.closest('input[type="submit"], button[type="submit"], button:not([type]), [name="_save"], [name="_addanother"], [name="_continue"]')
+                : null;
             if (!target) return;
-            var tag = (target.tagName || '').toLowerCase();
-            var type = (target.type || '').toLowerCase();
-            var name = (target.name || '');
-            if (
-                (tag === 'input' && type === 'submit') ||
-                (tag === 'button' && type === 'submit') ||
-                name === '_save' || name === '_addanother' || name === '_continue'
-            ) {
-                submitViaButton = true;
-            }
+            submitViaButton = true;
+            // il submit parte nello stesso task del click: dopo, il flag torna a false
+            setTimeout(function() { submitViaButton = false; }, 0);
         }, true); // capturing: intercetta prima di qualsiasi altro handler
 
         // Blocca submit da Enter (non da click su pulsante)

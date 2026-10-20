@@ -346,6 +346,8 @@ def vendor_dashboard_view(request):
             "is_ico_consultant": vendor.is_ico_consultant,
             "is_active": vendor.is_active,
             "vendor_final_evaluation": vendor.vendor_final_evaluation,
+            "contractual_status": vendor.contractual_status,
+            "operational_notes": vendor.contact_details or "",
             "category": {
                 "name": vendor.category.name if vendor.category else None
             },
@@ -591,39 +593,35 @@ def export_vendors_excel(request):
         vendors = vendors.filter(vendor_type__in=type_list)
     if ico_consultant and ico_consultant != "null":
         vendors = vendors.filter(is_ico_consultant=(ico_consultant == "true"))
-    if competencies:
-        comp_list = [c.strip() for c in competencies.split(",")]
-        vendors = vendors.filter(competences__name__in=comp_list).distinct()
-    if certifications:
-        cert_list = [c.strip() for c in certifications.split(",")]
+    # Multi-selezioni in AND: un .filter() per valore (un join per ciascuno),
+    # così il fornitore deve avere TUTTI i valori scelti, come nella
+    # dashboard.
+    for name in _lista_csv(competencies) or []:
+        vendors = vendors.filter(competences__name=name)
+    for name in _lista_csv(certifications) or []:
         vendors = vendors.filter(
             vendor_competences__has_certification=True,
-            vendor_competences__competence__name__in=cert_list,
-        ).distinct()
-    if qualifiche:
-        qual_list = [q.strip() for q in qualifiche.split(",")]
+            vendor_competences__competence__name=name,
+        )
+    for name in _lista_csv(qualifiche) or []:
         vendors = vendors.filter(
             vendor_competences__is_qualifica=True,
             vendor_competences__has_competence=True,
-            vendor_competences__competence__name__in=qual_list,
-        ).distinct()
-    if competenze_req:
-        creq_list = [c.strip() for c in competenze_req.split(",")]
+            vendor_competences__competence__name=name,
+        )
+    for name in _lista_csv(competenze_req) or []:
         vendors = vendors.filter(
             vendor_competences__is_competenza=True,
             vendor_competences__has_competence=True,
-            vendor_competences__competence__name__in=creq_list,
-        ).distinct()
-    if service_categories:
-        cat_list = [c.strip() for c in service_categories.split(",")]
+            vendor_competences__competence__name=name,
+        )
+    for name in _lista_csv(service_categories) or []:
         vendors = vendors.filter(
-            vendor_services__service_type__parent__name__in=cat_list
-        ).distinct()
-    if services:
-        svc_list = [s.strip() for s in services.split(",")]
-        vendors = vendors.filter(
-            vendor_services__service_type__name__in=svc_list
-        ).distinct()
+            vendor_services__service_type__parent__name=name
+        )
+    for name in _lista_csv(services) or []:
+        vendors = vendors.filter(vendor_services__service_type__name=name)
+    vendors = vendors.distinct()
     if category:
         vendors = vendors.filter(category__name=category)
     if qualification_status:

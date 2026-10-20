@@ -6,7 +6,7 @@ from django.conf import settings
 from django.contrib import admin, messages
 from django.contrib.admin.utils import quote, unquote
 from django.core.exceptions import PermissionDenied
-from django.db.models import Q
+from django.db.models import Q, TextField
 from django.http import Http404, HttpResponseNotAllowed, JsonResponse
 from django.shortcuts import redirect
 from django.template.response import TemplateResponse
@@ -355,6 +355,9 @@ class VendorServiceInline(admin.TabularInline):
         "notes",
     ]
     readonly_fields = ["created_at", "updated_at"]
+    formfield_overrides = {
+        TextField: {"widget": forms.Textarea(attrs={"rows": 1, "cols": 30})},
+    }
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         if db_field.name == "service_type":
@@ -1250,9 +1253,9 @@ class VendorAdmin(admin.ModelAdmin):
         _("Contratti"),
         _("Servizi Erogati"),
         _("Abilitazioni e Requisiti Professionali"),
-        _("Attributi Operativi"),
         _("Qualifica e Audit"),
         _("Valutazioni"),
+        _("Attributi Operativi"),
     )
 
     def save_model(self, request, obj, form, change):
@@ -1289,6 +1292,18 @@ class VendorAdmin(admin.ModelAdmin):
         # Salva l'oggetto corrente per usarlo negli inline
         request._obj_ = obj
         return super().get_form(request, obj, **kwargs)
+
+    def get_inline_instances(self, request, obj=None):
+        # La scheda "Attributi Operativi" riguarda solo i subappaltatori
+        # (classificazione principale o aggiuntiva "SUBAPPALTATORE").
+        instances = super().get_inline_instances(request, obj)
+        if obj is not None and obj.is_subappaltatore:
+            return instances
+        return [
+            inline
+            for inline in instances
+            if not isinstance(inline, VendorOperationalAttributesInline)
+        ]
 
     def get_urls(self):
         urls = super().get_urls()
@@ -1336,14 +1351,36 @@ class VendorAdmin(admin.ModelAdmin):
         ]
         return custom + urls
 
+    def add_view(self, request, form_url="", extra_context=None):
+        extra_context = extra_context or {}
+        extra_context["show_save_and_continue"] = False
+        return super().add_view(request, form_url, extra_context)
+
     def change_view(self, request, object_id, form_url="", extra_context=None):
         # Stato dell'accesso al portale, per l'etichetta del pulsante
         # "Crea/Gestisci accesso portale".
         extra_context = extra_context or {}
+        extra_context["show_save_and_continue"] = False
         obj = self.get_object(request, unquote(object_id))
         if obj is not None:
             extra_context["has_portal_users"] = portal_users(obj).exists()
         return super().change_view(request, object_id, form_url, extra_context)
+
+    def _salva_resta_sulla_scheda(self, request):
+        # "Salva" si comporta come "Salva e continua": si resta sulla scheda
+        # corrente. Il pulsante "Salva e continua" non è più mostrato.
+        if "_save" in request.POST:
+            post = request.POST.copy()
+            post["_continue"] = "1"
+            request.POST = post
+
+    def response_add(self, request, obj, post_url_continue=None):
+        self._salva_resta_sulla_scheda(request)
+        return super().response_add(request, obj, post_url_continue)
+
+    def response_change(self, request, obj):
+        self._salva_resta_sulla_scheda(request)
+        return super().response_change(request, obj)
 
     def portal_access_view(self, request, object_id):
         """Crea l'utenza portale del fornitore e invia l'invito.
@@ -1740,6 +1777,7 @@ class VendorAdmin(admin.ModelAdmin):
     class Media:
         js = (
             "admin/js/vendor_form_guard.js",
+            "admin/js/vendor_inline_trash.js",
             "admin/js/set_applier_base.js",
             "admin/js/document_set_applier.js",
             "admin/js/competence_set_applier.js",
