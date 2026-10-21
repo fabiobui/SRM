@@ -363,9 +363,15 @@ class VendorServiceInline(admin.TabularInline):
         if db_field.name == "service_type":
             # Mostra solo i servizi specifici (con parent), non le
             # categorie principali
-            kwargs["queryset"] = ServiceType.objects.filter(
-                is_active=True, parent__isnull=False
-            ).order_by("parent__name", "name")
+            # select_related: ServiceType.__str__ legge il parent, senza
+            # sarebbe una query per opzione (per ogni riga dell'inline).
+            kwargs["queryset"] = (
+                ServiceType.objects.filter(
+                    is_active=True, parent__isnull=False
+                )
+                .select_related("parent")
+                .order_by("parent__name", "name")
+            )
         if db_field.name == "contract":
             # Mostra solo i contratti del vendor corrente
             vendor_id = None

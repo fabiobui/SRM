@@ -11,7 +11,10 @@ from django.contrib.auth import get_user_model
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 
-from vendor_management_system.portal.tests.factories import CategoryFactory
+from vendor_management_system.portal.tests.factories import (
+    CategoryFactory,
+    ServiceTypeFactory,
+)
 from vendor_management_system.vendors.admin import VendorAdmin, VendorAdminForm
 from vendor_management_system.vendors.tests.factories import VendorFactory
 
@@ -126,3 +129,27 @@ def test_admin_form_validates_managers_and_additional_categories(settings):
     assert "additional_categories" in errors(
         category=category.pk, additional_categories=[category.pk]
     )
+
+
+@pytest.mark.django_db
+def test_vendor_change_view_queries_do_not_scale_with_service_types(
+    client, django_assert_max_num_queries
+):
+    # La select dei servizi nell'inline non deve fare una query sul parent
+    # per ogni opzione (N+1): il numero di query non dipende dal catalogo.
+    superuser = User.objects.create_superuser(
+        email="super-vendor-perf@example.invalid",
+        password=PASSWORD,
+        role="admin",
+    )
+    client.login(email=superuser.email, password=PASSWORD)
+    vendor = VendorFactory()
+    parent = ServiceTypeFactory()
+    for _n in range(30):
+        ServiceTypeFactory(parent=parent)
+
+    url = reverse("admin:vendors_vendor_change", args=[vendor.pk])
+    with django_assert_max_num_queries(60):
+        response = client.get(url)
+
+    assert response.status_code == 200
