@@ -342,15 +342,15 @@ IGEAM_SERVICE_ROOTS = {
     "STRUMENTI": ("STRUMENTI DI MISURA", 610),
 }
 
-# Set Servizi IGEAM (AIDEV-118), senza classificazione fornitore. Fonte:
-# "FORNITORI_SET SERVIZI con descrizioni.xlsx", foglio "SET SERVIZI". Ogni
-# servizio è (codice, nome, codice categoria in IGEAM_SERVICE_ROOTS,
-# ordinamento). I raggruppamenti del file sono indipendenti dall'albero
-# categoria/servizio del catalogo: il padre indicato serve solo se il
-# servizio manca e va creato (SERV-0114..0123 sono i servizi "da codificare").
+# Set Servizi IGEAM, senza classificazione fornitore. Fonte:
+# "FORNITORI_SET SERVIZI con descrizioni.xlsx", foglio "SET SERVIZI": il set
+# è la colonna di sinistra, ogni servizio è (codice, nome, codice categoria in
+# IGEAM_SERVICE_ROOTS, ordinamento). Il padre serve solo se il servizio manca
+# e va creato. SERV-0114..0123 sono i servizi "da codificare" nel file;
+# SERV-0124 è Scaffalature, codice nuovo perché SERV-0082 è E-LEARNING.
 IGEAM_SERVICE_SETS = [
     {
-        "name": "RISCHIO MINERARIO",
+        "name": "624",
         "description": "Servizi per il settore minerario ed estrattivo.",
         "category_code": None,
         "services": [
@@ -413,12 +413,12 @@ IGEAM_SERVICE_SETS = [
         ],
     },
     {
-        "name": "FORMAZIONE",
+        "name": "FORMAZIONE - ALTRI CORSI",
         "description": "Servizi di docenza e formazione.",
         "category_code": None,
         "services": [
             ("SERV-0081", "DOC - RIFIUTI", "FORM", 81),
-            ("SERV-0082", "E-LEARNING", "FORM", 82),
+            ("SERV-0124", "Scaffalature - UNI EN 15635:2009", "FORM", 124),
             ("SERV-0083", "DOC - SGI", "FORM", 83),
             ("SERV-0084", "DOC - REACH/CLP", "FORM", 84),
             ("SERV-0085", "DOC - ADR", "FORM", 85),
@@ -426,18 +426,11 @@ IGEAM_SERVICE_SETS = [
             ("SERV-0087", "DOC - HAZOP/HAZID", "FORM", 87),
             ("SERV-0088", "Doc - In Inglese", "FORM", 88),
             ("SERV-0089", "Realtà Virtuale", "FORM", 89),
-            ("SERV-0090", "00 - DM 16/01/1997 - RLS", "FORM", 90),
             (
                 "SERV-0091",
                 "02 - DGR n.5702 del 06/12/1999 - Amianto",
                 "FORM",
                 91,
-            ),
-            (
-                "SERV-0092",
-                "03 - DM 388 del 15/07/2003 - Primo Soccorso",
-                "FORM",
-                92,
             ),
             (
                 "SERV-0093",
@@ -464,20 +457,6 @@ IGEAM_SERVICE_SETS = [
                 96,
             ),
             (
-                "SERV-0097",
-                "08 - ASR 21/12/2011 - Datore di Lavoro",
-                "FORM",
-                97,
-            ),
-            (
-                "SERV-0098",
-                "09 - ASR 21/12/2011 linee applicative 27/07/2012 - "
-                "Lavoratori",
-                "FORM",
-                98,
-            ),
-            ("SERV-0099", "10 - ASR 22/02/2012 - Attrezzature", "FORM", 99),
-            (
                 "SERV-0100",
                 "11 - DM 06/03/2013 - Formatori Sicurezza",
                 "FORM",
@@ -489,7 +468,6 @@ IGEAM_SERVICE_SETS = [
                 "FORM",
                 101,
             ),
-            ("SERV-0102", "13 - ASR 07/07/2016 - RSPP ASPP", "FORM", 102),
             ("SERV-0103", "14 - ASR 07/07/2016 - CSP CSE", "FORM", 103),
             (
                 "SERV-0104",
@@ -510,6 +488,66 @@ IGEAM_SERVICE_SETS = [
                 "FORM",
                 107,
             ),
+            (
+                "SERV-0111",
+                "20 - D.Lgs. 152 del 03/04/2006 TU Ambiente",
+                "FORM",
+                111,
+            ),
+            ("SERV-0112", "21 - Competenze Trasversali", "FORM", 112),
+            ("SERV-0113", "22 - HACCP - 1993/43/CEE", "FORM", 113),
+        ],
+    },
+    {
+        "name": "FORMAZIONE - LAVORATORI/DDL",
+        "description": "Formazione di lavoratori e datori di lavoro.",
+        "category_code": None,
+        "services": [
+            ("SERV-0090", "00 - DM 16/01/1997 - RLS", "FORM", 90),
+            (
+                "SERV-0097",
+                "08 - ASR 21/12/2011 - Datore di Lavoro",
+                "FORM",
+                97,
+            ),
+            (
+                "SERV-0098",
+                "09 - ASR 21/12/2011 linee applicative 27/07/2012 - "
+                "Lavoratori",
+                "FORM",
+                98,
+            ),
+            ("SERV-0102", "13 - ASR 07/07/2016 - RSPP ASPP", "FORM", 102),
+        ],
+    },
+    {
+        "name": "FORMAZIONE - PRIMO SOCCORSO",
+        "description": "Formazione degli addetti al primo soccorso.",
+        "category_code": None,
+        "services": [
+            (
+                "SERV-0092",
+                "03 - DM 388 del 15/07/2003 - Primo Soccorso",
+                "FORM",
+                92,
+            ),
+        ],
+    },
+    {
+        "name": "FORMAZIONE - ATTREZZATURE",
+        "description": "Formazione all'utilizzo delle attrezzature di lavoro.",
+        "category_code": None,
+        "services": [
+            ("SERV-0099", "10 - ASR 22/02/2012 - Attrezzature", "FORM", 99),
+        ],
+    },
+    {
+        "name": "FORMAZIONE - ANTINCENDIO",
+        "description": (
+            "Formazione in materia di prevenzione e gestione incendi."
+        ),
+        "category_code": None,
+        "services": [
             ("SERV-0108", "19 - DM 02/09/2021 - Antincendio", "FORM", 108),
             (
                 "SERV-0109",
@@ -523,14 +561,6 @@ IGEAM_SERVICE_SETS = [
                 "FORM",
                 110,
             ),
-            (
-                "SERV-0111",
-                "20 - D.Lgs. 152 del 03/04/2006 TU Ambiente",
-                "FORM",
-                111,
-            ),
-            ("SERV-0112", "21 - Competenze Trasversali", "FORM", 112),
-            ("SERV-0113", "22 - HACCP - 1993/43/CEE", "FORM", 113),
         ],
     },
     {
@@ -619,7 +649,7 @@ IGEAM_SERVICE_SETS = [
         ],
     },
     {
-        "name": "STRUMENTI DI MISURA",
+        "name": "STRUMENTI",
         "description": "Strumentazione di misura del fornitore.",
         "category_code": None,
         "services": [
@@ -657,6 +687,15 @@ class Command(BaseCommand):
             ),
         )
         parser.add_argument(
+            "--solo-igeam",
+            action="store_true",
+            help=(
+                "Tratta solo i Set IGEAM, senza toccare gli altri Set "
+                "Servizi. Con --update-catalog riallinea anche nome e "
+                "descrizione dei servizi IGEAM già a catalogo."
+            ),
+        )
+        parser.add_argument(
             "--dry-run",
             action="store_true",
             help="Esegue tutto e annulla le modifiche a fine comando.",
@@ -687,7 +726,8 @@ class Command(BaseCommand):
         }
         categories = {c.code: c for c in Category.objects.all()}
 
-        for order, spec in enumerate(SERVICE_SETS, start=1):
+        blocks = [] if options["solo_igeam"] else SERVICE_SETS
+        for order, spec in enumerate(blocks, start=1):
             parent = self._resolve_parent(spec["parent"], by_norm, update)
             resolved = [
                 self._resolve_service(svc, parent, by_norm, update)
@@ -698,7 +738,7 @@ class Command(BaseCommand):
             )
 
         self._seed_igeam_sets(
-            len(SERVICE_SETS), by_norm, categories, create_only
+            len(SERVICE_SETS), by_norm, categories, create_only, update
         )
 
         self.stdout.write(
@@ -713,7 +753,9 @@ class Command(BaseCommand):
             self.style.NOTICE("Popolamento Set Servizi completato.")
         )
 
-    def _seed_igeam_sets(self, offset, by_norm, categories, create_only):
+    def _seed_igeam_sets(
+        self, offset, by_norm, categories, create_only, update=False
+    ):
         """Set IGEAM: ogni servizio ha il proprio padre, creato se manca."""
         for order, spec in enumerate(IGEAM_SERVICE_SETS, start=offset + 1):
             resolved = []
@@ -724,7 +766,7 @@ class Command(BaseCommand):
                 )
                 resolved.append(
                     self._resolve_service(
-                        (code, name, sort_order), parent, by_norm, False
+                        (code, name, sort_order), parent, by_norm, update
                     )
                 )
             self._sync_set(

@@ -727,11 +727,27 @@ python data_migration_scripts/associate_sets_to_new_categories.py
 | `migrate_vendor_types_to_categories.py` | Crea le Classificazioni `106` FORMATORE, `107` CONSULENTE, `108` LABORATORIO (se mancanti). Per ogni fornitore con il vecchio tipo assegna la nuova classificazione (principale se vuota, altrimenti aggiuntiva) e **svuota il Tipo di Fornitore**, da compilare a mano |
 | `associate_sets_to_new_categories.py` | Collega i Set Documentali e i Set Abilitazioni e Requisiti `FORMATORE`, `CONSULENTE`, `LABORATORIO` alla classificazione omonima, solo se oggi non ne hanno una. Si ferma se le classificazioni non esistono ancora |
 
-I 10 nuovi Set Servizi del file IGEAM (Rischio minerario, Ambiente,
-Certificazioni, Consulenza generale HS, Formazione, Igiene industriale,
-Ingegneria, Valutazione rischi, Sicurezza cantieri, Strumenti di misura) sono
-invece creati in automatico, senza classificazione, da `seed_service_sets
---create-only` a ogni deploy.
+I 14 Set Servizi del file IGEAM (624, Ambiente, Certificazioni, Consulenza
+generale HS, Formazione - Altri corsi / Lavoratori-DDL / Primo soccorso /
+Attrezzature / Antincendio, Igiene industriale, Ingegneria, Valutazione rischi,
+Sicurezza cantieri, Strumenti) sono invece creati in automatico, senza classificazione, da
+`seed_service_sets --create-only` a ogni deploy. Il flag non modifica i set già
+presenti, quindi sugli ambienti dove la prima versione IGEAM è già stata
+deployata va fatto un passo in più, **una volta per ambiente**, nell'ordine:
+
+```bash
+python manage.py seed_service_sets --solo-igeam --update-catalog --dry-run
+python manage.py seed_service_sets --solo-igeam --update-catalog
+python data_migration_scripts/disattiva_set_servizi_obsoleti.py --dry-run
+python data_migration_scripts/disattiva_set_servizi_obsoleti.py
+```
+
+Il primo comando riallinea nomi e descrizioni dei servizi IGEAM e la
+composizione dei set IGEAM, senza toccare gli altri set. Lo script disattiva
+(senza cancellarli) i tre set della prima versione non più presenti nel file:
+Rischio minerario, Formazione, Strumenti di misura. Ambiente e Valutazione
+rischi restano con lo stesso nome. Il servizio *Scaffalature - UNI EN 15635:2009* ha il codice SERV-0124;
+il servizio *E-LEARNING* resta con il codice SERV-0082 e non è più in nessun set.
 
 ---
 
