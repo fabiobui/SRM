@@ -1,39 +1,42 @@
 #!/usr/bin/env python
 """
-Import una tantum dei fornitori IGEAM dall'estrazione anagrafica Embyon.
+Sostituzione dei fornitori IGEAM da estrazione Excel.
 
-Il file sorgente è l'export Excel dell'anagrafica fornitori IGEAM (foglio
-``ANAGRAFICA FORNITORI_Completa``, una riga per CODCONTO). Vengono inseriti
-solo i fornitori non ancora presenti a database, con i campi minimi per il
-censimento: Codice Embyon, Società Embyon (``Igeam``), ragione sociale, tipo
-fornitore, P.IVA, C.F., stato attivo su Embyon, contatti e sede.
+Il file sorgente è l'export della query su FABRIC_HUB
+(``CommonData_ClientiFornitori``) con i fornitori IGEAM attivi già filtrati
+per classificazione. Colonne: ``Societa``, ``CodiceConto``,
+``RagioneSociale``, ``PIVA``, ``CodiceFiscale``, indirizzo, recapiti,
+``TipologiaFornitore``.
+
+Ogni caricamento è una sovrascrittura: tutti i fornitori con Società Igeam
+già censiti vengono eliminati (con le righe collegate: documenti,
+competenze, valutazioni, ...) e sostituiti da quelli del file. Il passo
+``carica`` va quindi lanciato solo dopo aver rivisto ``igeam_nuovi.csv``.
 
 Il lavoro è diviso in due passi, da rieseguire su ogni ambiente (locale,
 test, produzione) perché il risultato dipende dal database su cui girano:
 
-1. ``analizza``: SOLA LETTURA. Incrocia l'Excel con i fornitori a database
-   e scrive in ``data_migration_scripts/reports/``:
+1. ``analizza``: SOLA LETTURA. Incrocia l'Excel con i fornitori delle altre
+   Società e scrive in ``data_migration_scripts/reports/``:
    - ``igeam_analisi.csv``: tutte le righe Excel con l'esito e il motivo;
    - ``igeam_nuovi.csv``: solo i fornitori da inserire, già mappati sui
      campi del fornitore. È il file da rivedere prima del caricamento.
-2. ``carica``: inserisce i fornitori di ``igeam_nuovi.csv``. Prima di ogni
-   riga ricontrolla Codice Embyon / P.IVA / C.F. sul database, quindi un
-   secondo lancio non duplica nulla. Scrive ``igeam_inseriti.csv`` con i
-   codici creati, utile per un eventuale rollback con
-   ``data_migration_scripts/delete_vendors.py --field old_code --ids ...``.
+2. ``carica``: elimina i fornitori Igeam esistenti, poi inserisce i
+   fornitori di ``igeam_nuovi.csv``. Prima di ogni riga ricontrolla Codice
+   Embyon / P.IVA / C.F. sul database. Scrive ``igeam_inseriti.csv`` con i
+   codici creati. Con ``--dry-run`` esegue tutto e annulla ogni modifica.
 
 Esiti dell'analisi (vale il primo applicabile):
-    ESCLUSO_STATO      stato Embyon DISMESSO o "IN VERIFICA -DOPPIO IN SAGE"
     ESCLUSO_MARCATO    ragione sociale marcata come doppione (***, +++,
                        "non usare")
-    GIA_IMPORTATO      Codice Embyon già presente con Società Igeam
-    GIA_PRESENTE       P.IVA o C.F. già usati da un fornitore a database
+    GIA_PRESENTE       P.IVA o C.F. già usati da un fornitore di un'altra
+                       Società
     COLLISIONE_CODICE  Codice Embyon già usato da un fornitore di un'altra
                        Società: saltato (old_code è UNIQUE)
     GIA_PRESENTE_NOME  senza P.IVA/C.F. validi, ma con la stessa ragione
-                       sociale di un fornitore a database: saltato
+                       sociale di un fornitore di un'altra Società: saltato
     DOPPIONE_EXCEL     stesso soggetto di un'altra riga Excel preferita
-                       (prima lo stato attivo, poi la creazione più recente)
+                       (vince la riga più in basso nel file)
     NUOVO              da inserire
 
 La "Riga excel Albo Fornitore" (``albo_excel_row``) NON viene compilata: è
@@ -47,7 +50,7 @@ git.
 
 ESEMPI (dalla root del repo, dentro la venv):
     python data_migration_scripts/import_igeam_vendors.py analizza \
-        -f data_migration_scripts/input/IGEAM_ANAGRAFICA.xlsx
+        -f data_migration_scripts/input/IGEAM_ATTIVI.xlsx
     python data_migration_scripts/import_igeam_vendors.py carica \
         -f data_migration_scripts/reports/igeam_nuovi.csv --dry-run
     python data_migration_scripts/import_igeam_vendors.py carica \
@@ -92,57 +95,36 @@ INSERITI_CSV = "igeam_inseriti.csv"
 
 IGEAM = "Igeam"
 
-# === COLONNE DELL'ESTRAZIONE EMBYON ===
-COL_CODE = "CODCONTO"
-COL_NAME = "DSCCONTO1"
-COL_PERS_FISICA = "FLGPERSFISICA"
-COL_CF = "CODFISCALE"
-COL_VAT = "PARTITAIVA"
-COL_TIPO = "dbo_ALD_TAB_TipoFornitore.Descrizione"
-COL_STATO = "dbo_ALD_TAB_StatoFornitore.Descrizione"
-COL_INDIRIZZO = "INDIRIZZO"
+# === COLONNE DELL'ESTRAZIONE ===
+COL_CODE = "CodiceConto"
+COL_NAME = "RagioneSociale"
+COL_VAT = "PIVA"
+COL_CF = "CodiceFiscale"
+COL_TIPO = "TipologiaFornitore"
+COL_INDIRIZZO = "Indirizzo"
 COL_CAP = "CAP"
-COL_LOCALITA = "LOCALITA"
-COL_PROVINCIA = "PROVINCIA"
-COL_NAZIONE = "CODNAZIONE"
-COL_TELEFONO = "TELEFONO"
-COL_FAX = "FAX"
-COL_EMAIL = "TELEX"  # in Embyon la colonna TELEX contiene l'email
+COL_LOCALITA = "Localita"
+COL_PROVINCIA = "Provincia"
+COL_TELEFONO = "Telefono"
+COL_EMAIL = "Mail"
 COL_PEC = "PEC"
-COL_CREAZIONE = "DtCreazione"
 
 REQUIRED_COLUMNS = [
     COL_CODE,
     COL_NAME,
-    COL_PERS_FISICA,
-    COL_CF,
     COL_VAT,
+    COL_CF,
     COL_TIPO,
-    COL_STATO,
     COL_INDIRIZZO,
     COL_CAP,
     COL_LOCALITA,
     COL_PROVINCIA,
-    COL_NAZIONE,
     COL_TELEFONO,
-    COL_FAX,
     COL_EMAIL,
     COL_PEC,
-    COL_CREAZIONE,
 ]
 
 # === REGOLE CONCORDATE ===
-# Stati Embyon considerati "attivo su Embyon"; tutti gli altri (BLOCCATO,
-# NON ATTIVO/NON MOVIMENTATO, SOSPESO, ...) valgono come non attivo.
-ACTIVE_STATES = {
-    "ATTIVO",
-    "ATTIVO_DA RIQUALIFICARE",
-    "ANAGRAFICA DA SAGE/DA COMPLETARE",
-    "IMPORT IGEAM",
-    "DA QUALIFICARE",
-}
-# Stati esclusi dall'import: fornitori dismessi o doppioni già segnalati.
-EXCLUDED_STATES = {"DISMESSO", "IN VERIFICA -DOPPIO IN SAGE"}
 # Ragioni sociali marcate a mano come doppioni ("***ALS ITALIA SRL",
 # "+++TUTTOAMBIENTE SPA", "** non usare ***STUDIO ...").
 MARKED_NAME_RE = re.compile(r"^\s*[*+]|NON\s+USARE", re.IGNORECASE)
@@ -182,7 +164,6 @@ ANALISI_FIELDS = [
     "name",
     "vat_number",
     "fiscal_code",
-    "stato_embyon",
     "esito",
     "motivo",
     "vendor_code_esistente",
@@ -225,38 +206,27 @@ def clean_cf(value):
     return cf, ""
 
 
-def is_foreign(vat, nazione):
-    """Fornitore estero: nazione Embyon diversa da 0 (Italia) oppure P.IVA
+def is_foreign(vat, tipologia):
+    """Fornitore estero: tipologia Embyon che lo dichiara tale oppure P.IVA
     con prefisso di paese (norm_vat ha già tolto l'eventuale 'IT')."""
-    if clean(nazione) not in ("", "0"):
+    if "estero" in clean(tipologia).lower():
         return True
     return bool(vat and re.match(r"^[A-Z]{2}", vat))
 
 
-def infer_vendor_type(pers_fisica, vat, cf, nazione, tipo_embyon):
+def infer_vendor_type(cf, vat, estero):
     """Tipo fornitore dedotto dai dati anagrafici; None se in dubbio."""
-    if is_foreign(vat, nazione):
+    if estero:
         return "Internazionale"
-    if clean(tipo_embyon).upper() == "DIPENDENTI INTERNI":
-        return "Dipendente"
-    vat_italiana = bool(vat and re.fullmatch(r"\d{11}", vat))
-    flag = clean(pers_fisica)
-    if flag == "0" and vat_italiana:
-        return "Società"
-    if flag == "1" and vat_italiana and cf and CF_PERSONA_RE.fullmatch(cf):
+    if cf and CF_PERSONA_RE.fullmatch(cf):
         return "Libero Professionista"
+    if vat and re.fullmatch(r"\d{11}", vat):
+        return "Società"
     return None
 
 
-def is_active_state(stato):
-    return clean(stato).upper() in ACTIVE_STATES
-
-
-def exclusion_reason(stato, name):
+def exclusion_reason(name):
     """(esito, motivo) se la riga è fuori perimetro, altrimenti None."""
-    stato_up = clean(stato).upper()
-    if stato_up in EXCLUDED_STATES:
-        return "ESCLUSO_STATO", f"stato Embyon {stato_up}"
     if MARKED_NAME_RE.search(clean(name)):
         return "ESCLUSO_MARCATO", "ragione sociale marcata come doppione"
     return None
@@ -271,13 +241,13 @@ def looks_like_pec(email):
     return any(hint in domain for hint in PEC_HINTS)
 
 
-def split_contacts(email_col, pec_col, fax_col):
-    """Distribuisce i recapiti Embyon sui campi del fornitore.
+def split_contacts(email_col, pec_col):
+    """Distribuisce i recapiti sui campi del fornitore.
 
     - ``pec``: prima PEC della colonna PEC; se vuota, la prima email di
-      TELEX che ha un dominio da PEC (pec/legalmail);
-    - ``email``: prima email di TELEX che non è una PEC;
-    - ``contact_details``: fax ed eventuali altre email, in chiaro.
+      Mail che ha un dominio da PEC (pec/legalmail);
+    - ``email``: prima email di Mail che non è una PEC;
+    - ``contact_details``: eventuali altre email, in chiaro.
     """
     pecs = extract_emails(pec_col)
     pec = pecs[0] if pecs else None
@@ -294,13 +264,8 @@ def split_contacts(email_col, pec_col, fax_col):
             email = addr
         else:
             extra.append(addr)
-    details = []
-    fax = clean(fax_col)
-    if fax:
-        details.append(f"Fax: {fax}")
-    if extra:
-        details.append(f"Altre email: {', '.join(extra)}")
-    return email, pec, "\n".join(details)
+    details = f"Altre email: {', '.join(extra)}" if extra else ""
+    return email, pec, details
 
 
 def clean_phone(value):
@@ -316,21 +281,19 @@ def build_record(row, excel_row):
     """
     vat, vat_warn = clean_vat(row.get(COL_VAT))
     cf, cf_warn = clean_cf(row.get(COL_CF))
-    email, pec, details = split_contacts(
-        row.get(COL_EMAIL), row.get(COL_PEC), row.get(COL_FAX)
-    )
-    nazione = clean(row.get(COL_NAZIONE))
+    email, pec, details = split_contacts(row.get(COL_EMAIL), row.get(COL_PEC))
+    tipologia = clean(row.get(COL_TIPO))
+    estero = is_foreign(vat, tipologia)
     return {
         "riga_excel": excel_row,
         "old_code": norm_code(clean(row.get(COL_CODE))),
         "embyon_company": IGEAM,
         "name": clean(row.get(COL_NAME)),
-        "vendor_type": infer_vendor_type(
-            row.get(COL_PERS_FISICA), vat, cf, nazione, row.get(COL_TIPO)
-        ),
+        "vendor_type": infer_vendor_type(cf, vat, estero),
         "vat_number": vat,
         "fiscal_code": cf,
-        "embyon_active": is_active_state(row.get(COL_STATO)),
+        # il file è già filtrato su Stato='ATTIVO'
+        "embyon_active": True,
         "email": email,
         "pec": pec,
         "phone": clean_phone(row.get(COL_TELEFONO)),
@@ -339,10 +302,8 @@ def build_record(row, excel_row):
         "cap": clean(row.get(COL_CAP)),
         "localita": clean(row.get(COL_LOCALITA)),
         "provincia": clean(row.get(COL_PROVINCIA)).upper(),
-        "nazione": "Italia" if nazione in ("", "0") else "Estero",
+        "nazione": "Estero" if estero else "Italia",
         "_codconto": clean(row.get(COL_CODE)),
-        "_stato": clean(row.get(COL_STATO)),
-        "_creazione": clean(row.get(COL_CREAZIONE)),
         "_avvisi": "; ".join(w for w in (vat_warn, cf_warn) if w),
     }
 
@@ -375,8 +336,10 @@ def build_index(vendors):
 
 
 def load_db_index():
+    # I fornitori Igeam esistenti vengono sostituiti: non concorrono ai
+    # confronti, altrimenti ogni riga risulterebbe già presente.
     return build_index(
-        Vendor.objects.values(
+        Vendor.objects.exclude(embyon_company=IGEAM).values(
             "pk",
             "name",
             "old_code",
@@ -407,13 +370,11 @@ def _set_esito(rec, esito, motivo, match=None):
 
 def match_db(rec, index):
     """Esito del confronto con il database, o None se il fornitore non c'è."""
-    code = index["codes"].get(code_key(rec["old_code"]))
-    if code and code[2] == IGEAM:
-        return "GIA_IMPORTATO", "Codice Embyon già presente per Igeam", code
     for key in record_ids(rec):
         hit = index["ids"].get(key)
         if hit:
             return "GIA_PRESENTE", f"stesso {hit[2]} ({key})", hit
+    code = index["codes"].get(code_key(rec["old_code"]))
     if code:
         return (
             "COLLISIONE_CODICE",
@@ -459,7 +420,7 @@ def classify(records, index):
     """Assegna esito/motivo a ogni record (modifica i dict in place)."""
     candidates = []
     for rec in records:
-        excluded = exclusion_reason(rec["_stato"], rec["name"])
+        excluded = exclusion_reason(rec["name"])
         if excluded:
             _set_esito(rec, *excluded)
             continue
@@ -469,13 +430,9 @@ def classify(records, index):
             continue
         candidates.append(rec)
 
-    # Doppioni interni all'Excel: un solo fornitore per soggetto. Si
-    # preferisce lo stato attivo, poi la creazione più recente su Embyon,
-    # poi la riga più alta nel file.
-    candidates.sort(
-        key=lambda r: (r["embyon_active"], r["_creazione"], r["riga_excel"]),
-        reverse=True,
-    )
+    # Doppioni interni all'Excel: un solo fornitore per soggetto, vince la
+    # riga più in basso nel file.
+    candidates.sort(key=lambda r: r["riga_excel"], reverse=True)
     chosen = {}
     for rec in candidates:
         keys = dedupe_keys(rec)
@@ -538,11 +495,7 @@ def analizza(path, sheet=0, report_dir=REPORT_DIR):
     """Passo 1: sola lettura, scrive i due report. Ritorna i record."""
     records = classify(read_excel(path, sheet), load_db_index())
     for rec in records:
-        rec.update(
-            codconto=rec["_codconto"],
-            stato_embyon=rec["_stato"],
-            avvisi=rec["_avvisi"],
-        )
+        rec.update(codconto=rec["_codconto"], avvisi=rec["_avvisi"])
     write_csv(report_dir / ANALISI_CSV, ANALISI_FIELDS, records)
     nuovi = [r for r in records if r["esito"] == "NUOVO"]
     write_csv(report_dir / NUOVI_CSV, NUOVI_FIELDS, nuovi)
@@ -552,6 +505,17 @@ def analizza(path, sheet=0, report_dir=REPORT_DIR):
 def _none_if_empty(value):
     value = (value or "").strip()
     return value or None
+
+
+def elimina_igeam():
+    """Elimina tutti i fornitori Igeam con le righe collegate e i loro
+    indirizzi. Ritorna il conteggio di fornitori e righe collegate."""
+    vendors = Vendor.objects.filter(embyon_company=IGEAM)
+    indirizzi = [a for a in vendors.values_list("address_id", flat=True) if a]
+    totale, per_modello = vendors.delete()
+    fornitori = per_modello.get(Vendor._meta.label, 0)
+    Address.objects.filter(pk__in=indirizzi).delete()
+    return {"fornitori": fornitori, "collegati": totale - fornitori}
 
 
 def create_vendor(row):
@@ -584,8 +548,8 @@ def create_vendor(row):
 
 
 def carica(path, dry_run=False, report_dir=REPORT_DIR):
-    """Passo 2: inserisce i fornitori del file dei nuovi. Ritorna la lista
-    dei risultati per riga (dict con esito INSERITO/SALTATO)."""
+    """Passo 2: sostituisce i fornitori Igeam con quelli del file dei nuovi.
+    Ritorna (conteggio eliminati, lista dei risultati per riga)."""
     rows = read_csv(path)
     missing = [f for f in NUOVI_FIELDS if rows and f not in rows[0]]
     if missing:
@@ -594,6 +558,7 @@ def carica(path, dry_run=False, report_dir=REPORT_DIR):
         )
     results = []
     with transaction.atomic():
+        eliminati = elimina_igeam()
         index = load_db_index()
         for row in rows:
             rec = {
@@ -634,7 +599,7 @@ def carica(path, dry_run=False, report_dir=REPORT_DIR):
             ],
             results,
         )
-    return results
+    return eliminati, results
 
 
 # === CLI ===
@@ -647,7 +612,7 @@ def print_summary(title, counter):
 
 def parse_args(argv=None):
     p = argparse.ArgumentParser(
-        description="Import una tantum dei fornitori IGEAM da Embyon."
+        description="Sostituzione dei fornitori IGEAM da estrazione Excel."
     )
     sub = p.add_subparsers(dest="comando", required=True)
 
@@ -660,7 +625,8 @@ def parse_args(argv=None):
     a.add_argument("-s", "--sheet", default=0, help="indice o nome del foglio")
 
     c = sub.add_parser(
-        "carica", help="inserisce i fornitori di igeam_nuovi.csv"
+        "carica",
+        help="sostituisce i fornitori Igeam con quelli di igeam_nuovi.csv",
     )
     c.add_argument("-f", "--file", required=True, help="file igeam_nuovi.csv")
     c.add_argument(
@@ -689,11 +655,15 @@ def main(argv=None):
         print(f"   Report completo: {args.report_dir / ANALISI_CSV}")
         print(f"   Da inserire:     {args.report_dir / NUOVI_CSV}")
     else:
-        results = carica(args.file, args.dry_run, args.report_dir)
+        eliminati, results = carica(args.file, args.dry_run, args.report_dir)
         title = (
-            "Caricamento (DRY RUN, annullato)"
+            "Sostituzione (DRY RUN, annullata)"
             if args.dry_run
-            else "Caricamento"
+            else "Sostituzione"
+        )
+        print(
+            f"Fornitori {IGEAM} eliminati: {eliminati['fornitori']} "
+            f"(righe collegate: {eliminati['collegati']})"
         )
         print_summary(title, Counter(r["esito"] for r in results))
         for r in results:

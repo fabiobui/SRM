@@ -148,34 +148,35 @@ sudo systemctl restart apache2
 sudo systemctl status apache2      # conferma che sia ripartito senza errori
 ```
 
-### Popolamento una tantum dei fornitori IGEAM
+### Sostituzione dei fornitori IGEAM
 
-Vale **solo per il deploy che introduce la Società Embyon *Igeam***, una volta
-per ambiente: prima su test, poi in produzione. I dettagli (mappatura dei
-campi, esiti, rollback) sono in
+Va rifatta a ogni nuovo export della query IGEAM, su **ogni ambiente**. Ogni
+carico sostituisce i fornitori Igeam già censiti: su test quelli del
+censimento precedente, in produzione quelli eventualmente presenti. I dettagli
+(mappatura dei campi, esiti) sono in
 [SCRIPT_IMPORT.md](SCRIPT_IMPORT.md#data_migration_scriptsimport_igeam_vendorspy).
 
-1. Dopo `git pull` e `migrate`, che applica `vendors/0046_alter_vendor_embyon_company`,
-   copia l'estrazione sulla VM. È fuori da git perché contiene dati fornitore:
+1. Dopo `git pull` e `migrate`, copia l'export sulla VM. È fuori da git perché
+   contiene dati fornitore:
 
    ```bash
    # dal proprio PC
-   scp "IGEAM_ANAGRAFICA FORNITORI_Completa<data>.xlsx" <utente>@<vm>:<percorso-repo>/data_migration_scripts/input/
+   scp "Fornitori_IGEAM_Attivi_Portale_v2.xlsx" <utente>@<vm>:<percorso-repo>/data_migration_scripts/input/
    ```
 
-2. Analisi (sola lettura). Va rifatta **su ogni ambiente**, perché i fornitori
-   già presenti cambiano da database a database:
+2. Analisi (sola lettura), da rifare su ogni ambiente:
 
    ```bash
    .venv/bin/python data_migration_scripts/import_igeam_vendors.py analizza \
-       -f "data_migration_scripts/input/IGEAM_ANAGRAFICA FORNITORI_Completa<data>.xlsx"
+       -f data_migration_scripts/input/Fornitori_IGEAM_Attivi_Portale_v2.xlsx
    ```
 
    Controlla il riepilogo per esito e rivedi
    `data_migration_scripts/reports/igeam_nuovi.csv`. Le righe da non caricare si
    possono togliere dal file.
 
-3. Caricamento, prima in prova e poi reale:
+3. Sostituzione, prima in prova e poi reale. Prima del reale, fai un dump del
+   database (non c'è rollback automatico):
 
    ```bash
    .venv/bin/python data_migration_scripts/import_igeam_vendors.py carica \
@@ -184,11 +185,9 @@ campi, esiti, rollback) sono in
        -f data_migration_scripts/reports/igeam_nuovi.csv
    ```
 
-4. Conserva `data_migration_scripts/reports/igeam_inseriti.csv`, che serve per
-   un eventuale rollback con `delete_vendors.py`. Poi verifica da Admin →
-   Fornitori con il filtro *Società Embyon = Igeam*. Non serve riavviare Apache
-   per vedere i dati: il riavvio del punto precedente basta per il codice.
-
+4. Conserva `data_migration_scripts/reports/igeam_inseriti.csv`. Poi verifica da
+   Admin → Fornitori con il filtro *Società Embyon = Igeam*. Non serve riavviare
+   Apache per vedere i dati: il riavvio del punto precedente basta per il codice.
 ## Verifica
 
 - Apri l'app nel browser e controlla che il login risponda normalmente.
