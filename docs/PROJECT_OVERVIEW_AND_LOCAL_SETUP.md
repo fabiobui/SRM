@@ -110,11 +110,15 @@ sotto un prefisso `/fornitori` (anche static/media). Lascia questo a `False` per
 - **Auth**: account locali (Django) per default; autenticazione LDAP/Active Directory opzionale
   (`HybridAuthBackend`) che prova prima LDAP (via `ldap3`) e ricade sul `ModelBackend` standard di Django —
   disabilitata localmente per default (`LDAP_ENABLED=False`).
-- **Integrazione Embyon**: il form admin del Vendor ha una modale "search Embyon" che esegue una query SQL grezza
-  contro una tabella MySQL legacy esterna (`EMBYON_FORNITORI_TABLE`, default `redmine_test.Embyon_Fornitori_T`)
-  per precompilare i dati del fornitore in base a vecchio codice fornitore / partita IVA / codice fiscale. È
-  tooling opzionale per il team BO — fallisce in modo controllato se la tabella/database non è raggiungibile, quindi
-  **non** è richiesto per lo sviluppo locale.
+- **Integrazione Embyon / FABRIC_HUB**: il form admin del Vendor ha una modale "search Embyon" (lente) che
+  interroga in sola lettura l'API DAB `https://fulgardas.fulgard.com/api/Fornitori_CF` (vista FABRIC_HUB, solo
+  fornitori con `StatoFornitore='ATTIVO'`), con token Entra ID client-credentials
+  (`vendor_management_system/vendors/fabric_hub.py`), per precompilare i dati del fornitore in base a codice /
+  ragione sociale / partita IVA / codice fiscale. Codice, P.IVA e C.F. usano `$filter` lato server; la ragione
+  sociale filtra in memoria l'elenco degli attivi (~10k righe), tenuto in cache per processo
+  (`FABRICHUB_CACHE_SECONDS`, default 600). Richiede le variabili `FABRICHUB_*` (vedi
+  `env_example/.env.fabrichub.example`, in locale `.envs/.fabrichub.env`). È tooling opzionale per il team BO:
+  senza credenziali la ricerca restituisce un errore controllato, quindi **non** è richiesto per lo sviluppo locale.
 
 ## 6. Job in background (Celery)
 
@@ -681,7 +685,7 @@ scegliere.
 |---|---|---|
 | File statici in 404 in dev | Di solito va bene — `DEBUG=True` serve automaticamente static/media (vedi `config/urls.py`); controlla `STATICFILES_DIRS`/`STATIC_ROOT` se personalizzati | Esegui `python manage.py collectstatic` solo se imposti `DEBUG=False` |
 | Reindirizzato al login in loop | Nessun ruolo assegnato al tuo utente, oppure l'utente non è superuser/staff | Imposta `role` sull'`User` in `/admin/` oppure via `createsuperuser` |
-| La modale di ricerca Embyon dà errore nell'admin Vendor | Atteso localmente — il DB esterno `redmine_test` non è raggiungibile | Ignora; è tooling BO opzionale, non richiesto per le funzionalità core |
+| La modale di ricerca Embyon dà errore nell'admin Vendor | Mancano le variabili `FABRICHUB_*` (o l'API `fulgardas` non è raggiungibile) | Configura `.envs/.fabrichub.env`; è tooling BO opzionale, non richiesto per le funzionalità core |
 
 ---
 

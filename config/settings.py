@@ -81,6 +81,23 @@ else:
     }
 
 
+# FABRIC_HUB (API DAB, sola lettura): anagrafica fornitori per la ricerca
+# "lente" del form fornitore. Auth Entra ID client-credentials, vedi
+# vendor_management_system/vendors/fabric_hub.py.
+FABRICHUB_BASE_URL = os.getenv(
+    "FABRICHUB_BASE_URL", "https://fulgardas.fulgard.com"
+)
+FABRICHUB_TENANT_ID = os.getenv("FABRICHUB_TENANT_ID", "")
+FABRICHUB_CLIENT_ID = os.getenv("FABRICHUB_CLIENT_ID", "")
+FABRICHUB_CLIENT_SECRET = os.getenv("FABRICHUB_CLIENT_SECRET", "")
+# Vuoto -> api://<client_id>/.default
+FABRICHUB_SCOPE = os.getenv("FABRICHUB_SCOPE", "")
+FABRICHUB_API_ROLE = os.getenv("FABRICHUB_API_ROLE", "Reader")
+FABRICHUB_SUPPLIERS_ENTITY = os.getenv(
+    "FABRICHUB_SUPPLIERS_ENTITY", "Fornitori_CF"
+)
+FABRICHUB_CACHE_SECONDS = int(os.getenv("FABRICHUB_CACHE_SECONDS", "600"))
+
 # DATABASES["default"]["ATOMIC_REQUESTS"] = True
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
