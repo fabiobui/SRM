@@ -20,6 +20,8 @@ services:
         env_file:
             - ./.envs/.django.env
             - ./.envs/.mysql.env # Load Django and MySQL environment variables
+            - path: ./.envs/.fabrichub.env # API FABRIC_HUB (ricerca fornitori)
+              required: false
         ports:
             - 8000:8000 # Map container port 8000 to host port 8000
         command: /start # Start command for Django

@@ -32,6 +32,7 @@ from vendor_management_system.users.portal_access import (
     portal_users,
 )
 
+from . import fabric_hub
 from .admin_filters import (
     CompetenceCountryFilter,
     CompetenceProvinceFilter,
@@ -1501,76 +1502,34 @@ class VendorAdmin(admin.ModelAdmin):
         )
 
     def embyon_search_view(self, request):
-        """Ricerca fornitori nell'anagrafica Embyon (tabella esterna su
-        MySQL, di default ``redmine_test.Account_Embyon_T`` filtrata per
-        TIPOCONTO='F').
+        """Ricerca fornitori nell'anagrafica FABRIC_HUB (API ``Fornitori_CF``,
+        solo fornitori attivi; vedi ``fabric_hub.py``).
 
         Usata dal modal "Ricerca fornitore Embyon" nel tab Informazioni Base.
-        Accetta come filtri (GET): old_code, vat_number, fiscal_code, name,
-        province. Restituisce le righe corrispondenti; ogni riga contiene sia i
-        campi mostrati in tabella sia quelli usati per popolare il form Vendor.
+        Accetta come filtri (GET): old_code, vat_number, fiscal_code, name.
+        Restituisce le righe corrispondenti; ogni riga contiene sia i campi
+        mostrati in tabella sia quelli usati per popolare il form Vendor.
         """
-        from django.conf import settings as dj_settings
-        from django.db import connection
-
-        # Anagrafica fornitori Embyon. La tabella espone lo stesso fornitore su
-        # più Società (colonna DITTA), quindi una P.IVA può dare più righe.
-        # Colonne usate: DITTA, CODCONTO, DSCCONTO1, PARTITAIVA, CODFISCALE,
-        # Descrizione (= stato fornitore, es. "ATTIVO").
-        table = getattr(
-            dj_settings,
-            "EMBYON_FORNITORI_TABLE",
-            "redmine_test.Embyon_Fornitori_T",
-        )
-
         old_code = request.GET.get("old_code", "").strip()
         vat = request.GET.get("vat_number", "").strip()
         cf = request.GET.get("fiscal_code", "").strip()
         name = request.GET.get("name", "").strip()
 
-        where = ["TIPOCONTO = 'F'"]
-        params = []
-
         # Criterio primario, mutuamente esclusivo. Priorità: ragione sociale,
         # poi codice Embyon, partita IVA, codice fiscale.
-        if name:
-            if len(name) < 3:
-                return JsonResponse(
-                    {
-                        "results": [],
-                        "error": str(
-                            _(
-                                "Inserisci almeno 3 caratteri per la "
-                                "ragione sociale."
-                            )
-                        ),
-                    }
-                )
-            # "Inizia con o contiene" -> LIKE %valore%.
-            where.append("DSCCONTO1 LIKE %s")
-            params.append(f"%{name}%")
-        elif old_code:
-            # Il CODCONTO è tipo "F    35" / "F 18148" (prefisso lettera +
-            # numero con padding). L'utente può inserire solo il numero
-            # ("35") o il codice completo ("F 35"): confronto sulla sola
-            # parte numerica.
-            digits = "".join(ch for ch in old_code if ch.isdigit())
-            if digits:
-                where.append(
-                    "CAST(REGEXP_REPLACE(CODCONTO, '[^0-9]', '') AS "
-                    "UNSIGNED) = %s"
-                )
-                params.append(int(digits))
-            else:
-                where.append("UPPER(REPLACE(CODCONTO, ' ', '')) = %s")
-                params.append(old_code.replace(" ", "").upper())
-        elif vat:
-            where.append("PARTITAIVA = %s")
-            params.append(vat)
-        elif cf:
-            where.append("UPPER(CODFISCALE) = %s")
-            params.append(cf.upper())
-        else:
+        if name and len(name) < 3:
+            return JsonResponse(
+                {
+                    "results": [],
+                    "error": str(
+                        _(
+                            "Inserisci almeno 3 caratteri per la "
+                            "ragione sociale."
+                        )
+                    ),
+                }
+            )
+        if not (name or old_code or vat or cf):
             return JsonResponse(
                 {
                     "results": [],
@@ -1584,18 +1543,10 @@ class VendorAdmin(admin.ModelAdmin):
                 }
             )
 
-        sql = (
-            "SELECT DITTA, CODCONTO, DSCCONTO1, PARTITAIVA, CODFISCALE, "
-            "Descrizione "
-            f"FROM {table} WHERE "
-            + " AND ".join(where)
-            + " ORDER BY DSCCONTO1 LIMIT 200"
-        )
-
         try:
-            with connection.cursor() as cursor:
-                cursor.execute(sql, params)
-                rows = cursor.fetchall()
+            results = fabric_hub.search_suppliers(
+                name=name, old_code=old_code, vat=vat, fiscal_code=cf
+            )
         except Exception as exc:  # pragma: no cover - dipende dal DB esterno
             return JsonResponse(
                 {
@@ -1605,28 +1556,9 @@ class VendorAdmin(admin.ModelAdmin):
                 status=500,
             )
 
-        results = []
-        for r in rows:
-            ditta, codconto, dsc1, piva, cfisc, descr = r
-            # Normalizza il codice conto: "F     7" -> "F 7", "F 18148"
-            # invariato.
-            code = " ".join((codconto or "").split())
-            status = (descr or "").strip()
-            results.append(
-                {
-                    "old_code": code,
-                    "company": (ditta or "").strip(),
-                    "name": (dsc1 or "").strip(),
-                    "vat_number": (piva or "").strip(),
-                    "fiscal_code": (cfisc or "").strip(),
-                    "province": "",
-                    # Stato in Embyon (campo Descrizione). Se != "attivo",
-                    # il flag embyon_active NON viene impostato nel form
-                    # Vendor.
-                    "status": status,
-                    "embyon_active": status.lower() == "attivo",
-                }
-            )
+        # La vista contiene solo fornitori attivi; il flag segue lo stato.
+        for row in results:
+            row["embyon_active"] = row["status"].lower() == "attivo"
 
         return JsonResponse({"results": results})
 
