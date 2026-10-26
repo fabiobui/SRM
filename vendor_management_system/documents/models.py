@@ -30,11 +30,15 @@ def clear_renewal_fields(catalog, save_kwargs):
 
 # Etichetta e colore per ogni codice di validity_status (usato dagli admin).
 VALIDITY_STATUS_META = {
+    "PENDING": ("PENDING", "gray"),
+    "IN_REVIEW": ("IN REVISIONE", "blue"),
     "NOT_VALID": ("NOT VALID", "red"),
     "EXPIRED": ("EXPIRED", "red"),
-    "EXPIRING_SOON": ("EXPIRING_SOON", "orange"),
+    "EXPIRING_SOON": ("EXPIRED SOON", "orange"),
     "VALID": ("VALID", "green"),
 }
+# Stati di validità che soddisfano un requisito di qualifica.
+SATISFYING_VALIDITY_STATUSES = ("VALID", "EXPIRING_SOON")
 
 
 class DocumentCatalog(models.Model):
@@ -363,7 +367,7 @@ class Document(models.Model):
     def satisfies_requirement(self):
         """Documento che soddisfa un requisito di qualifica: caricato (file
         presente), approvato dal gestore e non scaduto."""
-        return bool(self.file) and self.is_valid
+        return self.validity_status in SATISFYING_VALIDITY_STATUSES
 
     @property
     def is_delivered(self):
@@ -424,12 +428,17 @@ class Document(models.Model):
 
     @property
     def validity_status(self):
-        """Stato di validità del documento (fonte unica per admin/inline):
-        NOT_VALID se non approvato, altrimenti in base alla scadenza."""
-        if self.status != "APPROVED":
+        """Stato di validità del documento (fonte unica per admin/portale):
+        PENDING senza file, NOT_VALID se respinto, IN_REVIEW se caricato e
+        non ancora approvato, altrimenti in base alla scadenza."""
+        if self.status == "REJECTED":
             return "NOT_VALID"
-        if self.is_expired:
+        if not self.file:
+            return "PENDING"
+        if self.is_expired or self.status == "EXPIRED":
             return "EXPIRED"
+        if self.status != "APPROVED":
+            return "IN_REVIEW"
         if self.is_expiring_soon:
             return "EXPIRING_SOON"
         return "VALID"
@@ -437,6 +446,10 @@ class Document(models.Model):
     def save(self, *args, **kwargs):
         if not self.id:
             self.id = str(uuid.uuid4()).replace("-", "")[:10].upper()
+
+        # Un file caricato (anche dall'admin) attende la revisione.
+        if self.status == "PENDING" and self.file:
+            self.status = "UPLOADED"
 
         # Lo stato segue la scadenza. Un documento Respinto resta tale.
         if self.is_expired and self.status in (

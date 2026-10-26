@@ -1,5 +1,4 @@
 from django.contrib import admin
-from django.utils import timezone
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 
@@ -71,18 +70,16 @@ class DocumentAdmin(admin.ModelAdmin):
     list_display = [
         "vendor",
         "document_type",
-        "status",
         "validity_badge",
         "issue_date",
         "expiry_date",
         "uploaded_at",
     ]
-    list_filter = ["status", "document_type", "uploaded_at"]
+    list_filter = ["document_type", "uploaded_at"]
 
     @admin.display(description=_("Stato validità"))
     def validity_badge(self, obj):
-        """Stato di validità (NOT VALID se lo stato di lavorazione non è
-        'Approvato'), coerente col tab Documenti del fornitore."""
+        """Stato di validità, coerente col tab Documenti del fornitore."""
         label, color = VALIDITY_STATUS_META.get(
             obj.validity_status, (obj.validity_status, "gray")
         )
@@ -94,20 +91,19 @@ class DocumentAdmin(admin.ModelAdmin):
 
     search_fields = ["vendor__name", "document_type__name"]
     ordering = ["-uploaded_at"]
-    readonly_fields = ["id", "uploaded_at"]
-
-    def save_model(self, request, obj, form, change):
-        """Approvazione/rifiuto dall'admin: compila revisore e data."""
-        if "status" in form.changed_data and obj.status in (
-            "APPROVED",
-            "REJECTED",
-        ):
-            obj.reviewed_by = request.user
-            obj.reviewed_at = timezone.now()
-        super().save_model(request, obj, form, change)
+    readonly_fields = [
+        "id",
+        "uploaded_at",
+        "validity_badge",
+        "reviewed_by",
+        "reviewed_at",
+    ]
 
     fieldsets = (
-        (None, {"fields": ("vendor", "document_type", "file", "status")}),
+        (
+            None,
+            {"fields": ("vendor", "document_type", "file", "validity_badge")},
+        ),
         ("Dates", {"fields": ("issue_date", "expiry_date", "uploaded_at")}),
         ("Review", {"fields": ("reviewed_by", "reviewed_at", "notes")}),
     )

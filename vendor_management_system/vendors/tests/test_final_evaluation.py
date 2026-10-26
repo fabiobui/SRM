@@ -89,9 +89,10 @@ def test_campo_non_modificabile_da_admin_e_api():
     assert _evaluation(vendor) == "DA VALUTARE"
 
 
-def test_bollino_ultima_colonna_della_lista_admin():
+def test_bollino_prima_di_portale_attivato_nella_lista_admin():
     colonne = VendorAdmin.list_display
-    assert colonne[-1] == "final_evaluation_badge"
+    assert colonne.index("final_evaluation_badge") == len(colonne) - 2
+    assert colonne[-1] == "portal_activated"
     assert colonne.index("embyon_active") < colonne.index(
         "final_evaluation_badge"
     )
