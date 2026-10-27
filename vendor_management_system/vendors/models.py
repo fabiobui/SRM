@@ -17,6 +17,7 @@ from vendor_management_system.documents.models import (
     REMINDER_DAYS_MAX,
     REMINDER_DAYS_MIN,
     RENEWAL_ONLY_FIELDS,
+    SATISFYING_VALIDITY_STATUSES,
     Document,
     DocumentCatalog,
     clear_renewal_fields,
@@ -716,12 +717,7 @@ class VendorCompetence(models.Model):
     def satisfies_requirement(self):
         """Requisito che soddisfa la qualifica: posseduto, documento
         caricato, verificato dal gestore e non scaduto."""
-        return (
-            self.has_competence
-            and bool(self.document_file)
-            and self.verified
-            and not self.is_expired
-        )
+        return self.validity_status in SATISFYING_VALIDITY_STATUSES
 
     @property
     def is_delivered(self):
@@ -800,6 +796,23 @@ class VendorCompetence(models.Model):
             delta = self.expiry_date - timezone.now().date()
             return delta.days
         return None
+
+    @property
+    def validity_status(self):
+        """Stato di validità del requisito (stessi codici dei documenti):
+        PENDING senza documento, NOT_VALID se respinto, IN_REVIEW se caricato
+        e non ancora verificato, altrimenti in base alla scadenza."""
+        if self.rejected:
+            return "NOT_VALID"
+        if not (self.has_competence and self.document_file):
+            return "PENDING"
+        if self.is_expired:
+            return "EXPIRED"
+        if not self.verified:
+            return "IN_REVIEW"
+        if self.expiry_status == "EXPIRING_SOON":
+            return "EXPIRING_SOON"
+        return "VALID"
 
     @property
     def expiry_status(self):
@@ -2121,6 +2134,20 @@ class Vendor(models.Model):
     def __str__(self):
         return self.name
 
+    @classmethod
+    def from_db(cls, db, field_names, values):
+        instance = super().from_db(db, field_names, values)
+        instance._remember_qualification()
+        return instance
+
+    def _remember_qualification(self):
+        """Stato e data di qualifica come letti/salvati, per capire in save()
+        se lo stato è cambiato e la data non è stata toccata a mano."""
+        self._loaded_qualification = (
+            self.qualification_status,
+            self.qualification_date,
+        )
+
     # Save method
     def save(self, *args, **kwargs):
         # If vendor code is not specified
@@ -2141,11 +2168,21 @@ class Vendor(models.Model):
         ):
             self.qualification_status = "TO_REVIEW"
 
+        # Cambio di stato con data lasciata com'era: la data di qualifica
+        # diventa oggi. Se l'operatore l'ha modificata, resta la sua.
+        loaded = getattr(self, "_loaded_qualification", None)
+        if (
+            loaded
+            and loaded[0] != self.qualification_status
+            and loaded[1] == self.qualification_date
+        ):
+            self.qualification_date = timezone.localdate()
+
         self.vendor_final_evaluation = self.final_evaluation_for(
             self.qualification_status, self.embyon_active
         )
-        # Con update_fields il bollino va salvato insieme ai campi da cui
-        # dipende, altrimenti resterebbe solo in memoria.
+        # Con update_fields il bollino e la data vanno salvati insieme ai
+        # campi da cui dipendono, altrimenti resterebbero solo in memoria.
         update_fields = kwargs.get("update_fields")
         if update_fields is not None and {
             "qualification_status",
@@ -2154,10 +2191,12 @@ class Vendor(models.Model):
             kwargs["update_fields"] = {
                 *update_fields,
                 "vendor_final_evaluation",
+                "qualification_date",
             }
 
         # Save the model
         super().save(*args, **kwargs)
+        self._remember_qualification()
 
     @staticmethod
     def final_evaluation_for(qualification_status, embyon_active):
@@ -2254,13 +2293,16 @@ class Vendor(models.Model):
         """Cambia lo stato senza passare da save() (niente altri campi
         riscritti), aggiornando anche il bollino che ne dipende."""
         self.qualification_status = status
+        self.qualification_date = timezone.localdate()
         self.vendor_final_evaluation = self.final_evaluation_for(
             status, self.embyon_active
         )
         Vendor.objects.filter(pk=self.pk).update(
             qualification_status=status,
+            qualification_date=self.qualification_date,
             vendor_final_evaluation=self.vendor_final_evaluation,
         )
+        self._remember_qualification()
 
     # Properties for better data visualization
     @property

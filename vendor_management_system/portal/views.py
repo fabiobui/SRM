@@ -82,6 +82,11 @@ class PortalDashboardView(VendorRequiredMixin, TemplateView):
         vendor = self.request.user.vendor
         documents = _vendor_documents_qs(vendor)
 
+        # Referente Fulgard: gestore principale, altrimenti il primo
+        # secondario.
+        manager = vendor.managed_by or vendor.secondary_managers.first()
+        ctx["manager_email"] = manager.email if manager else None
+
         # "Da caricare": Document con status PENDING (pre-creati dal BO,
         # file vuoto).
         to_upload_count = documents.filter(status="PENDING").count()

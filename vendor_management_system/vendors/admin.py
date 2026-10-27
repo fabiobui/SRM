@@ -290,18 +290,15 @@ class VendorCompetenceInline(admin.TabularInline):
     verbose_name_plural = _("Abilitazioni e Requisiti Professionali")
     fields = [
         "competence",
-        "is_competenza",
-        "is_qualifica",
-        "is_iscrizione_albo",
-        "has_certification",
         "certification_number",
         "issue_date",
         "expiry_date",
-        "verified",
         "expiry_status_display",
         "document_file",
         "document_link",
     ]
+    # Competenza, Qualifica, Iscrizione Albo, Possiede Certificazione e
+    # Verificata restano a DB ma non compaiono più in admin.
     readonly_fields = [
         "expiry_status_display",
         "document_link",
@@ -323,23 +320,18 @@ class VendorCompetenceInline(admin.TabularInline):
     document_link.short_description = _("File Caricato")
 
     def expiry_status_display(self, obj):
-        if obj.pk:
-            status = obj.expiry_status
-            colors = {
-                "EXPIRED": "red",
-                "EXPIRING_SOON": "orange",
-                "EXPIRING": "yellow",
-                "VALID": "green",
-                "NO_EXPIRY": "gray",
-            }
-            return format_html(
-                '<span style="color: {}; font-weight: bold;">{}</span>',
-                colors.get(status, "black"),
-                status,
-            )
-        return "-"
+        if obj._state.adding:
+            return "-"
+        label, color = VALIDITY_STATUS_META.get(
+            obj.validity_status, (obj.validity_status, "gray")
+        )
+        return format_html(
+            '<span style="color: {}; font-weight: bold;">{}</span>',
+            color,
+            label,
+        )
 
-    expiry_status_display.short_description = _("Stato Scadenza")
+    expiry_status_display.short_description = _("Stato validità")
 
 
 # VendorService Inline
@@ -443,23 +435,13 @@ class VendorCompetenceAdmin(admin.ModelAdmin):
     list_display = [
         "vendor",
         "competence",
-        "is_competenza",
-        "is_qualifica",
-        "is_iscrizione_albo",
         "has_competence",
-        "has_certification",
         "issue_date",
         "expiry_date",
-        "verified",
         "expiry_status_badge",
     ]
     list_filter = [
-        "is_competenza",
-        "is_qualifica",
-        "is_iscrizione_albo",
         "has_competence",
-        "has_certification",
-        "verified",
         "competence__competence_category",
         "expiry_date",
     ]
@@ -474,7 +456,9 @@ class VendorCompetenceAdmin(admin.ModelAdmin):
         "updated_at",
         "is_expired",
         "days_to_expiry",
-        "expiry_status",
+        "validity_status",
+        "verified_by",
+        "verified_date",
     ]
     autocomplete_fields = ["vendor", "competence"]
 
@@ -484,20 +468,9 @@ class VendorCompetenceAdmin(admin.ModelAdmin):
             {"fields": ("vendor", "competence", "has_competence")},
         ),
         (
-            _("Tipo Requisito"),
-            {
-                "fields": (
-                    "is_competenza",
-                    "is_qualifica",
-                    "is_iscrizione_albo",
-                )
-            },
-        ),
-        (
             _("Dettagli Certificazione"),
             {
                 "fields": (
-                    "has_certification",
                     "certification_number",
                     "certification_body",
                     "issue_date",
@@ -507,13 +480,13 @@ class VendorCompetenceAdmin(admin.ModelAdmin):
         ),
         (
             _("Verifica"),
-            {"fields": ("verified", "verified_by", "verified_date")},
+            {"fields": ("verified_by", "verified_date")},
         ),
         (_("Documentazione"), {"fields": ("document_file", "notes")}),
         (
-            _("Stato Scadenza"),
+            _("Stato validità"),
             {
-                "fields": ("is_expired", "days_to_expiry", "expiry_status"),
+                "fields": ("is_expired", "days_to_expiry", "validity_status"),
                 "classes": ("collapse",),
             },
         ),
@@ -524,45 +497,26 @@ class VendorCompetenceAdmin(admin.ModelAdmin):
     )
 
     def expiry_status_badge(self, obj):
-        status = obj.expiry_status
-        colors = {
-            "EXPIRED": "red",
-            "EXPIRING_SOON": "orange",
-            "EXPIRING": "yellow",
-            "VALID": "green",
-            "NO_EXPIRY": "gray",
-        }
+        label, color = VALIDITY_STATUS_META.get(
+            obj.validity_status, (obj.validity_status, "gray")
+        )
         return format_html(
             '<span style="background-color: {}; padding: 3px 8px; '
             'border-radius: 3px; color: white;">{}</span>',
-            colors.get(status, "black"),
-            status,
+            color,
+            label,
         )
 
-    expiry_status_badge.short_description = _("Stato")
+    expiry_status_badge.short_description = _("Stato validità")
 
 
 # Document Inline
-class DocumentInlineForm(forms.ModelForm):
-    """Form dell'inline Documenti: rinomina la label dello stato di
-    lavorazione."""
-
-    class Meta:
-        model = Document
-        fields = "__all__"
-        labels = {
-            "status": _("Stato lavorazione"),
-        }
-
-
 class DocumentInline(admin.TabularInline):
     model = Document
-    form = DocumentInlineForm
     extra = 1
     verbose_name_plural = _("Documenti Contrattuali")
     fields = [
         "document_type",
-        "status",
         "issue_date",
         "expiry_date",
         "expiry_status_display",
@@ -587,7 +541,7 @@ class DocumentInline(admin.TabularInline):
     def expiry_status_display(self, obj):
         if not obj or not obj.pk:
             return "-"
-        # Fonte unica: Document.validity_status (NOT VALID se non 'Approvato').
+        # Fonte unica: Document.validity_status.
         label, color = VALIDITY_STATUS_META.get(
             obj.validity_status, (obj.validity_status, "gray")
         )
@@ -778,23 +732,18 @@ class VendorEvaluationInline(admin.TabularInline):
         return super().formfield_for_dbfield(db_field, request, **kwargs)
 
     def expiry_status_display(self, obj):
-        if obj.pk:
-            status = obj.expiry_status
-            colors = {
-                "EXPIRED": "red",
-                "EXPIRING_SOON": "orange",
-                "EXPIRING": "yellow",
-                "VALID": "green",
-                "NO_EXPIRY": "gray",
-            }
-            return format_html(
-                '<span style="color: {}; font-weight: bold;">{}</span>',
-                colors.get(status, "black"),
-                status,
-            )
-        return "-"
+        if obj._state.adding:
+            return "-"
+        label, color = VALIDITY_STATUS_META.get(
+            obj.validity_status, (obj.validity_status, "gray")
+        )
+        return format_html(
+            '<span style="color: {}; font-weight: bold;">{}</span>',
+            color,
+            label,
+        )
 
-    expiry_status_display.short_description = _("Stato Scadenza")
+    expiry_status_display.short_description = _("Stato validità")
 
 
 # VendorEvaluation Admin
@@ -1190,6 +1139,7 @@ class VendorAdmin(admin.ModelAdmin):
         "qualification_status",
         "embyon_active",
         "final_evaluation_badge",
+        "portal_activated",
     ]
     list_filter = [
         "qualification_status",
@@ -1211,6 +1161,11 @@ class VendorAdmin(admin.ModelAdmin):
     # Mancava: `list_display` include `category`, quindi senza questo la
     # changelist faceva una query per riga.
     list_select_related = ("category", "managed_by")
+
+    def get_queryset(self, request):
+        # Per la colonna "Portale attivato" (evita una query per riga).
+        return super().get_queryset(request).prefetch_related("users")
+
     search_fields = [
         "vendor_code",
         "old_code",
@@ -1271,29 +1226,6 @@ class VendorAdmin(admin.ModelAdmin):
         if not change:
             obj.qualification_status = "PENDING"
         super().save_model(request, obj, form, change)
-
-    def save_formset(self, request, form, formset, change):
-        """Negli inline Documenti e Requisiti, l'approvazione/verifica fatta
-        dal gestore compila in automatico revisore e data (come fa il
-        portale back-office)."""
-        instances = formset.save(commit=False)
-        changed = {
-            f.instance.pk: f.changed_data for f in formset.forms if f.instance
-        }
-        for obj in formset.deleted_objects:
-            obj.delete()
-        for obj in instances:
-            fields = changed.get(obj.pk, [])
-            if isinstance(obj, Document) and "status" in fields:
-                if obj.status in ("APPROVED", "REJECTED"):
-                    obj.reviewed_by = request.user
-                    obj.reviewed_at = timezone.now()
-            elif isinstance(obj, VendorCompetence) and "verified" in fields:
-                if obj.verified:
-                    obj.verified_by = request.user.name or request.user.email
-                    obj.verified_date = timezone.now().date()
-            obj.save()
-        formset.save_m2m()
 
     def get_form(self, request, obj=None, **kwargs):
         # Salva l'oggetto corrente per usarlo negli inline
@@ -1721,7 +1653,6 @@ class VendorAdmin(admin.ModelAdmin):
             "admin/js/competence_set_applier.js",
             "admin/js/service_set_applier.js",
             "admin/js/document_expiry_calc.js",
-            "admin/js/document_validity_status.js",
             "admin/js/embyon_search.js",
             "admin/js/vendor_duplicate_check.js",
         )
@@ -1831,6 +1762,16 @@ class VendorAdmin(admin.ModelAdmin):
     )
     final_evaluation_badge.admin_order_field = "vendor_final_evaluation"
 
+    @admin.display(description=_("Portale attivato"), boolean=True)
+    def portal_activated(self, obj):
+        """Vero se un utente del portale ha già impostato le credenziali
+        (invito accettato). Usa gli utenti prefetchati: nessuna query per
+        riga."""
+        return any(
+            u.role == "vendor" and (u.is_ldap_user or u.has_usable_password())
+            for u in obj.users.all()
+        )
+
     actions = ["approve_vendors", "reject_vendors", "mark_for_audit"]
 
     def approve_vendors(self, request, queryset):
@@ -1858,8 +1799,9 @@ class VendorAdmin(admin.ModelAdmin):
 
     def reject_vendors(self, request, queryset):
         # update() salta save(): il bollino va scritto insieme allo stato.
-        updated = queryset.update(
+        updated = queryset.exclude(qualification_status="REJECTED").update(
             qualification_status="REJECTED",
+            qualification_date=timezone.localdate(),
             vendor_final_evaluation="NEGATIVO",
         )
         self.message_user(request, f"{updated} fornitori respinti.", "warning")

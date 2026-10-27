@@ -137,7 +137,7 @@ def test_document_types_without_renewal_are_excluded():
 
     assert mail.outbox == []
     assert doc.document_type.reminder_days_before is None
-    assert doc.validity_status == "VALID"
+    assert not doc.is_expiring_soon
 
 
 @pytest.mark.django_db
