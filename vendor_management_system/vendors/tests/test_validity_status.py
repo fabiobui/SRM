@@ -125,6 +125,17 @@ def test_data_qualifica_modificata_a_mano_resta():
     assert vendor.qualification_date == manuale
 
 
+def test_cambio_stato_funziona_con_use_tz_false(settings):
+    settings.USE_TZ = False
+    vendor = VendorFactory(qualification_status="PENDING")
+
+    vendor._update_qualification_status("TO_REVIEW")
+
+    vendor.refresh_from_db()
+    assert vendor.qualification_status == "TO_REVIEW"
+    assert vendor.qualification_date == date.today()
+
+
 def test_sync_automatico_aggiorna_la_data():
     vendor = VendorFactory(qualification_status="PENDING")
     vendor._update_qualification_status("TO_REVIEW")
