@@ -63,6 +63,7 @@ from .models import (
     VendorEvaluation,
     VendorOperationalAttributes,
     VendorService,
+    oggi_locale,
     vendor_category_scope_ids,
 )
 from .widgets import CompetenceAreaField
@@ -1801,7 +1802,7 @@ class VendorAdmin(admin.ModelAdmin):
         # update() salta save(): il bollino va scritto insieme allo stato.
         updated = queryset.exclude(qualification_status="REJECTED").update(
             qualification_status="REJECTED",
-            qualification_date=timezone.localdate(),
+            qualification_date=oggi_locale(),
             vendor_final_evaluation="NEGATIVO",
         )
         self.message_user(request, f"{updated} fornitori respinti.", "warning")

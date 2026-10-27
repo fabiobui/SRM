@@ -1501,6 +1501,13 @@ class EvaluationCriterion(models.Model):
 
 
 # Modifica al Model Vendor esistente
+def oggi_locale():
+    """Data odierna in ora locale. Con USE_TZ=False now() è naive e
+    timezone.localdate() solleverebbe errore."""
+    now = timezone.now()
+    return timezone.localdate(now) if timezone.is_aware(now) else now.date()
+
+
 class Vendor(models.Model):
     # Qualification Status Choices
     QUALIFICATION_STATUS_CHOICES = [
@@ -2176,7 +2183,7 @@ class Vendor(models.Model):
             and loaded[0] != self.qualification_status
             and loaded[1] == self.qualification_date
         ):
-            self.qualification_date = timezone.localdate()
+            self.qualification_date = oggi_locale()
 
         self.vendor_final_evaluation = self.final_evaluation_for(
             self.qualification_status, self.embyon_active
@@ -2293,7 +2300,7 @@ class Vendor(models.Model):
         """Cambia lo stato senza passare da save() (niente altri campi
         riscritti), aggiornando anche il bollino che ne dipende."""
         self.qualification_status = status
-        self.qualification_date = timezone.localdate()
+        self.qualification_date = oggi_locale()
         self.vendor_final_evaluation = self.final_evaluation_for(
             status, self.embyon_active
         )
