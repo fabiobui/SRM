@@ -31,7 +31,7 @@ def clear_renewal_fields(catalog, save_kwargs):
 # Etichetta e colore per ogni codice di validity_status (usato dagli admin).
 VALIDITY_STATUS_META = {
     "PENDING": ("PENDING", "gray"),
-    "IN_REVIEW": ("IN REVISIONE", "blue"),
+    "IN_REVIEW": ("IN REVIEW", "blue"),
     "NOT_VALID": ("NOT VALID", "red"),
     "EXPIRED": ("EXPIRED", "red"),
     "EXPIRING_SOON": ("EXPIRED SOON", "orange"),

@@ -34,6 +34,12 @@
 
 /* ---- Barra dei comandi ------------------------------------------------ */
 
+.vms-geo__hint {
+  margin: 0 0 0.6rem;
+  font-size: 0.9em;
+  opacity: 0.85;
+}
+
 .vms-geo__toolbar {
   display: flex;
   flex-wrap: wrap;

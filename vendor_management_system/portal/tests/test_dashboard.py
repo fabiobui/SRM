@@ -167,7 +167,10 @@ class TestPortalDashboardAlerts:
     def test_requisito_respinto_avvisa_con_link_ai_requisiti(self, client):
         vendor = self._login(client)
         VendorCompetenceFactory(
-            vendor=vendor, document_file="reqs/a.pdf", rejected=True
+            vendor=vendor,
+            document_file="reqs/a.pdf",
+            rejected=True,
+            competence__is_mandatory=True,
         )
 
         html = self._html(client)
@@ -178,12 +181,15 @@ class TestPortalDashboardAlerts:
 
     def test_requisito_da_caricare_o_scaduto_avvisa(self, client):
         vendor = self._login(client)
-        VendorCompetenceFactory(vendor=vendor, document_file="")
+        VendorCompetenceFactory(
+            vendor=vendor, document_file="", competence__is_mandatory=True
+        )
         VendorCompetenceFactory(
             vendor=vendor,
             document_file="reqs/a.pdf",
             verified=True,
             expiry_date=timezone.now().date() - timedelta(days=1),
+            competence__is_mandatory=True,
         )
 
         html = self._html(client)
@@ -191,6 +197,24 @@ class TestPortalDashboardAlerts:
         assert "Vai ai requisiti" in html
         assert "da caricare" in html
         assert "scaduto/i" in html
+
+    def test_facoltativi_non_generano_avvisi(self, client):
+        vendor = self._login(client)
+        DocumentFactory(
+            vendor=vendor,
+            status="REJECTED",
+            document_type__is_required=False,
+        )
+        VendorCompetenceFactory(
+            vendor=vendor,
+            document_file="",
+            competence__is_mandatory=False,
+        )
+
+        html = self._html(client)
+
+        assert "Vai ai documenti" not in html
+        assert "Vai ai requisiti" not in html
 
     def test_nessun_avviso_se_e_tutto_a_posto(self, client):
         vendor = self._login(client)

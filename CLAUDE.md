@@ -67,9 +67,11 @@ l'overview completa e il setup locale (Docker o nativo).
 
 ## Ambiente Python
 
-- Gestione dipendenze via **pip**, **un solo file**: `requirements.txt` — **non uv**. Contiene sia le dipendenze
-  di produzione sia il tooling di sviluppo (ruff, pre-commit, requests), in una sezione separata in fondo al
-  file (innocuo avere quei pacchetti anche in produzione).
+- Gestione dipendenze: **un solo file**, `requirements.txt` (niente `pyproject.toml`/lockfile di uv). In locale
+  si installa con **pip**; sulle VM di test e produzione con **uv** (`uv pip install --python .venv/bin/python
+  -r requirements.txt`, vedi [docs/DEPLOY.md](docs/DEPLOY.md)). Contiene sia le dipendenze di produzione sia il
+  tooling di sviluppo (ruff, pre-commit, requests), in una sezione separata in fondo al file (innocuo avere
+  quei pacchetti anche in produzione).
 - **Usa Python 3.12** (`py install 3.12` se il launcher `py` non lo trova già — vedi l'errore "No runtime
   installed that matches 3.12"), la stessa versione della VM di produzione (Python 3.12.7). Su Python 3.13
   alcuni pin non hanno wheel Windows disponibili (vedi punto sotto) e andrebbero aggiornati caso per caso.

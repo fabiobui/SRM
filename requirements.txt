@@ -75,6 +75,8 @@ prompt_toolkit==3.0.45
 pyasn1==0.6.1
 pyasn1_modules==0.4.2
 pycparser==2.22
+pypdfium2==4.30.0
+pytesseract==0.3.13
 pytest==8.2.1
 pytest-django==4.8.0
 pytest-sugar==1.0.0

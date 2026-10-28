@@ -18,6 +18,7 @@ from import_export import resources
 from import_export.admin import ImportExportModelAdmin
 
 # Import Document and DocumentCatalog from documents app
+from vendor_management_system.documents.date_extraction import suggested_dates
 from vendor_management_system.documents.models import (
     VALIDITY_STATUS_META,
     Document,
@@ -291,6 +292,10 @@ class VendorCompetenceInline(admin.TabularInline):
     verbose_name_plural = _("Abilitazioni e Requisiti Professionali")
     fields = [
         "competence",
+        "is_competenza",
+        "is_qualifica",
+        "is_iscrizione_albo",
+        "has_certification",
         "certification_number",
         "issue_date",
         "expiry_date",
@@ -298,8 +303,7 @@ class VendorCompetenceInline(admin.TabularInline):
         "document_file",
         "document_link",
     ]
-    # Competenza, Qualifica, Iscrizione Albo, Possiede Certificazione e
-    # Verificata restano a DB ma non compaiono più in admin.
+    # "Verificata" resta a DB ma non compare in admin.
     readonly_fields = [
         "expiry_status_display",
         "document_link",
@@ -437,12 +441,20 @@ class VendorCompetenceAdmin(admin.ModelAdmin):
         "vendor",
         "competence",
         "has_competence",
+        "is_competenza",
+        "is_qualifica",
+        "is_iscrizione_albo",
+        "has_certification",
         "issue_date",
         "expiry_date",
         "expiry_status_badge",
     ]
     list_filter = [
         "has_competence",
+        "is_competenza",
+        "is_qualifica",
+        "is_iscrizione_albo",
+        "has_certification",
         "competence__competence_category",
         "expiry_date",
     ]
@@ -467,6 +479,17 @@ class VendorCompetenceAdmin(admin.ModelAdmin):
         (
             _("Relazione"),
             {"fields": ("vendor", "competence", "has_competence")},
+        ),
+        (
+            _("Tipo Requisito"),
+            {
+                "fields": (
+                    "is_competenza",
+                    "is_qualifica",
+                    "is_iscrizione_albo",
+                    "has_certification",
+                )
+            },
         ),
         (
             _("Dettagli Certificazione"),
@@ -1274,6 +1297,11 @@ class VendorAdmin(admin.ModelAdmin):
                 name="vendors_vendor_competence_validity",
             ),
             path(
+                "extract-dates/",
+                self.admin_site.admin_view(self.extract_dates_view),
+                name="vendors_vendor_extract_dates",
+            ),
+            path(
                 "embyon-search/",
                 self.admin_site.admin_view(self.embyon_search_view),
                 name="vendors_vendor_embyon_search",
@@ -1495,6 +1523,13 @@ class VendorAdmin(admin.ModelAdmin):
 
         return JsonResponse({"results": results})
 
+    def extract_dates_view(self, request):
+        """POST di un file → date di rilascio/scadenza lette con OCR, per
+        pre-compilare le righe Documenti e Abilitazioni. Non salva nulla."""
+        if request.method != "POST":
+            return JsonResponse({"error": "POST richiesto"}, status=405)
+        return JsonResponse(suggested_dates(request.FILES.get("file")))
+
     def document_type_validity_view(self, request):
         """Restituisce, per ogni tipo di documento attivo, la durata di
         validità in giorni (validity_period_days). Usato dal JS che
@@ -1654,6 +1689,7 @@ class VendorAdmin(admin.ModelAdmin):
             "admin/js/competence_set_applier.js",
             "admin/js/service_set_applier.js",
             "admin/js/document_expiry_calc.js",
+            "admin/js/ocr_dates_admin.js",
             "admin/js/embyon_search.js",
             "admin/js/vendor_duplicate_check.js",
         )

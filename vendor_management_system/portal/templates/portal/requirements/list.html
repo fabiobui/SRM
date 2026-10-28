@@ -29,12 +29,16 @@
 </div>
 {% endif %}
 
-{% if pending_reqs %}
-<h5 class="text-danger mb-3"><i class="fas fa-cloud-upload-alt"></i> Da caricare ({{ pending_reqs|length }})</h5>
+{% for group in pending_groups %}
+{% if group.mandatory %}
+<h5 class="text-danger mb-3"><i class="fas fa-exclamation-circle"></i> Obbligatori da caricare ({{ group.items|length }})</h5>
+{% else %}
+<h5 class="text-secondary mb-3"><i class="fas fa-cloud-upload-alt"></i> Facoltativi da caricare ({{ group.items|length }})</h5>
+{% endif %}
 <div class="row g-3 mb-4">
-    {% for r in pending_reqs %}
+    {% for r in group.items %}
     <div class="col-lg-6">
-        <div class="card doc-card h-100 border-danger">
+        <div class="card doc-card h-100 {% if group.mandatory %}border-danger{% else %}border-secondary{% endif %}">
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-start mb-2">
                     <div>
@@ -44,6 +48,7 @@
                         {% endif %}
                         <div class="my-2">
                             <span class="badge badge-status-PENDING">Documento da caricare</span>
+                            {% if group.mandatory %}<span class="badge bg-danger">Obbligatorio</span>{% else %}<span class="badge bg-secondary">Facoltativo</span>{% endif %}
                         </div>
                         {% if r.competence.description %}
                         <small class="text-muted d-block">{{ r.competence.description|truncatechars:120 }}</small>
@@ -70,7 +75,7 @@
     </div>
     {% endfor %}
 </div>
-{% endif %}
+{% endfor %}
 
 {% if submitted_reqs %}
 <h5 class="text-muted mb-3"><i class="fas fa-list"></i> Requisiti documentati ({{ submitted_reqs|length }})</h5>

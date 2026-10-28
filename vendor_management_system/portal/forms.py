@@ -525,15 +525,21 @@ class VendorServiceAddRequestForm(forms.Form):
         required=False,
     )
     start_date = forms.DateField(
-        label=_("Data inizio erogazione"),
+        label=_("Data inizio erogazione (facoltativo)"),
         required=False,
+        help_text=_(
+            "Facoltativo: non è necessaria, compilala solo se la conosci."
+        ),
         widget=forms.DateInput(
             attrs={"class": "form-control", "type": "date"}
         ),
     )
     end_date = forms.DateField(
-        label=_("Data fine erogazione"),
+        label=_("Data fine erogazione (facoltativo)"),
         required=False,
+        help_text=_(
+            "Facoltativo: non è necessaria, compilala solo se la conosci."
+        ),
         widget=forms.DateInput(
             attrs={"class": "form-control", "type": "date"}
         ),
