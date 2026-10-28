@@ -53,6 +53,9 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
   libssl-dev \
   # Translations dependencies.
   gettext \
+  # OCR delle date dai documenti caricati (pytesseract, lingua italiana).
+  tesseract-ocr \
+  tesseract-ocr-ita \
   # Clean up unused files to reduce image size.
   && apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false \
   && rm -rf /var/lib/apt/lists/*

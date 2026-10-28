@@ -11,6 +11,36 @@ alla produzione vedi la tabella in fondo.
 - Accesso SSH alla VM di test.
 - Il repo è già clonato con un venv Python in `.venv/` e un `.env` già configurato — il pull non li tocca
   (`.env` è escluso da git).
+- [uv](https://docs.astral.sh/uv/) installato sulla VM (vedi sotto): le dipendenze si installano con `uv`
+  al posto di `pip`.
+- Tesseract con il pacchetto lingua italiana (vedi sotto): serve alla lettura automatica delle date dai
+  documenti caricati.
+
+### Installare uv (una tantum per VM)
+
+Se `uv --version` risponde, salta questo passaggio. Altrimenti, con l'utente che gestisce il repo
+(`ubuntu` su test, `redmine` in produzione):
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+source $HOME/.local/bin/env        # oppure riapri la sessione SSH
+uv --version
+```
+
+`uv` si installa in `~/.local/bin` e non tocca il Python di sistema. Il venv `.venv/` già presente resta
+quello in uso: `uv` ci installa dentro i pacchetti, vedi il comando nella procedura. Non serve ricrearlo,
+purché usi Python 3.12 (`.venv/bin/python --version`).
+
+### Installare Tesseract (una tantum per VM)
+
+Le pagine di upload dei documenti leggono le date con Tesseract. Senza, l'app funziona ugualmente ma le date
+non vengono pre-compilate:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y tesseract-ocr tesseract-ocr-ita
+tesseract --list-langs             # deve elencare "ita"
+```
 
 ## Procedura
 
@@ -28,14 +58,15 @@ alla cieca.
 ```bash
 git checkout master
 git pull origin master
-.venv/bin/pip install -r requirements.txt
+uv pip install --python .venv/bin/python -r requirements.txt
 .venv/bin/python manage.py migrate
 ```
 
-Usa sempre il binario dentro `.venv/bin/` esplicitamente (non `source .venv/bin/activate` + `pip`/`python` nudi):
-su Ubuntu il Python di sistema è "externally managed" (PEP 668) e rifiuta `pip install` con
-`error: externally-managed-environment` — capita se questi comandi finiscono per essere eseguiti in una shell/
-sessione SSH diversa da quella in cui hai fatto `source`, dove il venv non risulta più attivo.
+Indica sempre il Python del venv esplicitamente (`--python .venv/bin/python` per `uv`, `.venv/bin/python` per
+`manage.py`), senza affidarti a `source .venv/bin/activate`: su Ubuntu il Python di sistema è "externally
+managed" (PEP 668) e rifiuta di installare pacchetti — capita se i comandi finiscono per essere eseguiti in una
+shell/sessione SSH diversa da quella in cui hai fatto `source`, dove il venv non risulta più attivo. Con
+`--python` `uv` installa sempre nel venv indicato.
 
 Aggiorna anche i dati di riferimento (tipi documento, requisiti/servizi, e i set che li raggruppano per
 categoria fornitore — vedi [PROJECT_OVERVIEW_AND_LOCAL_SETUP.md, §9](PROJECT_OVERVIEW_AND_LOCAL_SETUP.md) per

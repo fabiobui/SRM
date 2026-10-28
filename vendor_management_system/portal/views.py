@@ -11,7 +11,7 @@ Convenzioni:
 
 from django.contrib import messages
 from django.db.models import Count, Q
-from django.http import HttpResponseRedirect
+from django.http import HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -26,6 +26,7 @@ from vendor_management_system.core.permissions import (
     BackOfficeRequiredMixin,
     VendorRequiredMixin,
 )
+from vendor_management_system.documents.date_extraction import suggested_dates
 from vendor_management_system.documents.models import Document
 from vendor_management_system.vendors.competence import (
     current_selection,
@@ -72,6 +73,30 @@ def _vendor_documents_qs(vendor):
 # --- area fornitore ---------------------------------------------------------
 
 
+def _profile_requests_qs():
+    """Richieste di sola anagrafica (EDIT sul Vendor). Complementare a
+    `_service_requests_qs()`: ogni richiesta sta in uno solo dei due
+    insiemi."""
+    return VendorChangeRequest.objects.filter(
+        request_type=VendorChangeRequest.REQUEST_TYPE_EDIT,
+        vendor_service__isnull=True,
+        service_type__isnull=True,
+    )
+
+
+def _split_mandatory(items, is_mandatory):
+    """Divide gli elementi "da caricare" in gruppi per il template: prima gli
+    obbligatori, poi i facoltativi. I gruppi vuoti vengono omessi."""
+    groups = [
+        {"mandatory": True, "items": [i for i in items if is_mandatory(i)]},
+        {
+            "mandatory": False,
+            "items": [i for i in items if not is_mandatory(i)],
+        },
+    ]
+    return [g for g in groups if g["items"]]
+
+
 class PortalDashboardView(VendorRequiredMixin, TemplateView):
     """Home del portale fornitore: KPI sintetici e link rapidi alle aree."""
 
@@ -103,11 +128,11 @@ class PortalDashboardView(VendorRequiredMixin, TemplateView):
 
         # Solo le richieste anagrafica (non quelle sui servizi): il badge
         # KPI vive sotto la card "Anagrafica" del dashboard.
-        pending_change_requests = VendorChangeRequest.objects.filter(
-            vendor=vendor,
-            vendor_service__isnull=True,
-            status=VendorChangeRequest.STATUS_PENDING,
-        ).count()
+        pending_change_requests = (
+            _profile_requests_qs()
+            .filter(vendor=vendor, status=VendorChangeRequest.STATUS_PENDING)
+            .count()
+        )
 
         # Requisiti professionali assegnati senza documento caricato.
         requirements = _vendor_competences_qs(vendor)
@@ -142,30 +167,43 @@ class PortalDashboardView(VendorRequiredMixin, TemplateView):
             "rejected": requirements.filter(rejected=True).count(),
         }
 
-        # Avvisi in cima alla home, uno per area con il suo link: il
-        # fornitore deve accorgersi di cosa è da caricare, respinto o in
-        # scadenza senza aprire ogni singolo record.
-        requirements_expiring_count = sum(
-            1 for r in requirements if r.expiry_status == "EXPIRING_SOON"
+        # Avvisi in cima alla home, uno per area con il suo link. Contano solo
+        # documenti/requisiti obbligatori: i facoltativi restano nelle liste
+        # ma non allarmano la home.
+        mandatory_docs = documents.filter(document_type__is_required=True)
+        mandatory_reqs = requirements.filter(competence__is_mandatory=True)
+        mandatory_reqs_missing_doc = Q(document_file="") | Q(
+            document_file__isnull=True
         )
         docs_alert = {
-            "to_upload": to_upload_count,
-            "rejected": rejected_count,
-            "expired": expired_count,
-            "expiring": expiring_count,
+            "to_upload": mandatory_docs.filter(status="PENDING").count(),
+            "rejected": mandatory_docs.filter(status="REJECTED").count(),
+            "expired": mandatory_docs.filter(status="EXPIRED").count(),
+            "expiring": sum(
+                1
+                for d in mandatory_docs.filter(
+                    status__in=["APPROVED", "UPLOADED"]
+                )
+                if d.is_expiring_soon and not d.is_expired
+            ),
         }
         reqs_alert = {
-            "to_upload": requirements_to_upload_count,
-            "rejected": req_stats["rejected"],
-            "expired": req_stats["expired"],
-            "expiring": requirements_expiring_count,
+            "to_upload": mandatory_reqs.filter(
+                mandatory_reqs_missing_doc
+            ).count(),
+            "rejected": mandatory_reqs.filter(rejected=True).count(),
+            "expired": mandatory_reqs.filter(
+                expiry_date__isnull=False,
+                expiry_date__lt=timezone.now().date(),
+            ).count(),
+            "expiring": sum(
+                1 for r in mandatory_reqs if r.expiry_status == "EXPIRING_SOON"
+            ),
         }
 
-        def _change_request_stats(vendor_service_isnull):
+        def _change_request_stats(requests_qs):
             counts = dict(
-                VendorChangeRequest.objects.filter(
-                    vendor=vendor, vendor_service__isnull=vendor_service_isnull
-                )
+                requests_qs.filter(vendor=vendor)
                 .values("status")
                 .annotate(total=Count("id"))
                 .values_list("status", "total")
@@ -176,8 +214,8 @@ class PortalDashboardView(VendorRequiredMixin, TemplateView):
                 "rejected": counts.get(VendorChangeRequest.STATUS_REJECTED, 0),
             }
 
-        anagrafica_stats = _change_request_stats(vendor_service_isnull=True)
-        servizi_stats = _change_request_stats(vendor_service_isnull=False)
+        anagrafica_stats = _change_request_stats(_profile_requests_qs())
+        servizi_stats = _change_request_stats(_service_requests_qs())
 
         ctx.update(
             {
@@ -240,12 +278,29 @@ class MyDocumentsView(VendorRequiredMixin, ListView):
         ctx.update(
             {
                 "vendor": vendor,
+                "pending_groups": _split_mandatory(
+                    pending_docs, lambda d: d.document_type.is_required
+                ),
                 "pending_docs": pending_docs,
                 "submitted_docs": submitted_docs,
                 "expiring_docs": expiring_docs,
             }
         )
         return ctx
+
+
+class ExtractDocumentDatesView(VendorRequiredMixin, View):
+    """POST di un file → date di rilascio/scadenza lette con OCR.
+
+    Non salva nulla: restituisce solo un suggerimento (ISO o null) con cui il
+    form di upload pre-compila i campi data vuoti. Usato da documenti e
+    requisiti.
+    """
+
+    http_method_names = ["post"]
+
+    def post(self, request, *args, **kwargs):
+        return JsonResponse(suggested_dates(request.FILES.get("file")))
 
 
 class MyDocumentUploadView(VendorRequiredMixin, View):
@@ -402,6 +457,9 @@ class MyRequirementsView(VendorRequiredMixin, ListView):
         ctx.update(
             {
                 "vendor": vendor,
+                "pending_groups": _split_mandatory(
+                    pending, lambda r: r.competence.is_mandatory
+                ),
                 "pending_reqs": pending,
                 "submitted_reqs": submitted,
                 "expiring_reqs": expiring,
@@ -626,7 +684,7 @@ class VendorServiceChangeRequestCreateView(VendorRequiredMixin, View):
             "Richiesta di modifica inviata. "
             "Il back-office la valuterà a breve.",
         )
-        return redirect("portal:my-change-requests")
+        return redirect(f"{reverse('portal:my-change-requests')}?tipo=servizi")
 
 
 class VendorServiceAddRequestCreateView(VendorRequiredMixin, View):
@@ -667,7 +725,7 @@ class VendorServiceAddRequestCreateView(VendorRequiredMixin, View):
             "Richiesta di aggiunta servizio inviata. "
             "Il back-office la valuterà a breve.",
         )
-        return redirect("portal:my-change-requests")
+        return redirect(f"{reverse('portal:my-change-requests')}?tipo=servizi")
 
 
 class VendorServiceDeleteRequestCreateView(VendorRequiredMixin, View):
@@ -728,7 +786,7 @@ class VendorServiceDeleteRequestCreateView(VendorRequiredMixin, View):
             "Richiesta di eliminazione inviata. "
             "Il back-office la valuterà a breve.",
         )
-        return redirect("portal:my-change-requests")
+        return redirect(f"{reverse('portal:my-change-requests')}?tipo=servizi")
 
 
 # --- attributi operativi -----------------------------------------------------
@@ -787,11 +845,11 @@ class MyVendorProfileView(VendorRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         vendor = self.request.user.vendor
-        pending = VendorChangeRequest.objects.filter(
-            vendor=vendor,
-            vendor_service__isnull=True,
-            status=VendorChangeRequest.STATUS_PENDING,
-        ).first()
+        pending = (
+            _profile_requests_qs()
+            .filter(vendor=vendor, status=VendorChangeRequest.STATUS_PENDING)
+            .first()
+        )
         selezione = current_selection(vendor)
         ctx.update(
             {
@@ -817,11 +875,11 @@ class VendorChangeRequestCreateView(VendorRequiredMixin, View):
     template_name = "portal/profile/change_form.html"
 
     def _has_pending(self, vendor):
-        return VendorChangeRequest.objects.filter(
-            vendor=vendor,
-            vendor_service__isnull=True,
-            status=VendorChangeRequest.STATUS_PENDING,
-        ).exists()
+        return (
+            _profile_requests_qs()
+            .filter(vendor=vendor, status=VendorChangeRequest.STATUS_PENDING)
+            .exists()
+        )
 
     def get(self, request, *args, **kwargs):
         vendor = request.user.vendor
@@ -872,16 +930,36 @@ class VendorChangeRequestCreateView(VendorRequiredMixin, View):
 
 
 class VendorChangeRequestListView(VendorRequiredMixin, ListView):
-    """Storico richieste di modifica anagrafica del proprio fornitore."""
+    """Storico richieste del proprio fornitore, diviso per tipo: anagrafica
+    (default) oppure servizi (`?tipo=servizi`)."""
 
     template_name = "portal/profile/change_requests_list.html"
     context_object_name = "requests"
     paginate_by = 20
 
+    def _tipo(self):
+        return (
+            "servizi"
+            if self.request.GET.get("tipo") == "servizi"
+            else "anagrafica"
+        )
+
     def get_queryset(self):
-        return VendorChangeRequest.objects.filter(
-            vendor=self.request.user.vendor
-        ).select_related("reviewed_by", "requested_by")
+        qs = (
+            _service_requests_qs()
+            if self._tipo() == "servizi"
+            else _profile_requests_qs()
+        )
+        return (
+            qs.filter(vendor=self.request.user.vendor)
+            .select_related("reviewed_by", "requested_by")
+            .order_by("-created_at")
+        )
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["tipo"] = self._tipo()
+        return ctx
 
 
 class MyQualificationView(VendorRequiredMixin, TemplateView):
@@ -906,7 +984,9 @@ def _service_requests_qs():
     tenerle separate dalle richieste di sola anagrafica.
     """
     return VendorChangeRequest.objects.filter(
-        Q(vendor_service__isnull=False) | Q(service_type__isnull=False)
+        Q(vendor_service__isnull=False)
+        | Q(service_type__isnull=False)
+        | ~Q(request_type=VendorChangeRequest.REQUEST_TYPE_EDIT)
     )
 
 
@@ -920,9 +1000,9 @@ class BoChangeRequestListView(BackOfficeRequiredMixin, ListView):
     paginate_by = 25
 
     def get_queryset(self):
-        qs = VendorChangeRequest.objects.filter(
-            vendor_service__isnull=True, service_type__isnull=True
-        ).select_related("vendor", "requested_by", "reviewed_by")
+        qs = _profile_requests_qs().select_related(
+            "vendor", "requested_by", "reviewed_by"
+        )
         status = self.request.GET.get(
             "status", VendorChangeRequest.STATUS_PENDING
         )
@@ -1364,9 +1444,7 @@ class BoDashboardView(BackOfficeRequiredMixin, TemplateView):
         )
         # "Richieste anagrafica" = sole richieste su Vendor (non su servizi,
         # vedi _service_requests_qs — hanno KPI/sezione dedicate sotto).
-        profile_requests_qs = VendorChangeRequest.objects.filter(
-            vendor_service__isnull=True, service_type__isnull=True
-        )
+        profile_requests_qs = _profile_requests_qs()
         ctx["total_change_requests"] = profile_requests_qs.count()
         ctx["change_requests_pending"] = profile_requests_qs.filter(
             status=VendorChangeRequest.STATUS_PENDING

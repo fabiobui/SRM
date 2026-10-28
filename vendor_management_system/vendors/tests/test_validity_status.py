@@ -164,23 +164,25 @@ def test_colonna_portale_attivato():
     assert risultato(attivo) is True
 
 
-CAMPI_NASCOSTI = (
+CAMPI_NASCOSTI = ("verified",)
+CAMPI_TIPO_REQUISITO = (
     "is_competenza",
     "is_qualifica",
     "is_iscrizione_albo",
     "has_certification",
-    "verified",
 )
 
 
-def test_inline_abilitazioni_senza_i_cinque_booleani():
+def test_inline_abilitazioni_mostra_tipo_requisito_senza_verificata():
     inline = VendorCompetenceInline(Vendor, admin.site)
+    for campo in CAMPI_TIPO_REQUISITO:
+        assert campo in inline.fields
     for campo in CAMPI_NASCOSTI:
         assert campo not in inline.fields
         assert campo not in inline.readonly_fields
 
 
-def test_admin_abilitazioni_senza_i_cinque_booleani():
+def test_admin_abilitazioni_mostra_tipo_requisito_senza_verificata():
     model_admin = admin.site._registry[VendorCompetence]
     in_form = {
         campo for _, opts in model_admin.fieldsets for campo in opts["fields"]
@@ -190,9 +192,18 @@ def test_admin_abilitazioni_senza_i_cinque_booleani():
         *model_admin.list_filter,
         *in_form,
     }
+    assert set(CAMPI_TIPO_REQUISITO) <= visibili
     assert not visibili & set(CAMPI_NASCOSTI)
 
 
 def test_inline_documenti_senza_stato_lavorazione():
     inline = DocumentInline(Vendor, admin.site)
     assert "status" not in inline.fields
+
+
+def test_etichetta_in_review_uniformata_in_inglese():
+    from vendor_management_system.documents.models import (
+        VALIDITY_STATUS_META,
+    )
+
+    assert VALIDITY_STATUS_META["IN_REVIEW"][0] == "IN REVIEW"

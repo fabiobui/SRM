@@ -342,6 +342,13 @@
     });
 
     recomputeAll();
+
+    // Il primo territorio con regioni (Italia) parte aperto, cosi' si vede
+    // subito che si puo' scendere nelle singole regioni e province.
+    var primo = root.querySelector('[data-geo-node="country"] [data-geo-twisty]');
+    if (primo) {
+      espandi(primo, true);
+    }
   }
 
   ready(function () {

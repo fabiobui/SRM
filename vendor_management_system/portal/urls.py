@@ -20,6 +20,11 @@ urlpatterns = [
     # dal pk in URL. "aggiungi/" precede `<str:pk>/` per non esserne catturato.
     path("documenti/", views.MyDocumentsView.as_view(), name="my-documents"),
     path(
+        "documenti/estrai-date/",
+        views.ExtractDocumentDatesView.as_view(),
+        name="extract-dates",
+    ),
+    path(
         "documenti/aggiungi/",
         views.MyDocumentAddView.as_view(),
         name="my-document-add",

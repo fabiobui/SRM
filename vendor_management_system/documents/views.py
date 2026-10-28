@@ -144,11 +144,15 @@ class DocumentUploadView(VendorRequiredMixin, View):
         vendor = request.user.vendor
         document_type_id = request.POST.get("document_type")
         file = request.FILES.get("file")
-        issue_date = request.POST.get("issue_date")
-        expiry_date = request.POST.get("expiry_date")
         notes = request.POST.get("notes", "")
 
         try:
+            if not file:
+                raise ValueError("Seleziona un file da caricare.")
+            # Date già come oggetti date (parse_date ritorna None se il
+            # formato non è valido; un valore impossibile solleva ValueError).
+            issue_date = parse_date(request.POST.get("issue_date") or "")
+            expiry_date = parse_date(request.POST.get("expiry_date") or "")
             document_type = get_object_or_404(
                 DocumentCatalog, id=document_type_id
             )
@@ -159,8 +163,8 @@ class DocumentUploadView(VendorRequiredMixin, View):
                 document_type=document_type,
                 defaults={
                     "file": file,
-                    "issue_date": issue_date if issue_date else None,
-                    "expiry_date": expiry_date if expiry_date else None,
+                    "issue_date": issue_date,
+                    "expiry_date": expiry_date,
                     "notes": notes,
                     "status": "UPLOADED",
                 },
@@ -171,8 +175,8 @@ class DocumentUploadView(VendorRequiredMixin, View):
                 # solo "in attesa di revisione" (vedi Document.submit_upload).
                 document.submit_upload(
                     file=file,
-                    issue_date=parse_date(issue_date or ""),
-                    expiry_date=parse_date(expiry_date or ""),
+                    issue_date=issue_date,
+                    expiry_date=expiry_date,
                     notes=notes,
                 )
 
