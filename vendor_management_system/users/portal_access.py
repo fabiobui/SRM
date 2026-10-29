@@ -118,6 +118,31 @@ def create_portal_user(vendor):
     return user
 
 
+def reset_portal_credentials(user, email):
+    """Riparte da un nuovo invito, anche per chi ha già una password.
+
+    Allinea l'email di accesso a quella dell'anagrafica (la vecchia non può
+    più entrare) e rende inutilizzabile la password: questo invalida anche le
+    sessioni aperte e i vecchi link d'invito. Ritorna la vecchia email.
+    """
+    email = (email or "").strip()
+    if not email:
+        raise PortalAccessError(
+            "Il fornitore non ha un'email di contatto: compila il campo "
+            "Email nella scheda prima di reinviare le credenziali."
+        )
+    if User.objects.filter(email__iexact=email).exclude(pk=user.pk).exists():
+        raise PortalAccessError(
+            f"L'email {email} è già usata da un altro utente: non è "
+            "possibile usarla per l'accesso al portale."
+        )
+    old_email = user.email
+    user.email = email
+    user.set_unusable_password()
+    user.save()
+    return old_email
+
+
 def send_portal_invite(user, request):
     """Invia all'utente fornitore l'email con il link "imposta password".
 

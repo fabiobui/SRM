@@ -16,7 +16,9 @@ logger = logging.getLogger(__name__)
 MAX_PAGES = 3
 OCR_LANG = "ita"
 MAX_FILE_SIZE = 20 * 1024 * 1024  # come il limite dei form di upload
-OCR_SCALE = 2  # 2x ≈ 144 dpi, sufficiente per testo a corpo normale
+OCR_SCALE = 2  # 2x ≈ 144 dpi: compromesso tra precisione e tempi di risposta
+# Sotto questa soglia il PDF è considerato una scansione (senza testo utile)
+MIN_NATIVE_CHARS = 50
 
 MESI = {
     "gennaio": 1,
@@ -41,11 +43,16 @@ _DATA = rf"(?:{_DATA_NUMERICA}|{_DATA_ESTESA})"
 # riga o su quella successiva (l'OCR spesso spezza "etichetta: valore").
 _KEYWORD_SCADENZA = (
     r"(?:scadenza|scade|valid[oa]\s+(?:fino|sino)\s+al|valid[oa]\s+al"
-    r"|data\s+di\s+scadenza|validit[àa]\s+fino)"
+    r"|data\s+di\s+scadenza|validit[àa]\s+fino|scade\s+il)"
 )
 _KEYWORD_EMISSIONE = (
-    r"(?:data\s+di\s+(?:emissione|rilascio|decorrenza)|emess[oa]\s+il"
-    r"|rilasciat[oa]\s+il|data\s+emissione|decorrenza|stipulat[oa]\s+il)"
+    r"(?:data\s+di\s+(?:emissione|rilascio|decorrenza)|emess[oa]\s+(?:il|in\s+data)"
+    r"|rilasciat[oa]\s+(?:il|in\s+data)|data\s+emissione|decorrenza"
+    r"|stipulat[oa]\s+il|in\s+vigore\s+dal|emissione|rilascio)"
+)
+# "Valido dal 01/01/2025 al 31/12/2025": un'unica frase con entrambe le date
+_PERIODO = re.compile(
+    rf"valid[oa]\s+dal\s+{_DATA}\s+al\s+{_DATA}", re.IGNORECASE
 )
 
 
@@ -59,12 +66,15 @@ def _build_date(giorno, mese, anno):
         return None
 
 
-def _parse_match(match):
-    """Converte un match di `_DATA` (numerica o estesa) in `date`."""
-    g = match.groups()
+def _parse_groups(g):
+    """Converte i 6 gruppi di `_DATA` (numerica o estesa) in `date`."""
     if g[0] is not None:
         return _build_date(g[0], g[1], g[2])
     return _build_date(g[3], MESI[g[4]], g[5])
+
+
+def _parse_match(match):
+    return _parse_groups(match.groups())
 
 
 def _first_date_after(keyword_pattern, text):
@@ -89,17 +99,39 @@ def extract_dates_from_text(text):
     """
     issue = _first_date_after(_KEYWORD_EMISSIONE, text or "")
     expiry = _first_date_after(_KEYWORD_SCADENZA, text or "")
+    periodo = _PERIODO.search(text or "")
+    if periodo:
+        groups = periodo.groups()
+        issue = issue or _parse_groups(groups[:6])
+        expiry = expiry or _parse_groups(groups[6:])
     if issue and expiry and expiry < issue:
         return {"issue_date": None, "expiry_date": None}
     return {"issue_date": issue, "expiry_date": expiry}
 
 
-def _images_from_file(file_obj, filename):
-    """Immagini PIL (max MAX_PAGES) dal file caricato: PDF o immagine."""
+def _is_pdf(content, filename):
+    return (filename or "").lower().endswith(".pdf") or content[:4] == b"%PDF"
+
+
+def _pdf_native_text(content):
+    """Testo incorporato nelle prime pagine del PDF (vuoto se scansione)."""
+    import pypdfium2
+
+    pdf = pypdfium2.PdfDocument(content)
+    try:
+        return "\n".join(
+            pdf[index].get_textpage().get_text_range()
+            for index in range(min(len(pdf), MAX_PAGES))
+        )
+    finally:
+        pdf.close()
+
+
+def _images_from_content(content, filename):
+    """Immagini PIL (max MAX_PAGES) dal contenuto: PDF o immagine."""
     from PIL import Image
 
-    content = file_obj.read()
-    if (filename or "").lower().endswith(".pdf") or content[:4] == b"%PDF":
+    if _is_pdf(content, filename):
         import pypdfium2
 
         pdf = pypdfium2.PdfDocument(content)
@@ -113,23 +145,40 @@ def _images_from_file(file_obj, filename):
 
 
 def read_text(file_obj, filename=""):
-    """Testo OCR del file; stringa vuota se Tesseract non è disponibile o il
-    file non è leggibile (il suggerimento delle date è facoltativo)."""
+    """Testo del file: quello incorporato nei PDF digitali, altrimenti OCR.
+
+    Ritorna None se la lettura fallisce (Tesseract o lingua mancanti, file
+    illeggibile), per distinguerlo da un documento senza testo ("")."""
     try:
+        content = file_obj.read()
+        if _is_pdf(content, filename):
+            native = _pdf_native_text(content)
+            if len(native.strip()) >= MIN_NATIVE_CHARS:
+                return native
         import pytesseract
 
         return "\n".join(
             pytesseract.image_to_string(image, lang=OCR_LANG)
-            for image in _images_from_file(file_obj, filename)
+            for image in _images_from_content(content, filename)
         )
     except Exception:
         logger.warning("OCR date non riuscito per %s", filename, exc_info=True)
-        return ""
+        return None
 
 
 def extract_dates(file_obj, filename=""):
-    """Date suggerite per un file caricato (vedi `extract_dates_from_text`)."""
-    return extract_dates_from_text(read_text(file_obj, filename))
+    """Date suggerite per un file caricato (vedi `extract_dates_from_text`).
+
+    Se la lettura fallisce aggiunge `error`, così la UI può dirlo
+    all'utente invece di mostrare "nessuna data"."""
+    text = read_text(file_obj, filename)
+    if text is None:
+        return {
+            "issue_date": None,
+            "expiry_date": None,
+            "error": "ocr_non_riuscito",
+        }
+    return extract_dates_from_text(text)
 
 
 def suggested_dates(upload):
@@ -139,5 +188,8 @@ def suggested_dates(upload):
     dates = {"issue_date": None, "expiry_date": None}
     if upload and upload.size <= MAX_FILE_SIZE:
         found = extract_dates(upload, upload.name)
-        dates = {k: v.isoformat() if v else None for k, v in found.items()}
+        dates = {
+            k: v.isoformat() if hasattr(v, "isoformat") else v
+            for k, v in found.items()
+        }
     return dates

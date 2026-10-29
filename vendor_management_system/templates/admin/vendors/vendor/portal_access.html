@@ -42,9 +42,17 @@
             <tr><th>Email</th><th>Nome</th><th>Stato</th><th></th></tr>
           </thead>
           <tbody>
-            {% for portal_user, pending in portal_users %}
+            {% for portal_user, pending, email_differs, can_reset in portal_users %}
               <tr>
-                <td>{{ portal_user.email }}</td>
+                <td>
+                  {{ portal_user.email }}
+                  {% if email_differs %}
+                    <div class="small text-warning">
+                      <i class="fas fa-exclamation-triangle"></i>
+                      Diversa dall'email dell'anagrafica ({{ original.email }})
+                    </div>
+                  {% endif %}
+                </td>
                 <td>{{ portal_user.name|default:"-" }}</td>
                 <td>
                   {% if not portal_user.is_active %}
@@ -56,7 +64,16 @@
                   {% endif %}
                 </td>
                 <td class="text-right text-nowrap">
-                  {% if pending and portal_user.is_active %}
+                  {% if can_reset %}
+                    <form method="post" class="d-inline" onsubmit="return confirm('La password attuale verrà annullata e verrà inviato un nuovo invito a {{ original.email|escapejs }}. Continuare?');">{% csrf_token %}
+                      <input type="hidden" name="action" value="reset">
+                      <input type="hidden" name="user" value="{{ portal_user.pk }}">
+                      <button type="submit" class="btn btn-sm text-nowrap {{ jazzmin_ui.button_classes.danger }}">
+                        <i class="fas fa-key"></i>
+                        {% if email_differs %}Aggiorna email e reinvia credenziali{% else %}Reinvia credenziali{% endif %}
+                      </button>
+                    </form>
+                  {% elif pending and portal_user.is_active %}
                     <form method="post" class="d-inline">{% csrf_token %}
                       <input type="hidden" name="action" value="resend">
                       <input type="hidden" name="user" value="{{ portal_user.pk }}">

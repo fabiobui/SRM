@@ -7,8 +7,8 @@ la suite completa (Docker + MySQL reale), che resta il source of truth prima
 di un merge.
 
 Uso:
-    python scripts/run_fast_tests.py
-    python scripts/run_fast_tests.py vendor_management_system/vendors
+    uv run python scripts/run_fast_tests.py
+    uv run python scripts/run_fast_tests.py vendor_management_system/vendors
 """
 
 import os

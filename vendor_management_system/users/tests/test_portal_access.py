@@ -12,6 +12,7 @@ from vendor_management_system.users.models import User
 from vendor_management_system.users.portal_access import (
     PortalAccessError,
     create_portal_user,
+    reset_portal_credentials,
     send_portal_invite,
 )
 from vendor_management_system.vendors.tests.factories import VendorFactory
@@ -104,3 +105,32 @@ def test_email_redirect_replaces_recipients(settings):
     assert message.subject.startswith(f"[REDIRECT → {VENDOR_EMAIL}]")
     assert f"Destinatario originale: {VENDOR_EMAIL}" in message.body
     assert "Ambiente di prova" in message.alternatives[0][0]
+
+
+@pytest.mark.django_db
+def test_reset_portal_credentials_moves_email_and_clears_password():
+    vendor = _vendor()
+    user = create_portal_user(vendor)
+    user.set_password("vecchia-password-1234")
+    user.save()
+
+    old_email = reset_portal_credentials(user, "nuova-mail@example.invalid")
+
+    user.refresh_from_db()
+    assert old_email == VENDOR_EMAIL
+    assert user.email == "nuova-mail@example.invalid"
+    assert not user.has_usable_password()
+
+
+@pytest.mark.django_db
+def test_reset_portal_credentials_rejects_email_of_another_user():
+    user = create_portal_user(_vendor())
+    User.objects.create_user(
+        email="occupata@example.invalid", password="x", role="bo_user"
+    )
+
+    with pytest.raises(PortalAccessError, match="già usata"):
+        reset_portal_credentials(user, "OCCUPATA@example.invalid")
+
+    user.refresh_from_db()
+    assert user.email == VENDOR_EMAIL

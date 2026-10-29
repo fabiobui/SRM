@@ -19,9 +19,9 @@ Lo script è IDEMPOTENTE e non distruttivo salvo un caso esplicito e sicuro
   - 0006 non applicata, solo la
     tabella principale con DATI    -> si ferma e chiede intervento manuale.
 
-Uso (dalla root del repo, dentro la venv; --dry-run mostra solo la diagnosi):
-    python data_migration_scripts/fix_documentset_migration.py
-    python data_migration_scripts/fix_documentset_migration.py --dry-run
+Uso (dalla root del repo; --dry-run mostra solo la diagnosi):
+    uv run python data_migration_scripts/fix_documentset_migration.py
+    uv run python data_migration_scripts/fix_documentset_migration.py --dry-run
 
 Dopo l'esecuzione lancia comunque:
     python manage.py migrate

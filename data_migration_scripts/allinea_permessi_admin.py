@@ -17,9 +17,9 @@ azione: add/change/delete/view) sul modello nuovo. Non toglie mai nulla.
 
 È IDEMPOTENTE. Con --dry-run esegue tutto e annulla la transazione.
 
-Uso (dalla root del repo, dentro la venv):
-    python data_migration_scripts/allinea_permessi_admin.py --dry-run
-    python data_migration_scripts/allinea_permessi_admin.py
+Uso (dalla root del repo):
+    uv run python data_migration_scripts/allinea_permessi_admin.py --dry-run
+    uv run python data_migration_scripts/allinea_permessi_admin.py
 """
 
 import argparse

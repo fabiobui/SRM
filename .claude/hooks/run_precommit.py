@@ -1,10 +1,9 @@
 """PostToolUse hook: run pre-commit on the file Claude just wrote/edited.
 
 Reads the tool-call JSON from stdin, extracts the touched file path, and runs
-`pre-commit run --files <path>` on it (via the same Python interpreter that
-ran this hook, so it picks up whatever environment `python`/`pre-commit` is
-installed into). Failures are surfaced back to Claude via additionalContext
-so they can be fixed inline, without blocking the turn.
+`uv run pre-commit run --files <path>` on it (uv gestisce l'ambiente del
+progetto: niente venv da attivare). Failures are surfaced back to Claude
+via additionalContext so they can be fixed inline, without blocking the turn.
 """
 
 import json
@@ -29,7 +28,7 @@ def main() -> None:
 
     try:
         result = subprocess.run(
-            [sys.executable, "-m", "pre_commit", "run", "--files", file_path],
+            ["uv", "run", "pre-commit", "run", "--files", file_path],
             cwd=project_dir,
             capture_output=True,
             text=True,

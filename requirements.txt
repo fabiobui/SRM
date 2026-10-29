@@ -1,23 +1,11 @@
-# Reconstructed from the production venv's `pip freeze` (Ubuntu 24.10 VM, Python 3.12.7,
-# /home/redmine/SRM/.venv) on 2026-09-15. The previous requirements.txt was a stray
-# `pip freeze` of the VM's *system* Python (dbus-python, PyGObject, launchpadlib, etc.) and
-# was missing Django itself plus most of the app's real dependencies — it could not boot.
+# GENERATO da pyproject.toml/uv.lock: non modificarlo a mano.
+# Serve solo al Dockerfile (pip wheel). Per rigenerarlo:
+#   uv export --no-hashes --no-emit-project --no-annotate --no-header -o requirements.txt
+# In locale e sulle VM si usa uv (uv sync / uv run), vedi docs/DEPLOY.md.
 #
-# `mod_wsgi` is intentionally omitted: it's only needed to embed the app inside Apache in
-# production (confirmed via `apache2ctl`/mod_wsgi config on the VM) and requires Apache dev
-# headers to build; local/dev here runs via the Django/Werkzeug dev server instead.
-#
-# Two deliberate deviations from the exact prod pip freeze, both to make this one file
-# installable on native Windows (Python 3.12, matching prod) with zero C build tools:
-#   - mysqlclient bumped 2.2.0 -> 2.2.7 and argon2-cffi-bindings bumped 21.2.0 -> 26.1.0:
-#     same PyPI wheel-only patch-level bump, but the pinned versions above never shipped
-#     Windows wheels for cp312, so pip tried (and failed) to compile them from source.
-#     2.2.7/26.1.0 do ship cp312 win_amd64 wheels. No functional/behavior change.
-#   - django-auth-ldap/python-ldap marked `sys_platform != "win32"`: python-ldap has NEVER
-#     published a Windows wheel (sdist-only, needs the OpenLDAP SDK + a C compiler to build),
-#     so pip skips both on Windows. This is safe because config/settings.py only imports them
-#     when LDAP_ENABLED=True, and local dev always keeps LDAP_ENABLED=False (see CLAUDE.md) —
-#     Linux/Docker/prod (LDAP_ENABLED=True there) still install and use them normally.
+# Deviazioni volute rispetto al pip freeze di produzione: mysqlclient 2.2.7 e
+# argon2-cffi-bindings 26.1.0 (wheel Windows disponibili); python-ldap e
+# django-auth-ldap con marker sys_platform != 'win32' (nessuna wheel Windows).
 amqp==5.2.0
 anyio==4.4.0
 argon2-cffi==23.1.0
@@ -26,16 +14,21 @@ asgiref==3.8.1
 async-timeout==4.0.3
 billiard==4.2.0
 celery==5.4.0
+certifi==2026.10.23
 cffi==1.16.0
+cfgv==3.5.0
+charset-normalizer==3.5.2
 click==8.1.7
 click-didyoumean==0.3.1
 click-plugins==1.1.1
 click-repl==0.3.0
+colorama==0.4.6 ; sys_platform == 'win32'
 cron-descriptor==1.4.3
 defusedxml==0.7.1
 diff-match-patch==20241021
-Django==5.0.6
-django-auth-ldap==5.2.0; sys_platform != "win32"
+distlib==0.4.4
+django==5.0.6
+django-auth-ldap==5.2.0 ; sys_platform != 'win32'
 django-celery-beat==2.6.0
 django-cors-headers==4.3.1
 django-environ==0.11.2
@@ -47,33 +40,38 @@ django-timezone-field==6.1.0
 djangorestframework==3.15.1
 dotenv==0.9.9
 drf-yasg==1.21.7
-et_xmlfile==2.0.0
+et-xmlfile==2.0.0
 exceptiongroup==1.2.1
 factory-boy==3.3.0
-Faker==25.3.0
+faker==25.3.0
+filelock==4.2.4
 flower==2.0.1
 gunicorn==21.2.0
 humanize==4.9.0
+identify==2.6.20
 idna==3.7
 import-export==0.3.1
 inflection==0.5.1
 iniconfig==2.0.0
 kombu==5.3.7
 ldap3==2.9.1
-MarkupPy==1.18
-MarkupSafe==2.1.5
+markuppy==1.18
+markupsafe==2.1.5
 mysqlclient==2.2.7
+nodeenv==1.11.0
 numpy==2.3.4
 odfpy==1.4.1
 openpyxl==3.1.2
 packaging==24.0
 pandas==2.3.3
-Pillow==10.0.1
+pillow==10.0.1
+platformdirs==4.14.0
 pluggy==1.5.0
-prometheus_client==0.20.0
-prompt_toolkit==3.0.45
+pre-commit==4.7.0
+prometheus-client==0.20.0
+prompt-toolkit==3.0.45
 pyasn1==0.6.1
-pyasn1_modules==0.4.2
+pyasn1-modules==0.4.2
 pycparser==2.22
 pypdfium2==4.30.0
 pytesseract==0.3.13
@@ -83,12 +81,15 @@ pytest-sugar==1.0.0
 python-crontab==3.1.0
 python-dateutil==2.9.0.post0
 python-decouple==3.8
+python-discovery==1.6.7
 python-dotenv==1.1.1
-python-ldap==3.4.5; sys_platform != "win32"
+python-ldap==3.4.5 ; sys_platform != 'win32'
 python-slugify==8.0.4
 pytz==2024.1
-PyYAML==6.0.1
+pyyaml==6.0.1
 redis==5.0.4
+requests==2.32.3
+ruff==0.16.6
 setuptools==80.9.0
 six==1.16.0
 sniffio==1.3.1
@@ -98,22 +99,17 @@ termcolor==2.4.0
 text-unidecode==1.3
 tomli==2.0.1
 tornado==6.4
-typing_extensions==4.12.1
+typing-extensions==4.12.1
 tzdata==2024.1
 uritemplate==4.1.1
+urllib3==2.8.0
 vine==5.1.0
+virtualenv==21.14.5
 watchdog==4.0.1
 watchfiles==0.22.0
 wcwidth==0.2.13
-Werkzeug==3.0.3
+werkzeug==3.0.3
 wheel==0.45.1
 whitenoise==6.6.0
 xlrd==2.0.2
 xlwt==1.3.0
-
-# Tooling di sviluppo (lint/format/hook/test), non necessario a runtime in produzione ma
-# innocuo tenerlo installato ovunque: evita un secondo file "requirements-dev.txt" da
-# ricordarsi di installare separatamente. Vedi CLAUDE.md per come sono usati.
-pre-commit>=4.3.0
-requests==2.32.3
-ruff==0.16.6

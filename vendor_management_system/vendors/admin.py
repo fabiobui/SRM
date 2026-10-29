@@ -7,6 +7,7 @@ from django.contrib import admin, messages
 from django.contrib.admin.utils import quote, unquote
 from django.core.exceptions import PermissionDenied
 from django.db.models import Q, TextField
+from django.forms import modelform_factory
 from django.http import Http404, HttpResponseNotAllowed, JsonResponse
 from django.shortcuts import redirect
 from django.template.response import TemplateResponse
@@ -31,6 +32,7 @@ from vendor_management_system.users.portal_access import (
     invite_and_notify,
     pending_invite,
     portal_users,
+    reset_portal_credentials,
 )
 
 from . import fabric_hub
@@ -1019,9 +1021,10 @@ class VendorAdminForm(forms.ModelForm):
     """ModelForm del VendorAdmin con controllo duplicati su Codice Embyon,
     Partita IVA e Codice Fiscale (AIDEV-21).
 
-    Impedisce di salvare un fornitore che ripete uno di questi campi già
-    usato da un'altra anagrafica, indirizzando l'utente (via link) al
-    Codice Fornitore esistente invece di lasciargli creare un doppione.
+    Impedisce di salvare un fornitore che ripete Codice Embyon o Codice
+    Fiscale già usati da un'altra anagrafica, indirizzando l'utente (via
+    link) al Codice Fornitore esistente. La Partita IVA duplicata invece
+    solo avvisa (AIDEV-173): più anagrafiche possono condividerla.
     Il controllo resta a livello di form admin: non introduce vincoli a
     livello di modello/DB, per non impattare gli script di
     ``data_migration_scripts/`` che scrivono direttamente sul modello.
@@ -1105,28 +1108,32 @@ class VendorAdminForm(forms.ModelForm):
             )
         return cleaned
 
-    def _check_duplicate(self, value, label, lookup):
+    def _duplicate_message(self, value, label, lookup):
         from django.urls import reverse
 
         if not value:
-            return value
+            return None
         other = Vendor.objects.filter(**{lookup: value})
         if self.instance.pk:
             other = other.exclude(pk=self.instance.pk)
         other = other.first()
-        if other:
-            url = reverse("admin:vendors_vendor_change", args=[other.pk])
-            raise forms.ValidationError(
-                format_html(
-                    "{} già usato dal fornitore <strong>{}</strong> "
-                    '(<a href="{}" target="_blank" rel="noopener">'
-                    "Codice Fornitore {}</a>).",
-                    label,
-                    other.name or other.vendor_code,
-                    url,
-                    other.pk,
-                )
-            )
+        if not other:
+            return None
+        url = reverse("admin:vendors_vendor_change", args=[other.pk])
+        return format_html(
+            "{} già usato dal fornitore <strong>{}</strong> "
+            '(<a href="{}" target="_blank" rel="noopener">'
+            "Codice Fornitore {}</a>).",
+            label,
+            other.name or other.vendor_code,
+            url,
+            other.pk,
+        )
+
+    def _check_duplicate(self, value, label, lookup):
+        message = self._duplicate_message(value, label, lookup)
+        if message:
+            raise forms.ValidationError(message)
         return value
 
     def clean_old_code(self):
@@ -1137,9 +1144,12 @@ class VendorAdminForm(forms.ModelForm):
         value = self.cleaned_data.get("vat_number")
         if value:
             value = value.strip()
-        return self._check_duplicate(
+        # Una P.IVA può ripetersi (es. Gruppo IVA): non blocca il salvataggio,
+        # l'avviso viene mostrato da VendorAdmin.save_model.
+        self.vat_duplicate_warning = self._duplicate_message(
             value, _("Partita IVA"), "vat_number__iexact"
         )
+        return value
 
     def clean_fiscal_code(self):
         value = self.cleaned_data.get("fiscal_code")
@@ -1250,6 +1260,23 @@ class VendorAdmin(admin.ModelAdmin):
         if not change:
             obj.qualification_status = "PENDING"
         super().save_model(request, obj, form, change)
+        warning = getattr(form, "vat_duplicate_warning", None)
+        if warning:
+            self.message_user(request, warning, messages.WARNING)
+        if change and "email" in getattr(form, "changed_data", ()):
+            stale = [
+                u.email
+                for u in portal_users(obj)
+                if u.email.lower() != (obj.email or "").lower()
+            ]
+            if stale:
+                self.message_user(
+                    request,
+                    f"L'accesso al portale usa ancora {', '.join(stale)}: da "
+                    '"Accesso portale" puoi aggiornarlo e reinviare le '
+                    "credenziali.",
+                    messages.WARNING,
+                )
 
     def get_form(self, request, obj=None, **kwargs):
         # Salva l'oggetto corrente per usarlo negli inline
@@ -1310,6 +1337,11 @@ class VendorAdmin(admin.ModelAdmin):
                 "duplicate-check/",
                 self.admin_site.admin_view(self.duplicate_check_view),
                 name="vendors_vendor_duplicate_check",
+            ),
+            path(
+                "<path:object_id>/salva-contratto/",
+                self.admin_site.admin_view(self.contract_quick_save_view),
+                name="vendors_vendor_contract_save",
             ),
             path(
                 "<path:object_id>/accesso-portale/",
@@ -1397,9 +1429,53 @@ class VendorAdmin(admin.ModelAdmin):
                     return redirect(request.path)
                 invite_and_notify(self, request, user, created=False)
                 return redirect(change_url)
+            if action == "reset":
+                if not request.user.has_perm("users.change_user"):
+                    raise PermissionDenied
+                user = (
+                    portal_users(vendor)
+                    .filter(pk=request.POST.get("user"), is_active=True)
+                    .first()
+                )
+                if user is None or user.is_ldap_user:
+                    self.message_user(
+                        request,
+                        "Reinvio non possibile: utente non trovato, "
+                        "disattivato o autenticato via LDAP.",
+                        messages.ERROR,
+                    )
+                    return redirect(request.path)
+                try:
+                    old_email = reset_portal_credentials(user, vendor.email)
+                except PortalAccessError as exc:
+                    self.message_user(request, str(exc), messages.ERROR)
+                    return redirect(request.path)
+                if old_email.lower() != user.email.lower():
+                    self.message_user(
+                        request,
+                        f"Email di accesso aggiornata da {old_email} a "
+                        f"{user.email}: la vecchia non può più accedere.",
+                        messages.SUCCESS,
+                    )
+                invite_and_notify(self, request, user, created=False)
+                return redirect(change_url)
             return HttpResponseNotAllowed(["GET", "POST"])
 
-        users = [(user, pending_invite(user)) for user in portal_users(vendor)]
+        users = []
+        for user in portal_users(vendor):
+            pending = pending_invite(user)
+            email_differs = bool(
+                vendor.email and user.email.lower() != vendor.email.lower()
+            )
+            # Reset (nuova password + email allineata): per chi ha già una
+            # password, o per un invito in attesa verso una vecchia email.
+            can_reset = bool(
+                user.is_active
+                and vendor.email
+                and not user.is_ldap_user
+                and (not pending or email_differs)
+            )
+            users.append((user, pending, email_differs, can_reset))
         context = {
             **self.admin_site.each_context(request),
             "opts": self.model._meta,
@@ -1529,6 +1605,37 @@ class VendorAdmin(admin.ModelAdmin):
         if request.method != "POST":
             return JsonResponse({"error": "POST richiesto"}, status=405)
         return JsonResponse(suggested_dates(request.FILES.get("file")))
+
+    def contract_quick_save_view(self, request, object_id):
+        """POST dei campi di una riga contratto nuova → la crea subito per il
+        fornitore, senza attendere il salvataggio dell'intera scheda. Il JS
+        poi toglie la riga dal formset, così il submit finale non la
+        duplica (contract_number è unique)."""
+        if request.method != "POST":
+            return JsonResponse({"error": "POST richiesto"}, status=405)
+        vendor = self.get_object(request, unquote(object_id))
+        if vendor is None:
+            return JsonResponse({"error": "Fornitore non trovato"}, status=404)
+        if not (
+            self.has_change_permission(request, vendor)
+            and request.user.has_perm("vendors.add_contract")
+        ):
+            return JsonResponse({"error": "Permesso negato"}, status=403)
+        form = modelform_factory(Contract, fields=ContractInline.fields)(
+            request.POST
+        )
+        if not form.is_valid():
+            return JsonResponse({"errors": form.errors}, status=400)
+        contract = form.save(commit=False)
+        contract.vendor = vendor
+        contract.save()
+        return JsonResponse(
+            {
+                "id": str(contract.pk),
+                "contract_number": contract.contract_number,
+                "title": contract.title,
+            }
+        )
 
     def document_type_validity_view(self, request):
         """Restituisce, per ogni tipo di documento attivo, la durata di
@@ -1684,6 +1791,7 @@ class VendorAdmin(admin.ModelAdmin):
         js = (
             "admin/js/vendor_form_guard.js",
             "admin/js/vendor_inline_trash.js",
+            "admin/js/contract_quick_save.js",
             "admin/js/set_applier_base.js",
             "admin/js/document_set_applier.js",
             "admin/js/competence_set_applier.js",

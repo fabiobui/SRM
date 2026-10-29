@@ -149,7 +149,7 @@ sotto un prefisso `/fornitori` (anche static/media). Lascia questo a `False` per
 - **Link al portale:** nell'email usa `PORTAL_BASE_URL` (vedi `env_example/.env.email.example`). Se vuoto il link
   non compare.
 - **Lancio manuale** (stessa logica del job, utile in locale o dove beat non gira):
-  `python manage.py send_expiry_reminders [--dry-run] [--date YYYY-MM-DD]`.
+  `uv run python manage.py send_expiry_reminders [--dry-run] [--date YYYY-MM-DD]`.
 - **In produzione** il job parte da cron di sistema (utente `redmine`, ogni giorno alle 7:00), non da Celery Beat:
   vedi [DEPLOY.md](DEPLOY.md#celery-e-promemoria-scadenze).
 
@@ -222,8 +222,8 @@ assunzioni precedenti in questo documento.
 6. **Python 3.13** (quello attualmente su questa macchina) è più recente di quello con cui questo progetto è stato
    costruito/testato (l'immagine Docker fissa Python 3.12.3). Django 5.0.x supporta ufficialmente fino a Python
    3.12; le wheel di mysqlclient per la 3.13 potrebbero essere disponibili oppure no. Questo non è un problema per
-   la Track A (Docker fissa il proprio Python). Per la Track B (nativa), crea il venv con **Python 3.12**
-   specificamente, non con qualunque cosa `python` risolva.
+   la Track A (Docker fissa il proprio Python). Per la Track B (nativa), usa **Python 3.12**: `uv sync` lo
+   seleziona da solo (`requires-python` in `pyproject.toml`) e crea l'ambiente.
 7. **Come funziona davvero la produzione — confermato ispezionando direttamente la VM, corregge assunzioni
    precedenti di questo documento.** L'app è deployata **nativamente** (senza Docker) su un host Ubuntu 24.10,
    Python 3.12.7, tramite un venv in `/home/redmine/SRM/.venv` — non `/home/fabio/SRM` come dice
@@ -435,7 +435,7 @@ Verifiche sulla VM (sola lettura, tranne l'invio di prova):
 postconf -n | grep -E 'relayhost|smtp_sasl|smtp_tls_security_level|sender_canonical'
 sudo awk '{split($2,a,":"); print $1, a[1]}' /etc/postfix/sasl_passwd   # casella del relay, senza password
 sudo cat /etc/postfix/sender_canonical   # se presente: non deve riscrivere il mittente di SRM
-python manage.py sendtestemail <tua-email>   # dal venv di SRM: usa DEFAULT_FROM_EMAIL
+python manage.py sendtestemail <tua-email>   # con `uv run`: usa DEFAULT_FROM_EMAIL
 sudo tail -n 20 /var/log/mail.log        # oppure: sudo journalctl -u postfix@- -n 50 (non "postfix.service")
 ```
 
@@ -452,14 +452,8 @@ vede un avviso con l'invito a riprovare.
 
 #### B1 — Procurati il Python giusto
 
-Installa **Python 3.12** se non già presente (Python 3.13 è quello attualmente su questa macchina e non è testato
-con Django 5.0.6 / mysqlclient — non è un problema per la Track A, dato che l'immagine Docker fissa il proprio
-Python). Dalla root del repo:
-```powershell
-py -3.12 -m venv .venv
-.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
-```
+Installa [uv](https://docs.astral.sh/uv/): scarica da solo Python 3.12 (Python 3.13 non è testato con Django
+5.0.6 / mysqlclient) e gestisce l'ambiente, senza `venv` da creare o attivare. Verifica con `uv --version`.
 
 #### B2 — Soddisfa le dipendenze di build native per MySQL + LDAP
 
@@ -478,9 +472,9 @@ Docker.
 #### B3 — Installa le dipendenze Python
 
 ```powershell
-pip install -r requirements.txt
+uv sync
 ```
-(`requirements.txt` ora include `python-dotenv`, `django-auth-ldap`, `python-ldap`, `ldap3` — vedi §7.2.)
+(`pyproject.toml`/`uv.lock` includono `python-dotenv`, `django-auth-ldap`, `python-ldap`, `ldap3` — vedi §7.2.)
 
 #### B4 — Crea e avvia un database MySQL locale
 
@@ -539,8 +533,8 @@ LDAP_ENABLED=False
 #### B7 — Esegui le migrazioni e crea un utente admin
 
 ```powershell
-python manage.py migrate
-python manage.py createsuperuser
+uv run python manage.py migrate
+uv run python manage.py createsuperuser
 ```
 Dai al superuser email/password; un superuser atterra sempre su `/admin/` indipendentemente dal campo `role`.
 (Questo passo `migrate` applica le **migrazioni di schema** proprie di Django — vedi §9 per come questo sia
@@ -550,11 +544,11 @@ diverso dai comandi di seed-data in B8.)
 
 Vedi §9 più sotto per una spiegazione completa di ciascun comando:
 ```powershell
-python manage.py populate_document_types
-python manage.py populate_competences
-python manage.py seed_competence_sets
-python manage.py seed_service_sets
-python manage.py seed_document_sets
+uv run python manage.py populate_document_types
+uv run python manage.py populate_competences
+uv run python manage.py seed_competence_sets
+uv run python manage.py seed_service_sets
+uv run python manage.py seed_document_sets
 ```
 Ci sono anche script di import standalone una-tantum nella root del repo (`import_vendors.py`,
 `import_competenze.py`, `import_servizi.py`, `import_titoli.py`, `import_valutazioni.py`, `import_geography.py` (deprecato, vedi `seed_geography`),
@@ -565,7 +559,7 @@ assumere che sia un seeder generico.
 #### B9 — Avvia il dev server
 
 ```powershell
-python manage.py runserver
+uv run python manage.py runserver
 ```
 Visita `http://localhost:8000/` → reindirizza a `/auth/login/` → accedi con il superuser → atterri su `/admin/`.
 Altri punti di ingresso da provare: `http://localhost:8000/vendors/dashboard/`,
@@ -575,7 +569,7 @@ collegato a un record `Vendor` per essere utile).
 #### B10 — (Opzionale) Esegui worker Celery + beat + Flower
 
 Necessario solo se stai lavorando su task in background / snapshot delle performance storiche. Ciascuno nel suo
-terminale (venv attivato, Redis in esecuzione):
+terminale (comandi con `uv run`, Redis in esecuzione):
 ```powershell
 celery -A config.celery_app worker -l info --pool=solo   # --pool=solo needed on native Windows
 celery -A config.celery_app beat -l info
@@ -673,10 +667,10 @@ scegliere.
 
 | Sintomo | Causa probabile | Soluzione |
 |---|---|---|
-| `ModuleNotFoundError: No module named 'dotenv'` | `python-dotenv` non installato | `pip install -r requirements.txt` (ora lo include — vedi §7.2) |
-| `ModuleNotFoundError: No module named 'ldap'` | `python-ldap` non installato / build fallita | `pip install python-ldap` (vedi Track B, passo 2, se la build fallisce) |
-| `ModuleNotFoundError: No module named 'django_auth_ldap'` | `django-auth-ldap` non installato | `pip install -r requirements.txt` |
-| `ModuleNotFoundError: No module named 'ldap3'` | `ldap3` non installato (usato dal backend ibrido attivo) | `pip install -r requirements.txt` |
+| `ModuleNotFoundError: No module named 'dotenv'` | `python-dotenv` non installato | `uv sync` (ora lo include — vedi §7.2) |
+| `ModuleNotFoundError: No module named 'ldap'` | `python-ldap` non installato / build fallita | `uv sync` (vedi Track B, passo 2, se la build fallisce) |
+| `ModuleNotFoundError: No module named 'django_auth_ldap'` | `django-auth-ldap` non installato | `uv sync` |
+| `ModuleNotFoundError: No module named 'ldap3'` | `ldap3` non installato (usato dal backend ibrido attivo) | `uv sync` |
 | Django non riesce a connettersi a MySQL / `2002, "Can't connect..."` | MySQL non in esecuzione, oppure `DB_HOST`/`DB_PORT` sbagliati in `.env` | Conferma che MySQL sia in esecuzione localmente e che le credenziali corrispondano a Track B, passo 4 |
 
 **Entrambi i percorsi:**

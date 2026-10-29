@@ -9,10 +9,9 @@ alla produzione vedi la tabella in fondo.
 ## Prerequisiti
 
 - Accesso SSH alla VM di test.
-- Il repo è già clonato con un venv Python in `.venv/` e un `.env` già configurato — il pull non li tocca
-  (`.env` è escluso da git).
+- Il repo è già clonato con un `.env` già configurato — il pull non lo tocca (`.env` è escluso da git).
 - [uv](https://docs.astral.sh/uv/) installato sulla VM (vedi sotto): le dipendenze si installano con `uv`
-  al posto di `pip`.
+  al posto di `pip`/`venv`: nessun ambiente da attivare, i comandi passano da `uv run`.
 - Tesseract con il pacchetto lingua italiana (vedi sotto): serve alla lettura automatica delle date dai
   documenti caricati.
 
@@ -27,9 +26,10 @@ source $HOME/.local/bin/env        # oppure riapri la sessione SSH
 uv --version
 ```
 
-`uv` si installa in `~/.local/bin` e non tocca il Python di sistema. Il venv `.venv/` già presente resta
-quello in uso: `uv` ci installa dentro i pacchetti, vedi il comando nella procedura. Non serve ricrearlo,
-purché usi Python 3.12 (`.venv/bin/python --version`).
+`uv` si installa in `~/.local/bin` e non tocca il Python di sistema. L'ambiente (`.venv/` nella cartella del
+repo) lo crea e lo aggiorna `uv` da sé con `uv sync`, in base a `pyproject.toml` e `uv.lock`: non va creato né
+attivato a mano. Serve Python 3.12 (`uv` lo scarica se manca). Un vecchio `.venv/` creato con `python -m venv`
+viene riutilizzato se è 3.12, altrimenti ricreato.
 
 ### Installare Tesseract (una tantum per VM)
 
@@ -58,15 +58,14 @@ alla cieca.
 ```bash
 git checkout master
 git pull origin master
-uv pip install --python .venv/bin/python -r requirements.txt
-.venv/bin/python manage.py migrate
+uv sync --frozen --no-dev
+uv run python manage.py migrate
 ```
 
-Indica sempre il Python del venv esplicitamente (`--python .venv/bin/python` per `uv`, `.venv/bin/python` per
-`manage.py`), senza affidarti a `source .venv/bin/activate`: su Ubuntu il Python di sistema è "externally
-managed" (PEP 668) e rifiuta di installare pacchetti — capita se i comandi finiscono per essere eseguiti in una
-shell/sessione SSH diversa da quella in cui hai fatto `source`, dove il venv non risulta più attivo. Con
-`--python` `uv` installa sempre nel venv indicato.
+`uv sync --frozen` installa esattamente le versioni di `uv.lock` (fallisce se `pyproject.toml` e lock non
+coincidono, invece di risolvere di nuovo). Da qui in poi ogni comando Python è `uv run python ...`: niente
+`source .venv/bin/activate` e niente `.venv/bin/python`, quindi nessuna dipendenza dalla sessione SSH in cui ci
+si trova.
 
 Aggiorna anche i dati di riferimento (tipi documento, requisiti/servizi, e i set che li raggruppano per
 categoria fornitore — vedi [PROJECT_OVERVIEW_AND_LOCAL_SETUP.md, §9](PROJECT_OVERVIEW_AND_LOCAL_SETUP.md) per
@@ -74,11 +73,11 @@ il dettaglio di ciascun comando). `migrate` porta solo lo schema: senza questo s
 dal codice (nuovi tipi documento/requisiti/set) restano assenti dal DB finché non li si lancia esplicitamente:
 
 ```bash
-.venv/bin/python manage.py seed_geography --create-only
-.venv/bin/python manage.py populate_document_types --create-only
-.venv/bin/python manage.py seed_competence_sets --create-only
-.venv/bin/python manage.py seed_service_sets --create-only
-.venv/bin/python manage.py seed_document_sets --create-only
+uv run python manage.py seed_geography --create-only
+uv run python manage.py populate_document_types --create-only
+uv run python manage.py seed_competence_sets --create-only
+uv run python manage.py seed_service_sets --create-only
+uv run python manage.py seed_document_sets --create-only
 ```
 
 `--create-only` crea solo ciò che manca (nuovo codice/nome mai visto) e **non tocca** righe o set già
@@ -93,8 +92,8 @@ DocumentCatalog) e le app proxy `services`/`competences`, riallinea i permessi a
 superuser: senza, perdono l'accesso al Catalogo Documenti e alle sezioni Servizi/Requisiti (403):
 
 ```bash
-.venv/bin/python data_migration_scripts/allinea_permessi_admin.py --dry-run
-.venv/bin/python data_migration_scripts/allinea_permessi_admin.py
+uv run python data_migration_scripts/allinea_permessi_admin.py --dry-run
+uv run python data_migration_scripts/allinea_permessi_admin.py
 ```
 
 Lo script copia ogni permesso esistente sul modello nuovo corrispondente e non ne toglie mai; è idempotente.
@@ -118,11 +117,11 @@ Quindi in produzione si migra in due tempi, con il report in mezzo:
 
 ```bash
 # 1. Fino alla 0042: popola il catalogo geografico, non cancella nulla.
-.venv/bin/python manage.py migrate vendors 0042
+uv run python manage.py migrate vendors 0042
 # 2. Report dell'esito previsto (sola lettura).
-.venv/bin/python data_migration_scripts/report_competence_zone_migration.py
+uv run python data_migration_scripts/report_competence_zone_migration.py
 # 3. Solo dopo aver rivisto il report: resto delle migrazioni (0043, 0044, ...).
-.venv/bin/python manage.py migrate
+uv run python manage.py migrate
 ```
 
 Il report ha bisogno del catalogo geografico già popolato (lo semina la
@@ -155,7 +154,7 @@ successivo, dopo aver sistemato i dati dall'admin.
 Esegui sempre `collectstatic`, **indipendentemente dal valore di `DEBUG`**:
 
 ```bash
-.venv/bin/python manage.py collectstatic --noinput
+uv run python manage.py collectstatic --noinput
 ```
 
 Il "`DEBUG=True` serve automaticamente gli statici" documentato in
@@ -198,7 +197,7 @@ censimento precedente, in produzione quelli eventualmente presenti. I dettagli
 2. Analisi (sola lettura), da rifare su ogni ambiente:
 
    ```bash
-   .venv/bin/python data_migration_scripts/import_igeam_vendors.py analizza \
+   uv run python data_migration_scripts/import_igeam_vendors.py analizza \
        -f data_migration_scripts/input/Fornitori_IGEAM_Attivi_Portale_v2.xlsx
    ```
 
@@ -210,9 +209,9 @@ censimento precedente, in produzione quelli eventualmente presenti. I dettagli
    database (non c'è rollback automatico):
 
    ```bash
-   .venv/bin/python data_migration_scripts/import_igeam_vendors.py carica \
+   uv run python data_migration_scripts/import_igeam_vendors.py carica \
        -f data_migration_scripts/reports/igeam_nuovi.csv --dry-run
-   .venv/bin/python data_migration_scripts/import_igeam_vendors.py carica \
+   uv run python data_migration_scripts/import_igeam_vendors.py carica \
        -f data_migration_scripts/reports/igeam_nuovi.csv
    ```
 
@@ -234,7 +233,7 @@ I promemoria scadenze al fornitore partono dal task Celery Beat `send_expiry_rem
 produzione (verificato il 2026-10-12) non c'è un worker/beat Celery di SRM: il job è un cron dell'utente `redmine`:
 
 ```bash
-0 7 * * * cd /home/redmine/SRM && .venv/bin/python manage.py send_expiry_reminders >> /home/redmine/SRM/send_expiry_reminders.log 2>&1
+0 7 * * * cd /home/redmine/SRM && $HOME/.local/bin/uv run --frozen --no-dev python manage.py send_expiry_reminders >> /home/redmine/SRM/send_expiry_reminders.log 2>&1
 ```
 
 Verifica con `crontab -l | grep send_expiry_reminders`. Usa un solo meccanismo per VM: il registro degli invii evita
@@ -251,7 +250,7 @@ Con `EMAIL_REDIRECT_TO` vuoto il job scrive ai fornitori reali. Prima di lasciar
 2. verifica l'elenco del giorno con il dry-run, che non invia e non registra nulla:
 
    ```bash
-   .venv/bin/python manage.py send_expiry_reminders --dry-run --date AAAA-MM-GG
+   uv run python manage.py send_expiry_reminders --dry-run --date AAAA-MM-GG
    ```
 
    Un fornitore riceve la mail solo se ha attivo "Notifiche scadenze via email" e se il suo documento o requisito

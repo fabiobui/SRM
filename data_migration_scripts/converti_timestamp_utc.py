@@ -19,9 +19,9 @@ USE_TZ=True e riavviare.
   rifiutata, perché sposterebbe di nuovo i valori. --forza la permette solo
   dopo un ripristino del dump.
 
-Uso (dalla root del repo, dentro la venv, con USE_TZ=False nel .env):
-    python data_migration_scripts/converti_timestamp_utc.py
-    python data_migration_scripts/converti_timestamp_utc.py --esegui
+Uso (dalla root del repo, con USE_TZ=False nel .env):
+    uv run python data_migration_scripts/converti_timestamp_utc.py
+    uv run python data_migration_scripts/converti_timestamp_utc.py --esegui
 """
 
 import argparse

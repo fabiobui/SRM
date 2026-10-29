@@ -64,8 +64,12 @@
 
         note(input, 'Lettura delle date dal documento…');
         fetch(url, { method: 'POST', body: data, credentials: 'same-origin' })
-            .then(function (r) { return r.ok ? r.json() : {}; })
+            .then(function (r) { return r.ok ? r.json() : { error: 'http_' + r.status }; })
             .then(function (dates) {
+                if (dates.error) {
+                    note(input, 'Lettura automatica delle date non riuscita: inseriscile a mano.');
+                    return;
+                }
                 var filled = false;
                 // Scadenza per prima: marcata come manuale, il calcolo
                 // automatico scatterebbe sul change della emissione.
@@ -86,7 +90,9 @@
                     ? 'Date lette dal documento: controllale e correggile se serve.'
                     : '');
             })
-            .catch(function () { note(input, ''); });
+            .catch(function () {
+                note(input, 'Lettura automatica delle date non riuscita: inseriscile a mano.');
+            });
     });
 
     function note(input, text) {
