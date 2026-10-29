@@ -150,11 +150,11 @@ FORMULAZIONI = [
     ),
     ("Data di scadenza\n\n31/12/2026", None, date(2026, 12, 31)),
     ("Valido fino al 31/12/2026", None, date(2026, 12, 31)),
-    # accordo quadro: emissione nell'intestazione, durata in un articolo
+    # senza rinnovo tacito la data "fino al" resta una vera scadenza
     (
         "Rev. 2 del 08/06/2020\nN. 202014012 DEL 14/07/2020\nTRA\n"
         "11.1 valido ed efficace dalla data di sottoscrizione come in calce "
-        "riportata fino al 31/12/2020; alla scadenza si rinnova",
+        "riportata fino al 31/12/2020; alla scadenza cessa ogni effetto",
         date(2020, 7, 14),
         date(2020, 12, 31),
     ),
@@ -307,3 +307,66 @@ class TestEndpointAdminEstraiDate:
         response = client.post(self._url())
 
         assert response.status_code == 302
+
+
+# Rinnovo tacito o durata indeterminata: nessuna scadenza, segnalata all'utente
+RINNOVO = [
+    # accordo quadro reale: "fino al 31/12/2020; alla scadenza si rinnoverà
+    # tacitamente, per dodici mesi, e così di seguito"
+    (
+        "Rev. 2 del 08/06/2020\nN. 202014012 DEL 14/07/2020\nTRA\n"
+        "11.1 valido ed efficace dalla data di sottoscrizione come in calce "
+        "riportata fino al 31/12/2020; alla scadenza, il Contratto si "
+        "rinnoverà tacitamente, per dodici mesi, e così di seguito",
+        date(2020, 7, 14),
+    ),
+    (
+        "Data di emissione 01/01/2024. Data di scadenza 31/12/2024, con "
+        "tacito rinnovo annuale",
+        date(2024, 1, 1),
+    ),
+    (
+        "Emesso il 01/01/2024. Il contratto è a tempo indeterminato.",
+        date(2024, 1, 1),
+    ),
+    ("Auto-renewal: expires 31/12/2030, renews automatically", None),
+]
+
+
+@pytest.mark.parametrize("testo, rilascio", RINNOVO)
+def test_rinnovo_tacito_lascia_vuota_la_scadenza(testo, rilascio):
+    assert extract_dates_from_text(testo) == {
+        "issue_date": rilascio,
+        "expiry_date": None,
+        "auto_renewal": True,
+    }
+
+
+def test_personale_a_tempo_indeterminato_non_cancella_la_scadenza():
+    testo = (
+        "Data di scadenza 31/12/2026. Il personale è assunto a tempo "
+        "indeterminato."
+    )
+
+    assert extract_dates_from_text(testo) == {
+        "issue_date": None,
+        "expiry_date": date(2026, 12, 31),
+    }
+
+
+def test_suggested_dates_riporta_il_rinnovo_tacito():
+    upload = SimpleUploadedFile("a.pdf", b"%PDF-1.4")
+    letto = {
+        "issue_date": date(2020, 7, 14),
+        "expiry_date": None,
+        "auto_renewal": True,
+    }
+
+    with patch.object(date_extraction, "extract_dates", return_value=letto):
+        risultato = date_extraction.suggested_dates(upload)
+
+    assert risultato == {
+        "issue_date": "2020-07-14",
+        "expiry_date": None,
+        "auto_renewal": True,
+    }

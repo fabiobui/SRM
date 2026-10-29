@@ -71,6 +71,11 @@
                     return;
                 }
                 var filled = false;
+                if (dates.auto_renewal && !dates.expiry_date) {
+                    // rinnovo tacito: niente scadenza calcolata dalla
+                    // validità del tipo documento (marcata come manuale)
+                    expiry.dataset.manualEdit = '1';
+                }
                 // Scadenza per prima: marcata come manuale, il calcolo
                 // automatico scatterebbe sul change della emissione.
                 if (dates.expiry_date && !expiry.dataset.ocrTouched) {
@@ -86,9 +91,13 @@
                 }
                 delete issue.dataset.ocrTouched;
                 delete expiry.dataset.ocrTouched;
-                note(input, filled
+                var msg = filled
                     ? 'Date lette dal documento: controllale e correggile se serve.'
-                    : '');
+                    : '';
+                if (dates.auto_renewal) {
+                    msg += ' Rinnovo tacito o durata indeterminata: scadenza lasciata vuota.';
+                }
+                note(input, msg.trim());
             })
             .catch(function () {
                 note(input, 'Lettura automatica delle date non riuscita: inseriscile a mano.');

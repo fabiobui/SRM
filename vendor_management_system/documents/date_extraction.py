@@ -150,7 +150,26 @@ def _to_date(token):
     return parsed if 1990 <= parsed.year <= 2100 else None
 
 
-def _dates_after(keyword_pattern, text, head_only=False):
+# Contratti che si rinnovano da soli o a durata indeterminata: la data
+# "fino al…" è solo la fine del primo periodo, non una vera scadenza.
+RINNOVO_ENTRO_CHARS = 250
+_RINNOVO_TACITO = re.compile(
+    r"(?:rinnov\w*\s+(?:tacit\w*|automatic\w*)|tacit\w*\s+(?:rinnov\w*"
+    r"|riconduzione)|rinnovo\s+(?:tacito|automatico)"
+    r"|(?:automatic(?:ally)?[\s-]+renew\w*|renew\w*\s+automatic\w*"
+    r"|auto-?renew\w*))",
+    re.IGNORECASE,
+)
+_DURATA_INDETERMINATA = re.compile(
+    r"(?:(?:durata|valid\w+|efficac\w+|accordo|contratto|polizza)[^.\n]{0,60}"
+    r"tempo\s+indeterminato|durata\s+indeterminata|senza\s+scadenza"
+    r"|non\s+(?:ha|prevede)\s+(?:una\s+)?scadenza|no\s+expiry"
+    r"|does\s+not\s+expire|indefinite\s+(?:term|period|duration))",
+    re.IGNORECASE,
+)
+
+
+def _dates_after(keyword_pattern, text, head_only=False, with_end=False):
     pattern = re.compile(
         keyword_pattern + _GAP + "(" + _DATA + ")", re.IGNORECASE
     )
@@ -164,12 +183,17 @@ def _dates_after(keyword_pattern, text, head_only=False):
                 continue
         parsed = _to_date(match.group(1))
         if parsed:
-            yield parsed
+            yield (parsed, match.end()) if with_end else parsed
 
 
 def _normalize(text):
     text = (text or "").replace("\r", "")
     return re.sub(r"[ \t\xa0]+", " ", text)
+
+
+def _is_auto_renewed(text, end):
+    """Vero se subito dopo la data il testo parla di rinnovo tacito."""
+    return bool(_RINNOVO_TACITO.search(text[end : end + RINNOVO_ENTRO_CHARS]))
 
 
 def extract_dates_from_text(text):
@@ -179,6 +203,10 @@ def extract_dates_from_text(text):
     diciture sono provate per affidabilità decrescente; se nessuna coppia
     emissione/scadenza è coerente (scadenza non precedente all'emissione)
     le due date sono considerate inaffidabili e scartate.
+
+    Se il documento si rinnova tacitamente o ha durata indeterminata la
+    scadenza resta vuota (l'app tratta una scadenza assente come "senza
+    scadenza") e il risultato porta `auto_renewal: True`.
     """
     text = _normalize(text)
     periodo = _PERIODO.search(text)
@@ -193,23 +221,36 @@ def extract_dates_from_text(text):
         *_dates_after(_EMISSIONE_INTESTAZIONE, text, head_only=True),
         *_dates_after(_EMISSIONE_FIRMA, text),
     ]
-    expiry_candidates = [
-        *_dates_after(_SCADENZA_FORTE, text),
-        *([fine] if fine else []),
-        *_dates_after(_SCADENZA_DEBOLE, text),
+    found = [
+        *_dates_after(_SCADENZA_FORTE, text, with_end=True),
+        *([(fine, periodo.end())] if fine else []),
+        *_dates_after(_SCADENZA_DEBOLE, text, with_end=True),
     ]
+    expiry_candidates = [
+        d for d, end in found if not _is_auto_renewed(text, end)
+    ]
+    auto_renewal = len(expiry_candidates) < len(found) or bool(
+        _DURATA_INDETERMINATA.search(text)
+    )
+    if auto_renewal:
+        expiry_candidates = []
+
+    result = {"issue_date": None, "expiry_date": None}
     if not expiry_candidates:
-        return {
-            "issue_date": issue_candidates[0] if issue_candidates else None,
-            "expiry_date": None,
-        }
-    if not issue_candidates:
-        return {"issue_date": None, "expiry_date": expiry_candidates[0]}
-    for issue in issue_candidates:
-        for expiry in expiry_candidates:
-            if expiry >= issue:
-                return {"issue_date": issue, "expiry_date": expiry}
-    return {"issue_date": None, "expiry_date": None}
+        result["issue_date"] = (
+            issue_candidates[0] if issue_candidates else None
+        )
+    elif not issue_candidates:
+        result["expiry_date"] = expiry_candidates[0]
+    else:
+        for issue in issue_candidates:
+            expiry = next((e for e in expiry_candidates if e >= issue), None)
+            if expiry:
+                result = {"issue_date": issue, "expiry_date": expiry}
+                break
+    if auto_renewal:
+        result["auto_renewal"] = True
+    return result
 
 
 def _is_pdf(content, filename):
