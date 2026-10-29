@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 
 # Pagine PDF lette: scadenza ed emissione stanno quasi sempre all'inizio.
 MAX_PAGES = 3
+MAX_NATIVE_PAGES = 100  # PDF digitali: nessun costo OCR, si legge tutto
 OCR_LANG = "ita"
 MAX_FILE_SIZE = 20 * 1024 * 1024  # come il limite dei form di upload
 OCR_SCALE = 2  # 2x ≈ 144 dpi: compromesso tra precisione e tempi di risposta
@@ -22,91 +23,193 @@ MIN_NATIVE_CHARS = 50
 
 MESI = {
     "gennaio": 1,
+    "gen": 1,
     "febbraio": 2,
+    "feb": 2,
     "marzo": 3,
+    "mar": 3,
     "aprile": 4,
+    "apr": 4,
     "maggio": 5,
+    "mag": 5,
     "giugno": 6,
+    "giu": 6,
     "luglio": 7,
+    "lug": 7,
     "agosto": 8,
+    "ago": 8,
     "settembre": 9,
+    "set": 9,
+    "sett": 9,
     "ottobre": 10,
+    "ott": 10,
     "novembre": 11,
+    "nov": 11,
     "dicembre": 12,
+    "dic": 12,
+    # documenti in inglese
+    "january": 1,
+    "jan": 1,
+    "february": 2,
+    "march": 3,
+    "april": 4,
+    "may": 5,
+    "june": 6,
+    "jun": 6,
+    "july": 7,
+    "jul": 7,
+    "august": 8,
+    "aug": 8,
+    "september": 9,
+    "sep": 9,
+    "october": 10,
+    "oct": 10,
+    "december": 12,
+    "dec": 12,
 }
+_MESE = "|".join(sorted(MESI, key=len, reverse=True))
 
-_DATA_NUMERICA = r"(\d{1,2})\s*[/.\-]\s*(\d{1,2})\s*[/.\-]\s*(\d{4}|\d{2})"
-_DATA_ESTESA = r"(\d{1,2})\s+(" + "|".join(MESI) + r")\s+(\d{4})"
-_DATA = rf"(?:{_DATA_NUMERICA}|{_DATA_ESTESA})"
+# Formati riconosciuti: 14/07/2020, 14.07.20, 14-07-2020, 2020-07-14,
+# 14 luglio 2020, 1° gennaio 2020, 14-lug-2020, 14 July 2020.
+_NUM = r"\d{1,2}\s*[/.\-]\s*\d{1,2}\s*[/.\-]\s*(?:\d{4}|\d{2})(?!\d)"
+_ISO = r"\d{4}\s*[/.\-]\s*\d{1,2}\s*[/.\-]\s*\d{1,2}(?!\d)"
+_ESTESA = rf"\d{{1,2}}\s*[°º]?[\s\-/.]*(?:{_MESE})\b\.?[\s\-/.,]*\d{{4}}(?!\d)"
+_DATA = rf"(?<![\d/])(?:{_ISO}|{_NUM}|{_ESTESA})"
 
 # La data deve seguire la parola chiave entro pochi caratteri sulla stessa
 # riga o su quella successiva (l'OCR spesso spezza "etichetta: valore").
-_KEYWORD_SCADENZA = (
-    r"(?:scadenza|scade|valid[oa]\s+(?:fino|sino)\s+al|valid[oa]\s+al"
-    r"|data\s+di\s+scadenza|validit[àa]\s+fino|scade\s+il)"
+_GAP = r"[^\d\n]{0,30}(?:\n[^\d\n]{0,15}){0,2}"
+# "dal" ma non "dalla/dallo": nel testo "dalla data di sottoscrizione" non
+# c'è nessuna data subito dopo.
+_DAL = r"(?:dal\b|dall['’])"
+
+# Le diciture sono ordinate per affidabilità: vince la prima che trova una
+# data valida. Solo gruppi non catturanti (la data è l'unico gruppo).
+_EMISSIONE_FORTE = (
+    r"(?:data\s+(?:di\s+)?(?:emissione|rilascio)|emess[oa](?:\s+a\s+\w+(?:\s+\w+)?)?"
+    r"\s+(?:il|in\s+data)"
+    r"|rilasciat[oa]\s+(?:il|in\s+data)|emissione|rilascio|issue\s+date"
+    r"|date\s+of\s+issue|issued(?:\s+on)?)"
 )
-_KEYWORD_EMISSIONE = (
-    r"(?:data\s+di\s+(?:emissione|rilascio|decorrenza)|emess[oa]\s+(?:il|in\s+data)"
-    r"|rilasciat[oa]\s+(?:il|in\s+data)|data\s+emissione|decorrenza"
-    r"|stipulat[oa]\s+il|in\s+vigore\s+dal|emissione|rilascio)"
+_EMISSIONE_VIGORE = (
+    rf"(?:(?:in\s+vigore|con\s+decorrenza|a\s+decorrere|decorre|valid[oa]"
+    rf"|efficace|vigente)\s+{_DAL}(?:\s+giorno)?|decorrenza)"
 )
-# "Valido dal 01/01/2025 al 31/12/2025": un'unica frase con entrambe le date
+# Intestazione dei contratti: "N. 202014012 DEL 14/07/2020". Solo nella
+# parte iniziale del testo e non per i riferimenti normativi.
+_EMISSIONE_INTESTAZIONE = (
+    r"\bn(?:\.|°|r\.?)?\s*[\w./-]*\d[\w./-]*\s+del(?:l['’])?"
+)
+_EMISSIONE_FIRMA = (
+    r"(?:sottoscritt[oa]|stipulat[oa]|firmat[oa]|sottoscrizione|stipula|firma)"
+    r"\s+(?:il|in\s+data|del|:)"
+)
+_SCADENZA_FORTE = (
+    r"(?:data\s+(?:di\s+)?scadenza|scadenza|scad\.|scade|scadr[àa]"
+    r"|expir(?:y|ation)(?:\s+date)?|expires?|valid\s+(?:until|to|through)"
+    r"|valid[oa]\s+(?:fino|sino)\s+al|validit[àa]\s+(?:fino|sino)\s+al"
+    r"|valid[oa]\s+al|valid[oa]\s+entro\s+il)"
+)
+_SCADENZA_DEBOLE = r"(?:fino|sino)\s+al"
+# "Valido/in vigore/durata dal 01/01/2025 al 31/12/2025": entrambe le date
 _PERIODO = re.compile(
-    rf"valid[oa]\s+dal\s+{_DATA}\s+al\s+{_DATA}", re.IGNORECASE
+    rf"(?:valid[oa]|validit[àa]|vigore|vigenza|efficac\w*|durata|periodo"
+    rf"|decorrenza)[^\d]{{0,80}}?{_DAL}\s*({_DATA})\s*[,;]?\s*"
+    rf"(?:fino\s+al|sino\s+al|al\b|a\b|-|–)\s*({_DATA})",
+    re.IGNORECASE,
 )
+# Riferimenti normativi ("D.P.R. n. 177 del 2011") non sono date del documento
+_NORMATIVA = re.compile(
+    r"(?:d\.?\s?p\.?\s?r|d\.?\s?lgs|legge|decreto|d\.?\s?m|art|c\.?c)\W*$",
+    re.IGNORECASE,
+)
+INTESTAZIONE_CHARS = 1500
 
 
-def _build_date(giorno, mese, anno):
-    anno = int(anno)
-    if anno < 100:
-        anno += 2000
+def _to_date(token):
+    """Converte il testo di una data in `date` (None se non plausibile)."""
+    numeri = re.findall(r"\d+", token)
+    parola = re.search(r"[A-Za-z]+", token)
     try:
-        return date(anno, int(mese), int(giorno))
-    except ValueError:
+        if parola:
+            giorno, mese, anno = (
+                int(numeri[0]),
+                MESI[parola.group(0).lower()],
+                int(numeri[-1]),
+            )
+        elif len(numeri[0]) == 4:
+            anno, mese, giorno = (int(n) for n in numeri[:3])
+        else:
+            giorno, mese, anno = (int(n) for n in numeri[:3])
+            if anno < 100:
+                anno += 2000
+        parsed = date(anno, mese, giorno)
+    except (ValueError, IndexError, KeyError):
         return None
+    # scarta numeri casuali letti come date (es. codici, protocolli)
+    return parsed if 1990 <= parsed.year <= 2100 else None
 
 
-def _parse_groups(g):
-    """Converte i 6 gruppi di `_DATA` (numerica o estesa) in `date`."""
-    if g[0] is not None:
-        return _build_date(g[0], g[1], g[2])
-    return _build_date(g[3], MESI[g[4]], g[5])
-
-
-def _parse_match(match):
-    return _parse_groups(match.groups())
-
-
-def _first_date_after(keyword_pattern, text):
+def _dates_after(keyword_pattern, text, head_only=False):
     pattern = re.compile(
-        keyword_pattern + r"[^\d\n]{0,25}\n?[^\d\n]{0,10}" + _DATA,
-        re.IGNORECASE,
+        keyword_pattern + _GAP + "(" + _DATA + ")", re.IGNORECASE
     )
     for match in pattern.finditer(text):
-        # Il gruppo della keyword non cattura: i gruppi sono quelli di _DATA.
-        parsed = _parse_match(match)
+        if head_only:
+            if match.start() > INTESTAZIONE_CHARS:
+                break
+            if _NORMATIVA.search(
+                text[max(0, match.start() - 30) : match.start()]
+            ):
+                continue
+        parsed = _to_date(match.group(1))
         if parsed:
-            return parsed
-    return None
+            yield parsed
+
+
+def _normalize(text):
+    text = (text or "").replace("\r", "")
+    return re.sub(r"[ \t\xa0]+", " ", text)
 
 
 def extract_dates_from_text(text):
     """Cerca data di rilascio e di scadenza in un testo già letto.
 
-    Ritorna {"issue_date": date|None, "expiry_date": date|None}. Se la
-    scadenza risulta precedente al rilascio le due date sono considerate
-    inaffidabili e scartate.
+    Ritorna {"issue_date": date|None, "expiry_date": date|None}. Le
+    diciture sono provate per affidabilità decrescente; se nessuna coppia
+    emissione/scadenza è coerente (scadenza non precedente all'emissione)
+    le due date sono considerate inaffidabili e scartate.
     """
-    issue = _first_date_after(_KEYWORD_EMISSIONE, text or "")
-    expiry = _first_date_after(_KEYWORD_SCADENZA, text or "")
-    periodo = _PERIODO.search(text or "")
+    text = _normalize(text)
+    periodo = _PERIODO.search(text)
+    inizio = fine = None
     if periodo:
-        groups = periodo.groups()
-        issue = issue or _parse_groups(groups[:6])
-        expiry = expiry or _parse_groups(groups[6:])
-    if issue and expiry and expiry < issue:
-        return {"issue_date": None, "expiry_date": None}
-    return {"issue_date": issue, "expiry_date": expiry}
+        inizio, fine = _to_date(periodo.group(1)), _to_date(periodo.group(2))
+
+    issue_candidates = [
+        *_dates_after(_EMISSIONE_FORTE, text),
+        *([inizio] if inizio else []),
+        *_dates_after(_EMISSIONE_VIGORE, text),
+        *_dates_after(_EMISSIONE_INTESTAZIONE, text, head_only=True),
+        *_dates_after(_EMISSIONE_FIRMA, text),
+    ]
+    expiry_candidates = [
+        *_dates_after(_SCADENZA_FORTE, text),
+        *([fine] if fine else []),
+        *_dates_after(_SCADENZA_DEBOLE, text),
+    ]
+    if not expiry_candidates:
+        return {
+            "issue_date": issue_candidates[0] if issue_candidates else None,
+            "expiry_date": None,
+        }
+    if not issue_candidates:
+        return {"issue_date": None, "expiry_date": expiry_candidates[0]}
+    for issue in issue_candidates:
+        for expiry in expiry_candidates:
+            if expiry >= issue:
+                return {"issue_date": issue, "expiry_date": expiry}
+    return {"issue_date": None, "expiry_date": None}
 
 
 def _is_pdf(content, filename):
@@ -114,14 +217,16 @@ def _is_pdf(content, filename):
 
 
 def _pdf_native_text(content):
-    """Testo incorporato nelle prime pagine del PDF (vuoto se scansione)."""
+    """Testo incorporato nel PDF (vuoto se scansione). Si leggono tutte le
+    pagine: è quasi gratis e la scadenza di un contratto sta spesso
+    nell'articolo "Durata", ben oltre le prime pagine."""
     import pypdfium2
 
     pdf = pypdfium2.PdfDocument(content)
     try:
         return "\n".join(
             pdf[index].get_textpage().get_text_range()
-            for index in range(min(len(pdf), MAX_PAGES))
+            for index in range(min(len(pdf), MAX_NATIVE_PAGES))
         )
     finally:
         pdf.close()
