@@ -16,7 +16,27 @@
 #documents-group .tabular.inline-related thead th {
     position: sticky;
     top: 0;
-    z-index: 2;
+    /* sopra select2/widget delle celle, che hanno un proprio z-index */
+    z-index: 100;
+    /* opaco: altrimenti le righe in scorrimento si vedono attraverso */
+    background-color: #f4f6f9;
+    box-shadow: inset 0 -1px 0 #dee2e6;
+}
+
+#vendor_services-group .tabular.inline-related table,
+#vendor_competences-group .tabular.inline-related table,
+#documents-group .tabular.inline-related table {
+    /* con border-collapse:collapse lo sticky perde i bordi dell'intestazione */
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+/* Le celle scorrono sotto l'intestazione fissa */
+#vendor_services-group .tabular.inline-related tbody,
+#vendor_competences-group .tabular.inline-related tbody,
+#documents-group .tabular.inline-related tbody {
+    position: relative;
+    z-index: 0;
 }
 
 /* Righe compatte: le note del servizio occupano una riga e si espandono

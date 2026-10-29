@@ -18,8 +18,7 @@
     L'elenco dei servizi erogati è definito dal back-office. Puoi proporre modifiche
     ai dati descrittivi (servizio principale, date di erogazione, note), richiedere
     l'aggiunta di un nuovo servizio dal catalogo o l'eliminazione di uno esistente:
-    ogni richiesta viene valutata dal back-office. Prezzo orario e contratto restano
-    di competenza del back-office.
+    ogni richiesta viene valutata dal back-office.
 </div>
 
 {% if services %}
@@ -40,16 +39,10 @@
                     </div>
                 </div>
                 <dl class="row small mb-2">
-                    <dt class="col-sm-5">Prezzo orario</dt>
-                    <dd class="col-sm-7">
-                        {{ s.hourly_rate|default:"—" }}
-                        <span class="text-muted">(gestito dal back-office)</span>
-                    </dd>
-                    <dt class="col-sm-5">Contratto</dt>
-                    <dd class="col-sm-7">
-                        {{ s.contract|default:"—" }}
-                        <span class="text-muted">(gestito dal back-office)</span>
-                    </dd>
+                    {% if s.service_type.description %}
+                    <dt class="col-sm-5">Descrizione</dt>
+                    <dd class="col-sm-7">{{ s.service_type.description|linebreaksbr }}</dd>
+                    {% endif %}
                     <dt class="col-sm-5">Data inizio</dt>
                     <dd class="col-sm-7">{{ s.start_date|date:"d/m/Y"|default:"—" }}</dd>
                     <dt class="col-sm-5">Data fine</dt>

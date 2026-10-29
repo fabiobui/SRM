@@ -42,6 +42,20 @@ class TestMyServicesView:
         services = list(response.context["services"])
         assert services == [own_service]
 
+    def test_list_shows_service_description_not_rate_or_contract(self, client):
+        user = VendorUserFactory(password=PASSWORD)
+        client.login(email=user.email, password=PASSWORD)
+        service_type = ServiceTypeFactory(description="Pulizia ordinaria")
+        VendorServiceFactory(
+            vendor=user.vendor, service_type=service_type, hourly_rate="10.00"
+        )
+
+        content = client.get(reverse("portal:my-services")).content.decode()
+
+        assert "Pulizia ordinaria" in content
+        assert "Prezzo orario" not in content
+        assert "gestito dal back-office" not in content
+
 
 @pytest.mark.django_db
 class TestVendorServiceChangeRequestCreateView:

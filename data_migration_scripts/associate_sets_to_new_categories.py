@@ -12,10 +12,10 @@ senza modificare nulla.
 
 È IDEMPOTENTE. Con --dry-run esegue tutto e annulla la transazione.
 
-Uso (dalla root del repo, dentro la venv):
-    python data_migration_scripts/associate_sets_to_new_categories.py \
+Uso (dalla root del repo):
+    uv run python data_migration_scripts/associate_sets_to_new_categories.py \
         --dry-run
-    python data_migration_scripts/associate_sets_to_new_categories.py
+    uv run python data_migration_scripts/associate_sets_to_new_categories.py
 """
 
 import argparse

@@ -67,25 +67,24 @@ l'overview completa e il setup locale (Docker o nativo).
 
 ## Ambiente Python
 
-- Gestione dipendenze: **un solo file**, `requirements.txt` (niente `pyproject.toml`/lockfile di uv). In locale
-  si installa con **pip**; sulle VM di test e produzione con **uv** (`uv pip install --python .venv/bin/python
-  -r requirements.txt`, vedi [docs/DEPLOY.md](docs/DEPLOY.md)). Contiene sia le dipendenze di produzione sia il
-  tooling di sviluppo (ruff, pre-commit, requests), in una sezione separata in fondo al file (innocuo avere
-  quei pacchetti anche in produzione).
-- **Usa Python 3.12** (`py install 3.12` se il launcher `py` non lo trova già — vedi l'errore "No runtime
-  installed that matches 3.12"), la stessa versione della VM di produzione (Python 3.12.7). Su Python 3.13
-  alcuni pin non hanno wheel Windows disponibili (vedi punto sotto) e andrebbero aggiornati caso per caso.
-- Setup: `py -3.12 -m venv .venv` → `.venv\Scripts\Activate.ps1` → `pip install -r requirements.txt`.
-- **Perché questo file installa senza build tools nativi su Windows, con Python 3.12**, pur restando (quasi) il
-  pip freeze esatto della produzione — due deviazioni deliberate, documentate anche nell'intestazione del file:
-  - `mysqlclient` e `argon2-cffi-bindings` sono stati aggiornati di una versione patch (2.2.0→2.2.7,
-    21.2.0→26.1.0): le versioni originali non pubblicano wheel Windows per cp312, quelle nuove sì. Nessun
-    cambio di comportamento, solo pacchetti precompilati disponibili invece di dover compilare da sorgente.
-  - `django-auth-ldap`/`python-ldap` hanno il marker `; sys_platform != "win32"`: `python-ldap` non ha **mai**
-    pubblicato una wheel Windows (serve l'SDK OpenLDAP + un compilatore C per buildarlo da sorgente). Su
-    Windows vengono semplicemente saltati — sicuro perché `config/settings.py` li importa solo se
-    `LDAP_ENABLED=True`, e in locale resta sempre `False` (vedi sezione Test). Linux/Docker/produzione
-    (`LDAP_ENABLED=True` lì) li installano e usano normalmente, marker o meno.
+- Gestione dipendenze: **uv**, sia in locale sia su VM di test/produzione. Le dipendenze stanno in
+  `pyproject.toml` (runtime in `dependencies`, tooling ruff/pre-commit in `[dependency-groups] dev`) con il lock
+  `uv.lock`. **Niente venv da creare o attivare a mano**: `uv sync` crea/aggiorna `.venv/` da sé e ogni comando
+  passa da `uv run` (es. `uv run python manage.py migrate`, `uv run pytest`). Su VM: `uv sync --frozen --no-dev`
+  (vedi [docs/DEPLOY.md](docs/DEPLOY.md)).
+- Aggiungere/aggiornare una dipendenza: `uv add <pacchetto>` (aggiorna `pyproject.toml` e `uv.lock`), poi
+  rigenera `requirements.txt` con `uv export --no-hashes --no-emit-project --no-annotate --no-header -o
+  requirements.txt`. Quel file è **generato** e serve solo al Dockerfile (`pip wheel`): non va modificato a mano.
+- **Usa Python 3.12** (`requires-python = "==3.12.*"`, come la VM di produzione): `uv` lo scarica da solo se
+  manca. Su Python 3.13 alcuni pin non hanno wheel Windows disponibili.
+- Setup: installa [uv](https://docs.astral.sh/uv/), poi `uv sync`.
+- Due deviazioni volute dal pip freeze di produzione, per installare senza build tools nativi su Windows:
+  - `mysqlclient` e `argon2-cffi-bindings` aggiornati di una versione patch (2.2.0→2.2.7, 21.2.0→26.1.0): le
+    versioni originali non pubblicano wheel Windows per cp312. Nessun cambio di comportamento.
+  - `django-auth-ldap`/`python-ldap` hanno il marker `sys_platform != 'win32'`: `python-ldap` non ha **mai**
+    pubblicato una wheel Windows. Su Windows vengono saltati — sicuro perché `config/settings.py` li importa solo
+    se `LDAP_ENABLED=True`, e in locale resta sempre `False` (vedi sezione Test). Linux/Docker/produzione li
+    installano e usano normalmente.
 - Avvio locale (per far girare l'app vera, non solo pre-commit/test): vedi Track A (Docker, consigliata — gestisce
   lei i pacchetti di sistema per `mysqlclient`/`python-ldap`) o Track B (nativa) in
   `docs/PROJECT_OVERVIEW_AND_LOCAL_SETUP.md`.

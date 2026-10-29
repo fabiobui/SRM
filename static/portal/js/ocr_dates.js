@@ -38,9 +38,13 @@
     mostraEsito(input, 'Lettura delle date dal documento…');
     fetch(ENDPOINT, { method: 'POST', body: dati, credentials: 'same-origin' })
       .then(function (risposta) {
-        return risposta.ok ? risposta.json() : {};
+        return risposta.ok ? risposta.json() : { error: 'http_' + risposta.status };
       })
       .then(function (date) {
+        if (date.error) {
+          mostraEsito(input, 'Lettura automatica delle date non riuscita: inseriscile a mano.');
+          return;
+        }
         var compilate = false;
         [[rilascio, date.issue_date], [scadenza, date.expiry_date]].forEach(
           function (coppia) {
@@ -61,7 +65,7 @@
         );
       })
       .catch(function () {
-        mostraEsito(input, '');
+        mostraEsito(input, 'Lettura automatica delle date non riuscita: inseriscile a mano.');
       });
   });
 

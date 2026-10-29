@@ -13,9 +13,10 @@ essere riattivato a mano. Se un set non esiste più lo script lo salta.
 
 È IDEMPOTENTE. Con --dry-run esegue tutto e annulla la transazione.
 
-Uso (dalla root del repo, dentro la venv):
-    python data_migration_scripts/disattiva_set_servizi_obsoleti.py --dry-run
-    python data_migration_scripts/disattiva_set_servizi_obsoleti.py
+Uso (dalla root del repo):
+    uv run python data_migration_scripts/disattiva_set_servizi_obsoleti.py \
+        --dry-run
+    uv run python data_migration_scripts/disattiva_set_servizi_obsoleti.py
 """
 
 import argparse

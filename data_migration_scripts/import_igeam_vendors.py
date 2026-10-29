@@ -30,7 +30,8 @@ Esiti dell'analisi (vale il primo applicabile):
     ESCLUSO_MARCATO    ragione sociale marcata come doppione (***, +++,
                        "non usare")
     GIA_PRESENTE       P.IVA o C.F. già usati da un fornitore di un'altra
-                       Società
+                       Società (stessa P.IVA con C.F. diversi non vale:
+                       possibile Gruppo IVA, importato con un avviso)
     COLLISIONE_CODICE  Codice Embyon già usato da un fornitore di un'altra
                        Società: saltato (old_code è UNIQUE)
     GIA_PRESENTE_NOME  senza P.IVA/C.F. validi, ma con la stessa ragione
@@ -48,12 +49,12 @@ I report contengono dati fornitore (P.IVA, C.F., recapiti): restano in
 ``data_migration_scripts/reports/`` (non servita da Django) e sono esclusi da
 git.
 
-ESEMPI (dalla root del repo, dentro la venv):
-    python data_migration_scripts/import_igeam_vendors.py analizza \
+ESEMPI (dalla root del repo):
+    uv run python data_migration_scripts/import_igeam_vendors.py analizza \
         -f data_migration_scripts/input/IGEAM_ATTIVI.xlsx
-    python data_migration_scripts/import_igeam_vendors.py carica \
+    uv run python data_migration_scripts/import_igeam_vendors.py carica \
         -f data_migration_scripts/reports/igeam_nuovi.csv --dry-run
-    python data_migration_scripts/import_igeam_vendors.py carica \
+    uv run python data_migration_scripts/import_igeam_vendors.py carica \
         -f data_migration_scripts/reports/igeam_nuovi.csv
 """
 
@@ -316,17 +317,17 @@ def build_index(vendors):
     embyon_company, vat_number, fiscal_code. P.IVA e C.F. finiscono nello
     stesso indice: per le società il C.F. coincide con la P.IVA, e un
     fornitore censito con il solo C.F. deve essere trovato anche dalla P.IVA
-    (e viceversa).
+    (e viceversa). Ogni voce porta anche P.IVA e C.F. del fornitore, per
+    riconoscere un Gruppo IVA (vedi ``stessa_piva_altro_cf``).
     """
     ids, codes, names = {}, {}, {}
     for v in vendors:
         ref = (v["pk"], v["name"] or "")
-        for key, label in (
-            (clean_vat(v["vat_number"])[0], "PARTITA_IVA"),
-            (clean_cf(v["fiscal_code"])[0], "CODICE_FISCALE"),
-        ):
+        vat = clean_vat(v["vat_number"])[0]
+        cf = clean_cf(v["fiscal_code"])[0]
+        for key, label in ((vat, "PARTITA_IVA"), (cf, "CODICE_FISCALE")):
             if key:
-                ids.setdefault(key, (*ref, label))
+                ids.setdefault(key, (*ref, label, vat, cf))
         if v["old_code"]:
             codes[code_key(v["old_code"])] = (*ref, v["embyon_company"])
         nome = match_name(v["name"])
@@ -368,11 +369,24 @@ def _set_esito(rec, esito, motivo, match=None):
     rec["nome_esistente"] = match[1] if match else ""
 
 
+def stessa_piva_altro_cf(rec, key, hit):
+    """True se la corrispondenza è solo sulla P.IVA e i C.F. di entrambi i
+    soggetti, valorizzati, sono diversi: società distinte con P.IVA comune
+    (Gruppo IVA), non un doppione."""
+    return bool(
+        hit[2] == "PARTITA_IVA"
+        and key == rec["vat_number"]
+        and rec["fiscal_code"]
+        and hit[4]
+        and rec["fiscal_code"] != hit[4]
+    )
+
+
 def match_db(rec, index):
     """Esito del confronto con il database, o None se il fornitore non c'è."""
     for key in record_ids(rec):
         hit = index["ids"].get(key)
-        if hit:
+        if hit and not stessa_piva_altro_cf(rec, key, hit):
             return "GIA_PRESENTE", f"stesso {hit[2]} ({key})", hit
     code = index["codes"].get(code_key(rec["old_code"]))
     if code:
@@ -428,6 +442,13 @@ def classify(records, index):
         if found:
             _set_esito(rec, *found)
             continue
+        hit = index["ids"].get(rec["vat_number"])
+        if hit and stessa_piva_altro_cf(rec, rec["vat_number"], hit):
+            avviso = (
+                f"stessa P.IVA di {hit[1]} (codice {hit[0]}) ma C.F. "
+                "diverso, possibile Gruppo IVA: verificare"
+            )
+            rec["_avvisi"] = "; ".join(filter(None, (rec["_avvisi"], avviso)))
         candidates.append(rec)
 
     # Doppioni interni all'Excel: un solo fornitore per soggetto, vince la

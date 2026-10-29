@@ -7,11 +7,16 @@ l'endpoint AJAX `duplicate-check/` usato per il controllo live nel tab
 "Informazioni Base", prima che l'utente salvi.
 """
 
+from unittest.mock import patch
+
 import pytest
+from django.contrib import messages
+from django.contrib.admin.sites import AdminSite
 from django.contrib.auth import get_user_model
 from django.urls import reverse
 
-from vendor_management_system.vendors.admin import VendorAdminForm
+from vendor_management_system.vendors.admin import VendorAdmin, VendorAdminForm
+from vendor_management_system.vendors.models import Vendor
 from vendor_management_system.vendors.tests.factories import VendorFactory
 
 User = get_user_model()
@@ -35,14 +40,31 @@ def test_form_rejects_duplicate_old_code():
 
 
 @pytest.mark.django_db
-def test_form_rejects_duplicate_vat_number_case_insensitive():
+def test_form_warns_but_does_not_block_duplicate_vat_number():
     VendorFactory(vat_number="IT01234567890")
 
     form = VendorAdminForm(data={"vat_number": "it01234567890"})
     form.is_valid()
 
-    assert "vat_number" in form.errors
-    assert "già usato" in str(form.errors["vat_number"])
+    assert "vat_number" not in form.errors
+    assert "già usato" in str(form.vat_duplicate_warning)
+
+
+@pytest.mark.django_db
+def test_save_model_shows_vat_duplicate_warning():
+    VendorFactory(vat_number="IT01234567890")
+    form = VendorAdminForm(data={"vat_number": "IT01234567890"})
+    form.is_valid()
+    model_admin = VendorAdmin(Vendor, AdminSite())
+
+    with (
+        patch.object(model_admin, "message_user") as message_user,
+        patch("django.contrib.admin.ModelAdmin.save_model"),
+    ):
+        model_admin.save_model(object(), Vendor(), form, change=True)
+
+    assert message_user.call_args.args[2] == messages.WARNING
+    assert "già usato" in str(message_user.call_args.args[1])
 
 
 @pytest.mark.django_db

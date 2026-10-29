@@ -14,18 +14,19 @@ scollegate (il campo messo a NULL), non cancellate.
 Di default è SICURO: mostra l'anteprima di cosa verrà eliminato e chiede
 conferma. Usa --dry-run per non toccare nulla, --yes per saltare la conferma.
 
-ESEMPI (dalla root del repo, dentro la venv):
+ESEMPI (dalla root del repo):
     # singolo id (Codice Embyon)
-    python data_migration_scripts/delete_vendors.py --ids 1024
+    uv run python data_migration_scripts/delete_vendors.py --ids 1024
     # più id espliciti
-    python data_migration_scripts/delete_vendors.py --ids 1024,1030,1055
+    uv run python data_migration_scripts/delete_vendors.py --ids 1024,1030,1055
     # range inclusivo
-    python data_migration_scripts/delete_vendors.py --from 1000 --to 1050
+    uv run python data_migration_scripts/delete_vendors.py \
+        --from 1000 --to 1050
     # per chiave primaria (vendor_code), valori esatti
-    python data_migration_scripts/delete_vendors.py \
+    uv run python data_migration_scripts/delete_vendors.py \
         --field vendor_code --ids A1B2C3D4E5
     # solo anteprima
-    python data_migration_scripts/delete_vendors.py \
+    uv run python data_migration_scripts/delete_vendors.py \
         --from 1000 --to 1050 --dry-run
 """
 

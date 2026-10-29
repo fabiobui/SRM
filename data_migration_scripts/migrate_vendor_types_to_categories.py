@@ -16,10 +16,11 @@ esegue tutto e annulla la transazione, stampando comunque il report.
 
 Dopo questo script lancia associate_sets_to_new_categories.py.
 
-Uso (dalla root del repo, dentro la venv):
-    python data_migration_scripts/migrate_vendor_types_to_categories.py \
+Uso (dalla root del repo):
+    uv run python \
+        data_migration_scripts/migrate_vendor_types_to_categories.py \
         --dry-run
-    python data_migration_scripts/migrate_vendor_types_to_categories.py
+    uv run python data_migration_scripts/migrate_vendor_types_to_categories.py
 """
 
 import argparse

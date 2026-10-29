@@ -2,14 +2,14 @@
 Script manuale per testare a mano una connessione LDAPS contro l'Active
 Directory ('sicura.loc'). Non è un test automatico (non lo esegue pytest) e
 non va lanciato in CI: serve solo per il debug interattivo di un
-amministratore, dentro la venv del progetto.
+amministratore, con `uv run`.
 
 Nessuna credenziale va MAI hardcoded qui: host, utente e password si leggono
 da variabili d'ambiente. Esempio d'uso (PowerShell):
     $env:LDAP_TEST_HOST = "<host o IP del DC>"
     $env:LDAP_TEST_USER = "<upn o DN>"
     $env:LDAP_TEST_PASSWORD = "<password>"
-    python manual_scripts/testldap.py
+    uv run python manual_scripts/testldap.py
 
 Nota di sicurezza: una versione precedente di questo script aveva una
 password reale hardcoded, già committata in git. Se non è già stata

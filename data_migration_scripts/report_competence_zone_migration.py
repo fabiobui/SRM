@@ -31,9 +31,9 @@ Django a differenza di `static/`.
 
 Lo script e' di sola lettura: non scrive mai sul database.
 
-ESEMPI (dalla root del repo, dentro la venv):
-    python data_migration_scripts/report_competence_zone_migration.py
-    python data_migration_scripts/report_competence_zone_migration.py \
+ESEMPI (dalla root del repo):
+    uv run python data_migration_scripts/report_competence_zone_migration.py
+    uv run python data_migration_scripts/report_competence_zone_migration.py \
         --report /percorso/mio.csv
 """
 

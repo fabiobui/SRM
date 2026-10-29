@@ -10,13 +10,9 @@ dettagli sulla suite di test (veloce vs. completa) vedi anche `CLAUDE.md`.
 Un solo file di dipendenze (`requirements.txt`), Python **3.12** (stessa versione della VM di produzione):
 
 ```powershell
-# Solo la prima volta, se py -3.12 non trova nulla:
-py install 3.12
-
-py -3.12 -m venv .venv
-.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-pre-commit install
+# Solo la prima volta: installa uv (https://docs.astral.sh/uv/), che gestisce da sé Python 3.12 e l'ambiente
+uv sync
+uv run pre-commit install
 ```
 
 `pre-commit install` registra l'hook Git (`.git/hooks/pre-commit`) nel repo locale — va rifatto una volta per
@@ -70,7 +66,7 @@ pre-commit run <hook-id>        # un singolo hook, es. `pre-commit run ruff-chec
 
 | Sintomo | Causa | Soluzione |
 |---|---|---|
-| `pre-commit: comando non trovato` | Il venv con `pre-commit` installato non è attivo | `.venv\Scripts\Activate.ps1` prima di lanciare `pre-commit`/`git commit` |
+| `pre-commit: comando non trovato` | L'ambiente di `uv` non è sincronizzato | `uv sync`, poi lancia `uv run pre-commit ...` (l'hook Git e l'hook Claude Code usano già `uv run`) |
 | L'hook `pytest-fast` fallisce con `ImproperlyConfigured: Missing connections string` | Non dovrebbe succedere: `scripts/run_fast_tests.py` imposta già un `REDIS_URL` placeholder | Verifica di non aver sovrascritto `REDIS_URL` con una stringa vuota nell'ambiente |
 | `pre-commit run --all-files` riformatta decine di file | Stai toccando un file mai passato da ruff prima (nuovo, o escluso in passato dalla configurazione) | Fallo in un commit dedicato, vedi nota sopra |
-| `pip install -r requirements.txt` fallisce compilando `mysqlclient`/`python-ldap` | Stai usando una versione di Python diversa da 3.12, oppure un OS/architettura non coperti dalle wheel disponibili su PyPI per i pin in `requirements.txt` | Usa Python 3.12 (`py install 3.12`); se il problema persiste, vedi i commenti in testa a `requirements.txt` |
+| `uv sync` fallisce compilando `mysqlclient`/`python-ldap` | Stai usando una versione di Python diversa da 3.12, oppure un OS/architettura non coperti dalle wheel disponibili su PyPI per i pin in `requirements.txt` | `uv` usa Python 3.12 (`requires-python` in `pyproject.toml`); se il problema persiste, vedi i commenti in testa a `requirements.txt` |

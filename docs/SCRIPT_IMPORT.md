@@ -15,7 +15,7 @@ Tutti gli script configurano Django da soli (`django.setup()` con
 
 ```bash
 cd /percorso/SRM
-.venv/bin/python vendor_management_system/import_vendors.py --dry-run
+uv run python vendor_management_system/import_vendors.py --dry-run
 ```
 
 Dipendenze richieste dagli script Excel: `pandas`, `openpyxl>=3.1.5`, `termcolor`
@@ -74,8 +74,8 @@ import_documenttypes.py┘                        import_servizi.py
 Crea e aggiorna i fornitori (`Vendor`) con il relativo indirizzo (`Address`).
 
 ```bash
-.venv/bin/python vendor_management_system/import_vendors.py -f Import.xlsx --dry-run
-.venv/bin/python vendor_management_system/import_vendors.py -f Import.xlsx
+uv run python vendor_management_system/import_vendors.py -f Import.xlsx --dry-run
+uv run python vendor_management_system/import_vendors.py -f Import.xlsx
 ```
 
 | Opzione | Default | Significato |
@@ -142,8 +142,8 @@ Cerca i fornitori nell'anagrafica Embyon e scrive il `CODCONTO` trovato nel camp
 dall'import Excel (`XLS0001`, `XLS0002`, ...).
 
 ```bash
-.venv/bin/python vendor_management_system/import_embyon_codes.py --dry-run
-.venv/bin/python vendor_management_system/import_embyon_codes.py
+uv run python vendor_management_system/import_embyon_codes.py --dry-run
+uv run python vendor_management_system/import_embyon_codes.py
 ```
 
 | Opzione | Default | Significato |
@@ -226,12 +226,12 @@ dal database su cui gira:
 
 ```bash
 # 1. analisi, sola lettura: scrive i report in data_migration_scripts/reports/
-.venv/bin/python data_migration_scripts/import_igeam_vendors.py analizza \
+uv run python data_migration_scripts/import_igeam_vendors.py analizza \
     -f data_migration_scripts/input/IGEAM_ATTIVI.xlsx
 # 2. sostituzione, prima in prova e poi davvero
-.venv/bin/python data_migration_scripts/import_igeam_vendors.py carica \
+uv run python data_migration_scripts/import_igeam_vendors.py carica \
     -f data_migration_scripts/reports/igeam_nuovi.csv --dry-run
-.venv/bin/python data_migration_scripts/import_igeam_vendors.py carica \
+uv run python data_migration_scripts/import_igeam_vendors.py carica \
     -f data_migration_scripts/reports/igeam_nuovi.csv
 ```
 
@@ -308,8 +308,8 @@ Assegnano ai fornitori i requisiti professionali (`VendorCompetence`) e i serviz
 requisito/servizio per colonna, con una `X` nelle celle da assegnare.
 
 ```bash
-.venv/bin/python vendor_management_system/import_competenze.py -f ImportCompetenzaAssegnate.xlsx --dry-run
-.venv/bin/python vendor_management_system/import_servizi.py   -f import_servizi_assegnati.xlsx   --dry-run
+uv run python vendor_management_system/import_competenze.py -f ImportCompetenzaAssegnate.xlsx --dry-run
+uv run python vendor_management_system/import_servizi.py   -f import_servizi_assegnati.xlsx   --dry-run
 ```
 
 | Opzione | Default | Significato |
@@ -401,7 +401,7 @@ lanciare senza `--dry-run`.**
 esistenti prima di importare, tenendo solo quelle dei fornitori di una Società:
 
 ```bash
-.venv/bin/python vendor_management_system/import_competenze.py \
+uv run python vendor_management_system/import_competenze.py \
     -f ImportCompetenzaAssegnate.xlsx --reset-except-company Sicura --dry-run
 ```
 
@@ -422,7 +422,7 @@ Crea/aggiorna i documenti (`Document`) dei fornitori. Anche qui il formato è a
 matrice: un fornitore per riga, un tipo documento per colonna.
 
 ```bash
-.venv/bin/python vendor_management_system/import_documenti.py -f import_sa8000.xlsx --dry-run
+uv run python vendor_management_system/import_documenti.py -f import_sa8000.xlsx --dry-run
 ```
 
 | Opzione | Default | Significato |
@@ -448,7 +448,7 @@ matrice: un fornitore per riga, un tipo documento per colonna.
 Crea/aggiorna le valutazioni (`VendorEvaluation`), sempre a matrice.
 
 ```bash
-.venv/bin/python vendor_management_system/import_valutazioni.py -f import_valutazioni.xlsx --dry-run
+uv run python vendor_management_system/import_valutazioni.py -f import_valutazioni.xlsx --dry-run
 ```
 
 Stesse opzioni (`-f`, `-s`, `--dry-run`, `--key`; default `import_valutazioni.xlsx`).
@@ -470,7 +470,7 @@ Vanno popolate **prima** degli import che le referenziano.
 Titoli di studio (`QualificationType`), referenziati da `Vendor.qualification_type`.
 
 ```bash
-.venv/bin/python vendor_management_system/import_titoli.py -f titoli.xlsx --dry-run
+uv run python vendor_management_system/import_titoli.py -f titoli.xlsx --dry-run
 ```
 
 Opzioni: `-f` (default `titoli.xlsx`), `-s`, `--dry-run`.
@@ -482,7 +482,7 @@ Colonne: `code` (chiave), `name`, `description`, `level`, `sort_order`,
 Tipi documento (`DocumentType`), referenziati dalle colonne di `import_documenti.py`.
 
 ```bash
-.venv/bin/python data_migration_scripts/import_documenttypes.py
+uv run python data_migration_scripts/import_documenttypes.py
 ```
 
 Unico script **senza opzioni**: legge un percorso fisso,
@@ -523,8 +523,8 @@ altro — tipicamente da quello di sviluppo, dove i set vengono preparati, a una
 copia del database di produzione.
 
 ```bash
-.venv/bin/python vendor_management_system/sync_sets.py --source vms_db --target vms_db_PROD --dry-run
-.venv/bin/python vendor_management_system/sync_sets.py --source vms_db --target vms_db_PROD --copy-missing-refs
+uv run python vendor_management_system/sync_sets.py --source vms_db --target vms_db_PROD --dry-run
+uv run python vendor_management_system/sync_sets.py --source vms_db --target vms_db_PROD --copy-missing-refs
 ```
 
 | Opzione | Default | Significato |
@@ -572,14 +572,14 @@ SELECT COUNT(*) FROM vms_db.vendors_category d
 `DB_NAME` al comando.
 
 ```bash
-DB_NAME=vms_db_PROD .venv/bin/python manage.py showmigrations vendors
-DB_NAME=vms_db_PROD .venv/bin/python manage.py migrate vendors
+DB_NAME=vms_db_PROD uv run python manage.py showmigrations vendors
+DB_NAME=vms_db_PROD uv run python manage.py migrate vendors
 ```
 
 Vale per qualunque script del progetto. Verifica sempre dove sei finito:
 
 ```bash
-DB_NAME=vms_db_PROD .venv/bin/python -c "
+DB_NAME=vms_db_PROD uv run python -c "
 import django, os; os.environ.setdefault('DJANGO_SETTINGS_MODULE','config.settings'); django.setup()
 from django.db import connection; print(connection.settings_dict['NAME'])"
 ```
@@ -631,7 +631,7 @@ applica la collation di default **del charset** (in MySQL 8 è
 ```bash
 mysql -u root -p -e "CREATE DATABASE vms_db_PROD CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 mysql -u root -p vms_db_PROD < dump.sql     # tabelle tutte utf8mb4_unicode_ci
-DB_NAME=vms_db_PROD .venv/bin/python manage.py migrate
+DB_NAME=vms_db_PROD uv run python manage.py migrate
 ```
 
 **Verifica** — la seconda query deve restituire una riga sola:
@@ -691,7 +691,7 @@ Una tantum: migra i servizi dal vecchio `Vendor.service_type` (ForeignKey) alla
 relazione `VendorService`. Nessuna opzione.
 
 ```bash
-.venv/bin/python vendor_management_system/migrate_existing_services.py
+uv run python vendor_management_system/migrate_existing_services.py
 ```
 
 ### `data_migration_scripts/fix_documentset_migration.py`
@@ -753,7 +753,7 @@ il servizio *E-LEARNING* resta con il codice SERV-0082 e non è più in nessun s
 
 | Sintomo | Causa e rimedio |
 |---|---|
-| `ImportError: Pandas requires version '3.1.5' or newer of 'openpyxl'` | `pip install --upgrade "openpyxl>=3.1.5"` |
+| `ImportError: Pandas requires version '3.1.5' or newer of 'openpyxl'` | `uv add "openpyxl>=3.1.5"` (poi `uv sync`) |
 | `❌ File non trovato. Percorso fornito: Import.xlsx` | il file non è in nessuna delle cartelle cercate: passa `-f /percorso/assoluto` |
 | `Vendor() got unexpected keyword arguments: 'xxx'` | lo script scrive un campo rimosso dal modello: confronta con `Vendor._meta.get_fields()` e togli la riga |
 | `❌ Vendor non trovato: <codice>` | l'anagrafica non è stata importata, oppure stai usando `--key old_code` dopo che `import_embyon_codes.py` ha sostituito i codici: lascia `--key auto`, che aggancia per Riga excel Albo |

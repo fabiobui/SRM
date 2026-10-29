@@ -30,6 +30,26 @@ from vendor_management_system.portal.tests.factories import VendorUserFactory
         # L'OCR spesso manda a capo tra etichetta e valore.
         ("Scadenza\n 10-12-2026", None, date(2026, 12, 10)),
         ("Nessuna data utile qui", None, None),
+        (
+            "Valido dal 12/03/2025 al 11/03/2026",
+            date(2025, 3, 12),
+            date(2026, 3, 11),
+        ),
+        (
+            "In vigore dal 12/03/2025\nScade il 11/03/2026",
+            date(2025, 3, 12),
+            date(2026, 3, 11),
+        ),
+        (
+            "Emissione: 12.03.2025 - Scadenza: 11.03.2026",
+            date(2025, 3, 12),
+            date(2026, 3, 11),
+        ),
+        (
+            "Emesso in data 12 marzo 2025, valido fino al 11 marzo 2026",
+            date(2025, 3, 12),
+            date(2026, 3, 11),
+        ),
     ],
 )
 def test_estrae_date_da_testo(testo, rilascio, scadenza):
@@ -52,6 +72,38 @@ def test_ocr_non_disponibile_restituisce_nessuna_data():
         risultato = date_extraction.extract_dates(None, "a.pdf")
 
     assert risultato == {"issue_date": None, "expiry_date": None}
+
+
+def test_ocr_fallito_segnala_errore_invece_di_nessuna_data():
+    with patch.object(date_extraction, "read_text", return_value=None):
+        risultato = date_extraction.extract_dates(None, "a.pdf")
+
+    assert risultato["error"] == "ocr_non_riuscito"
+    assert risultato["issue_date"] is None
+
+
+def test_suggested_dates_propaga_l_errore_ocr():
+    upload = SimpleUploadedFile("a.pdf", b"%PDF-1.4")
+
+    with patch.object(date_extraction, "read_text", return_value=None):
+        risultato = date_extraction.suggested_dates(upload)
+
+    assert risultato == {
+        "issue_date": None,
+        "expiry_date": None,
+        "error": "ocr_non_riuscito",
+    }
+
+
+def test_pdf_con_testo_nativo_non_passa_dall_ocr():
+    testo = "Data di emissione: 01/02/2025 " * 5
+    upload = SimpleUploadedFile("a.pdf", b"%PDF-1.4")
+
+    with (
+        patch.object(date_extraction, "_pdf_native_text", return_value=testo),
+        patch("pytesseract.image_to_string", side_effect=AssertionError),
+    ):
+        assert date_extraction.read_text(upload, "a.pdf") == testo
 
 
 @pytest.mark.django_db
