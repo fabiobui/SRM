@@ -57,12 +57,13 @@
         );
         delete rilascio.dataset.ocrTouched;
         delete scadenza.dataset.ocrTouched;
-        mostraEsito(
-          input,
-          compilate
-            ? 'Date lette dal documento: controllale e correggile se serve.'
-            : ''
-        );
+        var messaggio = compilate
+          ? 'Date lette dal documento: controllale e correggile se serve.'
+          : '';
+        if (date.auto_renewal) {
+          messaggio += ' Rinnovo tacito o durata indeterminata: scadenza lasciata vuota.';
+        }
+        mostraEsito(input, messaggio.trim());
       })
       .catch(function () {
         mostraEsito(input, 'Lettura automatica delle date non riuscita: inseriscile a mano.');
