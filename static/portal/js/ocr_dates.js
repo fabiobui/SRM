@@ -35,7 +35,7 @@
     dati.append('file', input.files[0]);
     dati.append('csrfmiddlewaretoken', token.value);
 
-    mostraEsito(input, 'Lettura delle date dal documento…');
+    mostraEsito(input, 'Analisi delle date nel documento in corso…', true);
     fetch(ENDPOINT, { method: 'POST', body: dati, credentials: 'same-origin' })
       .then(function (risposta) {
         return risposta.ok ? risposta.json() : { error: 'http_' + risposta.status };
@@ -69,7 +69,7 @@
       });
   });
 
-  function mostraEsito(input, testo) {
+  function mostraEsito(input, testo, inCorso) {
     var nota = input.parentNode.querySelector('[data-ocr-note]');
     if (!nota) {
       nota = document.createElement('div');
@@ -77,6 +77,14 @@
       nota.setAttribute('data-ocr-note', '');
       input.insertAdjacentElement('afterend', nota);
     }
-    nota.textContent = testo;
+    nota.textContent = '';
+    if (inCorso) {
+      // rotellina finché l'analisi è in corso
+      var rotellina = document.createElement('span');
+      rotellina.className = 'spinner-border spinner-border-sm me-2';
+      rotellina.setAttribute('role', 'status');
+      nota.appendChild(rotellina);
+    }
+    nota.appendChild(document.createTextNode(testo));
   }
 })();

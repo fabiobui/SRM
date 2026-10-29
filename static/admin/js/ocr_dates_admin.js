@@ -62,7 +62,7 @@
         data.append('file', input.files[0]);
         data.append('csrfmiddlewaretoken', token.value);
 
-        note(input, 'Lettura delle date dal documento…');
+        note(input, 'Analisi delle date nel documento in corso…', true);
         fetch(url, { method: 'POST', body: data, credentials: 'same-origin' })
             .then(function (r) { return r.ok ? r.json() : { error: 'http_' + r.status }; })
             .then(function (dates) {
@@ -95,7 +95,7 @@
             });
     });
 
-    function note(input, text) {
+    function note(input, text, busy) {
         var holder = input.closest('td') || input.parentNode;
         var el = holder.querySelector('[data-ocr-note]');
         if (!el) {
@@ -104,6 +104,14 @@
             el.style.fontSize = '0.85em';
             holder.appendChild(el);
         }
-        el.textContent = text;
+        el.textContent = '';
+        if (busy) {
+            // rotellina finché l'analisi è in corso
+            var spinner = document.createElement('span');
+            spinner.className = 'spinner-border spinner-border-sm mr-1';
+            spinner.setAttribute('role', 'status');
+            el.appendChild(spinner);
+        }
+        el.appendChild(document.createTextNode(text));
     }
 })();
