@@ -71,7 +71,7 @@ login, `redirect_by_role()` / `dashboard_redirect` invia l'utente nel posto gius
 | Ruolo | Area di atterraggio | URL | Note |
 |---|---|---|---|
 | **Admin / superuser** | Django Admin (tema Jazzmin) | `/admin/` | CRUD completo su ogni modello; ha anche una scorciatoia "Vendors - Analysis and Classification" (barra in alto e sezione dedicata nel menu laterale) verso la dashboard fornitori |
-| **Back Office (bo_user)** | Django Admin | `/admin/` (anche `/documents/backoffice/`) | Gestione operativa: fornitori, documenti, ordini, valutazioni. `documents/backoffice/` è una vista dashboard specifica dell'app, distinta da `/admin/` |
+| **Back Office (bo_user)** | Dashboard fornitori | `/vendors/dashboard/` e `/portale/backoffice/dashboard/` | Consultazione e gestione operativa (richieste, documenti, requisiti). Non è staff: non entra in `/admin/`. Vedi [PERMESSI_RUOLI.md](PERMESSI_RUOLI.md) |
 | **Vendor (self-service)** | Portale Fornitori | `/portale/` (namespace `portal:`) | Area self-service per fornitori attivi/correnti: i miei documenti, i miei requisiti/competenze, il mio profilo (+ richieste di modifica), il mio stato di qualificazione |
 | — legacy | `/documents/portal/` | Vecchio URL del portale fornitori — ora è solo un redirect 301 verso `/portale/`, mantenuto per retrocompatibilità |
 | Tutti (dashboard interna) | Dashboard analytics fornitori | `/vendors/dashboard/` | Grafici/statistiche/filtri + export Excel sull'anagrafica fornitori (orientata a BO/Admin) |

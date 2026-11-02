@@ -2,11 +2,12 @@
 from django.shortcuts import get_object_or_404
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
-from rest_framework import permissions, response, status, viewsets
+from rest_framework import response, status, viewsets
 
 from vendor_management_system.core.authentication import (
     QueryParameterTokenAuthentication,
 )
+from vendor_management_system.core.permissions import IsBackOfficeUser
 from vendor_management_system.users.models import User
 from vendor_management_system.users.serializers import UserSerializer
 
@@ -14,7 +15,7 @@ from vendor_management_system.users.serializers import UserSerializer
 # Class based ViewSet for User
 class UserViewSet(viewsets.ViewSet):
     # Set the permission and authentication classes
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsBackOfficeUser]
     authentication_classes = [QueryParameterTokenAuthentication]
 
     # Method to handle listing all users

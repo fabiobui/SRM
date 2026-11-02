@@ -20,15 +20,11 @@ PASSWORD = "test-pass-1234"
 
 @pytest.fixture
 def staff_user(db):
-    # Utente BO "di staff" ma non superuser: create_user() vieta
-    # is_staff=True direttamente (vedi users/managers.py), quindi lo
-    # impostiamo dopo, come farebbe un admin dal pannello utenti.
-    user = User.objects.create_user(
-        email="staff@test.com", password=PASSWORD, role="bo_user"
+    # Admin di staff ma non superuser: lo staff lo ricava il salvataggio
+    # dal ruolo (vedi users/models.py).
+    return User.objects.create_user(
+        email="staff@test.com", password=PASSWORD, role="admin"
     )
-    user.is_staff = True
-    user.save(update_fields=["is_staff"])
-    return user
 
 
 @pytest.fixture

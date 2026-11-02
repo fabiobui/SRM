@@ -6,12 +6,13 @@ from unittest.mock import patch
 import pytest
 from django.contrib import messages
 from django.contrib.admin.sites import AdminSite
-from django.contrib.auth.models import Permission
+from django.contrib.auth.models import Group, Permission
 from django.core import mail
 from django.urls import reverse
 
 from vendor_management_system.users.models import User
 from vendor_management_system.users.portal_access import create_portal_user
+from vendor_management_system.users.roles import ROLE_GROUP_NAMES
 from vendor_management_system.vendors.admin import VendorAdmin
 from vendor_management_system.vendors.models import Vendor
 from vendor_management_system.vendors.tests.factories import VendorFactory
@@ -30,6 +31,23 @@ def admin_client(client, db):
 
 def _portal_access_url(vendor):
     return reverse("admin:vendors_vendor_portal_access", args=[vendor.pk])
+
+
+def _admin_senza_permesso(client, codename, app_label):
+    """Admin di ruolo (non superuser) a cui il gruppo toglie un permesso."""
+    gruppo = Group.objects.get(name=ROLE_GROUP_NAMES["admin"])
+    gruppo.permissions.remove(
+        Permission.objects.get(
+            content_type__app_label=app_label, codename=codename
+        )
+    )
+    user = User.objects.create_user(
+        email=f"{codename}-mancante@example.invalid",
+        password=PASSWORD,
+        role="admin",
+    )
+    client.login(email=user.email, password=PASSWORD)
+    return user
 
 
 @pytest.mark.django_db
@@ -83,14 +101,7 @@ def test_resend_invite_only_while_password_not_set(admin_client):
 
 @pytest.mark.django_db
 def test_portal_access_requires_vendor_change_permission(client):
-    staff = User.objects.create_user(
-        email="staff-senza-permessi@example.invalid",
-        password=PASSWORD,
-        role="bo_user",
-    )
-    staff.is_staff = True
-    staff.save()
-    client.login(email=staff.email, password=PASSWORD)
+    _admin_senza_permesso(client, "change_vendor", "vendors")
     vendor = VendorFactory(email="protetto@example.invalid")
 
     response = client.post(_portal_access_url(vendor), {"action": "create"})
@@ -139,18 +150,7 @@ def test_portal_access_page_offers_reset_when_email_differs(admin_client):
 
 @pytest.mark.django_db
 def test_reset_requires_change_user_permission(client):
-    staff = User.objects.create_user(
-        email="staff-solo-fornitori@example.invalid",
-        password=PASSWORD,
-        role="bo_user",
-    )
-    staff.is_staff = True
-    staff.save()
-    perm = Permission.objects.get(
-        content_type__app_label="vendors", codename="change_vendor"
-    )
-    staff.user_permissions.add(perm)
-    client.login(email=staff.email, password=PASSWORD)
+    _admin_senza_permesso(client, "change_user", "users")
     vendor = VendorFactory(email="protetto@example.invalid")
     user = create_portal_user(vendor)
 

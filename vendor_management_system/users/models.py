@@ -12,6 +12,10 @@ from django.db.models import (
 from django.utils.translation import gettext_lazy as _
 
 from vendor_management_system.users.managers import UserManager
+from vendor_management_system.users.roles import (
+    ROLE_GROUP_NAMES,
+    ensure_role_groups,
+)
 
 
 class User(AbstractUser):
@@ -76,30 +80,27 @@ class User(AbstractUser):
     objects: ClassVar[UserManager] = UserManager()
 
     def save(self, *args, **kwargs):
-        # Assegna automaticamente ai gruppi in base al ruolo
-        is_new = self.pk is None
+        # Lo staff serve solo per entrare in /admin/: lo concediamo ai soli
+        # Admin e superuser, qualunque valore sia stato impostato a mano.
+        self.is_staff = self.is_superuser or self.role == "admin"
         super().save(*args, **kwargs)
+        self.sync_role_group()
 
-        if is_new:
-            self.assign_to_group()
+    def sync_role_group(self):
+        """Porta l'utente nel solo gruppo corrispondente al suo ruolo.
 
-    def assign_to_group(self):
-        """Assegna l'utente al gruppo corretto basato sul ruolo"""
-        # Rimuovi da tutti i gruppi esistenti
-        self.groups.clear()
-
-        # Assegna al gruppo appropriato
-        if self.role == "admin":
-            group, created = Group.objects.get_or_create(name="Administrators")
-            self.groups.add(group)
-        elif self.role == "bo_user":
-            group, created = Group.objects.get_or_create(
-                name="BackOffice Users"
-            )
-            self.groups.add(group)
-        elif self.role == "vendor":
-            group, created = Group.objects.get_or_create(name="Vendors")
-            self.groups.add(group)
+        Chiamato a ogni salvataggio, così anche i gruppi assegnati a mano
+        vengono riallineati.
+        """
+        name = ROLE_GROUP_NAMES.get(self.role)
+        if name is None:
+            self.groups.clear()
+            return
+        group = Group.objects.filter(name=name).first()
+        if group is None:
+            ensure_role_groups()
+            group = Group.objects.get(name=name)
+        self.groups.set([group])
 
     def is_admin(self):
         return self.role == "admin" or self.is_superuser

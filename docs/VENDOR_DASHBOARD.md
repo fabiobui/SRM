@@ -16,8 +16,8 @@
 
 La dashboard è una vista interna di analisi/consultazione sul registro `Vendor`: statistiche riassuntive, un
 insieme di grafici cliccabili, un generatore di filtri avanzati in stile Redmine, una casella di ricerca a testo
-libero e un export Excel filtrato. È raggiungibile da qualsiasi sessione autenticata (pensata per BO/Admin, ma
-viene applicato solo `@login_required` — nessun controllo di ruolo).
+libero e un export Excel filtrato. È raggiungibile solo da Admin e BO User (controllo di ruolo `backoffice_required`, vedi
+[PERMESSI_RUOLI.md](PERMESSI_RUOLI.md)); i Fornitori ricevono un redirect al portale.
 
 | Piece | Location |
 |---|---|

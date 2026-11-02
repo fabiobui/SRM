@@ -2,13 +2,16 @@
 import json
 
 from django.conf import settings as django_settings
-from django.contrib.auth.decorators import login_required
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db.models import Count, F, Prefetch, Q
 from django.http import HttpResponse, JsonResponse
-from django.shortcuts import redirect, render
+from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 
+from vendor_management_system.core.permissions import (
+    backoffice_api_required,
+    backoffice_required,
+)
 from vendor_management_system.vendors import competence
 from vendor_management_system.vendors.models import (
     Competence,
@@ -19,7 +22,7 @@ from vendor_management_system.vendors.models import (
 )
 
 
-@login_required
+@backoffice_required
 def vendor_dashboard_view(request):
     """
     Dashboard view che mostra statistiche e grafici sui fornitori
@@ -439,6 +442,7 @@ def _lista_csv(valore):
 
 
 @csrf_exempt
+@backoffice_api_required
 def dashboard_stats_api(request):
     """
     API endpoint per statistiche dashboard
@@ -460,6 +464,7 @@ def dashboard_stats_api(request):
 
 
 @csrf_exempt
+@backoffice_api_required
 def dashboard_vendors_list_api(request):
     """
     API endpoint per lista fornitori con filtri
@@ -539,7 +544,7 @@ def dashboard_vendors_list_api(request):
     return JsonResponse({"vendors": vendors_data})
 
 
-@login_required
+@backoffice_required
 def export_vendors_excel(request):
     """
     Export vendors to Excel with applied filters
@@ -735,19 +740,3 @@ def export_vendors_excel(request):
 
     wb.save(response)
     return response
-
-
-@login_required
-def post_login_redirect(request):
-    """
-    Decide la destinazione post-login in base al profilo utente.
-    - admin/staff -> Django admin
-    - gruppo 'backoffice' -> vendor_dashboard
-    - fallback -> vendor_dashboard
-    """
-    user = request.user
-    if user.is_superuser or user.is_staff:
-        return redirect("admin:index")
-    if user.groups.filter(name__iexact="backoffice").exists():
-        return redirect("vendor_dashboard")
-    return redirect("vendor_dashboard")

@@ -111,10 +111,6 @@ def create_portal_user(vendor):
             role="vendor",
             vendor=vendor,
         )
-        # User.save() non assegna mai il gruppo (la pk ha un default uuid,
-        # quindi "is_new" risulta sempre falso): va fatto esplicitamente,
-        # come in UserAdmin.save_model.
-        user.assign_to_group()
     return user
 
 
