@@ -1,6 +1,11 @@
 # Aggiornamenti per vendor_management_system/vendors/admin.py
 
 # Imports (aggiorna le imports esistenti)
+import io
+import os
+import re
+import zipfile
+
 from django import forms
 from django.conf import settings
 from django.contrib import admin, messages
@@ -8,7 +13,12 @@ from django.contrib.admin.utils import quote, unquote
 from django.core.exceptions import PermissionDenied
 from django.db.models import Q, TextField
 from django.forms import modelform_factory
-from django.http import Http404, HttpResponseNotAllowed, JsonResponse
+from django.http import (
+    Http404,
+    HttpResponse,
+    HttpResponseNotAllowed,
+    JsonResponse,
+)
 from django.shortcuts import redirect
 from django.template.response import TemplateResponse
 from django.urls import path, reverse
@@ -291,6 +301,7 @@ class CompetenceAdmin(ImportExportModelAdmin):
 class VendorCompetenceInline(admin.TabularInline):
     model = VendorCompetence
     extra = 1
+    template = "admin/vendors/inline/abilitazioni.html"
     verbose_name_plural = _("Abilitazioni e Requisiti Professionali")
     fields = [
         "competence",
@@ -540,6 +551,7 @@ class VendorCompetenceAdmin(admin.ModelAdmin):
 class DocumentInline(admin.TabularInline):
     model = Document
     extra = 1
+    template = "admin/vendors/inline/documenti.html"
     verbose_name_plural = _("Documenti Contrattuali")
     fields = [
         "document_type",
@@ -1348,6 +1360,11 @@ class VendorAdmin(admin.ModelAdmin):
                 self.admin_site.admin_view(self.portal_access_view),
                 name="vendors_vendor_portal_access",
             ),
+            path(
+                "<path:object_id>/zip/<str:section>/",
+                self.admin_site.admin_view(self.download_zip_view),
+                name="vendors_vendor_download_zip",
+            ),
         ]
         return custom + urls
 
@@ -1381,6 +1398,75 @@ class VendorAdmin(admin.ModelAdmin):
     def response_change(self, request, obj):
         self._salva_resta_sulla_scheda(request)
         return super().response_change(request, obj)
+
+    def _zip_entries(self, vendor, section):
+        """File allegati alla sezione, come coppie (etichetta, FieldFile)."""
+        if section == "documenti":
+            documents = vendor.documents.select_related("document_type")
+            return [
+                (doc.document_type.name, doc.file)
+                for doc in documents.exclude(file="").exclude(
+                    file__isnull=True
+                )
+            ]
+        if section == "abilitazioni":
+            assignments = vendor.vendor_competences.select_related(
+                "competence"
+            )
+            return [
+                (assignment.competence.name, assignment.document_file)
+                for assignment in assignments.exclude(
+                    document_file=""
+                ).exclude(document_file__isnull=True)
+            ]
+        raise Http404
+
+    def download_zip_view(self, request, object_id, section):
+        """Scarica in un .zip i file allegati a una sezione del fornitore.
+
+        Se un file non è leggibile dallo storage il download non parte: lo zip
+        sarebbe incompleto senza che l'operatore se ne accorga.
+        """
+        vendor = self.get_object(request, unquote(object_id))
+        if vendor is None:
+            raise Http404
+        if not self.has_view_permission(request, vendor):
+            raise PermissionDenied
+        entries = self._zip_entries(vendor, section)
+
+        buffer = io.BytesIO()
+        unreadable = []
+        with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
+            for index, (label, field) in enumerate(entries, start=1):
+                name = re.sub(
+                    r'[\\/:*?"<>|]',
+                    "_",
+                    f"{index:02d} - {label} - {os.path.basename(field.name)}",
+                )
+                try:
+                    with field.open("rb") as stored:
+                        archive.writestr(name, stored.read())
+                except OSError:
+                    unreadable.append(field.name)
+
+        if unreadable:
+            self.message_user(
+                request,
+                "Download non riuscito: file non leggibili: "
+                + ", ".join(unreadable),
+                messages.ERROR,
+            )
+            return redirect(
+                reverse("admin:vendors_vendor_change", args=[quote(vendor.pk)])
+            )
+
+        response = HttpResponse(
+            buffer.getvalue(), content_type="application/zip"
+        )
+        response["Content-Disposition"] = (
+            f'attachment; filename="{vendor.vendor_code}_{section}.zip"'
+        )
+        return response
 
     def portal_access_view(self, request, object_id):
         """Crea l'utenza portale del fornitore e invia l'invito.
