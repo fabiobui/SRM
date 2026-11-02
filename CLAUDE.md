@@ -149,14 +149,10 @@ l'overview completa e il setup locale (Docker o nativo).
 
 ## Sicurezza — follow-up noti (non normalizzare questi test per farli passare)
 
-- **`vendor_management_system/vendors/dashboard_views.py::dashboard_stats_api`** (`GET
-  /vendors/dashboard-stats/`) non ha **nessun controllo di autenticazione**: chiunque può leggere conteggi/rischio
-  fornitori senza login, a differenza delle altre viste API dello stesso file (che usano
-  `QueryParameterTokenAuthentication` + `IsAuthenticated`). I test `test_api_without_token` e
-  `test_dashboard_stats_api` in `vendor_management_system/vendors/tests/test_dashboard.py` sono skippati con
-  motivazione esplicita invece di essere riscritti per accettare lo stato attuale — richiede una scelta
-  consapevole (ripristinare l'auth + eventualmente il payload più ricco che il test si aspettava) in un cambio
-  dedicato, non un fix silenzioso dentro un giro di refactor.
+- **`vendor_management_system/vendors/dashboard_views.py::dashboard_stats_api`**: l'auth è stata ripristinata
+  (Admin e BO User, `backoffice_api_required`, vedi [docs/PERMESSI_RUOLI.md](docs/PERMESSI_RUOLI.md)). Resta
+  skippato `test_dashboard_stats_api` perché il payload della vista è più povero di quello che il test si
+  aspetta: da riscrivere con una scelta consapevole sul payload, non normalizzando il test.
 
 ## Layout del repo (script fuori dall'app Django)
 

@@ -2,13 +2,14 @@
 from django.shortcuts import get_object_or_404
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
-from rest_framework import permissions, response, status, viewsets
+from rest_framework import response, status, viewsets
 from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.decorators import action
 
 from vendor_management_system.core.authentication import (
     QueryParameterTokenAuthentication,
 )
+from vendor_management_system.core.permissions import IsBackOfficeUser
 from vendor_management_system.core.serializers import (
     QueryParamAuthTokenSerializer,
 )
@@ -44,7 +45,7 @@ from vendor_management_system.vendors.serializers import (
 class AddressViewSet(viewsets.ViewSet):
     """ViewSet for managing addresses independently"""
 
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsBackOfficeUser]
     authentication_classes = [QueryParameterTokenAuthentication]
 
     @swagger_auto_schema(
@@ -232,7 +233,7 @@ class AddressViewSet(viewsets.ViewSet):
 class CategoryViewSet(viewsets.ViewSet):
     """ViewSet for managing categories"""
 
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsBackOfficeUser]
     authentication_classes = [QueryParameterTokenAuthentication]
 
     @swagger_auto_schema(
@@ -562,7 +563,7 @@ class CategoryViewSet(viewsets.ViewSet):
 class VendorViewSet(viewsets.ViewSet):
     """ViewSet for managing vendors"""
 
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsBackOfficeUser]
     authentication_classes = [QueryParameterTokenAuthentication]
 
     @swagger_auto_schema(
@@ -1580,7 +1581,7 @@ class QueryParamObtainAuthToken(ObtainAuthToken):
 class CountryViewSet(viewsets.ViewSet):
     """ViewSet per la gestione delle Nazioni"""
 
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsBackOfficeUser]
     authentication_classes = [QueryParameterTokenAuthentication]
 
     @swagger_auto_schema(
@@ -1630,7 +1631,7 @@ class CountryViewSet(viewsets.ViewSet):
 class RegionViewSet(viewsets.ViewSet):
     """ViewSet per la gestione delle Regioni"""
 
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsBackOfficeUser]
     authentication_classes = [QueryParameterTokenAuthentication]
 
     @swagger_auto_schema(
@@ -1670,7 +1671,7 @@ class RegionViewSet(viewsets.ViewSet):
 class ProvinceViewSet(viewsets.ViewSet):
     """ViewSet per la gestione delle Province"""
 
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsBackOfficeUser]
     authentication_classes = [QueryParameterTokenAuthentication]
 
     @swagger_auto_schema(

@@ -2,11 +2,12 @@
 from django.shortcuts import get_object_or_404
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
-from rest_framework import permissions, response, status, viewsets
+from rest_framework import response, status, viewsets
 
 from vendor_management_system.core.authentication import (
     QueryParameterTokenAuthentication,
 )
+from vendor_management_system.core.permissions import IsBackOfficeUser
 from vendor_management_system.purchase_orders.models import PurchaseOrder
 from vendor_management_system.purchase_orders.serializers import (
     PurchaseOrderCreateUpdateSerializer,
@@ -21,7 +22,7 @@ from vendor_management_system.vendors.models import Vendor
 # Class based ViewSet for PurchaseOrder
 class PurchaseOrderViewSet(viewsets.ViewSet):
     # Set the permission and authentication classes
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsBackOfficeUser]
     authentication_classes = [QueryParameterTokenAuthentication]
 
     # Method to handle listing all purchase orders

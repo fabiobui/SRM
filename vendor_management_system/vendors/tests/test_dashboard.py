@@ -35,7 +35,7 @@ class VendorDashboardTestCase(TestCase):
 
         # Crea utente admin
         self.user = User.objects.create_user(
-            email="admin@test.com", password="testpass123", role="ADMIN"
+            email="admin@test.com", password="testpass123", role="admin"
         )
 
         # Crea token per autenticazione API
@@ -148,14 +148,6 @@ class VendorDashboardTestCase(TestCase):
         # Dovrebbe redirezionare al login
         self.assertEqual(response.status_code, 302)
 
-    @unittest.skip(
-        "dashboard_stats_api (vedi vendor_management_system/vendors/"
-        "dashboard_views.py) non ha nessun controllo di autenticazione "
-        "oggi: chiunque può leggere le statistiche fornitori senza "
-        "login. Non normalizzare questo test per farlo passare - vedi "
-        "CLAUDE.md, sezione follow-up dashboard-stats, per la scelta "
-        "consapevole di ripristinare l'auth in un cambio dedicato."
-    )
     def test_api_without_token(self):
         """Test che l'API richieda autenticazione"""
         client = Client()
@@ -178,7 +170,7 @@ class VendorDashboardQueryCountTestCase(TestCase):
     def setUp(self):
         User = get_user_model()
         self.user = User.objects.create_user(
-            email="perf@test.com", password="testpass123", role="ADMIN"
+            email="perf@test.com", password="testpass123", role="admin"
         )
         self.client = Client()
         self.client.login(email="perf@test.com", password="testpass123")

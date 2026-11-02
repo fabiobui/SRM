@@ -97,7 +97,7 @@ Questa è la prima sezione del form, contiene i dati identificativi del fornitor
 |:--:|-------|:---:|-------------|
 | 1 | **Codice Fornitore** | Auto | Generato automaticamente, non modificabile |
 | 2 | **Codice Embyon** | No | Codice del fornitore proveniente da Embyon (ex *Vecchio codice fornitore*) |
-| 3 | **Utente gestione fornitore** | No | Utente Admin o BackOffice responsabile della gestione del fornitore (lookup ristretto ai gruppi *Administrators* / *BackOffice Users*) |
+| 3 | **Utente gestione fornitore** | No | Utente Admin o BackOffice responsabile della gestione del fornitore (lookup ristretto agli utenti con ruolo *Admin* o *BO User*) |
 | 4 | **Nome del Fornitore** | Sì | Ragione sociale o nome completo |
 | 5 | **Tipo di Fornitore** | Sì | Selezionare dal menu a tendina (default: *Società*) |
 | 6 | **Partita IVA** | No | Partita IVA del fornitore |

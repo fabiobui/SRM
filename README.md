@@ -322,7 +322,7 @@ class User(AbstractUser):
 - `is_admin()`: verifica i privilegi di amministratore
 - `can_manage_vendors()`: permesso di modificare i dati fornitore
 - `can_view_all_documents()`: accesso ai dati documentali cross-vendor
-- `assign_to_group()`: assegnazione automatica al gruppo in base al ruolo
+- `sync_role_group()`: riallinea gruppo e staff al ruolo a ogni salvataggio (vedi [docs/PERMESSI_RUOLI.md](docs/PERMESSI_RUOLI.md))
 
 #### Modello Vendor (`vendor_management_system.vendors.models.Vendor`)
 

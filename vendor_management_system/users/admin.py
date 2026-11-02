@@ -230,20 +230,14 @@ class UserAdmin(auth_admin.UserAdmin):
                 "fields": (
                     "is_active",
                     "is_staff",
-                    "is_superuser",
                     "groups",
-                    "user_permissions",
+                    "is_superuser",
                 ),
                 "description": _(
-                    "Per un utente con Ruolo 'Fornitore' non serve toccare "
-                    "Gruppi né Privilegi utente: l'accesso al portale "
-                    "dipende solo da Ruolo e Fornitore (sopra), non da "
-                    "questi campi. Il gruppo 'Vendors' viene assegnato "
-                    "automaticamente alla creazione. Gruppi/Privilegi "
-                    "utente servono solo per gli utenti Admin/BO con "
-                    "'Staff status' attivo, per limitarne l'accesso a "
-                    "specifiche viste di /admin/ invece di renderli "
-                    "superuser."
+                    "Gruppo e Staff status si ricavano dal Ruolo: non si "
+                    "modificano a mano. Solo il ruolo Admin accede a "
+                    "/admin/; il superuser è riservato ai casi eccezionali "
+                    "e può essere impostato solo da un altro superuser."
                 ),
             },
         ),
@@ -313,7 +307,13 @@ class UserAdmin(auth_admin.UserAdmin):
 
     # Campi di sola lettura per utenti LDAP (alcune informazioni vengono
     # da LDAP)
-    readonly_fields = ["is_ldap_user", "last_login", "date_joined"]
+    readonly_fields = [
+        "is_ldap_user",
+        "last_login",
+        "date_joined",
+        "is_staff",
+        "groups",
+    ]
     actions = ["resend_portal_invite"]
 
     def get_readonly_fields(self, request, obj=None):
@@ -327,7 +327,33 @@ class UserAdmin(auth_admin.UserAdmin):
                 ["email", "name"]
             )  # Questi vengono sincronizzati da LDAP
 
+        # Il superuser si concede solo da un altro superuser
+        if not request.user.is_superuser:
+            readonly.append("is_superuser")
+
         return readonly
+
+    def _vietato_su_superuser(self, request, obj):
+        return (
+            obj is not None
+            and obj.is_superuser
+            and not request.user.is_superuser
+        )
+
+    def has_change_permission(self, request, obj=None):
+        if self._vietato_su_superuser(request, obj):
+            return False
+        return super().has_change_permission(request, obj)
+
+    def has_delete_permission(self, request, obj=None):
+        if self._vietato_su_superuser(request, obj):
+            return False
+        return super().has_delete_permission(request, obj)
+
+    def has_view_permission(self, request, obj=None):
+        if self._vietato_su_superuser(request, obj):
+            return False
+        return super().has_view_permission(request, obj)
 
     def get_fieldsets(self, request, obj=None):
         """Personalizza i fieldsets in base al tipo di utente.
@@ -374,12 +400,9 @@ class UserAdmin(auth_admin.UserAdmin):
 
         super().save_model(request, obj, form, change)
 
-        # Dopo il salvataggio, assegna ai gruppi appropriati
-        if not change:  # Solo per nuovi utenti
-            obj.assign_to_group()
-            # Fornitore creato senza password: invito via email
-            if pending_invite(obj) and obj.vendor_id:
-                invite_and_notify(self, request, obj, created=False)
+        # Fornitore creato senza password: invito via email
+        if not change and pending_invite(obj) and obj.vendor_id:
+            invite_and_notify(self, request, obj, created=False)
 
     @admin.action(description=_("Reinvia invito portale fornitori"))
     def resend_portal_invite(self, request, queryset):

@@ -77,16 +77,17 @@ def test_unknown_vendor_is_404(admin_client_logged_in):
 
 
 @pytest.mark.django_db
-def test_staff_without_permissions_is_denied(client):
-    staff = User.objects.create_user(
-        email="staff-contract-save@example.invalid", password=PASSWORD
+def test_bo_user_cannot_reach_admin_contract_save(client):
+    bo_user = User.objects.create_user(
+        email="bo-contract-save@example.invalid",
+        password=PASSWORD,
+        role="bo_user",
     )
-    staff.is_staff = True
-    staff.save()
-    client.login(email=staff.email, password=PASSWORD)
+    client.login(email=bo_user.email, password=PASSWORD)
     vendor = VendorFactory()
 
     response = client.post(_url(vendor), PAYLOAD)
 
-    assert response.status_code == 403
+    assert response.status_code == 302
+    assert "/admin/login/" in response.url
     assert not Contract.objects.exists()
