@@ -1,6 +1,10 @@
 # Imports
 from django.urls import path
 
+from vendor_management_system.vendors.dashboard_vendor_views import (
+    prospect_create_view,
+    vendor_detail_view,
+)
 from vendor_management_system.vendors.dashboard_views import (
     dashboard_stats_api,
     dashboard_vendors_list_api,
@@ -23,6 +27,16 @@ urlpatterns = [
         "dashboard/",
         vendor_dashboard_view,
         name="vendor-dashboard",
+    ),
+    path(
+        "dashboard/prospect/",
+        prospect_create_view,
+        name="dashboard-prospect-create",
+    ),
+    path(
+        "dashboard/vendor/<str:vendor_code>/",
+        vendor_detail_view,
+        name="dashboard-vendor-detail",
     ),
     # Dashboard API endpoints (BEFORE <vendor_code>/ catch-all)
     path(

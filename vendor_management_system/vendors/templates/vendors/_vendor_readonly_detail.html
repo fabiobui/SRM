@@ -1,0 +1,41 @@
+<div class="vendor-detail" data-vendor-code="{{ vendor.vendor_code }}">
+    <ul class="nav nav-tabs mb-3" role="tablist">
+        {% for section in sections %}
+        <li class="nav-item" role="presentation">
+            <button class="nav-link{% if forloop.first %} active{% endif %}" type="button"
+                    data-bs-toggle="tab" data-bs-target="#vendor-section-{{ forloop.counter }}" role="tab">
+                {{ section.title }}
+            </button>
+        </li>
+        {% endfor %}
+    </ul>
+    <div class="tab-content">
+        {% for section in sections %}
+        <div class="tab-pane fade{% if forloop.first %} show active{% endif %}" id="vendor-section-{{ forloop.counter }}" role="tabpanel">
+            {% if section.rows %}
+            <dl class="row mb-0">
+                {% for label, value in section.rows %}
+                <dt class="col-sm-4 text-muted fw-normal">{{ label }}</dt>
+                <dd class="col-sm-8">{{ value }}</dd>
+                {% endfor %}
+            </dl>
+            {% elif section.table and section.table.rows %}
+            <div class="table-responsive">
+                <table class="table table-sm table-striped align-middle mb-0">
+                    <thead>
+                        <tr>{% for header in section.table.headers %}<th>{{ header }}</th>{% endfor %}</tr>
+                    </thead>
+                    <tbody>
+                        {% for row in section.table.rows %}
+                        <tr>{% for cell in row %}<td>{{ cell }}</td>{% endfor %}</tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-muted mb-0">Nessun dato censito.</p>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>

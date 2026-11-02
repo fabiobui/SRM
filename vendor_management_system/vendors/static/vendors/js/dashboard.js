@@ -13,92 +13,9 @@ let activeFilters = {
     service_categories: [],
     services: []
 };
-let advancedFilters = []; // Array of {field, operator, value}
-let filterRowCounter = 0;
 let charts = {};
 let allProvinces = [];
 let serviceCategoryMap = {}; // Maps service name to category name
-
-// Available filter fields configuration
-const filterFields = {
-    'name': { label: 'Nome', type: 'text' },
-    'vendor_code': { label: 'Codice Fornitore', type: 'text' },
-    'vendor_type': { label: 'Tipo Fornitore', type: 'select', options: ['Società', 'Professionista', 'Dipendente', 'Dipendente + Libero professionista', 'Disoccupato', 'Libero Professionista', 'Presso Studio', 'Prestazione Occasionale', 'Società/professionista', 'Internazionale', 'Subappaltatore'] },
-    'email': { label: 'Email', type: 'text' },
-    'phone': { label: 'Telefono', type: 'text' },
-    'vat_number': { label: 'Partita IVA', type: 'text' },
-    'fiscal_code': { label: 'Codice Fiscale', type: 'text' },
-    'qualification_status': { label: 'Stato Qualifica', type: 'select', options: [
-        { value: 'PENDING', label: 'In attesa' },
-        { value: 'TO_REVIEW', label: 'Da revisionare' },
-        { value: 'APPROVED', label: 'Approvato' },
-        { value: 'REJECTED', label: 'Rifiutato' }
-    ] },
-    'vendor_final_evaluation': { label: 'Valutazione Finale', type: 'select', options: ['DA VALUTARE', 'NEGATIVO', 'POSITIVO'] },
-    'quality_rating_avg': { label: 'Valutazione Qualità', type: 'number' },
-    'fulfillment_rate': { label: 'Tasso Adempimento', type: 'number' },
-    'is_active': { label: 'Attivo', type: 'boolean' },
-    'is_ico_consultant': { label: 'Consulente ICO', type: 'boolean' },
-    'contractual_status': { label: 'Stato Contrattuale', type: 'select', options: ['00', '02', '03', '04', '05', '06', '99'] },
-    'address.city': { label: 'Città', type: 'text' },
-    'address.region': { label: 'Regione (sede)', type: 'text' },
-    'address.state_province': { label: 'Provincia (sede)', type: 'text' },
-    'address.country': { label: 'Paese', type: 'text' },
-    'category.name': { label: 'Categoria', type: 'text' },
-    'service_type.name': { label: 'Tipo Servizio (principale)', type: 'text' },
-    'operational_notes': { label: 'Note operative', type: 'text' },
-    // Campi multi-valore: confronto sull'elenco di nomi del fornitore
-    'services': { label: 'Servizi erogati', type: 'list' },
-    'service_categories': { label: 'Categorie di servizio', type: 'list' },
-    'competences': { label: 'Competenze', type: 'list' },
-    'qualifiche': { label: 'Qualifiche professionali', type: 'list' },
-    'competenze_req': { label: 'Requisiti professionali', type: 'list' },
-    'certifications': { label: 'Certificazioni', type: 'list' }
-};
-
-// Valore (value/label) di un'opzione dei campi select
-function optionValue(opt) { return typeof opt === 'object' ? opt.value : opt; }
-function optionLabel(opt) { return typeof opt === 'object' ? opt.label : opt; }
-
-// Operator options by field type
-const operatorsByType = {
-    'text': [
-        { value: 'contains', label: 'contiene' },
-        { value: 'not_contains', label: 'non contiene' },
-        { value: 'equals', label: 'è uguale a' },
-        { value: 'not_equals', label: 'è diverso da' },
-        { value: 'starts_with', label: 'inizia con' },
-        { value: 'ends_with', label: 'finisce con' },
-        { value: 'is_empty', label: 'è vuoto' },
-        { value: 'is_not_empty', label: 'non è vuoto' }
-    ],
-    'number': [
-        { value: 'equals', label: 'è uguale a' },
-        { value: 'not_equals', label: 'è diverso da' },
-        { value: 'greater_than', label: 'è maggiore di' },
-        { value: 'less_than', label: 'è minore di' },
-        { value: 'greater_or_equal', label: 'è maggiore o uguale a' },
-        { value: 'less_or_equal', label: 'è minore o uguale a' },
-        { value: 'is_empty', label: 'è vuoto' },
-        { value: 'is_not_empty', label: 'non è vuoto' }
-    ],
-    'select': [
-        { value: 'equals', label: 'è uguale a' },
-        { value: 'not_equals', label: 'è diverso da' },
-        { value: 'is_empty', label: 'è vuoto' },
-        { value: 'is_not_empty', label: 'non è vuoto' }
-    ],
-    'boolean': [
-        { value: 'is_true', label: 'è vero' },
-        { value: 'is_false', label: 'è falso' }
-    ],
-    'list': [
-        { value: 'contains', label: 'contiene' },
-        { value: 'not_contains', label: 'non contiene' },
-        { value: 'is_empty', label: 'è vuoto' },
-        { value: 'is_not_empty', label: 'non è vuoto' }
-    ]
-};
 
 // ---------------------------------------------------------------------------
 // Copertura territoriale
@@ -231,6 +148,7 @@ function initDashboard(chartDataJson, vendorsDataJson) {
     renderVendorsTable();
     updateStatistics();
 
+    buildDropdownFilters(chartDataJson);
     document.getElementById('search-input').addEventListener('input', filterVendors);
 }
 
@@ -288,27 +206,9 @@ function updateVendorTypeChart() {
             if (!hasCertification) return false;
         }
 
-        // Apply advanced filters
-        if (advancedFilters.length > 0) {
-            for (const filter of advancedFilters) {
-                if (!applyAdvancedFilterToVendor(vendor, filter)) {
-                    return false;
-                }
-            }
-        }
+        if (!matchesDropdownFilters(vendor)) return false;
 
-        const searchTerm = document.getElementById('search-input').value.toLowerCase();
-        if (searchTerm) {
-            const searchableText = [
-                vendor.vendor_code, vendor.name, vendor.email,
-                vendor.vendor_type, vendor.service_type?.parent,
-                vendor.category?.name || vendor.category, vendor.address?.region,
-                vendor.address?.city, vendor.address?.state_province,
-                vendor.vat_number, vendor.fiscal_code,
-                vendor.competences?.join(' ')
-            ].join(' ').toLowerCase();
-            if (!searchableText.includes(searchTerm)) return false;
-        }
+        if (!matchesSearch(vendor)) return false;
 
         return true;
     });
@@ -361,27 +261,9 @@ function updateIcoConsultantChart() {
             if (!hasCertification) return false;
         }
 
-        // Apply advanced filters
-        if (advancedFilters.length > 0) {
-            for (const filter of advancedFilters) {
-                if (!applyAdvancedFilterToVendor(vendor, filter)) {
-                    return false;
-                }
-            }
-        }
+        if (!matchesDropdownFilters(vendor)) return false;
 
-        const searchTerm = document.getElementById('search-input').value.toLowerCase();
-        if (searchTerm) {
-            const searchableText = [
-                vendor.vendor_code, vendor.name, vendor.email,
-                vendor.vendor_type, vendor.service_type?.parent,
-                vendor.category?.name || vendor.category, vendor.address?.region,
-                vendor.address?.city, vendor.address?.state_province,
-                vendor.vat_number, vendor.fiscal_code,
-                vendor.competences?.join(' ')
-            ].join(' ').toLowerCase();
-            if (!searchableText.includes(searchTerm)) return false;
-        }
+        if (!matchesSearch(vendor)) return false;
 
         return true;
     });
@@ -432,27 +314,9 @@ function updateRegionChart() {
             if (!hasCertification) return false;
         }
 
-        // Apply advanced filters
-        if (advancedFilters.length > 0) {
-            for (const filter of advancedFilters) {
-                if (!applyAdvancedFilterToVendor(vendor, filter)) {
-                    return false;
-                }
-            }
-        }
+        if (!matchesDropdownFilters(vendor)) return false;
 
-        const searchTerm = document.getElementById('search-input').value.toLowerCase();
-        if (searchTerm) {
-            const searchableText = [
-                vendor.vendor_code, vendor.name, vendor.email,
-                vendor.vendor_type, vendor.service_type?.parent,
-                vendor.category?.name || vendor.category, vendor.address?.region,
-                vendor.address?.city, vendor.address?.state_province,
-                vendor.vat_number, vendor.fiscal_code,
-                vendor.competences?.join(' ')
-            ].join(' ').toLowerCase();
-            if (!searchableText.includes(searchTerm)) return false;
-        }
+        if (!matchesSearch(vendor)) return false;
 
         return true;
     });
@@ -527,27 +391,9 @@ function updateCompetenciesChart() {
             if (!hasCertification) return false;
         }
 
-        // Apply advanced filters
-        if (advancedFilters.length > 0) {
-            for (const filter of advancedFilters) {
-                if (!applyAdvancedFilterToVendor(vendor, filter)) {
-                    return false;
-                }
-            }
-        }
+        if (!matchesDropdownFilters(vendor)) return false;
 
-        const searchTerm = document.getElementById('search-input').value.toLowerCase();
-        if (searchTerm) {
-            const searchableText = [
-                vendor.vendor_code, vendor.name, vendor.email,
-                vendor.vendor_type, vendor.service_type?.parent,
-                vendor.category?.name || vendor.category, vendor.address?.region,
-                vendor.address?.city, vendor.address?.state_province,
-                vendor.vat_number, vendor.fiscal_code,
-                vendor.competences?.join(' ')
-            ].join(' ').toLowerCase();
-            if (!searchableText.includes(searchTerm)) return false;
-        }
+        if (!matchesSearch(vendor)) return false;
 
         return true;
     });
@@ -603,28 +449,9 @@ function updateCertificationsChart() {
             if (!hasMatchingCompetency) return false;
         }
 
-        // Apply advanced filters
-        if (advancedFilters.length > 0) {
-            for (const filter of advancedFilters) {
-                if (!applyAdvancedFilterToVendor(vendor, filter)) {
-                    return false;
-                }
-            }
-        }
+        if (!matchesDropdownFilters(vendor)) return false;
 
-        const searchTerm = document.getElementById('search-input').value.toLowerCase();
-        if (searchTerm) {
-            const searchableText = [
-                vendor.vendor_code, vendor.name, vendor.email,
-                vendor.vendor_type, vendor.service_type?.parent,
-                vendor.category?.name || vendor.category, vendor.address?.region,
-                vendor.address?.city, vendor.address?.state_province,
-                vendor.vat_number, vendor.fiscal_code, vendor.operational_notes,
-                vendor.competences?.join(' '),
-                vendor.certifications?.join(' ')
-            ].join(' ').toLowerCase();
-            if (!searchableText.includes(searchTerm)) return false;
-        }
+        if (!matchesSearch(vendor)) return false;
 
         return true;
     });
@@ -697,28 +524,9 @@ function updateQualificheChart() {
             if (!hasService) return false;
         }
 
-        // Apply advanced filters
-        if (advancedFilters.length > 0) {
-            for (const filter of advancedFilters) {
-                if (!applyAdvancedFilterToVendor(vendor, filter)) {
-                    return false;
-                }
-            }
-        }
+        if (!matchesDropdownFilters(vendor)) return false;
 
-        const searchTerm = document.getElementById('search-input').value.toLowerCase();
-        if (searchTerm) {
-            const searchableText = [
-                vendor.vendor_code, vendor.name, vendor.email,
-                vendor.vendor_type, vendor.service_type?.parent,
-                vendor.category?.name || vendor.category, vendor.address?.region,
-                vendor.address?.city, vendor.address?.state_province,
-                vendor.vat_number, vendor.fiscal_code,
-                vendor.qualifiche?.join(' '),
-                vendor.competenze_req?.join(' ')
-            ].join(' ').toLowerCase();
-            if (!searchableText.includes(searchTerm)) return false;
-        }
+        if (!matchesSearch(vendor)) return false;
 
         return true;
     });
@@ -791,28 +599,9 @@ function updateCompetenzeChart() {
             if (!hasService) return false;
         }
 
-        // Apply advanced filters
-        if (advancedFilters.length > 0) {
-            for (const filter of advancedFilters) {
-                if (!applyAdvancedFilterToVendor(vendor, filter)) {
-                    return false;
-                }
-            }
-        }
+        if (!matchesDropdownFilters(vendor)) return false;
 
-        const searchTerm = document.getElementById('search-input').value.toLowerCase();
-        if (searchTerm) {
-            const searchableText = [
-                vendor.vendor_code, vendor.name, vendor.email,
-                vendor.vendor_type, vendor.service_type?.parent,
-                vendor.category?.name || vendor.category, vendor.address?.region,
-                vendor.address?.city, vendor.address?.state_province,
-                vendor.vat_number, vendor.fiscal_code,
-                vendor.qualifiche?.join(' '),
-                vendor.competenze_req?.join(' ')
-            ].join(' ').toLowerCase();
-            if (!searchableText.includes(searchTerm)) return false;
-        }
+        if (!matchesSearch(vendor)) return false;
 
         return true;
     });
@@ -885,27 +674,9 @@ function updateServiceCategoriesChart() {
             if (!hasService) return false;
         }
 
-        // Apply advanced filters
-        if (advancedFilters.length > 0) {
-            for (const filter of advancedFilters) {
-                if (!applyAdvancedFilterToVendor(vendor, filter)) {
-                    return false;
-                }
-            }
-        }
+        if (!matchesDropdownFilters(vendor)) return false;
 
-        const searchTerm = document.getElementById('search-input').value.toLowerCase();
-        if (searchTerm) {
-            const searchableText = [
-                vendor.vendor_code, vendor.name, vendor.email,
-                vendor.vendor_type, vendor.service_type?.parent,
-                vendor.category?.name || vendor.category, vendor.address?.region,
-                vendor.address?.city, vendor.address?.state_province,
-                vendor.vat_number, vendor.fiscal_code,
-                vendor.service_categories?.join(' ')
-            ].join(' ').toLowerCase();
-            if (!searchableText.includes(searchTerm)) return false;
-        }
+        if (!matchesSearch(vendor)) return false;
 
         return true;
     });
@@ -978,27 +749,9 @@ function updateServicesChart() {
             if (!hasCategory) return false;
         }
 
-        // Apply advanced filters
-        if (advancedFilters.length > 0) {
-            for (const filter of advancedFilters) {
-                if (!applyAdvancedFilterToVendor(vendor, filter)) {
-                    return false;
-                }
-            }
-        }
+        if (!matchesDropdownFilters(vendor)) return false;
 
-        const searchTerm = document.getElementById('search-input').value.toLowerCase();
-        if (searchTerm) {
-            const searchableText = [
-                vendor.vendor_code, vendor.name, vendor.email,
-                vendor.vendor_type, vendor.service_type?.parent,
-                vendor.category?.name || vendor.category, vendor.address?.region,
-                vendor.address?.city, vendor.address?.state_province,
-                vendor.vat_number, vendor.fiscal_code,
-                vendor.services?.map(s => s.name).join(' ')
-            ].join(' ').toLowerCase();
-            if (!searchableText.includes(searchTerm)) return false;
-        }
+        if (!matchesSearch(vendor)) return false;
 
         return true;
     });
@@ -1507,27 +1260,9 @@ function updateProvinceChart() {
             if (!hasCertification) return false;
         }
 
-        // Apply advanced filters
-        if (advancedFilters.length > 0) {
-            for (const filter of advancedFilters) {
-                if (!applyAdvancedFilterToVendor(vendor, filter)) {
-                    return false;
-                }
-            }
-        }
+        if (!matchesDropdownFilters(vendor)) return false;
 
-        const searchTerm = document.getElementById('search-input').value.toLowerCase();
-        if (searchTerm) {
-            const searchableText = [
-                vendor.vendor_code, vendor.name, vendor.email,
-                vendor.vendor_type, vendor.service_type?.parent,
-                vendor.category?.name || vendor.category, vendor.address?.region,
-                vendor.address?.city, vendor.address?.state_province,
-                vendor.vat_number, vendor.fiscal_code,
-                vendor.competences?.join(' ')
-            ].join(' ').toLowerCase();
-            if (!searchableText.includes(searchTerm)) return false;
-        }
+        if (!matchesSearch(vendor)) return false;
 
         return true;
     });
@@ -1613,9 +1348,11 @@ function clearAllFilters() {
         service_categories: [],
         services: []
     };
-    advancedFilters = [];
+    resetDropdownSelection();
+    document.querySelectorAll('.dd-filter input[type="checkbox"]').forEach(box => { box.checked = false; });
+    DROPDOWN_FILTERS.forEach(f => refreshDropdownCount(f.key));
     document.getElementById('search-input').value = '';
-    document.getElementById('applied-filters-count').style.display = 'none';
+    updateAppliedFiltersBadge();
 
     updateActiveFiltersDisplay();
     filterVendors();
@@ -1753,32 +1490,9 @@ function filterVendors() {
             if (!hasService) return false;
         }
 
-        // Apply advanced filters
-        if (advancedFilters.length > 0) {
-            for (const filter of advancedFilters) {
-                if (!applyAdvancedFilterToVendor(vendor, filter)) {
-                    return false;
-                }
-            }
-        }
+        if (!matchesDropdownFilters(vendor)) return false;
 
-        // Apply search term
-        if (searchTerm) {
-            const searchableText = [
-                vendor.vendor_code, vendor.name, vendor.email,
-                vendor.vendor_type, vendor.service_type?.parent,
-                vendor.category?.name || vendor.category, vendor.address?.region,
-                vendor.address?.city, vendor.address?.state_province,
-                vendor.vat_number, vendor.fiscal_code,
-                vendor.competences?.join(' '),
-                vendor.qualifiche?.join(' '),
-                vendor.competenze_req?.join(' '),
-                vendor.certifications?.join(' '),
-                vendor.service_categories?.join(' '),
-                vendor.services?.map(s => s.name).join(' ')
-            ].join(' ').toLowerCase();
-            if (!searchableText.includes(searchTerm)) return false;
-        }
+        if (!matchesSearch(vendor)) return false;
 
         return true;
     });
@@ -1823,6 +1537,11 @@ function formatOperationalNotes(notes) {
     return `<small class="operational-notes">${div.innerHTML}</small>`;
 }
 
+function escapeAttr(value) {
+    return String(value ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;')
+        .replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 function renderVendorsTable() {
     const tbody = document.getElementById('vendors-table-body');
     document.getElementById('filtered-count').textContent = filteredVendors.length;
@@ -1855,7 +1574,7 @@ function renderVendorsTable() {
             <td><small>${address}</small></td>
             <td>${formatOperationalNotes(vendor.operational_notes)}</td>
             <td><span class="badge ${evaluation.css}"><i class="fas fa-circle me-1"></i>${evaluation.label}</span></td>
-            <td><a href="${typeof SCRIPT_PREFIX !== 'undefined' ? SCRIPT_PREFIX : ''}/admin/vendors/vendor/${vendor.vendor_code}/change/" class="btn btn-sm btn-outline-primary" target="_blank"><i class="fas fa-eye"></i></a></td>
+            <td><button type="button" class="btn btn-sm btn-outline-primary btn-vendor-detail" data-vendor-code="${escapeAttr(vendor.vendor_code)}" data-vendor-name="${escapeAttr(vendor.name)}" title="Scheda fornitore"><i class="fas fa-eye"></i></button></td>
         </tr>`;
     }).join('');
 }
@@ -1884,414 +1603,347 @@ function exportToExcel() {
             params.append(key, values);
         }
     });
-    const searchTerm = document.getElementById('search-input').value;
+    dropdownExportParams(params);
+    const searchTerm = document.getElementById('search-input').value.trim();
     if (searchTerm) params.append('search', searchTerm);
 
     const prefix = typeof SCRIPT_PREFIX !== 'undefined' ? SCRIPT_PREFIX : '';
     window.location.href = `${prefix}/vendors/export-excel/${params.toString() ? '?' + params.toString() : ''}`;
 }
 
-// ===== ADVANCED FILTERS FUNCTIONS =====
+// ===== FILTRI AVANZATI: MENU' A TENDINA =====
+//
+// Un menu' per campo, sempre visibile. Dentro lo stesso campo i valori
+// scelti sono in OR (basta averne uno); tra campi diversi vale l'AND. Il
+// server applica le stesse regole all'export (vendors/dashboard_filters.py).
 
-function toggleAdvancedFilters() {
-    const body = document.getElementById('advanced-filters-body');
-    const btn = document.getElementById('toggle-filters-btn');
+const FINAL_EVALUATION_LABELS = {
+    'DA VALUTARE': 'Da Valutare',
+    'NEGATIVO': 'Negativo',
+    'POSITIVO': 'Positivo'
+};
 
-    if (body.style.display === 'none') {
-        body.style.display = 'block';
-        btn.innerHTML = '<i class="fas fa-chevron-up"></i> Nascondi';
-        // Add first filter row if none exist
-        if (document.getElementById('filters-container').children.length === 0) {
-            addFilterRow();
+// `values(vendor)` restituisce i valori del fornitore su quel campo; i
+// campi geografici (`geo`) confrontano invece i codici di competenza.
+const DROPDOWN_FILTERS = [
+    { key: 'classifications', param: 'dd_classifications', label: 'Classificazione',
+      values: v => v.classifications || [] },
+    { key: 'vendor_types', param: 'dd_vendor_types', label: 'Tipo Fornitore',
+      values: v => (v.vendor_type ? [v.vendor_type] : []) },
+    { key: 'final_evaluations', param: 'dd_final_evaluations', label: 'Valutazione Finale',
+      values: v => [v.vendor_final_evaluation || 'DA VALUTARE'],
+      display: value => FINAL_EVALUATION_LABELS[value] || value },
+    { key: 'services', param: 'dd_services', label: 'Servizi erogati',
+      values: v => (v.services || []).map(s => s.name) },
+    { key: 'competenze', param: 'dd_competenze', label: 'Competenze',
+      values: v => v.competenze_req || [] },
+    { key: 'qualifiche', param: 'dd_qualifiche', label: 'Qualifiche professionali',
+      values: v => v.qualifiche || [] },
+    { key: 'certifications', param: 'dd_certifications', label: 'Certificazioni',
+      values: v => v.certifications || [] },
+    { key: 'countries', param: 'dd_countries', label: 'Paese', geo: true },
+    { key: 'regions', param: 'dd_regions', label: 'Regione', geo: true },
+    { key: 'provinces', param: 'dd_provinces', label: 'Provincia', geo: true }
+];
+
+let dropdownSelection = {};   // key -> Set di valori scelti
+let homeCountryCodes = [];    // nazioni con regioni a catalogo (Italia)
+
+function resetDropdownSelection() {
+    dropdownSelection = {};
+    DROPDOWN_FILTERS.forEach(f => { dropdownSelection[f.key] = new Set(); });
+}
+resetDropdownSelection();
+
+// Opzioni {value, label} di ogni menu', ricavate dai dati censiti.
+function dropdownOptions(filter, chartDataJson) {
+    const byLabel = (a, b) => a.label.localeCompare(b.label, 'it');
+    if (filter.key === 'countries') {
+        return (chartDataJson.competence_countries || [])
+            .map(c => ({ value: c.code, label: c.name })).sort(byLabel);
+    }
+    if (filter.key === 'regions') {
+        return (chartDataJson.by_region || []).filter(r => r.code)
+            .map(r => ({ value: r.code, label: r.region })).sort(byLabel);
+    }
+    if (filter.key === 'provinces') {
+        return (chartDataJson.by_province || []).filter(p => p.code)
+            .map(p => ({ value: p.code, label: p.province })).sort(byLabel);
+    }
+    const seen = new Set();
+    allVendors.forEach(v => filter.values(v).forEach(value => {
+        if (value) seen.add(value);
+    }));
+    const display = filter.display || (value => value);
+    return [...seen].map(value => ({ value, label: display(value) })).sort(byLabel);
+}
+
+function vendorCoversCountry(vendor, code) {
+    if (((vendor.competence && vendor.competence.countries) || []).includes(code)) return true;
+    return homeCountryCodes.includes(code) && competenceProvinceCodes(vendor).length > 0;
+}
+
+function matchesDropdownFilter(vendor, filter) {
+    const selected = dropdownSelection[filter.key];
+    if (!selected || selected.size === 0) return true;
+    if (filter.key === 'countries') {
+        return [...selected].some(code => vendorCoversCountry(vendor, code));
+    }
+    if (filter.key === 'regions') {
+        return competenceRegionCodes(vendor).some(code => selected.has(code));
+    }
+    if (filter.key === 'provinces') {
+        return competenceProvinceCodes(vendor).some(code => selected.has(code));
+    }
+    return filter.values(vendor).some(value => selected.has(value));
+}
+
+function matchesDropdownFilters(vendor) {
+    return DROPDOWN_FILTERS.every(filter => matchesDropdownFilter(vendor, filter));
+}
+
+// Ricerca testuale su codice Embyon, codice interno, ragione sociale,
+// P.IVA e codice fiscale.
+function matchesSearch(vendor) {
+    const term = document.getElementById('search-input').value.trim().toLowerCase();
+    if (!term) return true;
+    return [vendor.old_code, vendor.vendor_code, vendor.name, vendor.vat_number, vendor.fiscal_code]
+        .some(value => value && String(value).toLowerCase().includes(term));
+}
+
+function buildDropdownFilters(chartDataJson) {
+    homeCountryCodes = chartDataJson.home_country_codes || [];
+    const container = document.getElementById('dropdown-filters-container');
+    container.innerHTML = '';
+
+    DROPDOWN_FILTERS.forEach(filter => {
+        const options = dropdownOptions(filter, chartDataJson);
+        const col = document.createElement('div');
+        col.className = 'col-xl-3 col-lg-4 col-md-6';
+
+        const wrapper = document.createElement('div');
+        wrapper.className = 'dropdown dd-filter';
+        wrapper.dataset.key = filter.key;
+
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'btn btn-sm btn-outline-secondary w-100 text-start dd-toggle';
+        button.dataset.bsToggle = 'dropdown';
+        button.dataset.bsAutoClose = 'outside';
+        button.setAttribute('aria-expanded', 'false');
+        const title = document.createElement('span');
+        title.className = 'dd-title';
+        title.textContent = filter.label;
+        const count = document.createElement('span');
+        count.className = 'badge bg-primary ms-2 dd-count';
+        count.style.display = 'none';
+        button.append(title, count);
+
+        const menu = document.createElement('div');
+        menu.className = 'dropdown-menu p-2 dd-menu';
+        const search = document.createElement('input');
+        search.type = 'search';
+        search.className = 'form-control form-control-sm mb-2';
+        search.placeholder = 'Cerca ' + filter.label.toLowerCase() + '...';
+        const list = document.createElement('div');
+        list.className = 'dd-options';
+
+        options.forEach(option => {
+            const label = document.createElement('label');
+            label.className = 'dropdown-item dd-option';
+            const box = document.createElement('input');
+            box.type = 'checkbox';
+            box.className = 'form-check-input me-2';
+            box.value = option.value;
+            box.addEventListener('change', () => {
+                const selected = dropdownSelection[filter.key];
+                if (box.checked) selected.add(option.value); else selected.delete(option.value);
+                refreshDropdownCount(filter.key);
+                applyDropdownFilters();
+            });
+            const text = document.createElement('span');
+            text.textContent = option.label;
+            label.append(box, text);
+            list.appendChild(label);
+        });
+        if (options.length === 0) {
+            const empty = document.createElement('div');
+            empty.className = 'text-muted small px-2';
+            empty.textContent = 'Nessun valore censito';
+            list.appendChild(empty);
         }
-    } else {
-        body.style.display = 'none';
-        btn.innerHTML = '<i class="fas fa-chevron-down"></i> Mostra';
-    }
-}
 
-function addFilterRow() {
-    filterRowCounter++;
-    // rowId catturato qui: filterRowCounter cambia a ogni riga aggiunta
-    const rowId = filterRowCounter;
-    const container = document.getElementById('filters-container');
-
-    const row = document.createElement('div');
-    row.className = 'filter-row';
-    row.id = `filter-row-${rowId}`;
-    row.dataset.rowId = rowId;
-
-    // Field selector
-    const fieldSelect = document.createElement('select');
-    fieldSelect.className = 'form-select form-select-sm filter-field-select';
-    fieldSelect.id = `filter-field-${rowId}`;
-    fieldSelect.innerHTML = '<option value="">-- Seleziona Campo --</option>';
-
-    for (const [key, config] of Object.entries(filterFields)) {
-        const option = document.createElement('option');
-        option.value = key;
-        option.textContent = config.label;
-        option.dataset.type = config.type;
-        fieldSelect.appendChild(option);
-    }
-
-    fieldSelect.addEventListener('change', function() {
-        updateOperatorOptions(rowId);
-        updateValueInput(rowId);
-    });
-
-    // Operator selector
-    const operatorSelect = document.createElement('select');
-    operatorSelect.className = 'form-select form-select-sm filter-operator-select';
-    operatorSelect.id = `filter-operator-${rowId}`;
-    operatorSelect.innerHTML = '<option value="">-- Seleziona Operatore --</option>';
-
-    operatorSelect.addEventListener('change', function() {
-        updateValueInputVisibility(rowId);
-    });
-
-    // Value input
-    const valueInput = document.createElement('input');
-    valueInput.className = 'form-control form-control-sm filter-value-input';
-    valueInput.id = `filter-value-${rowId}`;
-    valueInput.placeholder = 'Valore';
-
-    // Remove button
-    const removeBtn = document.createElement('button');
-    removeBtn.className = 'btn btn-sm btn-danger btn-remove';
-    removeBtn.innerHTML = '<i class="fas fa-trash"></i>';
-    removeBtn.onclick = function() { removeFilterRow(rowId); };
-
-    row.appendChild(fieldSelect);
-    row.appendChild(operatorSelect);
-    row.appendChild(valueInput);
-    row.appendChild(removeBtn);
-
-    container.appendChild(row);
-}
-
-function removeFilterRow(rowId) {
-    const row = document.getElementById(`filter-row-${rowId}`);
-    if (row) {
-        row.remove();
-    }
-}
-
-function updateOperatorOptions(rowId) {
-    const fieldSelect = document.getElementById(`filter-field-${rowId}`);
-    const operatorSelect = document.getElementById(`filter-operator-${rowId}`);
-
-    const selectedOption = fieldSelect.options[fieldSelect.selectedIndex];
-    if (!selectedOption || !selectedOption.value) {
-        operatorSelect.innerHTML = '<option value="">-- Seleziona Operatore --</option>';
-        return;
-    }
-
-    const fieldType = selectedOption.dataset.type;
-    const operators = operatorsByType[fieldType] || operatorsByType['text'];
-
-    operatorSelect.innerHTML = '<option value="">-- Seleziona Operatore --</option>';
-    operators.forEach(op => {
-        const option = document.createElement('option');
-        option.value = op.value;
-        option.textContent = op.label;
-        operatorSelect.appendChild(option);
-    });
-}
-
-function updateValueInput(rowId) {
-    const fieldSelect = document.getElementById(`filter-field-${rowId}`);
-    const valueInput = document.getElementById(`filter-value-${rowId}`);
-
-    const selectedOption = fieldSelect.options[fieldSelect.selectedIndex];
-    if (!selectedOption || !selectedOption.value) {
-        return;
-    }
-
-    const fieldKey = selectedOption.value;
-    const fieldConfig = filterFields[fieldKey];
-
-    // Clear existing input
-    const row = document.getElementById(`filter-row-${rowId}`);
-    const oldInput = valueInput;
-
-    if (fieldConfig.type === 'select') {
-        // Replace with select
-        const newSelect = document.createElement('select');
-        newSelect.className = 'form-select form-select-sm filter-value-input';
-        newSelect.id = `filter-value-${rowId}`;
-        newSelect.innerHTML = '<option value="">-- Seleziona Valore --</option>';
-
-        fieldConfig.options.forEach(opt => {
-            const option = document.createElement('option');
-            option.value = optionValue(opt);
-            option.textContent = optionLabel(opt);
-            newSelect.appendChild(option);
+        search.addEventListener('input', () => {
+            const term = search.value.trim().toLowerCase();
+            list.querySelectorAll('.dd-option').forEach(item => {
+                item.style.display = item.textContent.toLowerCase().includes(term) ? '' : 'none';
+            });
         });
 
-        row.replaceChild(newSelect, oldInput);
-    } else if (fieldConfig.type === 'boolean') {
-        // For boolean, value input is not needed (handled by operator)
-        const newInput = document.createElement('input');
-        newInput.className = 'form-control form-control-sm filter-value-input';
-        newInput.id = `filter-value-${rowId}`;
-        newInput.style.display = 'none';
-        row.replaceChild(newInput, oldInput);
-    } else if (fieldConfig.type === 'number') {
-        // Replace with number input
-        const newInput = document.createElement('input');
-        newInput.type = 'number';
-        newInput.className = 'form-control form-control-sm filter-value-input';
-        newInput.id = `filter-value-${rowId}`;
-        newInput.placeholder = 'Valore numerico';
-        newInput.step = '0.01';
-        row.replaceChild(newInput, oldInput);
-    } else {
-        // Text input
-        const newInput = document.createElement('input');
-        newInput.type = 'text';
-        newInput.className = 'form-control form-control-sm filter-value-input';
-        newInput.id = `filter-value-${rowId}`;
-        newInput.placeholder = 'Valore';
-        row.replaceChild(newInput, oldInput);
-    }
-    // l'operatore già scelto (es. "è vuoto") può nascondere il nuovo input
-    updateValueInputVisibility(rowId);
-}
-
-function updateValueInputVisibility(rowId) {
-    const operatorSelect = document.getElementById(`filter-operator-${rowId}`);
-    const valueInput = document.getElementById(`filter-value-${rowId}`);
-
-    const operator = operatorSelect.value;
-    const noValueOperators = ['is_empty', 'is_not_empty', 'is_true', 'is_false'];
-
-    if (noValueOperators.includes(operator)) {
-        valueInput.style.display = 'none';
-        valueInput.value = '';
-    } else {
-        valueInput.style.display = 'block';
-    }
-}
-
-function applyAdvancedFilters() {
-    // Collect all filter rows
-    advancedFilters = [];
-    const rows = document.querySelectorAll('.filter-row');
-
-    rows.forEach(row => {
-        const rowId = row.dataset.rowId;
-        const field = document.getElementById(`filter-field-${rowId}`).value;
-        const operator = document.getElementById(`filter-operator-${rowId}`).value;
-        const value = document.getElementById(`filter-value-${rowId}`).value;
-
-        if (field && operator) {
-            // For operators that don't need a value
-            const noValueOperators = ['is_empty', 'is_not_empty', 'is_true', 'is_false'];
-            if (noValueOperators.includes(operator) || value) {
-                advancedFilters.push({
-                    field: field,
-                    operator: operator,
-                    value: value,
-                    label: filterFields[field].label
-                });
-            }
-        }
+        menu.append(search, list);
+        wrapper.append(button, menu);
+        col.appendChild(wrapper);
+        container.appendChild(col);
     });
-
-    // Update badge count
-    const badge = document.getElementById('applied-filters-count');
-    if (advancedFilters.length > 0) {
-        badge.textContent = advancedFilters.length;
-        badge.style.display = 'inline-block';
-    } else {
-        badge.style.display = 'none';
-    }
-
-    // Apply filters
-    filterVendors();
-    updateAllCharts();
-    updateStatistics();
-    updateAdvancedFiltersDisplay();
 }
 
-function clearAdvancedFilters() {
-    advancedFilters = [];
-    document.getElementById('filters-container').innerHTML = '';
-    filterRowCounter = 0;
-    document.getElementById('applied-filters-count').style.display = 'none';
-
-    // Re-apply without advanced filters
-    filterVendors();
-    updateAllCharts();
-    updateStatistics();
-    updateAdvancedFiltersDisplay();
-
-    // Add one empty row
-    addFilterRow();
+function refreshDropdownCount(key) {
+    const wrapper = document.querySelector(`.dd-filter[data-key="${key}"]`);
+    if (!wrapper) return;
+    const size = dropdownSelection[key].size;
+    const badge = wrapper.querySelector('.dd-count');
+    badge.textContent = size;
+    badge.style.display = size > 0 ? 'inline-block' : 'none';
+    wrapper.querySelector('.dd-toggle').classList.toggle('active', size > 0);
 }
 
-function removeAdvancedFilter(index) {
-    advancedFilters.splice(index, 1);
-
-    // Update badge
+function updateAppliedFiltersBadge() {
+    const total = DROPDOWN_FILTERS.reduce((sum, f) => sum + dropdownSelection[f.key].size, 0);
     const badge = document.getElementById('applied-filters-count');
-    if (advancedFilters.length > 0) {
-        badge.textContent = advancedFilters.length;
-    } else {
-        badge.style.display = 'none';
-    }
+    badge.textContent = total;
+    badge.style.display = total > 0 ? 'inline-block' : 'none';
+}
 
+function applyDropdownFilters() {
+    updateAppliedFiltersBadge();
     filterVendors();
     updateAllCharts();
-    updateStatistics();
-    updateAdvancedFiltersDisplay();
+}
+
+// Azzera menu' e ricerca (senza toccare i filtri dei grafici).
+function clearDropdownFilters() {
+    resetDropdownSelection();
+    document.querySelectorAll('.dd-filter input[type="checkbox"]').forEach(box => { box.checked = false; });
+    DROPDOWN_FILTERS.forEach(f => refreshDropdownCount(f.key));
+    document.getElementById('search-input').value = '';
+    applyDropdownFilters();
 }
 
 function updateAdvancedFiltersDisplay() {
-    const container = document.getElementById('active-filters-container');
-    const row = document.getElementById('active-filters-row');
+    updateActiveFiltersDisplay();
+}
 
-    // Check if we have any filters (chart filters or advanced filters)
-    const hasChartFilters = Object.values(activeFilters).some(val =>
-        (Array.isArray(val) && val.length > 0) || (val !== null && val !== undefined && !Array.isArray(val))
-    );
-    const hasAdvancedFilters = advancedFilters.length > 0;
-
-    if (!hasChartFilters && !hasAdvancedFilters) {
-        row.style.display = 'none';
-        return;
-    }
-
-    row.style.display = 'block';
-
-    // Clear and rebuild
-    container.innerHTML = '';
-
-    // Add chart filters (existing functionality)
-    const filterLabels = {
-        'vendor_types': 'Tipo Fornitore',
-        'regions': 'Regione',
-        'provinces': 'Provincia',
-        'competencies': 'Competenza',
-        'certifications': 'Certificazione',
-        'qualifiche': 'Qualifica',
-        'competenze_req': 'Requisito',
-        'service_categories': 'Categoria di servizio',
-        'services': 'Servizio'
-    };
-
-    Object.entries(activeFilters).forEach(([key, values]) => {
-        if (key === 'ico_consultant' && values !== null) {
-            const chip = document.createElement('span');
-            chip.className = 'filter-chip';
-            const label = values ? 'Consulenti ICO' : 'Altri Fornitori';
-            chip.innerHTML = `Tipo: <strong>${label}</strong> <span class="remove" onclick="removeFilter('ico_consultant', null)">✕</span>`;
-            container.appendChild(chip);
-        } else if (Array.isArray(values)) {
-            values.forEach(value => {
-                const chip = document.createElement('span');
-                chip.className = 'filter-chip';
-                chip.innerHTML = `${filterLabels[key]}: <strong>${value}</strong> <span class="remove" onclick="removeFilter('${key}', '${value.replace(/'/g, "\\'")}')">✕</span>`;
-                container.appendChild(chip);
-            });
-        }
-    });
-
-    // Add advanced filters
-    advancedFilters.forEach((filter, index) => {
-        const chip = document.createElement('span');
-        chip.className = 'applied-filter-badge';
-
-        const operatorLabel = getOperatorLabel(filter.operator);
-        let displayValue = filter.value;
-
-        // For operators that don't show value
-        if (['is_empty', 'is_not_empty', 'is_true', 'is_false'].includes(filter.operator)) {
-            chip.innerHTML = `
-                <span class="filter-label">${filter.label}</span>
-                <span class="filter-operator">${operatorLabel}</span>
-                <span class="remove" onclick="removeAdvancedFilter(${index})">✕</span>
-            `;
-        } else {
-            chip.innerHTML = `
-                <span class="filter-label">${filter.label}</span>
-                <span class="filter-operator">${operatorLabel}</span>
-                <span class="filter-value">"${displayValue}"</span>
-                <span class="remove" onclick="removeAdvancedFilter(${index})">✕</span>
-            `;
-        }
-
-        container.appendChild(chip);
+// Parametri dei menu' per l'export: stessi nomi letti dal server.
+function dropdownExportParams(params) {
+    DROPDOWN_FILTERS.forEach(f => {
+        const selected = [...dropdownSelection[f.key]];
+        if (selected.length) params.append(f.param, selected.join(','));
     });
 }
 
-function getOperatorLabel(operatorValue) {
-    for (const [type, operators] of Object.entries(operatorsByType)) {
-        const found = operators.find(op => op.value === operatorValue);
-        if (found) return found.label;
-    }
-    return operatorValue;
+// ===== SCHEDA FORNITORE (SOLA LETTURA) =====
+
+function scriptPrefix() {
+    return typeof SCRIPT_PREFIX !== 'undefined' ? SCRIPT_PREFIX : '';
 }
 
-function applyAdvancedFilterToVendor(vendor, filter) {
-    // Get the field value from vendor (supports nested properties like address.city)
-    const fieldPath = filter.field.split('.');
-    let value = vendor;
+async function openVendorDetail(vendorCode, vendorName) {
+    const modalEl = document.getElementById('vendor-detail-modal');
+    const body = document.getElementById('vendor-detail-body');
+    document.getElementById('vendor-detail-title').textContent = vendorName || vendorCode;
+    body.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-primary" role="status"></div></div>';
+    bootstrap.Modal.getOrCreateInstance(modalEl).show();
+    try {
+        const response = await fetch(`${scriptPrefix()}/vendors/dashboard/vendor/${encodeURIComponent(vendorCode)}/`, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            credentials: 'same-origin'
+        });
+        if (!response.ok) throw new Error(response.status);
+        // Frammento prodotto dal server con auto-escape: sola lettura.
+        body.innerHTML = await response.text();
+    } catch (error) {
+        body.innerHTML = '<div class="alert alert-danger mb-0">Impossibile caricare la scheda del fornitore.</div>';
+    }
+}
 
-    for (const part of fieldPath) {
-        if (value === null || value === undefined) {
-            value = null;
-            break;
+// ===== AGGIUNGI FORNITORE PROSPETTO =====
+
+const PROSPECT_FIELDS = ['name', 'vat_number', 'fiscal_code', 'email'];
+
+function resetProspectForm() {
+    const form = document.getElementById('prospect-form');
+    form.reset();
+    form.classList.remove('d-none');
+    document.getElementById('prospect-result').classList.add('d-none');
+    document.getElementById('prospect-submit').classList.remove('d-none');
+    document.getElementById('prospect-non-field-error').classList.add('d-none');
+    PROSPECT_FIELDS.forEach(name => {
+        form.elements[name].classList.remove('is-invalid');
+        document.getElementById(`prospect-error-${name}`).textContent = '';
+    });
+}
+
+function showProspectErrors(errors) {
+    PROSPECT_FIELDS.forEach(name => {
+        const messages = errors[name] || [];
+        document.getElementById('prospect-form').elements[name].classList.toggle('is-invalid', messages.length > 0);
+        document.getElementById(`prospect-error-${name}`).textContent = messages.join(' ');
+    });
+    const general = errors.__all__ || [];
+    const box = document.getElementById('prospect-non-field-error');
+    box.textContent = general.join(' ');
+    box.classList.toggle('d-none', general.length === 0);
+}
+
+async function submitProspect() {
+    const form = document.getElementById('prospect-form');
+    const submit = document.getElementById('prospect-submit');
+    showProspectErrors({});
+    submit.disabled = true;
+    try {
+        const response = await fetch(`${scriptPrefix()}/vendors/dashboard/prospect/`, {
+            method: 'POST',
+            body: new FormData(form),
+            credentials: 'same-origin'
+        });
+        const data = await response.json();
+        if (response.status === 400) {
+            showProspectErrors(data.errors || {});
+            return;
         }
-        value = value[part];
-    }
+        if (!response.ok) throw new Error(response.status);
 
-    // Campi multi-valore: elenco di nomi (i servizi sono oggetti {name})
-    if (Array.isArray(value)) {
-        value = value.map(v => (v && typeof v === 'object') ? v.name : v).join(' | ');
-    }
-
-    // Convert value to string for text operations
-    const strValue = value !== null && value !== undefined ? String(value).toLowerCase() : '';
-    const filterValue = filter.value ? String(filter.value).toLowerCase() : '';
-    const isNumeric = filterFields[filter.field] && filterFields[filter.field].type === 'number';
-
-    // Apply operator
-    switch (filter.operator) {
-        case 'contains':
-            return strValue.includes(filterValue);
-        case 'not_contains':
-            return !strValue.includes(filterValue);
-        case 'equals':
-            return isNumeric
-                ? parseFloat(value) === parseFloat(filter.value)
-                : strValue === filterValue;
-        case 'not_equals':
-            return isNumeric
-                ? parseFloat(value) !== parseFloat(filter.value)
-                : strValue !== filterValue;
-        case 'starts_with':
-            return strValue.startsWith(filterValue);
-        case 'ends_with':
-            return strValue.endsWith(filterValue);
-        case 'is_empty':
-            return value === null || value === undefined || strValue === '';
-        case 'is_not_empty':
-            return value !== null && value !== undefined && strValue !== '';
-        case 'greater_than':
-            return parseFloat(value) > parseFloat(filter.value);
-        case 'less_than':
-            return parseFloat(value) < parseFloat(filter.value);
-        case 'greater_or_equal':
-            return parseFloat(value) >= parseFloat(filter.value);
-        case 'less_or_equal':
-            return parseFloat(value) <= parseFloat(filter.value);
-        case 'is_true':
-            return value === true;
-        case 'is_false':
-            return value === false || value === null || value === undefined;
-        default:
-            return true;
+        const result = document.getElementById('prospect-result');
+        const sentTo = (data.invite_sent_to || []).join(', ');
+        result.innerHTML = '';
+        const ok = document.createElement('div');
+        ok.className = 'alert alert-success';
+        ok.textContent = `Fornitore "${data.name}" creato (codice ${data.vendor_code}).` +
+            (sentTo ? ` Invito al portale inviato a ${sentTo}.` : '');
+        result.appendChild(ok);
+        (data.warnings || []).forEach(text => {
+            const warning = document.createElement('div');
+            warning.className = 'alert alert-warning';
+            warning.textContent = text;
+            result.appendChild(warning);
+        });
+        result.classList.remove('d-none');
+        form.classList.add('d-none');
+        submit.classList.add('d-none');
+        document.getElementById('prospect-modal').dataset.created = '1';
+    } catch (error) {
+        showProspectErrors({ __all__: ["Impossibile creare il fornitore: riprova piu' tardi."] });
+    } finally {
+        submit.disabled = false;
     }
 }
+
+document.addEventListener('DOMContentLoaded', function() {
+    const prospectModal = document.getElementById('prospect-modal');
+    if (prospectModal) {
+        prospectModal.addEventListener('show.bs.modal', resetProspectForm);
+        // Il fornitore appena creato compare nell'elenco solo dopo un ricaricamento.
+        prospectModal.addEventListener('hidden.bs.modal', function() {
+            if (prospectModal.dataset.created === '1') window.location.reload();
+        });
+        document.getElementById('prospect-form').addEventListener('submit', function(event) {
+            event.preventDefault();
+            submitProspect();
+        });
+    }
+    const tbody = document.getElementById('vendors-table-body');
+    tbody.addEventListener('click', function(event) {
+        const button = event.target.closest('.btn-vendor-detail');
+        if (button) openVendorDetail(button.dataset.vendorCode, button.dataset.vendorName);
+    });
+});

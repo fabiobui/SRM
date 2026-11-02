@@ -64,7 +64,7 @@ def dashboard_redirect(request):
     if hasattr(user, "role"):
         if user.role == "admin" or user.is_superuser:
             return redirect("/admin/")
-        elif user.role == "bo_user":
+        elif user.role in ("bo_user", "buyer"):
             return redirect("/vendors/dashboard/")
         elif user.role == "vendor":
             try:

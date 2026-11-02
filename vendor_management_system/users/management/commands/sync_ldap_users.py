@@ -7,7 +7,7 @@ try:
 except Exception:  # pragma: no cover
     Vendor = None
 
-VALID_ROLES = ["admin", "bo_user", "vendor"]
+VALID_ROLES = ["admin", "bo_user", "buyer", "vendor"]
 
 
 class Command(BaseCommand):

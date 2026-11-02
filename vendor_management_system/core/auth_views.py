@@ -90,6 +90,9 @@ class CustomLoginView(View):
             # bo_user atterra sulla dashboard consolidata back-office;
             # admin resta su /admin/, invariato.
             return redirect("/portale/backoffice/dashboard/")
+        elif user.role == "buyer":
+            # Il buyer vede solo la dashboard fornitori.
+            return redirect("/vendors/dashboard/")
         elif user.role == "vendor":
             try:
                 vendor = user.vendor

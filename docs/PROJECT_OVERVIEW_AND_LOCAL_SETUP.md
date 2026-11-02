@@ -51,7 +51,7 @@ Layout del progetto: `manage.py` nella root del repo, settings in `config/`, tut
 | App | Responsabilità | Modelli chiave |
 |---|---|---|
 | `core` | Fondamenta: autenticazione a token JWT-style via query-param, backend di autenticazione LDAP/ibridi, permessi, decoratori, routing di redirect verso la dashboard | — |
-| `users` | Modello utente custom, sistema di ruoli | `User` (ruoli: `admin`, `bo_user`, `vendor`) |
+| `users` | Modello utente custom, sistema di ruoli | `User` (ruoli: `admin`, `bo_user`, `buyer`, `vendor`) |
 | `vendors` | Il cuore del sistema: anagrafica fornitori, geografia, categorie, competenze, servizi, contratti, valutazioni | `Vendor`, `Category`, `Address`, `Country`/`Region`/`Province`, `Competence`, `VendorCompetence`, `CompetenceSet`, `QualificationType`, `ServiceType`, `VendorService`, `ServiceSet`, `Contract`, `EvaluationFrequency`, `EvaluationCriterion`, `Evaluator`, `VendorEvaluation` |
 | `documents` | Ciclo di vita dei documenti di compliance (upload, revisione, scadenza) + dashboard per ruolo | `DocumentType`, `Document`, `DocumentSet` |
 | `portal` | Il portale fornitori self-service più recente (`/portale/`) — documenti, requisiti, richieste di modifica profilo, stato di qualificazione | `VendorChangeRequest` |

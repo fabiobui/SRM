@@ -10,9 +10,9 @@ from django.views.decorators.csrf import csrf_exempt
 
 from vendor_management_system.core.permissions import (
     backoffice_api_required,
-    backoffice_required,
+    dashboard_required,
 )
-from vendor_management_system.vendors import competence
+from vendor_management_system.vendors import competence, dashboard_filters
 from vendor_management_system.vendors.models import (
     Competence,
     ServiceType,
@@ -22,7 +22,7 @@ from vendor_management_system.vendors.models import (
 )
 
 
-@backoffice_required
+@dashboard_required
 def vendor_dashboard_view(request):
     """
     Dashboard view che mostra statistiche e grafici sui fornitori
@@ -31,6 +31,7 @@ def vendor_dashboard_view(request):
         Vendor.objects.select_related("category", "address")
         .prefetch_related(
             "competences",
+            "additional_categories",
             "vendor_documents__document_type",
             Prefetch(
                 "vendor_services",
@@ -65,6 +66,9 @@ def vendor_dashboard_view(request):
     # Conteggi per zona di competenza: regioni, province e nazioni
     # estere, in 3 query.
     aggregati_competenza = competence.competence_aggregations()
+    # Gli indici geografici si calcolano una volta sola: dentro al loop
+    # sarebbero due query per fornitore.
+    geo = competence.geo_maps()
 
     # Chart data aggregations
     chart_data = {
@@ -109,6 +113,24 @@ def vendor_dashboard_view(request):
                 "count": vendors_no_region,
             }
         )
+    # Opzioni del filtro "Paese": le nazioni estere con fornitori e le
+    # nazioni con regioni a catalogo (l'Italia) se almeno una regione e'
+    # coperta. Le seconde non compaiono mai fra le estere.
+    paesi_con_regioni = {
+        geo["nazione_di_regione"][riga["code"]]
+        for riga in aggregati_competenza["by_region"]
+        if riga["code"] in geo["nazione_di_regione"]
+    }
+    chart_data["competence_countries"] = [
+        {"code": codice, "name": geo["nome_nazione"][codice]}
+        for codice in geo["nazioni_ordinate"]
+        if codice in paesi_con_regioni
+        or any(
+            riga["code"] == codice
+            for riga in aggregati_competenza["by_competence_country"]
+        )
+    ]
+    chart_data["home_country_codes"] = sorted(paesi_con_regioni)
     chart_data["competence_meta"] = {
         "vendors_without_competence": vendors_no_region,
         "region_assignments": sum(
@@ -316,9 +338,6 @@ def vendor_dashboard_view(request):
         )
 
     # Vendors data for table
-    # Gli indici geografici si calcolano una volta sola: dentro al loop
-    # sarebbero due query per fornitore.
-    geo = competence.geo_maps()
     vendors_data = []
     for vendor in vendors:
         # vendor_services e vendor_competences sono già prefetchati sulla
@@ -336,6 +355,7 @@ def vendor_dashboard_view(request):
 
         vendor_dict = {
             "vendor_code": vendor.vendor_code,
+            "old_code": vendor.old_code,
             "name": vendor.name,
             "email": vendor.email,
             "phone": vendor.phone if hasattr(vendor, "phone") else None,
@@ -354,6 +374,11 @@ def vendor_dashboard_view(request):
             "category": {
                 "name": vendor.category.name if vendor.category else None
             },
+            "classifications": [
+                c.name
+                for c in [vendor.category, *vendor.additional_categories.all()]
+                if c
+            ],
             "service_type": {
                 "name": primary_service.service_type.name
                 if primary_service
@@ -544,7 +569,7 @@ def dashboard_vendors_list_api(request):
     return JsonResponse({"vendors": vendors_data})
 
 
-@backoffice_required
+@dashboard_required
 def export_vendors_excel(request):
     """
     Export vendors to Excel with applied filters
@@ -637,12 +662,10 @@ def export_vendors_excel(request):
         vendors = vendors.filter(
             vendor_services__service_type__name=service_type
         ).distinct()
-    if search:
-        vendors = vendors.filter(
-            Q(vendor_code__icontains=search)
-            | Q(name__icontains=search)
-            | Q(email__icontains=search)
-        )
+    # Filtri a tendina e ricerca della dashboard: stessi fornitori della
+    # tabella.
+    vendors = dashboard_filters.apply_dropdown_filters(vendors, request.GET)
+    vendors = dashboard_filters.apply_search(vendors, search)
 
     # Create workbook
     wb = openpyxl.Workbook()

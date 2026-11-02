@@ -42,7 +42,7 @@ Struttura del progetto: `manage.py` nella root del repo, settings in `config/`, 
 | App | Responsabilità |
 |---|---|
 | `core` | Autenticazione a token via query-param, backend di autenticazione LDAP/ibrido, permessi, routing del redirect dashboard |
-| `users` | Modello utente custom, sistema di ruoli (`admin`, `bo_user`, `vendor`) |
+| `users` | Modello utente custom, sistema di ruoli (`admin`, `bo_user`, `buyer`, `vendor`) |
 | `vendors` | Il cuore del sistema: anagrafica fornitori, geografia, categorie, competenze, servizi, contratti, valutazioni |
 | `documents` | Ciclo di vita dei documenti di compliance (upload, revisione, scadenza) + dashboard per ruolo |
 | `portal` | Portale fornitore self-service (`/portale/`) — documenti, requisiti, richieste di modifica profilo, stato qualifica |
