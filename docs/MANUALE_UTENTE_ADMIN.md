@@ -333,6 +333,8 @@ Ogni riga della tabella rappresenta un servizio erogato:
 
 ## 7. Abilitazioni e Requisiti Professionali (Competenze)
 
+Nella scheda del fornitore, tab *Abilitazioni e Requisiti Professionali*, il pulsante **Scarica tutti (.zip)** scarica in un unico archivio i file allegati alle abilitazioni del fornitore. Le abilitazioni senza file non compaiono nell'archivio.
+
 ### 7.1 Catalogo Abilitazioni e Requisiti
 
 Prima di assegnare requisiti ai fornitori, verificare il catalogo.
@@ -396,6 +398,8 @@ Per ogni requisito assegnato compilare:
 ---
 
 ## 8. Documenti Contrattuali
+
+Nella scheda del fornitore, tab *Documenti Contrattuali*, il pulsante **Scarica tutti (.zip)** scarica in un unico archivio i documenti caricati dal fornitore. Ogni file nell'archivio è preceduto dal nome del tipo di documento.
 
 ### 8.1 Tipi di Documento Contrattuale
 

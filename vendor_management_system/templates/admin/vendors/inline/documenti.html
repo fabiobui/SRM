@@ -1,0 +1,10 @@
+{% load admin_urls %}
+{% if original %}
+<div class="d-flex justify-content-end mb-2">
+  <a class="btn btn-sm btn-outline-secondary" id="download-zip-documenti"
+     href="{% url 'admin:vendors_vendor_download_zip' original.pk|admin_urlquote 'documenti' %}">
+    <i class="fas fa-file-archive"></i> Scarica tutti (.zip)
+  </a>
+</div>
+{% endif %}
+{% include "admin/edit_inline/tabular.html" %}

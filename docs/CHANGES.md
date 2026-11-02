@@ -1,6 +1,14 @@
 
 ## Change Requests
 
+### 2/11/26 — Download .zip dei documenti e delle abilitazioni
+
+- **Admin**: nella scheda del fornitore, nelle sezioni *Documenti Contrattuali*
+  e *Abilitazioni e Requisiti Professionali* c'è il pulsante **Scarica tutti
+  (.zip)**, che scarica in un unico archivio i file allegati alla sezione.
+- Se un file non è leggibile dallo storage il download non parte e l'operatore
+  riceve un messaggio di errore con i file interessati.
+
 ### 7/10/26 — Valutazione Finale del Fornitore automatica
 
 - **Bollino calcolato**: la *Valutazione Finale del Fornitore* non si imposta
