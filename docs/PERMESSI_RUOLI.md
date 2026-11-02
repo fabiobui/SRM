@@ -12,6 +12,7 @@ Il campo `User.role` è la fonte di verità. Gli altri elementi si ricavano da l
 |---|---|---|---|
 | `admin` — Admin | `Admin` | sì | `/admin/` |
 | `bo_user` — BO User | `BO User` | no | `/vendors/dashboard/` e `/portale/backoffice/dashboard/` |
+| `buyer` — Buyer | `Buyer` | no | `/vendors/dashboard/` (solo quella) |
 | `vendor` — Fornitore | `Vendors` | no | Portale fornitori `/portale/` |
 
 - Il **gruppo** viene riallineato in `User.save()` (`sync_role_group`): se lo assegni a mano, al salvataggio
@@ -21,17 +22,18 @@ Il campo `User.role` è la fonte di verità. Gli altri elementi si ricavano da l
 
 ## Cosa può fare ciascun ruolo
 
-| Richiesta | Admin | BO User | Fornitore | Anonimo |
-|---|:--:|:--:|:--:|:--:|
-| Pannello `/admin/` (modelli fornitori, utenti, ecc.) | sì | no | no | no |
-| Creare l'utenza portale di un fornitore (accesso portale) | sì | no | no | no |
-| Gestire gruppi e permessi Django | no | no | no | no |
-| Impostare o togliere il superuser | no | no | no | no |
-| Dashboard fornitori `/vendors/dashboard/` e export Excel | sì | sì | no | no |
-| API dashboard `/vendors/dashboard-vendors/` e `/vendors/dashboard-stats/` | sì | sì | 403 | 401 |
-| Dashboard back office `/portale/backoffice/dashboard/` | sì | sì | no | no |
-| API REST `/vendors/`, `/users/`, `/purchase-orders/` (token) | sì | sì | 403 | 401 |
-| Portale fornitori `/portale/` (solo i propri dati) | no | no | sì | no |
+| Richiesta | Admin | BO User | Buyer | Fornitore | Anonimo |
+|---|:--:|:--:|:--:|:--:|:--:|
+| Pannello `/admin/` (modelli fornitori, utenti, ecc.) | sì | no | no | no | no |
+| Creare l'utenza portale di un fornitore (accesso portale) | sì | no | no | no | no |
+| Gestire gruppi e permessi Django | no | no | no | no | no |
+| Impostare o togliere il superuser | no | no | no | no | no |
+| Dashboard fornitori `/vendors/dashboard/` e export Excel | sì | sì | sì | no | no |
+| Scheda fornitore in sola lettura e "Aggiungi fornitore prospetto" (dalla dashboard) | sì | sì | sì | 403 | 401 |
+| API dashboard `/vendors/dashboard-vendors/` e `/vendors/dashboard-stats/` | sì | sì | 403 | 403 | 401 |
+| Dashboard back office `/portale/backoffice/dashboard/` | sì | sì | no | no | no |
+| API REST `/vendors/`, `/users/`, `/purchase-orders/` (token) | sì | sì | 403 | 403 | 401 |
+| Portale fornitori `/portale/` (solo i propri dati) | no | no | no | sì | no |
 
 Il pannello `/admin/` mostra solo le sezioni per cui l'utente ha permessi: per il BO User non compare nulla,
 perché non è staff.
@@ -45,7 +47,7 @@ I permessi stanno nei gruppi, non nei singoli utenti: si gestiscono in un solo p
   vendors_analysis, purchase_orders, historical_performances, services, competences, portal, documents.
   Restano fuori `auth` (gruppi e permessi), `admin`, `contenttypes`, `sessions`, `authtoken` e
   `django_celery_beat`: li gestisce solo un superuser.
-- **BO User** e **Vendors**: nessun permesso Django. Il loro accesso passa dalle viste, che controllano il ruolo.
+- **BO User**, **Buyer** e **Vendors**: nessun permesso Django. Il loro accesso passa dalle viste, che controllano il ruolo.
 
 I gruppi vengono creati e allineati a ogni `migrate` (segnale `post_migrate` in
 [vendor_management_system/users/apps.py](../vendor_management_system/users/apps.py)). Un
@@ -65,13 +67,18 @@ Il superuser si crea da riga di comando (`manage.py createsuperuser`) e si tiene
 
 ## Controlli di accesso sulle viste
 
-- Viste funzionali: `backoffice_required` (redirect) e `backoffice_api_required` (JSON 401/403), in
+- Viste funzionali: `backoffice_required` (redirect) e `backoffice_api_required` (JSON 401/403); per le funzioni
+  della dashboard aperte anche al Buyer `dashboard_required` e `dashboard_api_required`, in
   [vendor_management_system/core/permissions.py](../vendor_management_system/core/permissions.py).
 - Viste basate su classi: `BackOfficeRequiredMixin`, `VendorRequiredMixin`, `AdminRequiredMixin`.
 - API REST DRF: `IsBackOfficeUser`, usata da tutte le viewset di `vendors`, `users` e `purchase_orders`.
 
 Chi aggiunge una vista che espone dati fornitori deve usare uno di questi controlli, non il solo
 `@login_required`.
+
+Il **Buyer** vede solo la dashboard: `is_backoffice` (usata da API REST e dashboard back office) non lo include,
+`is_dashboard_user` sì. Il Buyer può essere scelto come utente di gestione del fornitore, e lo diventa
+automaticamente per i fornitori prospetto che crea.
 
 ## Migrazione dei dati
 

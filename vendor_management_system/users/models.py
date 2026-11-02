@@ -23,6 +23,7 @@ class User(AbstractUser):
     ROLE_CHOICES = [
         ("admin", _("Amministratore")),
         ("bo_user", _("Utente Back Office")),
+        ("buyer", _("Buyer")),
         ("vendor", _("Fornitore")),
     ]
 
@@ -107,6 +108,9 @@ class User(AbstractUser):
 
     def is_bo_user(self):
         return self.role == "bo_user"
+
+    def is_buyer(self):
+        return self.role == "buyer"
 
     def is_vendor_user(self):
         if self.role != "vendor":

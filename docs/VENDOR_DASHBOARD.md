@@ -15,9 +15,10 @@
 ## 1. Cos'è e dove si trova
 
 La dashboard è una vista interna di analisi/consultazione sul registro `Vendor`: statistiche riassuntive, un
-insieme di grafici cliccabili, un generatore di filtri avanzati in stile Redmine, una casella di ricerca a testo
-libero e un export Excel filtrato. È raggiungibile solo da Admin e BO User (controllo di ruolo `backoffice_required`, vedi
-[PERMESSI_RUOLI.md](PERMESSI_RUOLI.md)); i Fornitori ricevono un redirect al portale.
+insieme di grafici cliccabili, filtri avanzati a menù a tendina, una barra di ricerca, un export Excel filtrato,
+la scheda fornitore in sola lettura e la creazione rapida di un fornitore prospetto. È raggiungibile da Admin, BO User
+e Buyer (controllo di ruolo `dashboard_required`, vedi [PERMESSI_RUOLI.md](PERMESSI_RUOLI.md)); i Fornitori ricevono
+un redirect al portale.
 
 | Piece | Location |
 |---|---|
@@ -90,120 +91,58 @@ Tutte le voci di `activeFilters` con valore array sono a selezione multipla (OR 
 dimensione, ad es. cliccando due regioni si mostrano i fornitori dell'una o dell'altra) e tutte le dimensioni si
 combinano in **AND** (un filtro per regione + un filtro per tipo fornitore restringe il risultato a entrambi).
 
-## 4. Casella di ricerca
+## 4. Barra di ricerca
 
-Il campo di testo (`#search-input`) esegue una corrispondenza per sottostringa case-insensitive su un insieme
-fisso di campi concatenati: `vendor_code`, `name`, `email`, `vendor_type`, `service_type.parent`, `category.name`
-(o `category` se non annidato), `address.region`, `address.city`, `address.state_province`, `vat_number`,
-`fiscal_code`, e la lista concatenata delle `competences`. Si combina in AND con i filtri da click sui grafici e
-con i filtri avanzati.
+La barra (`#search-input`, dentro la card "Filtri Avanzati") cerca per sottostringa, senza distinguere maiuscole,
+solo su: codice Embyon (`old_code`), codice fornitore, ragione sociale, partita IVA e codice fiscale. Si combina in
+AND con i filtri da click sui grafici e con i menù a tendina. Lato server lo stesso criterio sta in
+`dashboard_filters.apply_search`, usato dall'export.
 
-## 5. Filtri avanzati (generatore di filtri in stile Redmine)
+## 5. Filtri avanzati (menù a tendina)
 
-Il pannello "Filtri Avanzati" permette di costruire righe arbitrarie `campo / operatore / valore`, tutte
-combinate in **AND** (non c'è OR tra le righe, né OR all'interno di un singolo campo — ad es. non è possibile
-esprimere "regione = Lazio OR regione = Lombardia" con una sola riga; aggiungere due dashboard separate oppure
-ottenere lo stesso risultato con una selezione multipla da click sui grafici su `regions`, dato che quella
-dimensione *è* combinata in OR).
+La card "Filtri Avanzati" è sempre visibile e contiene un menù a tendina per campo, a selezione multipla con
+casella di ricerca interna: Classificazione, Tipo Fornitore, Valutazione Finale, Servizi erogati, Competenze,
+Qualifiche professionali, Certificazioni, Paese, Regione, Provincia. Le opzioni sono i valori realmente censiti.
 
-### 5.1 Campi disponibili
+- **Logica**: dentro lo stesso menù i valori sono in **OR** (basta averne uno), tra menù diversi (e con i filtri da
+  click sui grafici e la ricerca) in **AND**.
+- **Classificazione**: principale o aggiuntive del fornitore.
+- **Competenze / Qualifiche professionali**: requisiti assegnati come competenza o come qualifica (flag
+  `is_competenza`/`is_qualifica` con `has_competence`), gli stessi dei grafici omonimi.
+- **Paese / Regione / Provincia**: zone di **competenza**, non la sede, come i grafici Regioni/Province. Il Paese
+  copre le nazioni estere e l'Italia (se il fornitore ha province di competenza).
+- Il pulsante "Cancella filtri" azzera menù e ricerca; il badge indica quanti valori sono selezionati.
+- I menù influenzano tabella, statistiche e grafici (tramite `matchesDropdownFilters` in `dashboard.js`) e vengono
+  inviati all'export con i parametri `dd_classifications`, `dd_vendor_types`, `dd_final_evaluations`, `dd_services`,
+  `dd_competenze`, `dd_qualifiche`, `dd_certifications`, `dd_countries`, `dd_regions`, `dd_provinces` (CSV; paese,
+  regione e provincia per codice), applicati da `dashboard_filters.apply_dropdown_filters`.
 
-Questo è l'elenco autorevole dei campi tratto da `filterFields` in `dashboard.js` (verificato rispetto al file
-attuale — alcuni dei documenti sostituiti elencavano un numero/set di campi leggermente diverso; questa tabella è
-aggiornata):
+Il vecchio generatore di righe `campo / operatore / valore` è stato rimosso.
 
-| Field (internal key) | Label | Type | Notes / options |
-|---|---|---|---|
-| `name` | Nome | text | |
-| `vendor_code` | Codice Fornitore | text | |
-| `vendor_type` | Tipo Fornitore | select | Società, Professionista, Dipendente, Dipendente + Libero professionista, Disoccupato, Libero Professionista, Presso Studio, Prestazione Occasionale, Società/professionista, Internazionale |
-| `email` | Email | text | |
-| `phone` | Telefono | text | |
-| `vat_number` | Partita IVA | text | |
-| `fiscal_code` | Codice Fiscale | text | |
-| `qualification_status` | Stato Qualifica | select | PENDING, TO_REVIEW, APPROVED, REJECTED |
-| `vendor_final_evaluation` | Valutazione Finale | select | DA VALUTARE, NEGATIVO, POSITIVO (bollino calcolato da stato qualifica + Attivo in Embyon) |
-| `quality_rating_avg` | Valutazione Qualità | number | 0–5 |
-| `fulfillment_rate` | Tasso Adempimento | number | 0–100 (percentuale) |
-| `is_active` | Attivo | boolean | |
-| `is_ico_consultant` | Consulente ICO | boolean | |
-| `contractual_status` | Stato Contrattuale | select | `00` Da verificare, `02` Fare RAI, `03` RAI Effettuata, `04` Contrattualizzato, `05` Da contrattualizzare ad esigenza, `06` Contratto Scaduto, `99` Non Usare |
-| `address.city` | Città | text | annidato — i fornitori senza indirizzo non corrispondono mai |
-| `address.region` | Regione (sede) | text | annidato |
-| `address.state_province` | Provincia (sede) | text | annidato |
-| `address.country` | Paese | text | annidato |
-| `category.name` | Categoria | text | annidato |
-| `service_type.name` | Tipo Servizio | text | annidato — corrisponde solo al servizio *primario* del fornitore |
+### 5.1 Scheda fornitore in sola lettura
 
-Da notare che il modello ha anche un campo `risk_level` (LOW/MEDIUM/HIGH) e `Vendor.contact_details`/`website`/
-ecc., ma `risk_level` **non** è esposto come campo filtro né come dimensione dei grafici nella dashboard attuale
-— nonostante fosse prominente nei vecchi documenti (faceva parte di un'iterazione precedente). Se oggi serve
-filtrare per livello di rischio, bisogna usare il Django Admin oppure reintrodurlo in `filterFields`/`chart_data`.
+L'occhio nella tabella apre una modale con tutte le sezioni del fornitore (informazioni base, contatti, servizi,
+abilitazioni e requisiti, documenti, contratti, qualifica e audit, valutazioni, attributi operativi) senza campi
+modificabili: `GET /vendors/dashboard/vendor/<codice>/` (`dashboard_vendor_views.vendor_detail_view`) restituisce un
+frammento HTML. Dei documenti si vedono tipo, stato e date, non i file. Così chi non entra in `/admin/` consulta
+l'anagrafica senza poterla modificare.
 
-### 5.2 Operatori per tipo di campo
+### 5.2 Aggiungi fornitore prospetto
 
-| Type | Operators |
-|---|---|
-| text | contiene, non contiene, è uguale a, è diverso da, inizia con, finisce con, è vuoto, non è vuoto |
-| number | è uguale a, è diverso da, è maggiore di, è minore di, è maggiore o uguale a, è minore o uguale a, è vuoto, non è vuoto |
-| select | è uguale a, è diverso da, è vuoto, non è vuoto |
-| boolean | è vero, è falso |
-
-`è vuoto` / `non è vuoto` / `è vero` / `è falso` nascondono il campo valore (non è necessario né viene inviato
-alcun valore).
-
-### 5.3 Esempi pratici
-
-Le chiavi di campo riportate qui sotto sono quelle effettivamente selezionate nel menu a tendina "Campo" (il menu
-mostra l'etichetta in italiano; la chiave sottostante è indicata qui per chiarezza quando si legge/scrive
-`dashboard.js`).
-
-```
-Fornitori attivi di Milano
-  address.city        è uguale a       Milano
-  is_active            è vero
-
-Società senza Partita IVA
-  vendor_type          è uguale a       Società
-  vat_number            è vuoto
-
-Fornitori con bollino verde e alto adempimento
-  vendor_final_evaluation   è uguale a         POSITIVO
-  fulfillment_rate           è maggiore o uguale a   90
-
-Contratti scaduti tra i fornitori attivi
-  contractual_status    è uguale a   06     (06 = Contratto Scaduto)
-  is_active               è vero
-
-Fornitori esteri
-  address.country       è diverso da   Italia
-  address.country       non è vuoto
-
-Email con dominio Gmail (proxy per "email non aziendale")
-  email                 finisce con    @gmail.com
-```
-
-### 5.4 Limitazioni note
-
-- Nessun OR tra le righe di filtro né all'interno del valore di una singola riga.
-- Nessun filtro per data/intervallo (nel modello non è esposto nulla per le date di contratto/qualifica).
-- I campi `address.*` escludono i fornitori senza un `Address` collegato — non esiste un filtro dedicato "nessun
-  indirizzo" al di là dell'uso di `address.city` + `è vuoto`, che comunque richiede che il fornitore abbia una
-  riga `Address` con città vuota.
-- **I filtri avanzati e i filtri da click sui grafici influenzano entrambi la tabella, le statistiche e i
-  grafici a pagina, ma solo i filtri da click sui grafici (più la casella di ricerca) vengono inviati all'export
-  Excel** — vedi §6. Questo è un divario reale e attuale, non un errore di documentazione: `exportToExcel()` in
-  `dashboard.js` serializza nell'URL di export solo `activeFilters` + il termine di ricerca; `advancedFilters`
-  non esce mai dal browser.
+Il pulsante sopra ai filtri apre una modale con ragione sociale, partita IVA o codice fiscale (almeno uno) ed email.
+`POST /vendors/dashboard/prospect/` (`prospect.create_prospect`) crea il fornitore "In attesa", imposta chi lo crea
+come utente di gestione, crea l'utenza del portale e invia subito l'invito. Il codice fiscale duplicato blocca, la
+partita IVA duplicata avvisa; un'email già usata da un utente blocca prima di creare l'anagrafica. Se l'invio
+dell'email fallisce il fornitore resta creato e l'operatore può usare "Reinvia invito" dall'admin.
 
 ## 6. Export Excel
 
 Pulsante: "Esporta Excel" verde (in basso a destra, posizione fissa) → `GET /vendors/export-excel/`
 (`vendors:export-vendors-excel`), gestito da `export_vendors_excel` in `dashboard_views.py`.
 
-- **Autenticazione**: `@login_required` (autenticazione basata su sessione) — *non* token auth, nonostante quanto
+- **Autenticazione**: `@dashboard_required` (sessione; Admin, BO User e Buyer) — *non* token auth, nonostante quanto
   affermato dai vecchi documenti.
-- **Filtri rispettati**: solo i filtri da click sui grafici e la casella di ricerca (vedi l'avvertenza in §5.4).
+- **Filtri rispettati**: filtri da click sui grafici, menù a tendina (§5) e barra di ricerca.
   Parametri query accettati, separati da virgola per quelli multi-valore:
 
 | Param | Maps to |
@@ -345,8 +284,6 @@ funzionante, finché qualcuno non la riallinea con l'attuale `dashboard_views.py
 | Symptom | Likely cause | Fix |
 |---|---|---|
 | I grafici vengono renderizzati vuoti / tutti a zero | Non ci sono ancora dati `Vendor`/`Category`/`Address`/`Competence`/`ServiceType` | Popola qualche dato (§8), oppure esegui i management command `populate_*`/`seed_*` descritti in `docs/PROJECT_OVERVIEW_AND_LOCAL_SETUP.md` §9 |
-| Un menu a tendina di filtro ("Tipo Servizio", "Categoria") si comporta in modo strano sui fornitori multi-servizio | `service_type.name` (filtro avanzato) e la colonna "service_type" della tabella considerano solo il `VendorService` **primario** del fornitore (`is_primary=True`) — i servizi non primari vengono lì ignorati | Usa invece i filtri da click sui grafici `services`/`service_categories`, che considerano *tutti* i servizi di un fornitore |
-| L'export scarica righe in numero minore/diverso rispetto a quelle a schermo | I filtri avanzati non vengono inviati all'endpoint di export (§5.4/§6) — solo i filtri da click sui grafici + la ricerca lo sono | Ricrea la stessa restrizione usando i click sui grafici (o la casella di ricerca) prima di esportare, oppure estendi `exportToExcel()`/`export_vendors_excel` per serializzare anche `advancedFilters` |
 | Nel file di export manca una colonna attesa (Partita IVA, indirizzo, metriche di performance) | `export_vendors_excel` scrive solo 7 colonne (§6) | Estendi il ciclo di costruzione `headers`/righe in `export_vendors_excel` |
 | Le chiamate a `dashboard-stats/` o `dashboard-vendors/` da uno strumento esterno restituiscono dati in numero minore/diversi da quelli attesi | Questi endpoint sono vestigiali — la UI della dashboard non li usa, e `dashboard-stats/` è stato ridotto a un certo punto (§7) | Non dare per scontato che corrispondano ai grafici della dashboard stessa; leggi direttamente `dashboard_views.py`, oppure estendili se serve la struttura più ricca |
 | I test automatici della dashboard falliscono così come sono | Problema noto — vedi §9 | Correggi la chiamata `Vendor.objects.create(country=...)` in `setUp()` e le asserzioni su `dashboard_stats_api`/autenticazione prima di fare affidamento su questa suite |

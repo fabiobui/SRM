@@ -1638,10 +1638,10 @@ class Vendor(models.Model):
         null=True,
         blank=True,
         related_name="managed_vendors",
-        limit_choices_to={"role__in": ["admin", "bo_user"]},
+        limit_choices_to={"role__in": ["admin", "bo_user", "buyer"]},
         help_text=_(
-            "Utente Back Office o Admin responsabile della gestione del "
-            "fornitore (utente primario)"
+            "Utente Back Office, Buyer o Admin responsabile della "
+            "gestione del fornitore (utente primario)"
         ),
     )
     secondary_managers = models.ManyToManyField(
@@ -1649,10 +1649,10 @@ class Vendor(models.Model):
         verbose_name=_("Utenti gestione fornitore secondari"),
         blank=True,
         related_name="secondary_managed_vendors",
-        limit_choices_to={"role__in": ["admin", "bo_user"]},
+        limit_choices_to={"role__in": ["admin", "bo_user", "buyer"]},
         help_text=_(
-            "Ulteriori utenti Back Office o Admin di riferimento per il "
-            "fornitore (opzionali)"
+            "Ulteriori utenti Back Office, Buyer o Admin di riferimento "
+            "per il fornitore (opzionali)"
         ),
     )
 

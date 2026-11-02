@@ -14,6 +14,18 @@ def is_backoffice(user):
     return user.is_authenticated and (user.is_admin() or user.is_bo_user())
 
 
+def is_dashboard_user(user):
+    """Chi può usare la dashboard fornitori: Admin, BO User e Buyer.
+
+    Il Buyer vede solo la dashboard (e quanto serve a usarla): non rientra
+    in `is_backoffice`, quindi resta fuori da API REST e dashboard
+    back office.
+    """
+    return user.is_authenticated and (
+        user.is_admin() or user.is_bo_user() or user.is_buyer()
+    )
+
+
 class AdminRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
     """Mixin che richiede ruolo Admin"""
 
@@ -132,6 +144,41 @@ def backoffice_api_required(view_func):
                 {"detail": "Autenticazione richiesta."}, status=401
             )
         if not is_backoffice(request.user):
+            return JsonResponse({"detail": "Permesso negato."}, status=403)
+        return view_func(request, *args, **kwargs)
+
+    return wrapper
+
+
+def dashboard_required(view_func):
+    """Come `backoffice_required`, ma ammette anche il Buyer."""
+
+    @wraps(view_func)
+    def wrapper(request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return redirect_to_login(request.get_full_path())
+        if not is_dashboard_user(request.user):
+            messages.error(
+                request,
+                "Accesso negato. Solo lo staff autorizzato può accedere.",
+            )
+            return redirect("dashboard-redirect")
+        return view_func(request, *args, **kwargs)
+
+    return wrapper
+
+
+def dashboard_api_required(view_func):
+    """Come `dashboard_required`, ma per le API JSON: 401/403 invece del
+    redirect."""
+
+    @wraps(view_func)
+    def wrapper(request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return JsonResponse(
+                {"detail": "Autenticazione richiesta."}, status=401
+            )
+        if not is_dashboard_user(request.user):
             return JsonResponse({"detail": "Permesso negato."}, status=403)
         return view_func(request, *args, **kwargs)
 

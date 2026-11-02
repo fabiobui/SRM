@@ -13,6 +13,7 @@ from django.contrib.auth.models import Group, Permission
 ROLE_GROUP_NAMES = {
     "admin": "Admin",
     "bo_user": "BO User",
+    "buyer": "Buyer",
     "vendor": "Vendors",
 }
 
