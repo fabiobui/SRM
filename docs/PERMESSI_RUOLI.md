@@ -18,6 +18,8 @@ Il campo `User.role` è la fonte di verità. Gli altri elementi si ricavano da l
 - Il **gruppo** viene riallineato in `User.save()` (`sync_role_group`): se lo assegni a mano, al salvataggio
   torna quello del ruolo.
 - Lo **staff** è `True` solo per gli Admin e per i superuser (`User.save()`).
+- Il login **LDAP** assegna il ruolo dai gruppi AD solo alla **creazione** dell'utente; agli accessi
+  successivi il ruolo non viene riscritto (altrimenti un Admin tornava BO User e perdeva `/admin/`).
 - Nel form utente gruppo e staff sono di sola lettura; il superuser si imposta solo da un altro superuser.
 
 ## Cosa può fare ciascun ruolo
