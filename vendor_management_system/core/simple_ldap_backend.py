@@ -163,7 +163,9 @@ class SimpleLDAPBackend(ModelBackend):
             # Cerca per email
             user = User.objects.get(email=email)
             logger.debug(f"Utente LDAP esistente trovato: {email}")
+            is_new = False
         except User.DoesNotExist:
+            is_new = True
             # Crea nuovo utente
             user = User(
                 email=email,
@@ -177,10 +179,13 @@ class SimpleLDAPBackend(ModelBackend):
         user.name = display_name or user.name
         user.is_ldap_user = True
 
-        # Assegna ruolo basato sui gruppi LDAP
-        user.role = self.get_user_role_from_groups(
-            ldap_attrs.get("memberOf", [])
-        )
+        # Il ruolo dai gruppi LDAP vale solo alla creazione: dopo, la fonte
+        # di verità è User.role, altrimenti ogni login riscriverebbe il
+        # ruolo (es. un Admin diventerebbe BO User e perderebbe /admin/).
+        if is_new:
+            user.role = self.get_user_role_from_groups(
+                ldap_attrs.get("memberOf", [])
+            )
 
         user.save()
         return user
