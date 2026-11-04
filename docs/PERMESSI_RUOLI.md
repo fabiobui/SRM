@@ -21,6 +21,9 @@ Il campo `User.role` è la fonte di verità. Gli altri elementi si ricavano da l
 - Il login **LDAP** assegna il ruolo dai gruppi AD solo alla **creazione** dell'utente; agli accessi
   successivi il ruolo non viene riscritto (altrimenti un Admin tornava BO User e perdeva `/admin/`).
 - Nel form utente gruppo e staff sono di sola lettura; il superuser si imposta solo da un altro superuser.
+- Il **ruolo** di un utente si assegna o cambia solo da un superuser, qualunque sia il ruolo di chi modifica:
+  un Admin non superuser non lo vede nel form e non può creare utenti da `/admin/`. Vale anche per il proprio ruolo.
+  L'utenza portale creata dalla scheda fornitore (`create_portal_user`) ha ruolo Fornitore fisso e non passa dal campo ruolo.
 
 ## Cosa può fare ciascun ruolo
 
@@ -29,6 +32,7 @@ Il campo `User.role` è la fonte di verità. Gli altri elementi si ricavano da l
 | Pannello `/admin/` (modelli fornitori, utenti, ecc.) | sì | no | no | no | no |
 | Creare l'utenza portale di un fornitore (accesso portale) | sì | no | no | no | no |
 | Gestire gruppi e permessi Django | no | no | no | no | no |
+| Assegnare o cambiare il ruolo di un utente, creare utenti da `/admin/` | no | no | no | no | no |
 | Impostare o togliere il superuser | no | no | no | no | no |
 | Dashboard fornitori `/vendors/dashboard/` e export Excel | sì | sì | sì | no | no |
 | Scheda fornitore in sola lettura e "Aggiungi fornitore prospetto" (dalla dashboard) | sì | sì | sì | 403 | 401 |

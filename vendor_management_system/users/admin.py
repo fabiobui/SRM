@@ -181,7 +181,12 @@ class CustomUserChangeForm(UserChangeForm):
 
     def clean(self):
         cleaned_data = super().clean()
-        role = cleaned_data.get("role")
+        # Senza il campo role (es. non superuser) vale il ruolo già salvato
+        role = (
+            cleaned_data.get("role")
+            if "role" in self.fields
+            else self.instance.role
+        )
         vendor = cleaned_data.get("vendor")
 
         # Validazione vendor per utenti vendor
@@ -237,7 +242,9 @@ class UserAdmin(auth_admin.UserAdmin):
                     "Gruppo e Staff status si ricavano dal Ruolo: non si "
                     "modificano a mano. Solo il ruolo Admin accede a "
                     "/admin/; il superuser è riservato ai casi eccezionali "
-                    "e può essere impostato solo da un altro superuser."
+                    "e può essere impostato solo da un altro superuser. "
+                    "Il ruolo può essere assegnato o cambiato solo da un "
+                    "superuser."
                 ),
             },
         ),
@@ -330,8 +337,18 @@ class UserAdmin(auth_admin.UserAdmin):
         # Il superuser si concede solo da un altro superuser
         if not request.user.is_superuser:
             readonly.append("is_superuser")
+            # Il ruolo lo assegna solo un superuser, qualunque sia il ruolo
+            # di chi modifica (anche Admin)
+            readonly.append("role")
 
         return readonly
+
+    def has_add_permission(self, request):
+        # Creare un utente significa assegnargli un ruolo: riservato al
+        # superuser, come la modifica del campo role
+        return request.user.is_superuser and super().has_add_permission(
+            request
+        )
 
     def _vietato_su_superuser(self, request, obj):
         return (
