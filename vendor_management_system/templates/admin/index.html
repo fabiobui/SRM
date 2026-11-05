@@ -1,0 +1,9 @@
+{% extends "admin/index.html" %}
+{# Guida operativa Admin sopra l'elenco delle app (estende l'index di Jazzmin). #}
+
+{% block content %}
+<div class="col-12">
+    {% include "guide/_shell.html" with guide_id="guide-admin" theme="admin" icon="fa-user-shield" title="Guida operativa - amministrazione" subtitle="Cosa puoi fare come Admin e come farlo: fornitori, accesso al portale, qualifica, utenti." chips="guide/admin_chips.html" body="guide/admin_body.html" %}
+</div>
+{{ block.super }}
+{% endblock %}
