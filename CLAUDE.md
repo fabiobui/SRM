@@ -29,6 +29,14 @@ l'overview completa e il setup locale (Docker o nativo).
   più facili da mantenere.
 - **La documentazione va sempre scritta o aggiornata in italiano** (README, `docs/*.md`, `CLAUDE.md`, commenti e
   docstring destinati a chi mantiene il progetto) — coerente con lo stile già usato in tutto il repo.
+- **Tieni aggiornate le guide operative interattive** (admin, back office, fornitori) a ogni modifica o nuovo
+  sviluppo che cambia ciò che un utente vede o fa: flussi, pulsanti e etichette, stati e badge, regole di
+  qualifica/valutazione, permessi dei ruoli, email e promemoria. I contenuti stanno in
+  `vendor_management_system/templates/guide/` (`admin_body.html`, `bo_body.html`, `vendor_body.html`, più le chip
+  `*_chips.html`), stile e comportamento in `static/guide/`. Fai fede al codice, non alla documentazione. La
+  guida fornitori non deve mai esporre informazioni interne o di sicurezza (Embyon, valutazione finale, ruoli
+  interni, `/admin/`): il test `tests/test_guide_operative.py` lo verifica. Se la modifica non tocca le guide,
+  dillo esplicitamente nel riepilogo finale.
 - **Se stai testando su Docker (Track A) e modifichi codice Python mentre il container `django` è già in
   esecuzione, fai `docker compose restart django` prima di verificare la modifica nel browser.** Il container
   gira `runserver_plus` (Werkzeug), che in teoria fa autoreload, ma su Docker Desktop per Windows con bind mount
