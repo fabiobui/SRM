@@ -73,6 +73,12 @@ Le sezioni principali sono:
 
 <!-- 📸 SCREENSHOT: Dashboard principale con menu laterale -->
 
+> **Guida operativa in-app.** In cima alla dashboard c'è la card *Guida operativa - amministrazione*: il pulsante
+> **Apri la guida** mostra un pannello laterale con indice navigabile (creazione fornitore, accesso al portale,
+> qualifica, azioni massive, utenti). Esistono anche le guide per il back office (dashboard `/portale/backoffice/dashboard/`)
+> e per i fornitori (home del portale). I contenuti stanno in `vendor_management_system/templates/guide/`, grafica e
+> comportamento in `static/guide/`: chi cambia una regola di business descritta nelle guide deve aggiornarle.
+
 ---
 
 ## 3. Anagrafica Fornitore

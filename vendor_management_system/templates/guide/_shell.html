@@ -1,0 +1,28 @@
+{% load static %}
+{# Guida operativa: card + pannello laterale. Parametri: guide_id, theme (admin|bo|vendor), icon, title, subtitle, chips, body #}
+<link rel="stylesheet" href="{% static 'guide/guide.css' %}">
+<div data-guide-root id="{{ guide_id }}">
+    <div class="guide-card guide-theme-{{ theme }}">
+        <div class="guide-card__icon"><i class="fas {{ icon }}"></i></div>
+        <div class="guide-card__main">
+            <h2 class="guide-card__title">{{ title }}</h2>
+            <p class="guide-card__sub">{{ subtitle }}</p>
+            <div class="guide-card__quick">{% include chips %}</div>
+        </div>
+        <button type="button" class="guide-btn" data-guide-open><i class="fas fa-book-open"></i>Apri la guida</button>
+    </div>
+
+    <div class="guide-overlay" data-guide-close></div>
+    <aside class="guide-drawer guide-theme-{{ theme }}" role="dialog" aria-modal="true" aria-hidden="true" aria-label="{{ title }}">
+        <div class="guide-drawer__head">
+            <i class="fas {{ icon }}"></i>
+            <h2>{{ title }}</h2>
+            <button type="button" class="guide-close" data-guide-close aria-label="Chiudi la guida"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="guide-drawer__body">
+            <nav class="guide-nav" aria-label="Indice della guida"></nav>
+            <div class="guide-content">{% include body %}</div>
+        </div>
+    </aside>
+</div>
+<script src="{% static 'guide/guide.js' %}" defer></script>

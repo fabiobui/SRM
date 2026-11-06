@@ -1,0 +1,100 @@
+<section class="guide-section" id="gb-ruolo" data-title="Il tuo ruolo" data-icon="fa-user-check">
+    <h3><i class="fas fa-user-check"></i>Il tuo ruolo: Back Office</h3>
+    <p class="guide-lead">Verifichi ciò che i fornitori caricano o chiedono: documenti, requisiti professionali, modifiche all'anagrafica e ai servizi. Per ogni elemento decidi <strong>Approva</strong> o <strong>Respingi</strong>.</p>
+    <div class="g-flow">
+        <span class="g-node">Il fornitore carica o richiede</span><span class="g-arrow">&rarr;</span>
+        <span class="g-node">Compare qui in attesa</span><span class="g-arrow">&rarr;</span>
+        <span class="g-node">Tu approvi o respingi</span><span class="g-arrow">&rarr;</span>
+        <span class="g-node">Il fornitore vede l'esito nel portale</span>
+    </div>
+    <div class="g-callout g-info"><i class="fas fa-info-circle"></i><div><p>Accedono al back office <strong>Admin e BO User</strong>. Il Buyer vede solo la dashboard <em>Fornitori - Analisi e Classificazione</em>.</p></div></div>
+</section>
+
+<section class="guide-section" id="gb-dashboard" data-title="Leggere la dashboard" data-icon="fa-tachometer-alt">
+    <h3><i class="fas fa-tachometer-alt"></i>Leggere la dashboard</h3>
+    <p>La pagina ha due livelli: i numeri di <strong>tutto il sistema</strong> in alto e le liste di lavoro dei <strong>tuoi fornitori</strong> sotto.</p>
+    <div class="g-mock">
+        <div class="g-mock__bar">Card in alto: tutti i fornitori</div>
+        <div class="g-mock__body">
+            <div class="g-mock__kpi"><b>Documenti</b>totali / <span style="color:#dc3545">scaduti</span> / <span style="color:#b8860b">da revisionare</span></div>
+            <div class="g-mock__kpi"><b>Requisiti</b>totali / <span style="color:#dc3545">scaduti</span> / <span style="color:#b8860b">da revisionare</span></div>
+            <div class="g-mock__kpi"><b>Richieste anagrafica</b>totali / in attesa</div>
+            <div class="g-mock__kpi"><b>Richieste servizi</b>totali / in attesa</div>
+        </div>
+    </div>
+    <h4>"Aggiornamenti dei tuoi fornitori"</h4>
+    <p>Sono i fornitori per cui sei <strong>utente di gestione</strong> (primario o secondario). Ogni tabella mostra le prime 10 righe, con il link <em>Vedi tutti</em> alla lista completa.</p>
+    <div class="g-table-wrap"><table class="g-table">
+        <thead><tr><th>Tabella</th><th>Priorità</th><th>Cosa fare</th></tr></thead>
+        <tbody>
+        <tr><td>Documenti scaduti</td><td><span class="g-badge g-b-red">Alta</span></td><td>Sollecita il fornitore o carica tu la nuova versione dall'admin.</td></tr>
+        <tr><td>Requisiti scaduti</td><td><span class="g-badge g-b-red">Alta</span></td><td>Come sopra.</td></tr>
+        <tr><td>Richieste anagrafica in attesa</td><td><span class="g-badge g-b-yellow">Media</span></td><td>Apri il dettaglio, confronta vecchio e nuovo valore, approva o respingi.</td></tr>
+        <tr><td>Richieste servizi in attesa</td><td><span class="g-badge g-b-yellow">Media</span></td><td>Come sopra.</td></tr>
+        <tr><td>Documenti / Requisiti in attesa di revisione</td><td><span class="g-badge g-b-yellow">Media</span></td><td>Verifica il file e approva o respingi.</td></tr>
+        <tr><td>Fornitori senza documenti / requisiti assegnati</td><td><span class="g-badge g-b-blue">Da completare</span></td><td>Chiedi all'Admin di applicare i set: senza righe il fornitore non può caricare nulla.</td></tr>
+        </tbody></table></div>
+    <div class="g-callout g-warn"><i class="fas fa-exclamation-triangle"></i><div><p>I contatori in alto sono globali: la card "documenti da revisionare" conta i file appena caricati, mentre le <strong>nuove versioni</strong> di un documento già approvato compaiono nella lista documenti ma non in quel numero.</p></div></div>
+</section>
+
+<section class="guide-section" id="gb-documenti" data-title="Documenti contrattuali" data-icon="fa-file-alt">
+    <h3><i class="fas fa-file-alt"></i>Revisionare i documenti contrattuali</h3>
+    <ol class="g-steps">
+        <li>Apri <strong>Documenti contrattuali</strong> dal menu: di default vedi i documenti <em>Caricati, da verificare</em>.</li>
+        <li>Filtra per stato se serve: in attesa di caricamento, approvati, respinti o <strong>scaduti</strong> (basato sulla data di scadenza, non sullo stato salvato).</li>
+        <li>Premi <strong>Dettaglio</strong>, apri il file e controlla tipo, date di emissione e scadenza.</li>
+        <li>Premi <strong>Approva</strong> o <strong>Respingi</strong>. Le note sono facoltative ma, se respingi, aiutano il fornitore a capire cosa correggere.</li>
+    </ol>
+    <div class="g-callout g-info"><i class="fas fa-info-circle"></i><div><p><strong>Nuova versione di un documento già approvato:</strong> quello attuale resta valido finché non decidi. <em>Approva</em> sostituisce il file con la nuova versione, <em>Respingi</em> la scarta; in entrambi i casi il documento resta approvato.</p></div></div>
+</section>
+
+<section class="guide-section" id="gb-requisiti" data-title="Abilitazioni e requisiti" data-icon="fa-user-graduate">
+    <h3><i class="fas fa-user-graduate"></i>Revisionare abilitazioni e requisiti</h3>
+    <p>Stessa procedura dei documenti, dalla pagina <strong>Abilitazioni e Requisiti Professionali</strong>. Il filtro offre:</p>
+    <ul>
+        <li><strong>Da verificare</strong> (predefinito): con file caricato, non ancora verificati né respinti.</li>
+        <li><strong>Verificati</strong>, <strong>Respinti</strong>, <strong>Scaduti</strong> (scadenza passata, anche senza file).</li>
+    </ul>
+    <p><strong>Approva</strong> segna il requisito come verificato; <strong>Respingi</strong> lo segna respinto e il fornitore deve ricaricarlo.</p>
+</section>
+
+<section class="guide-section" id="gb-richieste" data-title="Richieste del fornitore" data-icon="fa-exchange-alt">
+    <h3><i class="fas fa-exchange-alt"></i>Richieste di modifica anagrafica e servizi</h3>
+    <p>Il fornitore non cambia da solo i propri dati: invia una richiesta che resta <span class="g-badge g-b-yellow">in attesa</span> finché non la gestisci.</p>
+    <div class="g-grid">
+        <div class="g-tile"><strong><i class="fas fa-id-card g-tile__ico"></i>Richieste anagrafica</strong>Nome, email, telefono, sito, PEC, referente, indirizzo, zone di competenza.</div>
+        <div class="g-tile"><strong><i class="fas fa-concierge-bell g-tile__ico"></i>Richieste servizi</strong>Aggiunta, modifica (principale, date, note) o eliminazione di un servizio dal catalogo.</div>
+    </div>
+    <ol class="g-steps">
+        <li>Apri la lista (predefinito: <em>in attesa</em>; puoi filtrare per approvate e rifiutate).</li>
+        <li>Nel dettaglio confronta i valori attuali con quelli richiesti.</li>
+        <li><strong>Approva</strong> applica subito la modifica al fornitore; <strong>Respingi</strong> la scarta. Una richiesta già gestita non si può rivedere.</li>
+    </ol>
+    <div class="g-callout g-warn"><i class="fas fa-exclamation-triangle"></i><div><p>Se approvi un cambio di <strong>email</strong>, l'utenza portale del fornitore non si aggiorna da sola: avvisa l'Admin, che può riallineare l'accesso.</p></div></div>
+</section>
+
+<section class="guide-section" id="gb-dopo" data-title="Cosa succede dopo" data-icon="fa-project-diagram">
+    <h3><i class="fas fa-project-diagram"></i>Cosa succede dopo la tua decisione</h3>
+    <div class="g-table-wrap"><table class="g-table">
+        <thead><tr><th>Azione</th><th>Effetto</th></tr></thead>
+        <tbody>
+        <tr><td>Approvi un documento o requisito</td><td>Diventa valido e concorre alla qualifica del fornitore, che però approva solo l'Admin.</td></tr>
+        <tr><td>Respingi un documento o requisito</td><td>Il fornitore lo vede <strong>respinto</strong> (alert rosso) e deve ricaricarlo. Se era obbligatorio e il fornitore era Approvato, torna a <span class="g-badge g-b-yellow">Da revisionare</span>.</td></tr>
+        <tr><td>Approvi o respingi una richiesta</td><td>L'esito compare nello storico richieste del fornitore.</td></tr>
+        </tbody></table></div>
+    <div class="g-callout g-danger"><i class="fas fa-ban"></i><div><p><strong>Importante:</strong> la tua revisione <strong>non approva il fornitore</strong> (lo fa l'Admin con l'azione <em>Approva fornitori selezionati</em>) e <strong>non invia email</strong> al fornitore. Se serve un sollecito, scrivigli direttamente.</p></div></div>
+    <div class="g-callout g-tip"><i class="fas fa-lightbulb"></i><div><p>Le date di un documento non si correggono dalla revisione. Se sono sbagliate, respingi con una nota o chiedi all'Admin di correggerle dalla scheda fornitore.</p></div></div>
+</section>
+
+<section class="guide-section" id="gb-cerca" data-title="Cercare un fornitore" data-icon="fa-search">
+    <h3><i class="fas fa-search"></i>Cercare un fornitore e consultarne la scheda</h3>
+    <p>Dal menu <strong>Fornitori - Analisi e Classificazione</strong> trovi la dashboard di consultazione, utile per verificare se si può emettere un ordine o per scegliere il fornitore adatto.</p>
+    <ul>
+        <li><strong>Ricerca</strong> per codice Embyon, codice fornitore, ragione sociale, P.IVA o C.F.</li>
+        <li><strong>Grafici cliccabili</strong> (tipo, regioni, province, servizi, competenze, qualifiche, certificazioni) e <strong>filtri a tendina</strong>.</li>
+        <li>Più valori nello stesso filtro si cercano in <strong>OR</strong> (basta averne uno); filtri diversi si combinano in <strong>AND</strong>.</li>
+        <li>L'<strong>export Excel</strong> applica i filtri impostati.</li>
+        <li>Il pulsante <strong>Aggiungi fornitore prospetto</strong> crea un nuovo fornitore con la sola anagrafica essenziale e gli invia l'invito al portale.</li>
+    </ul>
+    <p>Il <span class="g-badge g-b-green">Positivo</span> nella Valutazione finale indica un fornitore approvato e attivo in Embyon; <span class="g-badge g-b-red">Negativo</span> se non attivo o respinto; <span class="g-badge g-b-grey">Da valutare</span> se la qualifica è ancora in corso.</p>
+</section>

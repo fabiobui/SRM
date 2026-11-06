@@ -1,0 +1,180 @@
+<section class="guide-section" id="ga-panoramica" data-title="Il tuo ruolo" data-icon="fa-user-shield">
+    <h3><i class="fas fa-user-shield"></i>Il tuo ruolo: Admin</h3>
+    <p class="guide-lead">Sei l'unico ruolo che entra nell'area <strong>/admin/</strong>. Gestisci l'anagrafica dei fornitori, i cataloghi, l'accesso al portale e l'approvazione finale della qualifica.</p>
+    <div class="g-grid">
+        <div class="g-tile"><strong><i class="fas fa-building g-tile__ico"></i>Fornitori</strong>Anagrafica, documenti, servizi, requisiti, contratti.<a class="g-go" href="{% url 'admin:vendors_vendor_changelist' %}">Apri la lista &rarr;</a></div>
+        <div class="g-tile"><strong><i class="fas fa-chart-pie g-tile__ico"></i>Analisi e Classificazione</strong>Ricerca, filtri, export Excel e creazione rapida di un fornitore prospetto.<a class="g-go" href="{% url 'vendor-dashboard' %}">Apri la dashboard &rarr;</a></div>
+        <div class="g-tile"><strong><i class="fas fa-inbox g-tile__ico"></i>Dashboard Back Office</strong>Documenti, requisiti e richieste da revisionare.<a class="g-go" href="{% url 'portal:bo-dashboard' %}">Apri il back office &rarr;</a></div>
+        <div class="g-tile"><strong><i class="fas fa-users-cog g-tile__ico"></i>Utenti</strong>Utenti interni e utenze portale dei fornitori.<a class="g-go" href="{% url 'admin:users_user_changelist' %}">Apri gli utenti &rarr;</a></div>
+    </div>
+    <h4>Il ciclo di vita di un fornitore in 5 passi</h4>
+    <div class="g-flow">
+        <span class="g-node">1. Creazione</span><span class="g-arrow">&rarr;</span>
+        <span class="g-node">2. Set di documenti, servizi, requisiti</span><span class="g-arrow">&rarr;</span>
+        <span class="g-node">3. Attivazione portale</span><span class="g-arrow">&rarr;</span>
+        <span class="g-node">4. Il fornitore carica, il BO revisiona</span><span class="g-arrow">&rarr;</span>
+        <span class="g-node">5. Approvazione qualifica</span>
+    </div>
+</section>
+
+<section class="guide-section" id="ga-nuovo" data-title="Creare un fornitore" data-icon="fa-plus-circle">
+    <h3><i class="fas fa-plus-circle"></i>Creare un fornitore</h3>
+    <p class="guide-lead">Un nuovo fornitore si crea sempre come <strong>fornitore prospetto</strong> dalla dashboard; poi lo completi nella scheda in /admin/.</p>
+    <ol class="g-steps">
+        <li>Apri <a href="{% url 'vendor-dashboard' %}">Fornitori - Analisi e Classificazione</a> e premi <strong>Aggiungi fornitore prospetto</strong>.</li>
+        <li>Compila <strong>Ragione sociale</strong>, <strong>Email</strong> e almeno uno tra <strong>Partita IVA</strong> e <strong>Codice Fiscale</strong>.</li>
+        <li>Il sistema crea il fornitore (stato qualifica <span class="g-badge g-b-grey">In attesa</span>), ti assegna come utente di gestione, crea l'utenza portale e invia l'invito via email.</li>
+        <li>Apri la scheda dalla <a href="{% url 'admin:vendors_vendor_changelist' %}">lista Fornitori</a> e completa i dati (vedi sezioni successive).</li>
+    </ol>
+    <div class="g-callout g-warn"><i class="fas fa-exclamation-triangle"></i><div><p><strong>Controlli automatici.</strong> Un Codice Fiscale già presente o un'email già usata da un altro utente <strong>bloccano</strong> la creazione. Una Partita IVA già presente dà solo un avviso. Se l'invio dell'email fallisce il fornitore viene creato comunque: usa poi <em>Reinvia invito</em> dalla scheda.</p></div></div>
+    <div class="g-callout g-tip"><i class="fas fa-lightbulb"></i><div><p>Scegli con cura l'email: riceve credenziali, invito e promemoria di scadenza. Evita indirizzi generici.</p></div></div>
+</section>
+
+<section class="guide-section" id="ga-scheda" data-title="La scheda fornitore" data-icon="fa-id-card">
+    <h3><i class="fas fa-id-card"></i>La scheda fornitore, tab per tab</h3>
+    <div class="g-table-wrap"><table class="g-table">
+        <thead><tr><th>Tab</th><th>Cosa ci fai</th></tr></thead>
+        <tbody>
+        <tr><td><strong>Informazioni Base</strong></td><td>Dati anagrafici, Codice Embyon e Società Embyon, classificazione principale e aggiuntive, zone di competenza, data prima fornitura, livello di rischio, <em>Attivo in Embyon</em>, utenti di gestione.</td></tr>
+        <tr><td><strong>Contatti</strong></td><td>Email, telefono, PEC, indirizzo, note operative (visibili ai colleghi) e il flag <em>Notifiche scadenze via email</em>.</td></tr>
+        <tr><td><strong>Documenti Contrattuali</strong></td><td>Documenti richiesti al fornitore, con stato di validità e scadenze.</td></tr>
+        <tr><td><strong>Contratti</strong></td><td>Dati dei contratti (numero, titolo, tipo, stato, date, importo). I file PDF vanno nei Documenti Contrattuali.</td></tr>
+        <tr><td><strong>Servizi Erogati</strong></td><td>Servizi del fornitore, principale, prezzo orario, date, note.</td></tr>
+        <tr><td><strong>Abilitazioni e Requisiti Professionali</strong></td><td>Competenze, qualifiche, iscrizioni, certificazioni con numero e scadenze.</td></tr>
+        <tr><td><strong>Qualifica e Audit</strong></td><td>Stato qualifica, valutazione finale, punteggio, date di qualifica e audit.</td></tr>
+        <tr><td><strong>Valutazioni</strong></td><td>Valutazioni del fornitore.</td></tr>
+        <tr><td><strong>Attributi Operativi</strong></td><td>Solo per i subappaltatori: mezzi, costi, disponibilità, settori. Li compila il fornitore dal portale.</td></tr>
+        </tbody></table></div>
+    <h4>Informazioni Base: cosa sapere</h4>
+    <ul>
+        <li><strong>Ricerca Embyon:</strong> il pulsante apre la ricerca per nome (min. 3 caratteri), codice Embyon, P.IVA o C.F. e precompila il form. Si usa un solo criterio per volta.</li>
+        <li><strong>Duplicati:</strong> Codice Embyon e Codice Fiscale già presenti bloccano il salvataggio (con link al fornitore esistente); la P.IVA duplicata è solo un avviso.</li>
+        <li><strong>Classificazione:</strong> una principale più eventuali aggiuntive (es. subappaltatore + centro di formazione). La principale non può essere anche aggiuntiva.</li>
+        <li><strong>Utenti di gestione:</strong> un primario e dei secondari, con email del dominio aziendale. Sono i referenti che il fornitore vede e quelli per cui il back office mostra gli "aggiornamenti dei tuoi fornitori".</li>
+        <li><strong>Data prima fornitura:</strong> campo facoltativo, manuale.</li>
+    </ul>
+    <div class="g-callout g-info"><i class="fas fa-info-circle"></i><div><p>Il pulsante di salvataggio è <strong>Salva e continua</strong>. Le modifiche fatte nelle tab (set applicati, contratti, righe) restano provvisorie finché non salvi la scheda.</p></div></div>
+</section>
+
+<section class="guide-section" id="ga-set" data-title="Set e requisiti" data-icon="fa-layer-group">
+    <h3><i class="fas fa-layer-group"></i>Set di documenti, servizi e requisiti</h3>
+    <p class="guide-lead">I set sono pacchetti precompilati: applicandone uno, il fornitore si ritrova tutte le righe previste per la sua classificazione.</p>
+    <ol class="g-steps">
+        <li>Apri la tab <strong>Documenti Contrattuali</strong>, <strong>Servizi Erogati</strong> o <strong>Abilitazioni e Requisiti Professionali</strong>.</li>
+        <li>Scegli il set dal menu a tendina e premi <strong>Applica set</strong>. Il menu propone i set validi per la classificazione del fornitore (principale e aggiuntive) più quelli universali.</li>
+        <li>Con due classificazioni applica un set per ciascuna: le righe già presenti non vengono duplicate.</li>
+        <li>Elimina con il cestino le righe che non servono, poi <strong>salva la scheda</strong>.</li>
+    </ol>
+    <h4>Documenti e requisiti: due modi di procedere</h4>
+    <ul>
+        <li><strong>Carichi tu</strong> il file con data di emissione e scadenza (la scadenza si calcola dalla validità del tipo documento).</li>
+        <li><strong>Lasci caricare al fornitore</strong> dal portale. In entrambi i casi il file deve poi essere verificato e approvato dal back office.</li>
+    </ul>
+    <h4>Stati di validità</h4>
+    <p><span class="g-badge g-b-grey">PENDING</span> in attesa di caricamento &nbsp; <span class="g-badge g-b-yellow">IN REVIEW</span> caricato, da verificare &nbsp; <span class="g-badge g-b-green">VALID</span> approvato &nbsp; <span class="g-badge g-b-red">NOT VALID</span> respinto &nbsp; <span class="g-badge g-b-dark">EXPIRED</span> scaduto &nbsp; <span class="g-badge g-b-yellow">EXPIRED SOON</span> in scadenza.</p>
+    <div class="g-callout g-info"><i class="fas fa-info-circle"></i><div><p>Solo documenti e requisiti segnati come <strong>obbligatori</strong> nel catalogo contano per la qualifica e per gli alert del fornitore. La frequenza di rinnovo è la <em>validità in giorni</em> del tipo documento (non è fissa a 12 mesi) e il preavviso è impostabile tra 10 e 90 giorni.</p></div></div>
+</section>
+
+<section class="guide-section" id="ga-contratti" data-title="Contratti" data-icon="fa-file-contract">
+    <h3><i class="fas fa-file-contract"></i>Contratti</h3>
+    <p>Nella tab <strong>Contratti</strong> inserisci uno o più contratti. Solo l'ufficio li compila: il fornitore non li vede modificabili.</p>
+    <ul>
+        <li><strong>Campi:</strong> numero (unico, quello di Embyon), titolo, tipo (Accordo quadro, Ordine, Ordine ricorrente, Deroga, Fornitura occasionale), persona di riferimento, stato, data inizio, data fine, importo, note.</li>
+        <li><strong>Stati:</strong> Bozza, Attivo, Scaduto, Risolto, Sospeso.</li>
+        <li><strong>Tacito rinnovo:</strong> lascia vuota la data di fine.</li>
+    </ul>
+    <div class="g-callout g-warn"><i class="fas fa-exclamation-triangle"></i><div><p>Lo stato del contratto <strong>non si aggiorna da solo</strong> alla scadenza: va cambiato a mano. Il tipo <em>Deroga</em> è un'informazione registrata, non attiva controlli automatici.</p></div></div>
+</section>
+
+<section class="guide-section" id="ga-portale" data-title="Attivare il portale" data-icon="fa-key">
+    <h3><i class="fas fa-key"></i>Attivare l'accesso al portale</h3>
+    <ol class="g-steps">
+        <li>Verifica che il fornitore abbia l'<strong>email</strong> nella tab Contatti (è l'unico dato obbligatorio) e, se vuoi i promemoria, il flag <strong>Notifiche scadenze via email</strong>.</li>
+        <li>Nella scheda premi <strong>Crea accesso portale</strong> (diventa <em>Gestisci accesso portale</em> quando l'utenza esiste), poi <strong>Crea accesso e invia invito</strong>.</li>
+        <li>Il fornitore riceve l'email <em>"Attivazione del tuo accesso al Portale Fornitori"</em> con un link monouso valido <strong>3 giorni</strong> per impostare la password.</li>
+    </ol>
+    <div class="g-table-wrap"><table class="g-table">
+        <thead><tr><th>Situazione</th><th>Cosa fai</th></tr></thead>
+        <tbody>
+        <tr><td>Invito non ricevuto o scaduto</td><td><strong>Reinvia invito</strong> dalla scheda (solo se il fornitore non ha ancora impostato la password). In alternativa, azione massiva <em>Reinvia invito portale fornitori</em> nella lista utenti.</td></tr>
+        <tr><td>Password dimenticata</td><td>Il fornitore usa <em>Password dimenticata?</em> nella pagina di accesso (link valido 24 ore).</td></tr>
+        <tr><td>Accesso compromesso o email sbagliata</td><td><strong>Reinvia credenziali</strong> (o <em>Aggiorna email e reinvia credenziali</em>): riallinea l'email a quella in anagrafica, invalida password e sessioni e rinvia l'invito.</td></tr>
+        <tr><td>Disattivare l'accesso</td><td>Non c'è un comando dedicato: togli la spunta <em>attivo</em> all'utente in <strong>Utenti</strong>.</td></tr>
+        </tbody></table></div>
+    <div class="g-callout g-warn"><i class="fas fa-exclamation-triangle"></i><div><p>Se cambi l'<strong>email in anagrafica</strong>, l'utenza portale <strong>non si aggiorna da sola</strong>: usa <em>Aggiorna email e reinvia credenziali</em>. Nella lista fornitori la colonna <em>Portale attivato</em> mostra chi ha già impostato la password.</p></div></div>
+</section>
+
+<section class="guide-section" id="ga-qualifica" data-title="Qualifica e valutazione" data-icon="fa-award">
+    <h3><i class="fas fa-award"></i>Stato di qualifica e Valutazione finale</h3>
+    <div class="g-flow">
+        <span class="g-badge g-b-grey">In attesa</span><span class="g-arrow">&rarr; il fornitore carica tutto &rarr;</span>
+        <span class="g-badge g-b-yellow">Da revisionare</span><span class="g-arrow">&rarr; approvi &rarr;</span>
+        <span class="g-badge g-b-green">Approvato</span>
+        <span class="g-arrow">&nbsp;&nbsp;oppure&nbsp;&nbsp;</span><span class="g-badge g-b-red">Respinto</span>
+    </div>
+    <ul>
+        <li>Ogni nuovo fornitore parte da <span class="g-badge g-b-grey">In attesa</span>.</li>
+        <li>Quando il fornitore ha consegnato tutti i documenti e requisiti <strong>obbligatori</strong>, passa in automatico a <span class="g-badge g-b-yellow">Da revisionare</span>.</li>
+        <li>Un fornitore <span class="g-badge g-b-green">Approvato</span> torna a <span class="g-badge g-b-yellow">Da revisionare</span> da solo se un obbligatorio scade, viene respinto o viene a mancare. Il sistema non approva mai in automatico: l'approvazione è tua.</li>
+        <li>La <strong>data di qualifica</strong> si aggiorna all'ultimo cambio di stato (se non la modifichi a mano nello stesso salvataggio), così sai da quanto tempo un fornitore è in uno stato. La <em>scadenza qualifica</em> non si calcola: la imposti tu.</li>
+        <li>Un controllo notturno (6:30) porta a scaduti i documenti oltre data e riallinea stato e valutazione.</li>
+    </ul>
+    <h4>Valutazione finale (sola lettura)</h4>
+    <div class="g-table-wrap"><table class="g-table">
+        <thead><tr><th>Stato qualifica</th><th>Attivo in Embyon: Sì</th><th>Attivo in Embyon: No</th></tr></thead>
+        <tbody>
+        <tr><td>In attesa</td><td><span class="g-badge g-b-grey">Da valutare</span></td><td><span class="g-badge g-b-red">Negativo</span></td></tr>
+        <tr><td>Da revisionare</td><td><span class="g-badge g-b-grey">Da valutare</span></td><td><span class="g-badge g-b-red">Negativo</span></td></tr>
+        <tr><td>Approvato</td><td><span class="g-badge g-b-green">Positivo</span></td><td><span class="g-badge g-b-red">Negativo</span></td></tr>
+        <tr><td>Respinto</td><td><span class="g-badge g-b-red">Negativo</span></td><td><span class="g-badge g-b-red">Negativo</span></td></tr>
+        </tbody></table></div>
+    <p>In sintesi: Embyon non attivo o qualifica respinta &rarr; <strong>Negativo</strong>; approvato e attivo &rarr; <strong>Positivo</strong>; negli altri casi <strong>Da valutare</strong>. Solo un fornitore <em>Positivo</em> è utilizzabile per ordini.</p>
+</section>
+
+<section class="guide-section" id="ga-azioni" data-title="Azioni massive e filtri" data-icon="fa-tasks">
+    <h3><i class="fas fa-tasks"></i>Lista fornitori: filtri e azioni massive</h3>
+    <p>Seleziona uno o più fornitori nella <a href="{% url 'admin:vendors_vendor_changelist' %}">lista</a> e scegli l'azione dal menu in alto.</p>
+    <div class="g-grid">
+        <div class="g-tile"><strong>Approva fornitori selezionati</strong>Controlla i blocchi (obbligatori mancanti, non approvati o scaduti). Chi ne ha viene saltato con l'elenco di cosa manca; gli altri passano ad Approvato.</div>
+        <div class="g-tile"><strong>Respingi fornitori selezionati</strong>Imposta Respinto, data qualifica a oggi e valutazione Negativo.</div>
+        <div class="g-tile"><strong>Programma audit (30 giorni)</strong>Fissa il prossimo audit a 30 giorni da oggi.</div>
+    </div>
+    <p><strong>Filtri disponibili:</strong> stato qualifica, attivo, classificazione, tipo, valutazione finale, società Embyon, attivo in Embyon, utenti di gestione, zone di competenza.</p>
+</section>
+
+<section class="guide-section" id="ga-scadenze" data-title="Scadenze e promemoria" data-icon="fa-bell">
+    <h3><i class="fas fa-bell"></i>Promemoria di scadenza ai fornitori</h3>
+    <ul>
+        <li>Ogni mattina (7:00) il sistema scrive ai fornitori <strong>attivi</strong>, con email e flag <em>Notifiche scadenze via email</em> acceso.</li>
+        <li><strong>Primo promemoria</strong> quando mancano i giorni di preavviso del tipo (default 30); <strong>ultimo avviso</strong> a 7 giorni dalla scadenza.</li>
+        <li>Riguarda solo documenti approvati e requisiti con rinnovo; una sola email al giorno per fornitore, con tutti gli elementi.</li>
+        <li>In test e in locale le email possono essere dirottate su un indirizzo interno: l'oggetto riporta <em>[REDIRECT]</em>.</li>
+    </ul>
+</section>
+
+<section class="guide-section" id="ga-utenti" data-title="Utenti e ruoli" data-icon="fa-users-cog">
+    <h3><i class="fas fa-users-cog"></i>Utenti e ruoli</h3>
+    <div class="g-table-wrap"><table class="g-table">
+        <thead><tr><th>Ruolo</th><th>Cosa fa</th></tr></thead>
+        <tbody>
+        <tr><td><strong>Admin</strong></td><td>Tutto /admin/, dashboard e back office.</td></tr>
+        <tr><td><strong>BO User</strong></td><td>Dashboard fornitori e back office: revisiona documenti, requisiti, richieste. Non accede a /admin/.</td></tr>
+        <tr><td><strong>Buyer</strong></td><td>Solo dashboard fornitori in sola lettura; può creare fornitori prospetto.</td></tr>
+        <tr><td><strong>Fornitore</strong></td><td>Solo il proprio portale.</td></tr>
+        </tbody></table></div>
+    <div class="g-callout g-info"><i class="fas fa-info-circle"></i><div><p>Il <strong>ruolo</strong> di un utente lo assegna o cambia solo un <em>superuser</em>: un Admin non lo vede nel form e non crea utenti da /admin/. L'utenza di un fornitore si crea dalla scheda con <em>Crea accesso portale</em>.</p></div></div>
+</section>
+
+<section class="guide-section" id="ga-supporto" data-title="Tabelle di supporto" data-icon="fa-database">
+    <h3><i class="fas fa-database"></i>Cataloghi e tabelle di supporto</h3>
+    <p>Dal menu laterale gestisci le tabelle che alimentano i menu a tendina e i set:</p>
+    <ul>
+        <li><strong>Classificazioni</strong> e <strong>Tipologie e Servizi</strong>: base dei set di servizi.</li>
+        <li><strong>Tipi di documento</strong> e <strong>set documentali</strong>: obbligatorietà, validità in giorni, preavviso di scadenza.</li>
+        <li><strong>Abilitazioni e requisiti</strong> e relativi set: obbligatorietà e rinnovo.</li>
+        <li><strong>Titoli di studio / tipi di qualifica</strong>, <strong>Nazioni, Regioni, Province</strong> (zone di competenza), <strong>Indirizzi</strong>.</li>
+        <li><strong>Criteri e Frequenze di valutazione</strong>, <strong>Valutatori</strong>.</li>
+        <li><strong>Promemoria scadenza inviati</strong>: registro in sola lettura di quanto spedito.</li>
+    </ul>
+    <div class="g-callout g-tip"><i class="fas fa-lightbulb"></i><div><p>Cambiare l'obbligatorietà di un tipo documento o di un requisito ricalcola lo stato di qualifica di tutti i fornitori che lo hanno assegnato.</p></div></div>
+</section>

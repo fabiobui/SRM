@@ -17,6 +17,8 @@
     </div>
 </div>
 
+{% include "guide/_shell.html" with guide_id="guide-vendor" theme="vendor" icon="fa-book-open" title="Guida operativa - fornitori" subtitle="Cosa puoi fare nel portale, cosa significano gli alert e come comportarti." chips="guide/vendor_chips.html" body="guide/vendor_body.html" %}
+
 {% if docs_alert %}
 <div class="alert {% if docs_alert.rejected %}alert-danger{% else %}alert-warning{% endif %} d-flex align-items-center" role="alert">
     <i class="fas fa-exclamation-triangle fa-lg me-3"></i>
