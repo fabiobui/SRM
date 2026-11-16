@@ -76,6 +76,11 @@ urlpatterns = [
         name="my-service-add",
     ),
     path(
+        "servizi/bozza/",
+        views.VendorServiceDraftView.as_view(),
+        name="my-services-draft",
+    ),
+    path(
         "servizi/<uuid:pk>/modifica/",
         views.VendorServiceChangeRequestCreateView.as_view(),
         name="my-service-change",

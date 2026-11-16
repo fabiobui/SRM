@@ -111,6 +111,16 @@ class VendorChangeRequest(models.Model):
         related_name="vendor_change_requests",
         verbose_name=_("Richiesto da"),
     )
+    # Stesso valore per tutte le richieste inviate insieme dal fornitore in
+    # un unico invio (vedi VendorServiceBatchRequestView): il back-office le
+    # revisiona ancora una per una, ma possono essere raggruppate.
+    batch_id = models.UUIDField(
+        _("Invio"),
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text=_("Uguale per le richieste inviate in un unico invio."),
+    )
     # Diff dei campi modificati: { field_name: {"old": ..., "new": ...} }
     changes = models.JSONField(
         _("Modifiche proposte"),

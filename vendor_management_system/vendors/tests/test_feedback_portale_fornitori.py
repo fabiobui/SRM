@@ -168,7 +168,7 @@ def test_tendina_servizi_prima_la_classificazione_poi_quelli_per_tutti():
 
     ordine = [
         pk
-        for _sezione, voci in form.fields["service_type"].choices
+        for _sezione, voci in form.fields["service_types"].choices
         for pk, _nome in voci
     ]
     assert ordine == [str(di_classificazione.pk), str(per_tutti.pk)]

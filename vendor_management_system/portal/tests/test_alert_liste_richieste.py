@@ -4,7 +4,6 @@ servizi facoltative, separazione richieste anagrafica/servizi."""
 import pytest
 from django.urls import reverse
 
-from vendor_management_system.portal.forms import VendorServiceAddRequestForm
 from vendor_management_system.portal.models import VendorChangeRequest
 from vendor_management_system.portal.tests.factories import (
     DocumentFactory,
@@ -55,17 +54,6 @@ class TestListeObbligatoriFacoltativi:
         groups = response.context["pending_groups"]
         assert [g["mandatory"] for g in groups] == [False]
         assert "Obbligatori da caricare" not in response.content.decode()
-
-
-@pytest.mark.django_db
-class TestDateServiziFacoltative:
-    def test_date_erogazione_facoltative_con_testo_evidente(self, vendor):
-        form = VendorServiceAddRequestForm(vendor)
-
-        for name in ("start_date", "end_date"):
-            assert form.fields[name].required is False
-            assert "facoltativo" in str(form.fields[name].label).lower()
-            assert form.fields[name].help_text
 
 
 @pytest.mark.django_db

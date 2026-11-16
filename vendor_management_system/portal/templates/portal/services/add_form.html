@@ -1,13 +1,19 @@
 {% extends "portal/base_portal.html" %}
 
-{% block title %}Aggiungi servizio — Portale Fornitore{% endblock %}
+{% block title %}Aggiungi servizi — Portale Fornitore{% endblock %}
+
+{% block extra_head %}
+<style>
+  .service-picker { max-height: 28rem; overflow-y: auto; }
+</style>
+{% endblock %}
 
 {% block content %}
 <nav aria-label="breadcrumb">
     <ol class="breadcrumb">
         <li class="breadcrumb-item"><a href="{% url 'portal:dashboard' %}">Home</a></li>
         <li class="breadcrumb-item"><a href="{% url 'portal:my-services' %}">Servizi Erogati</a></li>
-        <li class="breadcrumb-item active">Aggiungi servizio</li>
+        <li class="breadcrumb-item active">Aggiungi servizi</li>
     </ol>
 </nav>
 
@@ -15,10 +21,10 @@
 
 <div class="alert alert-info">
     <i class="fas fa-info-circle"></i>
-    Scegli il servizio dal catalogo (raggruppato per sezione; se la tua classificazione è
-    associata a un set di servizi specifico, la tendina mostra solo quelli). La richiesta
-    viene inviata al back-office per approvazione: il servizio comparirà tra i tuoi
-    servizi erogati solo dopo l'approvazione.
+    Seleziona uno o più servizi dal catalogo (se la tua classificazione è associata a un
+    set di servizi specifico, vedi solo quelli). I servizi scelti vengono aggiunti alle
+    richieste da confermare in "I miei servizi erogati": il back-office le riceve solo
+    dopo "Conferma richieste" e i servizi compaiono tra quelli erogati dopo l'approvazione.
 </div>
 
 <form method="post" novalidate>
@@ -28,161 +34,85 @@
             {% if form.non_field_errors %}
                 <div class="alert alert-danger">{{ form.non_field_errors }}</div>
             {% endif %}
-
-            {% for field in form %}
-                <div class="mb-3 row">
-                    <label for="{{ field.id_for_label }}" class="col-sm-3 col-form-label">
-                        {{ field.label }}
-                    </label>
-                    <div class="col-sm-9">
-                        {{ field }}
-                        {% if field.name == "service_type" %}
-                            <div id="service-picker" class="position-relative"></div>
-                        {% endif %}
-                        {% if field.help_text %}
-                            <div class="form-text">{{ field.help_text }}</div>
-                        {% endif %}
-                        {% if field.errors %}
-                            <div class="invalid-feedback d-block">{{ field.errors|join:", " }}</div>
-                        {% endif %}
-                    </div>
-                </div>
-            {% endfor %}
+            <input type="search" id="service-search" class="form-control mb-3"
+                   placeholder="Cerca servizio..." aria-label="Cerca servizio">
+            <div class="service-picker border rounded p-3">
+                {{ form.service_types }}
+            </div>
+            {% if form.service_types.errors %}
+                <div class="invalid-feedback d-block">{{ form.service_types.errors|join:", " }}</div>
+            {% endif %}
         </div>
         <div class="card-footer d-flex gap-2 justify-content-end">
             <a href="{% url 'portal:my-services' %}" class="btn btn-outline-secondary">
                 <i class="fas fa-times"></i> Annulla
             </a>
             <button type="submit" class="btn btn-success">
-                <i class="fas fa-paper-plane"></i> Invia richiesta
+                <i class="fas fa-check"></i> Aggiungi alle richieste
             </button>
         </div>
     </div>
 </form>
-
 {% endblock %}
 
 {% block extra_js %}
 {{ form.service_descriptions|json_script:"service-descriptions-data" }}
 {{ form.service_priority_ids|json_script:"service-priority-data" }}
 <script>
-/* Tendina servizi con icona info sui servizi che hanno una descrizione: una
-   <select> nativa non può mostrare icone né tooltip per opzione, quindi la
-   select resta il campo vero del form (nascosta) e questa lista la comanda. */
+/* Elenco servizi: filtro di ricerca, intestazioni dei due blocchi (classificazione /
+   validi per tutti) e icona info con la descrizione dove presente. */
 (function () {
-    var select = document.getElementById("id_service_type");
-    var host = document.getElementById("service-picker");
-    if (!select || !host) return;
+    var picker = document.querySelector(".service-picker");
+    var input = document.getElementById("service-search");
+    if (!picker) return;
     var descriptions = JSON.parse(document.getElementById("service-descriptions-data").textContent);
     var priority = JSON.parse(document.getElementById("service-priority-data").textContent);
+    var boxes = picker.querySelectorAll("input[type=checkbox]");
 
-    select.classList.add("d-none");
-
-    var button = document.createElement("button");
-    button.type = "button";
-    button.className = "form-select text-start";
-    var panel = document.createElement("div");
-    panel.className = "border rounded bg-white shadow-sm position-absolute w-100 d-none";
-    panel.style.zIndex = "1050";
-    var search = document.createElement("input");
-    search.type = "search";
-    search.className = "form-control form-control-sm m-2";
-    search.style.width = "calc(100% - 1rem)";
-    search.placeholder = "Cerca servizio...";
-    var list = document.createElement("div");
-    list.style.maxHeight = "20rem";
-    list.style.overflowY = "auto";
-    panel.appendChild(search);
-    panel.appendChild(list);
-    host.appendChild(button);
-    host.appendChild(panel);
-
-    function tooltipFor(icon) {
+    boxes.forEach(function (box) {
+        var text = descriptions[box.value];
+        if (!text) return;
+        var icon = document.createElement("i");
+        icon.className = "fas fa-info-circle text-info ms-2";
+        icon.setAttribute("title", text);
+        icon.setAttribute("aria-label", "Descrizione: " + text);
+        box.closest("label").appendChild(icon);
         if (window.bootstrap) new bootstrap.Tooltip(icon, {placement: "right", container: "body"});
-    }
+    });
 
-    function label(option) {
-        return option.value ? option.text : "-- Seleziona un servizio --";
-    }
+    boxes.forEach(function (box) {
+        var heading = box.closest("div").parentElement.firstElementChild;
+        if (heading && heading.tagName === "LABEL" && !heading.querySelector("input")) {
+            heading.classList.add("fw-semibold", "text-uppercase", "small", "text-muted", "mt-2");
+        }
+    });
 
-    function render(filter) {
-        list.innerHTML = "";
-        var needle = (filter || "").toLowerCase();
+    if (priority.length) {
         var lastBlock = null;
-        Array.prototype.forEach.call(select.children, function (node) {
-            var options = node.tagName === "OPTGROUP" ? Array.prototype.slice.call(node.children) : [];
-            if (!options.length) return;
-            var shown = options.filter(function (o) { return !needle || o.text.toLowerCase().indexOf(needle) !== -1; });
-            if (!shown.length) return;
-            // due blocchi: prima i servizi delle classificazioni del
-            // fornitore, poi quelli validi per tutti
-            if (priority.length) {
-                var block = priority.indexOf(options[0].value) !== -1 ? 0 : 1;
-                if (block !== lastBlock) {
-                    var title = document.createElement("div");
-                    title.className = "px-3 py-1 mt-1 fw-bold bg-light border-top border-bottom small";
-                    title.textContent = block === 0
-                        ? "Servizi per la tua classificazione"
-                        : "Servizi validi per tutti";
-                    list.appendChild(title);
-                    lastBlock = block;
-                }
-            }
-            var head = document.createElement("div");
-            head.className = "px-3 pt-2 small fw-semibold text-uppercase text-muted";
-            head.textContent = node.label;
-            list.appendChild(head);
-            shown.forEach(function (o) {
-                var item = document.createElement("div");
-                item.className = "px-3 py-1 d-flex justify-content-between align-items-center" + (o.value === select.value ? " bg-success-subtle" : "");
-                item.style.cursor = "pointer";
-                var name = document.createElement("span");
-                name.textContent = o.text;
-                item.appendChild(name);
-                var text = descriptions[o.value];
-                if (text) {
-                    var icon = document.createElement("i");
-                    icon.className = "fas fa-info-circle text-info ms-2";
-                    icon.setAttribute("title", text);
-                    icon.setAttribute("aria-label", "Descrizione: " + text);
-                    item.appendChild(icon);
-                    tooltipFor(icon);
-                }
-                item.addEventListener("mouseenter", function () { item.classList.add("bg-light"); });
-                item.addEventListener("mouseleave", function () { item.classList.remove("bg-light"); });
-                item.addEventListener("click", function () {
-                    select.value = o.value;
-                    select.dispatchEvent(new Event("change", {bubbles: true}));
-                    button.textContent = label(o);
-                    close();
-                });
-                list.appendChild(item);
-            });
+        var seen = new Set();
+        boxes.forEach(function (box) {
+            var group = box.closest("div").parentElement;
+            if (group === picker || group.parentElement === null || seen.has(group)) return;
+            seen.add(group);
+            var block = priority.indexOf(box.value) !== -1 ? 0 : 1;
+            if (block === lastBlock) return;
+            lastBlock = block;
+            var title = document.createElement("div");
+            title.className = "px-2 py-1 mt-2 fw-bold bg-light border-top border-bottom small";
+            title.textContent = block === 0 ? "Servizi per la tua classificazione" : "Servizi validi per tutti";
+            group.parentElement.insertBefore(title, group);
         });
     }
 
-    function open() {
-        render("");
-        search.value = "";
-        panel.classList.remove("d-none");
-        search.focus();
+    if (input) {
+        input.addEventListener("input", function () {
+            var needle = input.value.toLowerCase();
+            boxes.forEach(function (box) {
+                var row = box.closest("div");
+                row.classList.toggle("d-none", needle !== "" && row.textContent.toLowerCase().indexOf(needle) === -1);
+            });
+        });
     }
-    function close() {
-        panel.classList.add("d-none");
-        document.querySelectorAll(".tooltip").forEach(function (t) { t.remove(); });
-    }
-
-    button.textContent = label(select.options[select.selectedIndex] || {value: "", text: ""});
-    button.addEventListener("click", function () {
-        panel.classList.contains("d-none") ? open() : close();
-    });
-    search.addEventListener("input", function () { render(search.value); });
-    document.addEventListener("click", function (e) {
-        if (!host.contains(e.target)) close();
-    });
-    document.addEventListener("keydown", function (e) {
-        if (e.key === "Escape") close();
-    });
 })();
 </script>
 {% endblock %}

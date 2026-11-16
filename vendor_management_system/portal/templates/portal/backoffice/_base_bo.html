@@ -19,11 +19,11 @@
       .diff-old { color: #6c757d; text-decoration: line-through; }
       .diff-new { color: #0a58ca; font-weight: 600; }
       .navbar-bo .nav-link { padding-top: .65rem; padding-bottom: .65rem; }
+      .navbar-bo .nav-fill .nav-item { flex: 1 1 0; }
       .navbar-bo .nav-link i { width: 1.1em; text-align: center; margin-right: .35rem; }
       .navbar-bo .nav-link-external {
           border: 1px solid rgba(255, 255, 255, .35);
           border-radius: .375rem;
-          margin-left: .5rem;
       }
     </style>
 </head>
@@ -38,7 +38,7 @@
             <span class="navbar-toggler-icon"></span>
         </button>
         <div class="collapse navbar-collapse" id="boMainNav">
-            <ul class="navbar-nav me-auto gap-lg-1">
+            <ul class="navbar-nav nav-fill flex-grow-1 gap-lg-1">
                 <li class="nav-item">
                     <a class="nav-link {% if request.resolver_match.url_name == 'bo-dashboard' %}active{% endif %}"
                        href="{% url 'portal:bo-dashboard' %}">

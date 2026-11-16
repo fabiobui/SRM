@@ -10,7 +10,8 @@ Convenzioni:
 """
 
 from django.contrib import messages
-from django.db.models import Count, Q
+from django.db import transaction
+from django.db.models import Count, Min, Q
 from django.http import HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -40,6 +41,7 @@ from vendor_management_system.vendors.models import (
     VendorService,
 )
 
+from . import service_draft
 from .forms import (
     CompetenceDocumentUploadForm,
     DocumentAddForm,
@@ -589,11 +591,11 @@ def _vendor_services_qs(vendor):
 
 
 class MyServicesView(VendorRequiredMixin, ListView):
-    """Lista dei servizi assegnati al proprio fornitore.
+    """Lista dei servizi assegnati al proprio fornitore, con la bozza delle
+    richieste in anteprima (vedi `portal/service_draft.py`).
 
-    Prezzo orario e contratto collegato sono mostrati in sola lettura
-    (badge "gestito dal back-office"): non sono mai esposti in scrittura al
-    fornitore, vedi `VendorServiceChangeForm`.
+    Prezzo orario e contratto collegato non sono mai esposti al fornitore,
+    vedi `VendorServiceChangeForm`.
     """
 
     template_name = "portal/services/list.html"
@@ -606,18 +608,31 @@ class MyServicesView(VendorRequiredMixin, ListView):
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        ctx["vendor"] = self.request.user.vendor
-        ctx["pending_service_ids"] = set(
+        vendor = self.request.user.vendor
+        pending_ids = set(
             VendorChangeRequest.objects.filter(
-                vendor_service__vendor=self.request.user.vendor,
+                vendor_service__vendor=vendor,
                 status=VendorChangeRequest.STATUS_PENDING,
             ).values_list("vendor_service_id", flat=True)
         )
+        operations = service_draft.build_operations(
+            vendor, service_draft.get_draft(self.request)
+        )
+        staged = {
+            op["service"].pk: op["op"] for op in operations if op["service"]
+        }
+        services = list(ctx["services"])
+        for service in services:
+            service.has_pending_request = service.pk in pending_ids
+            service.staged_op = staged.get(service.pk)
+        ctx["services"] = services
+        ctx["vendor"] = vendor
+        ctx["draft_operations"] = operations
         return ctx
 
 
 class VendorServiceChangeRequestCreateView(VendorRequiredMixin, View):
-    """Form modifica di un servizio → genera VendorChangeRequest PENDING.
+    """Form modifica di un servizio → la modifica entra nella bozza.
 
     Vincolo: una sola richiesta pendente alla volta per ciascun servizio
     (indipendente dalle richieste sugli altri servizi o sull'anagrafica).
@@ -646,8 +661,6 @@ class VendorServiceChangeRequestCreateView(VendorRequiredMixin, View):
             )
             return redirect("portal:my-services")
         form = VendorServiceChangeForm(instance=service)
-        from django.shortcuts import render
-
         return render(
             request, self.template_name, {"form": form, "service": service}
         )
@@ -660,8 +673,6 @@ class VendorServiceChangeRequestCreateView(VendorRequiredMixin, View):
 
         form = VendorServiceChangeForm(request.POST, instance=service)
         if not form.is_valid():
-            from django.shortcuts import render
-
             return render(
                 request,
                 self.template_name,
@@ -673,120 +684,119 @@ class VendorServiceChangeRequestCreateView(VendorRequiredMixin, View):
             messages.info(request, "Nessuna modifica rilevata.")
             return redirect("portal:my-services")
 
-        VendorChangeRequest.objects.create(
-            vendor=service.vendor,
-            vendor_service=service,
-            requested_by=request.user,
-            changes=diff,
-        )
+        service_draft.stage_edit(request, service, diff)
         messages.success(
             request,
-            "Richiesta di modifica inviata. "
-            "Il back-office la valuterà a breve.",
+            "Modifica aggiunta alle richieste da confermare: "
+            "usa «Conferma richieste» per inviarla al back-office.",
         )
-        return redirect(f"{reverse('portal:my-change-requests')}?tipo=servizi")
+        return redirect("portal:my-services")
 
 
 class VendorServiceAddRequestCreateView(VendorRequiredMixin, View):
-    """Form di richiesta di aggiunta di un nuovo servizio dal catalogo.
+    """Scelta di uno o più servizi del catalogo da aggiungere alla bozza.
 
-    La tendina dei servizi proponibili è filtrata da
-    `available_service_types_for_vendor` (vedi `portal/forms.py`): esclude
-    i servizi già assegnati e, se la classificazione del fornitore ha un
-    ServiceSet collegato, la restringe a quel set.
+    L'elenco è filtrato da `available_service_types_for_vendor` (vedi
+    `portal/forms.py`) ed esclude anche i servizi già in bozza.
     """
 
     template_name = "portal/services/add_form.html"
 
-    def get(self, request, *args, **kwargs):
-        form = VendorServiceAddRequestForm(vendor=request.user.vendor)
-        from django.shortcuts import render
+    def _form(self, request, data=None):
+        return VendorServiceAddRequestForm(
+            request.user.vendor,
+            data=data,
+            exclude_ids=service_draft.staged_add_type_ids(request),
+        )
 
-        return render(request, self.template_name, {"form": form})
+    def get(self, request, *args, **kwargs):
+        return render(
+            request, self.template_name, {"form": self._form(request)}
+        )
 
     def post(self, request, *args, **kwargs):
-        vendor = request.user.vendor
-        form = VendorServiceAddRequestForm(vendor=vendor, data=request.POST)
+        form = self._form(request, request.POST)
         if not form.is_valid():
-            from django.shortcuts import render
-
             return render(request, self.template_name, {"form": form})
 
-        service_type = form.cleaned_data["service_type"]
-        VendorChangeRequest.objects.create(
-            vendor=vendor,
-            request_type=VendorChangeRequest.REQUEST_TYPE_ADD_SERVICE,
-            service_type=service_type,
-            requested_by=request.user,
-            changes=form.compute_changes(),
+        selected = form.cleaned_data["service_types"]
+        service_draft.stage_add(request, selected)
+        label = (
+            "servizio aggiunto" if len(selected) == 1 else "servizi aggiunti"
         )
         messages.success(
             request,
-            "Richiesta di aggiunta servizio inviata. "
-            "Il back-office la valuterà a breve.",
+            f"{len(selected)} {label} alle richieste da confermare: "
+            "usa «Conferma richieste» per inviare tutto al back-office.",
         )
-        return redirect(f"{reverse('portal:my-change-requests')}?tipo=servizi")
+        return redirect("portal:my-services")
 
 
 class VendorServiceDeleteRequestCreateView(VendorRequiredMixin, View):
-    """Conferma di richiesta di eliminazione di un servizio esistente.
+    """POST: mette l'eliminazione di un servizio esistente in bozza.
 
-    Stesso vincolo "una sola richiesta pendente per servizio" già usato da
-    `VendorServiceChangeRequestCreateView`.
+    Stesso vincolo "una sola richiesta pendente per servizio" della modifica.
     """
 
-    template_name = "portal/services/delete_confirm.html"
-
-    def _get_service(self, request, pk):
-        return get_object_or_404(
-            VendorService, pk=pk, vendor=request.user.vendor
-        )
-
-    def _has_pending(self, vendor_service):
-        return VendorChangeRequest.objects.filter(
-            vendor_service=vendor_service,
-            status=VendorChangeRequest.STATUS_PENDING,
-        ).exists()
-
-    def get(self, request, pk, *args, **kwargs):
-        service = self._get_service(request, pk)
-        if self._has_pending(service):
-            messages.warning(
-                request,
-                "Hai già una richiesta di modifica in attesa per questo "
-                "servizio. Attendi l'esito prima di inviarne un'altra.",
-            )
-            return redirect("portal:my-services")
-        from django.shortcuts import render
-
-        return render(request, self.template_name, {"service": service})
+    http_method_names = ["post"]
 
     def post(self, request, pk, *args, **kwargs):
-        service = self._get_service(request, pk)
-        if self._has_pending(service):
-            messages.warning(request, "Hai già una richiesta in attesa.")
+        service = get_object_or_404(
+            VendorService, pk=pk, vendor=request.user.vendor
+        )
+        if VendorChangeRequest.objects.filter(
+            vendor_service=service,
+            status=VendorChangeRequest.STATUS_PENDING,
+        ).exists():
+            messages.warning(
+                request,
+                "Hai già una richiesta in attesa per questo servizio.",
+            )
             return redirect("portal:my-services")
 
-        reason = request.POST.get("reason", "").strip()
-        changes = {
-            "service_type": {"old": str(service.service_type), "new": None}
-        }
-        if reason:
-            changes["motivo"] = {"old": None, "new": reason}
-
-        VendorChangeRequest.objects.create(
-            vendor=service.vendor,
-            vendor_service=service,
-            request_type=VendorChangeRequest.REQUEST_TYPE_DELETE_SERVICE,
-            requested_by=request.user,
-            changes=changes,
-        )
+        service_draft.stage_delete(request, service)
         messages.success(
             request,
-            "Richiesta di eliminazione inviata. "
-            "Il back-office la valuterà a breve.",
+            "Eliminazione aggiunta alle richieste da confermare: "
+            "usa «Conferma richieste» per inviarla al back-office.",
         )
-        return redirect(f"{reverse('portal:my-change-requests')}?tipo=servizi")
+        return redirect("portal:my-services")
+
+
+class VendorServiceDraftView(VendorRequiredMixin, View):
+    """POST sulla bozza delle richieste: `remove` (una voce), `clear`
+    (svuota) o `confirm` (invia tutto al back-office in un'unica richiesta)."""
+
+    http_method_names = ["post"]
+
+    def post(self, request, *args, **kwargs):
+        action = request.POST.get("action")
+        if action == "remove":
+            try:
+                service_draft.remove_operation(
+                    request, int(request.POST.get("index", ""))
+                )
+            except ValueError:
+                pass
+        elif action == "clear":
+            service_draft.clear(request)
+            messages.info(request, "Richieste da confermare annullate.")
+        elif action == "confirm":
+            count = service_draft.commit_draft(
+                request, request.user.vendor, request.user
+            )
+            if count:
+                messages.success(
+                    request,
+                    f"Richiesta inviata con {count} "
+                    f"{'operazione' if count == 1 else 'operazioni'}. "
+                    "Il back-office la valuterà a breve.",
+                )
+            else:
+                messages.warning(
+                    request, "Nessuna operazione valida da inviare."
+                )
+        return redirect("portal:my-services")
 
 
 # --- attributi operativi -----------------------------------------------------
@@ -1114,7 +1124,16 @@ class BoServiceRequestListView(BackOfficeRequiredMixin, ListView):
         )
         if status in dict(VendorChangeRequest.STATUS_CHOICES):
             qs = qs.filter(status=status)
-        return qs
+        # Un invio multiplo del fornitore (stesso `batch_id`) compare come
+        # una sola riga: la prima richiesta del gruppo fa da rappresentante
+        representatives = (
+            qs.filter(batch_id__isnull=False)
+            .order_by()
+            .values("batch_id")
+            .annotate(rep=Min("id"))
+            .values("rep")
+        )
+        return qs.filter(Q(batch_id__isnull=True) | Q(id__in=representatives))
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
@@ -1122,6 +1141,17 @@ class BoServiceRequestListView(BackOfficeRequiredMixin, ListView):
             "status", VendorChangeRequest.STATUS_PENDING
         )
         ctx["status_choices"] = VendorChangeRequest.STATUS_CHOICES
+        requests = list(ctx["requests"])
+        counts = dict(
+            _service_requests_qs()
+            .filter(batch_id__in=[r.batch_id for r in requests if r.batch_id])
+            .order_by()
+            .values_list("batch_id")
+            .annotate(n=Count("id"))
+        )
+        for r in requests:
+            r.batch_count = counts.get(r.batch_id, 1)
+        ctx["requests"] = requests
         return ctx
 
 
@@ -1150,6 +1180,14 @@ class BoServiceRequestDetailView(BackOfficeRequiredMixin, DetailView):
         )
         ctx["back_url"] = reverse("portal:bo-service-requests")
         ctx["back_label"] = "Richieste servizi"
+        if self.object.batch_id:
+            # Invio multiplo: mostra tutte le operazioni del fornitore
+            ctx["group_requests"] = list(
+                _service_requests_qs()
+                .filter(batch_id=self.object.batch_id)
+                .select_related("vendor_service__service_type", "service_type")
+                .order_by("created_at", "pk")
+            )
         return ctx
 
 
@@ -1176,17 +1214,37 @@ class BoServiceRequestReviewView(BackOfficeRequiredMixin, View):
         action = form.cleaned_data["action"]
         notes = form.cleaned_data.get("review_notes", "")
 
+        # La decisione vale per tutte le operazioni dello stesso invio
+        members = [change_request]
+        if change_request.batch_id:
+            members = list(
+                _service_requests_qs()
+                .filter(
+                    batch_id=change_request.batch_id,
+                    status=VendorChangeRequest.STATUS_PENDING,
+                )
+                .order_by("created_at", "pk")
+            )
+        with transaction.atomic():
+            for member in members:
+                if action == "approve":
+                    member.apply_to_vendor(reviewer=request.user, notes=notes)
+                else:
+                    member.reject(reviewer=request.user, notes=notes)
+        what = (
+            "Richiesta"
+            if len(members) == 1
+            else f"Richiesta con {len(members)} operazioni"
+        )
         if action == "approve":
-            change_request.apply_to_vendor(reviewer=request.user, notes=notes)
             messages.success(
                 request,
-                f"Richiesta applicata per {change_request.vendor.name}.",
+                f"{what} applicata per {change_request.vendor.name}.",
             )
         else:
-            change_request.reject(reviewer=request.user, notes=notes)
             messages.warning(
                 request,
-                f"Richiesta rifiutata per {change_request.vendor.name}.",
+                f"{what} rifiutata per {change_request.vendor.name}.",
             )
         return redirect("portal:bo-service-requests")
 

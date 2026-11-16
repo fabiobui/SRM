@@ -2,6 +2,16 @@
 
 {% block title %}I miei servizi erogati — Portale Fornitore{% endblock %}
 
+{% block extra_head %}
+<style>
+  .svc-row { padding: .5rem 1rem; border-bottom: 1px solid #e9ecef; }
+  .svc-row:last-child { border-bottom: 0; }
+  .svc-head { font-size: .75rem; text-transform: uppercase; color: #6c757d; background: #f8f9fa; }
+  .svc-note { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .svc-desc { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
@@ -15,52 +25,102 @@
 
 <div class="alert alert-light border">
     <i class="fas fa-info-circle text-muted"></i>
-    L'elenco dei servizi erogati è definito dal back-office. Puoi proporre modifiche
-    ai dati descrittivi (servizio principale, date di erogazione, note), richiedere
-    l'aggiunta di un nuovo servizio dal catalogo o l'eliminazione di uno esistente:
-    ogni richiesta viene valutata dal back-office.
+    L'elenco dei servizi erogati è definito dal back-office. Puoi aggiungere servizi dal
+    catalogo, modificare i dati descrittivi (servizio principale, date di erogazione, note)
+    o eliminare servizi con le icone a fine riga: le operazioni si accumulano nelle
+    richieste da confermare e vengono inviate al back-office insieme con "Conferma richieste".
 </div>
 
-{% if services %}
-<div class="row g-3">
-    {% for s in services %}
-    <div class="col-lg-6">
-        <div class="card doc-card h-100">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-start mb-2">
-                    <div>
-                        <h6 class="mb-1">{{ s.service_type.name }}</h6>
-                        {% if s.is_primary %}
-                        <span class="badge bg-success">Principale</span>
-                        {% endif %}
-                        {% if s.pk in pending_service_ids %}
-                        <span class="badge bg-warning text-dark">Modifica in attesa</span>
-                        {% endif %}
-                    </div>
-                </div>
-                <dl class="row small mb-2">
-                    {% if s.service_type.description %}
-                    <dt class="col-sm-5">Descrizione</dt>
-                    <dd class="col-sm-7">{{ s.service_type.description|linebreaksbr }}</dd>
-                    {% endif %}
-                    <dt class="col-sm-5">Data inizio</dt>
-                    <dd class="col-sm-7">{{ s.start_date|date:"d/m/Y"|default:"—" }}</dd>
-                    <dt class="col-sm-5">Data fine</dt>
-                    <dd class="col-sm-7">{{ s.end_date|date:"d/m/Y"|default:"—" }}</dd>
-                    {% if s.notes %}
-                    <dt class="col-sm-5">Note</dt>
-                    <dd class="col-sm-7">{{ s.notes|linebreaksbr }}</dd>
-                    {% endif %}
-                </dl>
-                {% if s.pk not in pending_service_ids %}
-                <a href="{% url 'portal:my-service-change' pk=s.pk %}" class="btn btn-sm btn-success">
-                    <i class="fas fa-edit"></i> Proponi modifiche
-                </a>
-                <a href="{% url 'portal:my-service-delete' pk=s.pk %}" class="btn btn-sm btn-outline-danger">
-                    <i class="fas fa-trash"></i> Richiedi eliminazione
-                </a>
+{% if draft_operations %}
+<div class="card border-success mb-4">
+    <div class="card-header bg-success text-white">
+        <i class="fas fa-list-check"></i> Richieste da confermare ({{ draft_operations|length }})
+    </div>
+    <ul class="list-group list-group-flush">
+        {% for op in draft_operations %}
+        <li class="list-group-item d-flex justify-content-between align-items-start gap-3">
+            <div>
+                {% if op.op == "add" %}
+                    <span class="badge bg-success">Aggiunta</span>
+                {% elif op.op == "edit" %}
+                    <span class="badge bg-primary">Modifica</span>
+                {% else %}
+                    <span class="badge bg-danger">Eliminazione</span>
                 {% endif %}
+                <strong class="ms-1">{{ op.name }}</strong>
+                {% for d in op.details %}
+                    <div class="small text-muted ms-1">{{ d.label }}: {{ d.old }} → <strong>{{ d.new }}</strong></div>
+                {% endfor %}
             </div>
+            <form method="post" action="{% url 'portal:my-services-draft' %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="remove">
+                <input type="hidden" name="index" value="{{ op.index }}">
+                <button type="submit" class="btn btn-sm btn-outline-secondary" title="Rimuovi dalle richieste" aria-label="Rimuovi {{ op.name }} dalle richieste">
+                    <i class="fas fa-times"></i>
+                </button>
+            </form>
+        </li>
+        {% endfor %}
+    </ul>
+    <div class="card-footer d-flex justify-content-end gap-2">
+        <form method="post" action="{% url 'portal:my-services-draft' %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="clear">
+            <button type="submit" class="btn btn-outline-secondary">
+                <i class="fas fa-trash-alt"></i> Annulla tutto
+            </button>
+        </form>
+        <form method="post" action="{% url 'portal:my-services-draft' %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="confirm">
+            <button type="submit" class="btn btn-success">
+                <i class="fas fa-paper-plane"></i> Conferma richieste
+            </button>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+{% if services %}
+<div class="card">
+    <div class="svc-row svc-head d-none d-lg-flex">
+        <div class="col-lg-3">Servizio</div>
+        <div class="col-lg-3">Descrizione</div>
+        <div class="col-lg-2">Periodo</div>
+        <div class="col-lg-2">Note</div>
+        <div class="col-lg-2 text-end">Azioni</div>
+    </div>
+    {% for s in services %}
+    <div class="svc-row d-flex flex-wrap align-items-center">
+        <div class="col-12 col-lg-3 pe-2">
+            <strong>{{ s.service_type.name }}</strong>
+            {% if s.is_primary %}<span class="badge bg-success">Principale</span>{% endif %}
+            {% if s.has_pending_request %}<span class="badge bg-warning text-dark">Richiesta in attesa</span>{% endif %}
+            {% if s.staged_op == "edit" %}<span class="badge bg-primary">Modifica da confermare</span>{% endif %}
+            {% if s.staged_op == "delete" %}<span class="badge bg-danger">Eliminazione da confermare</span>{% endif %}
+        </div>
+        <div class="col-12 col-lg-3 pe-2 small svc-desc" {% if s.service_type.description %}title="{{ s.service_type.description }}"{% endif %}>{{ s.service_type.description|default:"—" }}</div>
+        <div class="col-6 col-lg-2 pe-2 small text-nowrap">
+            {{ s.start_date|date:"d/m/Y"|default:"—" }} → {{ s.end_date|date:"d/m/Y"|default:"—" }}
+        </div>
+        <div class="col-6 col-lg-2 pe-2 small svc-note" {% if s.notes %}title="{{ s.notes }}"{% endif %}>{{ s.notes|default:"—" }}</div>
+        <div class="col-12 col-lg-2 text-end">
+            {% if not s.has_pending_request %}
+            <a href="{% url 'portal:my-service-change' pk=s.pk %}" class="btn btn-sm btn-outline-success"
+               title="Proponi modifiche" aria-label="Proponi modifiche a {{ s.service_type.name }}">
+                <i class="fas fa-edit"></i>
+            </a>
+            {% if s.staged_op != "delete" %}
+            <form method="post" action="{% url 'portal:my-service-delete' pk=s.pk %}" class="d-inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-outline-danger"
+                        title="Richiedi eliminazione" aria-label="Richiedi eliminazione di {{ s.service_type.name }}">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </form>
+            {% endif %}
+            {% endif %}
         </div>
     </div>
     {% endfor %}
