@@ -1,0 +1,37 @@
+<div class="card mt-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="fas fa-file-alt"></i> Storico documenti</span>
+        <a href="{{ add_url }}" class="btn btn-sm btn-outline-success">
+            <i class="fas fa-plus"></i> Aggiungi documento facoltativo
+        </a>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-sm mb-0 align-middle">
+            <thead>
+                <tr>
+                    <th>Tipo</th>
+                    <th>Scadenza</th>
+                    <th>Stato</th>
+                    <th>File</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for doc in documents %}
+                <tr>
+                    <td>
+                        {{ doc.get_doc_type_display }}
+                        {% if doc.validation_status == "REJECTED" and doc.rejection_note %}
+                            <div class="small text-danger">{{ doc.rejection_note }}</div>
+                        {% endif %}
+                    </td>
+                    <td>{{ doc.expiry_date|date:"d/m/Y"|default:"—" }}</td>
+                    <td>{% include "portal/subcontractors/_status_badge.html" with status=doc.validation_status %}</td>
+                    <td><a href="{{ doc.file.url }}" target="_blank" rel="noopener">Apri</a></td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="4" class="text-muted">Nessun documento caricato.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>

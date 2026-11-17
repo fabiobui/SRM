@@ -146,6 +146,7 @@ LOCAL_APPS = [
     # pattern, un modello proxy su vendors.Vendor (vedi
     # vendors_analysis/models.py).
     "vendor_management_system.vendors_analysis",
+    "vendor_management_system.subcontractors",
 ]
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 

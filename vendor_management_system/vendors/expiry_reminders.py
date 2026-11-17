@@ -27,6 +27,12 @@ from vendor_management_system.documents.models import (
     REMINDER_DAYS_MIN,
     Document,
 )
+from vendor_management_system.subcontractors.models import (
+    VALIDATED,
+    Equipment,
+    Technician,
+    latest_validated_documents,
+)
 from vendor_management_system.vendors.models import (
     ExpiryReminderLog,
     Vendor,
@@ -103,6 +109,37 @@ def _candidates(vendor, today):
             vc.expiry_date,
             first_threshold(vc.competence),
         )
+    if vendor.is_subappaltatore:
+        yield from _subcontractor_candidates(vendor)
+
+
+def _subcontractor_candidates(vendor):
+    # Solo voci validate; per ogni tipo conta il documento più recente
+    # validato, quindi un rinnovo sostituisce il promemoria del vecchio.
+    for technician in Technician.objects.filter(
+        vendor=vendor, validation_status=VALIDATED
+    ):
+        for doc in latest_validated_documents(technician.documents.all()):
+            if doc.expiry_date:
+                yield (
+                    ExpiryReminderLog.KIND_TECHNICIAN_DOCUMENT,
+                    str(doc.pk),
+                    f"{technician} - {doc.get_doc_type_display()}",
+                    doc.expiry_date,
+                    REMINDER_DAYS_DEFAULT,
+                )
+    for equipment in Equipment.objects.filter(
+        vendor=vendor, validation_status=VALIDATED
+    ):
+        for doc in latest_validated_documents(equipment.documents.all()):
+            if doc.expiry_date:
+                yield (
+                    ExpiryReminderLog.KIND_EQUIPMENT_DOCUMENT,
+                    str(doc.pk),
+                    f"{equipment} - {doc.get_doc_type_display()}",
+                    doc.expiry_date,
+                    REMINDER_DAYS_DEFAULT,
+                )
 
 
 def due_items(vendor, today):

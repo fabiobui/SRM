@@ -1,0 +1,35 @@
+{% extends "portal/base_portal.html" %}
+
+{% block title %}{{ equipment }} — Portale Fornitore{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0"><i class="fas fa-truck text-success"></i> {{ equipment }}</h1>
+    <div class="d-flex gap-2">
+        <a href="{% url 'portal:my-equipment-edit' equipment.pk %}" class="btn btn-outline-secondary">
+            <i class="fas fa-edit"></i> Modifica
+        </a>
+        <a href="{% url 'portal:my-equipment' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Elenco mezzi
+        </a>
+    </div>
+</div>
+
+<div class="card mb-2">
+    <div class="card-body">
+        <dl class="row mb-0">
+            <dt class="col-sm-3">Targa</dt>
+            <dd class="col-sm-9">{{ equipment.plate|default:"—" }}</dd>
+            <dt class="col-sm-3">Matricola/codice</dt>
+            <dd class="col-sm-9">{{ equipment.serial_code|default:"—" }}</dd>
+            <dt class="col-sm-3">Strumento</dt>
+            <dd class="col-sm-9">{{ equipment.instrument|default:"—" }}</dd>
+            <dt class="col-sm-3">Stato</dt>
+            <dd class="col-sm-9">{% include "portal/subcontractors/_status_badge.html" with status=equipment.validation_status %}</dd>
+        </dl>
+    </div>
+</div>
+
+{% include "portal/subcontractors/_required_docs.html" %}
+{% include "portal/subcontractors/_documents.html" %}
+{% endblock %}
