@@ -1,0 +1,42 @@
+<div class="card mt-4">
+    <div class="card-header">
+        <i class="fas fa-clipboard-check"></i> Documenti obbligatori
+    </div>
+    <div class="table-responsive">
+        <table class="table table-sm mb-0 align-middle">
+            <thead>
+                <tr>
+                    <th>Documento</th>
+                    <th>Scadenza</th>
+                    <th>Stato</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for row in required_rows %}
+                <tr>
+                    <td>{{ row.label }}</td>
+                    <td>{{ row.doc.expiry_date|date:"d/m/Y"|default:"—" }}</td>
+                    <td>
+                        {% if row.doc %}
+                            {% include "portal/subcontractors/_status_badge.html" with status=row.doc.validation_status %}
+                            {% if row.doc.validation_status == "REJECTED" and row.doc.rejection_note %}
+                                <div class="small text-danger">{{ row.doc.rejection_note }}</div>
+                            {% endif %}
+                        {% else %}
+                            <span class="badge bg-danger">Mancante</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end">
+                        {% if not row.doc or row.doc.validation_status == "REJECTED" %}
+                            <a href="{{ row.upload_url }}" class="btn btn-sm btn-success">
+                                <i class="fas fa-upload"></i> Carica
+                            </a>
+                        {% endif %}
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>

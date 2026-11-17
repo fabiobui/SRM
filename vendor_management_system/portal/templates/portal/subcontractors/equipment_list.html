@@ -1,0 +1,41 @@
+{% extends "portal/base_portal.html" %}
+
+{% block title %}Mezzi/dotazioni — Portale Fornitore{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0"><i class="fas fa-truck text-success"></i> Mezzi/dotazioni</h1>
+    <a href="{% url 'portal:my-equipment-new' %}" class="btn btn-success">
+        <i class="fas fa-plus"></i> Nuovo mezzo
+    </a>
+</div>
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+            <thead>
+                <tr>
+                    <th>Tipo mezzo</th>
+                    <th>Targa</th>
+                    <th>Matricola/codice</th>
+                    <th>Strumento</th>
+                    <th>Stato</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for item in equipment_items %}
+                <tr>
+                    <td><a href="{% url 'portal:my-equipment-detail' item.pk %}">{{ item.equipment_type }}</a></td>
+                    <td>{{ item.plate|default:"—" }}</td>
+                    <td>{{ item.serial_code|default:"—" }}</td>
+                    <td>{{ item.instrument|default:"—" }}</td>
+                    <td>{% include "portal/subcontractors/_status_badge.html" with status=item.validation_status %}</td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="5" class="text-muted">Nessun mezzo inserito.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

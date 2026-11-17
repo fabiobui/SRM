@@ -7,7 +7,7 @@ Tutte le rotte qui sono inserite in `config/urls.py` sotto il prefisso
 
 from django.urls import path
 
-from . import views
+from . import subcontractor_views, views
 
 app_name = "portal"
 
@@ -95,6 +95,57 @@ urlpatterns = [
         "attributi-operativi/",
         views.MyOperationalAttributesView.as_view(),
         name="my-operational-attributes",
+    ),
+    # Tecnici e mezzi dei subappaltatori (solo fornitori Subappaltatori).
+    path(
+        "tecnici/",
+        subcontractor_views.TechnicianListView.as_view(),
+        name="my-technicians",
+    ),
+    path(
+        "tecnici/nuovo/",
+        subcontractor_views.TechnicianCreateView.as_view(),
+        name="my-technician-new",
+    ),
+    path(
+        "tecnici/<int:pk>/",
+        subcontractor_views.TechnicianDetailView.as_view(),
+        name="my-technician-detail",
+    ),
+    path(
+        "tecnici/<int:pk>/modifica/",
+        subcontractor_views.TechnicianUpdateView.as_view(),
+        name="my-technician-edit",
+    ),
+    path(
+        "tecnici/<int:pk>/documenti/nuovo/",
+        subcontractor_views.TechnicianDocumentCreateView.as_view(),
+        name="my-technician-document-add",
+    ),
+    path(
+        "mezzi/",
+        subcontractor_views.EquipmentListView.as_view(),
+        name="my-equipment",
+    ),
+    path(
+        "mezzi/nuovo/",
+        subcontractor_views.EquipmentCreateView.as_view(),
+        name="my-equipment-new",
+    ),
+    path(
+        "mezzi/<int:pk>/",
+        subcontractor_views.EquipmentDetailView.as_view(),
+        name="my-equipment-detail",
+    ),
+    path(
+        "mezzi/<int:pk>/modifica/",
+        subcontractor_views.EquipmentUpdateView.as_view(),
+        name="my-equipment-edit",
+    ),
+    path(
+        "mezzi/<int:pk>/documenti/nuovo/",
+        subcontractor_views.EquipmentDocumentCreateView.as_view(),
+        name="my-equipment-document-add",
     ),
     # Anagrafica
     path(

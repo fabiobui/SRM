@@ -36,6 +36,10 @@ from vendor_management_system.documents.models import (
     DocumentCatalog,
     DocumentSet,
 )
+from vendor_management_system.subcontractors.admin import (
+    EquipmentInline,
+    TechnicianInline,
+)
 from vendor_management_system.users.portal_access import (
     PortalAccessError,
     create_portal_user,
@@ -1252,6 +1256,8 @@ class VendorAdmin(admin.ModelAdmin):
         ContractInline,
         VendorEvaluationInline,
         VendorOperationalAttributesInline,
+        TechnicianInline,
+        EquipmentInline,
     ]
     # Questa tupla definisce l'ordine dei tab
     jazzmin_section_order = (
@@ -1264,6 +1270,8 @@ class VendorAdmin(admin.ModelAdmin):
         _("Qualifica e Audit"),
         _("Valutazioni"),
         _("Attributi Operativi"),
+        _("Tecnici"),
+        _("Mezzi/dotazioni"),
     )
 
     def save_model(self, request, obj, form, change):
@@ -1296,15 +1304,20 @@ class VendorAdmin(admin.ModelAdmin):
         return super().get_form(request, obj, **kwargs)
 
     def get_inline_instances(self, request, obj=None):
-        # La scheda "Attributi Operativi" riguarda solo i subappaltatori
+        # Attributi operativi, tecnici e mezzi riguardano solo i subappaltatori
         # (classificazione principale o aggiuntiva "SUBAPPALTATORE").
         instances = super().get_inline_instances(request, obj)
         if obj is not None and obj.is_subappaltatore:
             return instances
+        subcontractor_inlines = (
+            VendorOperationalAttributesInline,
+            TechnicianInline,
+            EquipmentInline,
+        )
         return [
             inline
             for inline in instances
-            if not isinstance(inline, VendorOperationalAttributesInline)
+            if not isinstance(inline, subcontractor_inlines)
         ]
 
     def get_urls(self):

@@ -1,0 +1,41 @@
+{% extends "portal/base_portal.html" %}
+
+{% block title %}Tecnici — Portale Fornitore{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0"><i class="fas fa-hard-hat text-success"></i> Tecnici</h1>
+    <a href="{% url 'portal:my-technician-new' %}" class="btn btn-success">
+        <i class="fas fa-plus"></i> Nuovo tecnico
+    </a>
+</div>
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+            <thead>
+                <tr>
+                    <th>Cognome</th>
+                    <th>Nome</th>
+                    <th>Mansione</th>
+                    <th>Badge</th>
+                    <th>Stato</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for technician in technicians %}
+                <tr>
+                    <td><a href="{% url 'portal:my-technician-detail' technician.pk %}">{{ technician.surname }}</a></td>
+                    <td>{{ technician.first_name }}</td>
+                    <td>{{ technician.role|default:"—" }}</td>
+                    <td>{{ technician.badge|default:"—" }}</td>
+                    <td>{% include "portal/subcontractors/_status_badge.html" with status=technician.validation_status %}</td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="5" class="text-muted">Nessun tecnico inserito.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

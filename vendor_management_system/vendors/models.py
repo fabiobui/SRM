@@ -2772,9 +2772,13 @@ class ExpiryReminderLog(models.Model):
 
     KIND_DOCUMENT = "DOCUMENT"
     KIND_COMPETENCE = "COMPETENCE"
+    KIND_TECHNICIAN_DOCUMENT = "TECHNICIAN_DOCUMENT"
+    KIND_EQUIPMENT_DOCUMENT = "EQUIPMENT_DOCUMENT"
     KIND_CHOICES = [
         (KIND_DOCUMENT, _("Documento")),
         (KIND_COMPETENCE, _("Abilitazione/Requisito")),
+        (KIND_TECHNICIAN_DOCUMENT, _("Documento tecnico")),
+        (KIND_EQUIPMENT_DOCUMENT, _("Documento mezzo")),
     ]
 
     STAGE_FIRST = "FIRST"

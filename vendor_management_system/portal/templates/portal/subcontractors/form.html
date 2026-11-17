@@ -1,0 +1,51 @@
+{% extends "portal/base_portal.html" %}
+
+{% block title %}{{ title }} — Portale Fornitore{% endblock %}
+
+{% block content %}
+<h1 class="h3 mb-3"><i class="fas fa-user-cog text-success"></i> {{ title }}</h1>
+
+<div class="alert alert-info">
+    <i class="fas fa-info-circle"></i>
+    Ogni inserimento o modifica viene inviato al back-office per la validazione.
+</div>
+{% if required_label %}
+<div class="alert alert-warning">
+    <i class="fas fa-exclamation-circle"></i>
+    Stai caricando il documento obbligatorio: <strong>{{ required_label }}</strong>.
+</div>
+{% endif %}
+
+<form method="post" enctype="multipart/form-data" novalidate>
+    {% csrf_token %}
+    <div class="card">
+        <div class="card-body">
+            {% if form.non_field_errors %}
+                <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+            {% endif %}
+            <div class="row">
+            {% for field in form %}
+                <div class="col-md-6 mb-3">
+                    <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+                    {{ field }}
+                    {% if field.help_text %}
+                        <div class="form-text">{{ field.help_text }}</div>
+                    {% endif %}
+                    {% if field.errors %}
+                        <div class="invalid-feedback d-block">{{ field.errors|join:", " }}</div>
+                    {% endif %}
+                </div>
+            {% endfor %}
+            </div>
+        </div>
+        <div class="card-footer d-flex gap-2 justify-content-end">
+            <a href="{{ cancel_url }}" class="btn btn-outline-secondary">
+                <i class="fas fa-times"></i> Annulla
+            </a>
+            <button type="submit" class="btn btn-success">
+                <i class="fas fa-save"></i> Salva
+            </button>
+        </div>
+    </div>
+</form>
+{% endblock %}
