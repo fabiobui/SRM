@@ -424,7 +424,10 @@ class VendorServiceChangeForm(forms.ModelForm):
             old_norm = "" if old_value is None else old_value
             new_norm = "" if new_value is None else new_value
             if old_norm != new_norm:
-                diff[field] = {"old": old_value, "new": new_value}
+                diff[field] = {
+                    "old": _json_value(old_value),
+                    "new": _json_value(new_value),
+                }
         return diff
 
 
@@ -506,93 +509,44 @@ def _grouped_service_type_choices(queryset, priority_ids=frozenset()):
     ]
 
 
-class VendorServiceAddRequestForm(forms.Form):
-    """Richiesta di aggiunta di un nuovo servizio dal catalogo.
+def _json_value(value):
+    # `changes` è un JSONField senza DjangoJSONEncoder (e la bozza vive in
+    # sessione JSON): le date viaggiano come stringhe ISO
+    return value.isoformat() if hasattr(value, "isoformat") else value
 
-    `service_type` è un `ChoiceField` (non `ModelChoiceField`) per poter
-    mostrare la tendina raggruppata per sezione tramite optgroup. Gli altri
-    campi ricalcano `EDITABLE_VENDOR_SERVICE_FIELDS`: prezzo orario e
-    contratto restano BO-only anche qui. Non salva nulla — la view genera
-    la `VendorChangeRequest` (request_type=ADD_SERVICE) da approvare.
+
+class VendorServiceAddRequestForm(forms.Form):
+    """Scelta di uno o più servizi del catalogo da aggiungere alla bozza.
+
+    `service_types` è un `MultipleChoiceField` raggruppato per sezione: le
+    scelte derivano da `available_service_types_for_vendor`, quindi un pk
+    manomesso (già assegnato, fuori scope) viene scartato dalla validazione
+    del campo. Non salva nulla: la view mette i servizi in bozza.
     """
 
-    service_type = forms.ChoiceField(
-        label=_("Servizio da aggiungere"),
-        widget=forms.Select(attrs={"class": "form-select"}),
-    )
-    is_primary = forms.BooleanField(
-        label=_("Servizio principale"),
-        required=False,
-    )
-    start_date = forms.DateField(
-        label=_("Data inizio erogazione (facoltativo)"),
-        required=False,
-        help_text=_(
-            "Facoltativo: non è necessaria, compilala solo se la conosci."
-        ),
-        widget=forms.DateInput(
-            attrs={"class": "form-control", "type": "date"}
-        ),
-    )
-    end_date = forms.DateField(
-        label=_("Data fine erogazione (facoltativo)"),
-        required=False,
-        help_text=_(
-            "Facoltativo: non è necessaria, compilala solo se la conosci."
-        ),
-        widget=forms.DateInput(
-            attrs={"class": "form-control", "type": "date"}
-        ),
-    )
-    notes = forms.CharField(
-        label=_("Note"),
-        required=False,
-        widget=forms.Textarea(attrs={"class": "form-control", "rows": 3}),
+    service_types = forms.MultipleChoiceField(
+        label=_("Servizi da aggiungere"),
+        widget=forms.CheckboxSelectMultiple,
+        error_messages={"required": _("Seleziona almeno un servizio.")},
     )
 
-    def __init__(self, vendor, *args, **kwargs):
+    def __init__(self, vendor, *args, exclude_ids=(), **kwargs):
         super().__init__(*args, **kwargs)
-        self.vendor = vendor
-        self._queryset = available_service_types_for_vendor(vendor)
-        priority_ids = priority_service_type_ids(vendor, self._queryset)
-        self.fields["service_type"].choices = _grouped_service_type_choices(
-            self._queryset, priority_ids
+        queryset = available_service_types_for_vendor(vendor).exclude(
+            pk__in=list(exclude_ids)
         )
-        # Id dei servizi "per la tua classificazione", per le intestazioni
-        # dei due blocchi nella tendina
+        priority_ids = priority_service_type_ids(vendor, queryset)
+        self.fields["service_types"].choices = _grouped_service_type_choices(
+            queryset, priority_ids
+        )
+        # Per le intestazioni dei due blocchi e per l'icona info con la
+        # descrizione (solo i servizi che ne hanno una)
         self.service_priority_ids = sorted(str(pk) for pk in priority_ids)
-        # Descrizioni per l'icona info della tendina (solo i servizi che
-        # ne hanno una)
         self.service_descriptions = {
             str(pk): description.strip()
-            for pk, description in self._queryset.values_list(
-                "pk", "description"
-            )
+            for pk, description in queryset.values_list("pk", "description")
             if description and description.strip()
         }
-
-    def clean_service_type(self):
-        # Ri-valida sempre contro lo stesso queryset filtrato: non fidarsi
-        # del pk POSTato, altrimenti un fornitore potrebbe manomettere il
-        # valore per richiedere un servizio già assegnato o fuori scope.
-        pk = self.cleaned_data["service_type"]
-        service_type = self._queryset.filter(pk=pk).first()
-        if service_type is None:
-            raise forms.ValidationError(_("Servizio non disponibile."))
-        return service_type
-
-    def compute_changes(self) -> dict:
-        """Diff da salvare in `VendorChangeRequest.changes`: solo i campi
-        effettivamente valorizzati (i campi assenti restano ai default del
-        modello `VendorService` alla creazione)."""
-        if not self.is_valid():
-            return {}
-        changes = {}
-        for field in EDITABLE_VENDOR_SERVICE_FIELDS:
-            value = self.cleaned_data.get(field)
-            if value not in (None, "", False):
-                changes[field] = {"old": None, "new": value}
-        return changes
 
 
 class VendorOperationalAttributesForm(forms.ModelForm):

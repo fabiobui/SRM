@@ -22,7 +22,12 @@
         <dl class="row mb-0">
             <dt class="col-sm-3">Tipo</dt>
             <dd class="col-sm-9">
-                {% include "portal/_change_request_type_label.html" with cr=change_request %}
+                {% if group_requests|length > 1 %}
+                    <i class="fas fa-layer-group text-success"></i>
+                    Richiesta multipla — {{ group_requests|length }} operazioni
+                {% else %}
+                    {% include "portal/_change_request_type_label.html" with cr=change_request %}
+                {% endif %}
             </dd>
             <dt class="col-sm-3">Richiesta da</dt>
             <dd class="col-sm-9">
@@ -58,6 +63,40 @@
 </div>
 {% endif %}
 
+{% if group_requests|length > 1 %}
+<div class="card mb-3">
+    <div class="card-header"><strong>Operazioni richieste</strong></div>
+    <div class="table-responsive">
+        <table class="table diff-table mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Operazione</th>
+                    <th>Dettaglio</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for gr in group_requests %}
+                <tr>
+                    <td>{% include "portal/_change_request_type_label.html" with cr=gr %}</td>
+                    <td>
+                        {% for field, payload in gr.changes.items %}
+                            {% if gr.request_type == "EDIT" %}
+                            <div><code>{{ field }}</code>:
+                                <span class="diff-old">{{ payload.old|default:"—" }}</span> →
+                                <span class="diff-new">{{ payload.new|default:"—" }}</span>
+                            </div>
+                            {% endif %}
+                        {% empty %}
+                            <span class="text-muted">—</span>
+                        {% endfor %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
 <div class="card mb-3">
     <div class="card-header"><strong>Modifiche proposte</strong></div>
     <div class="table-responsive">
@@ -83,6 +122,8 @@
         </table>
     </div>
 </div>
+
+{% endif %}
 
 {% if change_request.is_pending %}
 <div class="card">
