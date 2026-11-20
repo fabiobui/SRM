@@ -1,0 +1,13 @@
+{# Stato di qualifica per ciascuna società del gruppo con cui il fornitore lavora. #}
+{% with sections=vendor.company_sections.all %}
+{% if sections %}
+<div class="mt-3 small" id="company-qualification">
+    <div class="text-muted mb-1">Stato per società</div>
+    {% for section in sections %}
+        <span class="badge {% if section.qualification_status == 'APPROVED' %}bg-success{% elif section.qualification_status == 'REJECTED' %}bg-danger{% elif section.qualification_status == 'TO_REVIEW' %}bg-warning text-dark{% else %}bg-secondary{% endif %} me-1">
+            {{ section.company.label }}: {{ section.get_qualification_status_display }}
+        </span>
+    {% endfor %}
+</div>
+{% endif %}
+{% endwith %}

@@ -44,6 +44,7 @@
         <li>Filtra per stato se serve: in attesa di caricamento, approvati, respinti o <strong>scaduti</strong> (basato sulla data di scadenza, non sullo stato salvato).</li>
         <li>Premi <strong>Dettaglio</strong>, apri il file e controlla tipo, date di emissione e scadenza.</li>
         <li>Premi <strong>Approva</strong> o <strong>Respingi</strong>. Le note sono facoltative ma, se respingi, aiutano il fornitore a capire cosa correggere.</li>
+        <li><strong>Sezione:</strong> se il fornitore lavora con più società scegli nel menu <em>Sezione del fornitore</em> dove va il documento (Comune o una società). I caricamenti nuovi di tipi non comuni arrivano con il badge <span class="g-badge g-b-yellow">Sezione da assegnare</span>.</li>
     </ol>
     <div class="g-callout g-info"><i class="fas fa-info-circle"></i><div><p><strong>Nuova versione di un documento già approvato:</strong> quello attuale resta valido finché non decidi. <em>Approva</em> sostituisce il file con la nuova versione, <em>Respingi</em> la scarta; in entrambi i casi il documento resta approvato.</p></div></div>
 </section>
@@ -56,6 +57,16 @@
         <li><strong>Verificati</strong>, <strong>Respinti</strong>, <strong>Scaduti</strong> (scadenza passata, anche senza file).</li>
     </ul>
     <p><strong>Approva</strong> segna il requisito come verificato; <strong>Respingi</strong> lo segna respinto e il fornitore deve ricaricarlo.</p>
+</section>
+
+<section class="guide-section" id="gb-tecnici" data-title="Tecnici e mezzi" data-icon="fa-hard-hat">
+    <h3><i class="fas fa-hard-hat"></i>Tecnici e mezzi dei subappaltatori</h3>
+    <p>Dalla voce <strong>Tecnici e mezzi</strong> del menu validi i tecnici, i mezzi/dotazioni e i loro documenti caricati dai fornitori subappaltatori (di default quelli <em>in attesa</em>).</p>
+    <ul>
+        <li><strong>Valida</strong> rende effettivo l'elemento: solo i documenti validati entrano nei promemoria di scadenza.</li>
+        <li><strong>Respingi</strong> richiede il motivo, che il fornitore vede nel portale per correggere e ricaricare.</li>
+        <li>Tecnici e mezzi fanno parte della sezione <strong>Sicura</strong> del fornitore: li validano i BO di Sicura (per i fornitori senza società, tutti i BO).</li>
+    </ul>
 </section>
 
 <section class="guide-section" id="gb-richieste" data-title="Richieste del fornitore" data-icon="fa-exchange-alt">
@@ -83,6 +94,7 @@
         <tr><td>Respingi un documento o requisito</td><td>Il fornitore lo vede <strong>respinto</strong> (alert rosso) e deve ricaricarlo. Se era obbligatorio e il fornitore era Approvato, torna a <span class="g-badge g-b-yellow">Da revisionare</span>.</td></tr>
         <tr><td>Approvi o respingi una richiesta</td><td>L'esito compare nello storico richieste del fornitore.</td></tr>
         </tbody></table></div>
+    <div class="g-callout g-info"><i class="fas fa-info-circle"></i><div><p><strong>Società:</strong> vedi e rivedi i documenti e i requisiti della sezione Comune e della <strong>tua società</strong> (dal login aziendale). Quelli delle sezioni di altre società restano a chi lavora in quelle società.</p></div></div>
     <div class="g-callout g-danger"><i class="fas fa-ban"></i><div><p><strong>Importante:</strong> la tua revisione <strong>non approva il fornitore</strong> (lo fa l'Admin con l'azione <em>Approva fornitori selezionati</em>) e <strong>non invia email</strong> al fornitore. Se serve un sollecito, scrivigli direttamente.</p></div></div>
     <div class="g-callout g-tip"><i class="fas fa-lightbulb"></i><div><p>Le date di un documento non si correggono dalla revisione. Se sono sbagliate, respingi con una nota o chiedi all'Admin di correggerle dalla scheda fornitore.</p></div></div>
 </section>
@@ -91,11 +103,12 @@
     <h3><i class="fas fa-search"></i>Cercare un fornitore e consultarne la scheda</h3>
     <p>Dal menu <strong>Fornitori - Analisi e Classificazione</strong> trovi la dashboard di consultazione, utile per verificare se si può emettere un ordine o per scegliere il fornitore adatto.</p>
     <ul>
-        <li><strong>Ricerca</strong> per codice Embyon, codice fornitore, ragione sociale, P.IVA o C.F.</li>
+        <li><strong>Ricerca</strong> per codice Embyon (anche dei conti di ogni società), codice SAGE, codice fornitore, ragione sociale, P.IVA o C.F.</li>
+        <li><strong>Società:</strong> filtro per società; la Valutazione finale è mostrata per ogni società del fornitore. La scheda in sola lettura chiede prima la sezione: Comune o una delle società.</li>
         <li><strong>Grafici cliccabili</strong> (tipo, regioni, province, servizi, competenze, qualifiche, certificazioni) e <strong>filtri a tendina</strong>.</li>
         <li>Più valori nello stesso filtro si cercano in <strong>OR</strong> (basta averne uno); filtri diversi si combinano in <strong>AND</strong>.</li>
         <li>L'<strong>export Excel</strong> applica i filtri impostati.</li>
-        <li>Il pulsante <strong>Aggiungi fornitore prospetto</strong> crea un nuovo fornitore con la sola anagrafica essenziale e gli invia l'invito al portale.</li>
+        <li>Il pulsante <strong>Fornitore potenziale</strong> crea un nuovo fornitore con la sola anagrafica essenziale e gli invia l'invito al portale.</li>
     </ul>
     <p>Il <span class="g-badge g-b-green">Positivo</span> nella Valutazione finale indica un fornitore approvato e attivo in Embyon; <span class="g-badge g-b-red">Negativo</span> se non attivo o respinto; <span class="g-badge g-b-grey">Da valutare</span> se la qualifica è ancora in corso.</p>
 </section>

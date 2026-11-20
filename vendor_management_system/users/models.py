@@ -61,6 +61,23 @@ class User(AbstractUser):
         related_name="users",
     )
 
+    # Società del gruppo dell'utente interno (attributo AD "company"):
+    # decide quale sezione società dei fornitori può modificare.
+    company = ForeignKey(
+        "vendors.Company",
+        on_delete=SET_NULL,
+        verbose_name=_("Società"),
+        help_text=_(
+            "Società del gruppo di appartenenza (da LDAP, attributo "
+            "'company'): l'utente modifica la sezione Comune e quella della "
+            "sua società"
+        ),
+        null=True,
+        blank=True,
+        related_name="users",
+        limit_choices_to={"is_common": False},
+    )
+
     # Tracciamento origine utente
     is_ldap_user = BooleanField(
         _("Utente LDAP"),

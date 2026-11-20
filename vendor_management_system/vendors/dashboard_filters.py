@@ -13,6 +13,7 @@ from vendor_management_system.vendors import competence
 DROPDOWN_PARAMS = {
     "dd_classifications": "classifications",
     "dd_vendor_types": "vendor_types",
+    "dd_companies": "companies",
     "dd_final_evaluations": "final_evaluations",
     "dd_services": "services",
     "dd_competenze": "competenze",
@@ -63,9 +64,27 @@ def apply_dropdown_filters(queryset, params):
         )
     if "vendor_types" in selection:
         queryset = queryset.filter(vendor_type__in=selection["vendor_types"])
-    if "final_evaluations" in selection:
+    companies = selection.get("companies")
+    finals = selection.get("final_evaluations")
+    if companies and finals:
+        # Società e valutazione sulla stessa sezione del fornitore.
         queryset = queryset.filter(
-            vendor_final_evaluation__in=selection["final_evaluations"]
+            company_sections__company__label__in=companies,
+            company_sections__vendor_final_evaluation__in=finals,
+        )
+    elif companies:
+        queryset = queryset.filter(
+            company_sections__company__label__in=companies
+        )
+    elif finals:
+        # Con le sezioni conta la valutazione di ciascuna società; senza,
+        # quella del fornitore.
+        queryset = queryset.filter(
+            Q(company_sections__vendor_final_evaluation__in=finals)
+            | Q(
+                company_sections__isnull=True,
+                vendor_final_evaluation__in=finals,
+            )
         )
     if "services" in selection:
         queryset = queryset.filter(
@@ -100,13 +119,15 @@ def apply_dropdown_filters(queryset, params):
 
 
 def apply_search(queryset, term):
-    """Ricerca su codice Embyon, codice interno, ragione sociale, P.IVA e
-    codice fiscale."""
+    """Ricerca su codice Embyon (anche dei conti per società), codice
+    SAGE, codice interno, ragione sociale, P.IVA e codice fiscale."""
     term = (term or "").strip()
     if not term:
         return queryset
     return queryset.filter(
         Q(old_code__icontains=term)
+        | Q(sage_code__icontains=term)
+        | Q(company_sections__accounts__account_code__icontains=term)
         | Q(vendor_code__icontains=term)
         | Q(name__icontains=term)
         | Q(vat_number__icontains=term)

@@ -79,6 +79,7 @@ class SimpleLDAPBackend(ModelBackend):
                     "displayName",
                     "mail",
                     "memberOf",
+                    "company",
                 ],
             )
 
@@ -99,6 +100,13 @@ class SimpleLDAPBackend(ModelBackend):
                 "memberOf": [str(group) for group in user_entry.memberOf]
                 if user_entry.memberOf
                 else [],
+                # Attributo opzionale: un'entry senza "company" non lo espone.
+                "company": " ".join(
+                    str(value)
+                    for value in user_entry.entry_attributes_as_dict.get(
+                        "company", []
+                    )
+                ),
             }
 
             service_conn.unbind()
@@ -187,8 +195,27 @@ class SimpleLDAPBackend(ModelBackend):
                 ldap_attrs.get("memberOf", [])
             )
 
+        self.update_user_company(user, ldap_attrs.get("company", ""))
+
         user.save()
         return user
+
+    def update_user_company(self, user, ldap_company):
+        """Società dell'utente dall'attributo AD "company" (fonte di verità
+        a ogni login). Se il valore non è riconosciuto resta quella
+        impostata a mano in admin."""
+        from vendor_management_system.vendors.models import Company
+
+        company = Company.objects.match_ldap(ldap_company)
+        if company:
+            user.company = company
+        elif ldap_company:
+            logger.warning(
+                "Società LDAP non riconosciuta per %s: %r (aggiungerla agli "
+                "alias LDAP della società in admin)",
+                user.email,
+                ldap_company,
+            )
 
     def get_user_role_from_groups(self, member_of_groups):
         """

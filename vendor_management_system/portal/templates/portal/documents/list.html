@@ -42,7 +42,7 @@
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-start mb-2">
                     <div>
-                        <h6 class="mb-1">{{ d.document_type.name }}</h6>
+                        <h6 class="mb-1">{{ d.document_type.name }}<span class="badge bg-light text-dark border ms-1 section-label">{{ d.company.label }}</span></h6>
                         {% if d.document_type.code %}
                         <small class="text-muted">{{ d.document_type.code }}</small>
                         {% endif %}
@@ -85,7 +85,7 @@
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-start mb-2">
                     <div>
-                        <h6 class="mb-1">{{ d.document_type.name }}</h6>
+                        <h6 class="mb-1">{{ d.document_type.name }}<span class="badge bg-light text-dark border ms-1 section-label">{{ d.company.label }}</span></h6>
                         {% if d.document_type.code %}
                         <small class="text-muted">{{ d.document_type.code }}</small>
                         {% endif %}

@@ -10,6 +10,7 @@ Convenzioni:
 """
 
 from django.contrib import messages
+from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.db.models import Count, Min, Q
 from django.http import HttpResponseRedirect, JsonResponse
@@ -40,6 +41,12 @@ from vendor_management_system.vendors.models import (
     VendorOperationalAttributes,
     VendorService,
 )
+from vendor_management_system.vendors.sections import (
+    can_review_section,
+    default_section_for,
+    reviewable_sections,
+    vendor_sections,
+)
 
 from . import service_draft
 from .forms import (
@@ -68,7 +75,7 @@ def _vendor_documents_qs(vendor):
     esistenti per il proprio vendor.
     """
     return Document.objects.filter(vendor=vendor).select_related(
-        "document_type"
+        "document_type", "company"
     )
 
 
@@ -383,6 +390,13 @@ class MyDocumentAddView(VendorRequiredMixin, View):
         document = form.save(commit=False)
         document.vendor = vendor
         document.status = "UPLOADED"
+        # Vista unica: la sezione la decide il catalogo, o il back office se
+        # il fornitore lavora con più società.
+        section, confirmed = default_section_for(
+            vendor, document.document_type.scope
+        )
+        document.company_id = section
+        document.section_confirmed = confirmed
         document.save()
         if document.document_type.is_required:
             vendor.submit_for_review_if_complete()
@@ -422,7 +436,7 @@ def _vendor_competences_qs(vendor):
     per il proprio vendor.
     """
     return VendorCompetence.objects.filter(vendor=vendor).select_related(
-        "competence"
+        "competence", "company"
     )
 
 
@@ -545,6 +559,11 @@ class MyRequirementAddView(VendorRequiredMixin, View):
 
         requirement = form.save(commit=False)
         requirement.vendor = vendor
+        section, confirmed = default_section_for(
+            vendor, requirement.competence.scope
+        )
+        requirement.company_id = section
+        requirement.section_confirmed = confirmed
         requirement.save()
         if requirement.competence.is_mandatory:
             vendor.submit_for_review_if_complete()
@@ -586,7 +605,7 @@ def _vendor_services_qs(vendor):
     richieste soggette ad approvazione back-office.
     """
     return VendorService.objects.filter(vendor=vendor).select_related(
-        "service_type", "contract"
+        "service_type", "contract", "company"
     )
 
 
@@ -1271,17 +1290,21 @@ class BoRequirementListView(BackOfficeRequiredMixin, ListView):
             # document_file: `VendorCompetence` non ha un campo di stato
             # (solo la property calcolata `expiry_status`), quindi il
             # filtro va fatto direttamente sulla data.
-            return (
-                VendorCompetence.objects.select_related("vendor", "competence")
-                .filter(
+            return limit_to_reviewable(
+                VendorCompetence.objects.select_related(
+                    "vendor", "competence", "company"
+                ).filter(
                     expiry_date__isnull=False,
                     expiry_date__lt=timezone.now().date(),
-                )
-                .order_by("expiry_date")
-            )
-        qs = VendorCompetence.objects.select_related(
-            "vendor", "competence"
-        ).exclude(document_file="")
+                ),
+                self.request.user,
+            ).order_by("expiry_date")
+        qs = limit_to_reviewable(
+            VendorCompetence.objects.select_related(
+                "vendor", "competence", "company"
+            ).exclude(document_file=""),
+            self.request.user,
+        )
         if verified == "rejected":
             qs = qs.filter(rejected=True)
         elif verified == "false":
@@ -1311,9 +1334,15 @@ class BoRequirementDetailView(BackOfficeRequiredMixin, DetailView):
     context_object_name = "requirement"
     model = VendorCompetence
 
+    def get_queryset(self):
+        return limit_to_reviewable(super().get_queryset(), self.request.user)
+
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx["form"] = VendorChangeReviewForm()
+        ctx["section_choices"] = section_choices(
+            self.object.vendor, self.request.user
+        )
         return ctx
 
 
@@ -1324,6 +1353,10 @@ class BoRequirementReviewView(BackOfficeRequiredMixin, View):
 
     def post(self, request, pk, *args, **kwargs):
         requirement = get_object_or_404(VendorCompetence, pk=pk)
+        if not can_review_section(request.user, requirement.company_id):
+            raise PermissionDenied
+        if not assign_section(request, requirement, "competence"):
+            return redirect("portal:bo-requirement-detail", pk=pk)
 
         form = VendorChangeReviewForm(request.POST)
         if not form.is_valid():
@@ -1365,6 +1398,58 @@ class BoRequirementReviewView(BackOfficeRequiredMixin, View):
         return redirect("portal:bo-requirements")
 
 
+def limit_to_reviewable(queryset, user):
+    """Elementi delle sole sezioni che l'utente può rivedere (Comune e la
+    sua società); il superuser vede tutto."""
+    codes = reviewable_sections(user)
+    if codes is None:
+        return queryset
+    return queryset.filter(company_id__in=codes)
+
+
+def section_choices(vendor, user):
+    """Sezioni a cui il back office può assegnare un elemento del
+    fornitore: Comune e le società del fornitore che l'utente rivede."""
+    return [
+        company
+        for company in vendor_sections(vendor)
+        if can_review_section(user, company.code)
+    ]
+
+
+def assign_section(request, item, type_field):
+    """Applica la sezione scelta in revisione (campo "company" del POST).
+    False se la sezione non è ammessa o se nella sezione c'è già lo stesso
+    tipo (messaggio d'errore già mostrato)."""
+    code = (request.POST.get("company") or "").upper()
+    if not code:
+        return True
+    allowed = {c.code for c in section_choices(item.vendor, request.user)}
+    if code not in allowed:
+        messages.error(request, "Sezione non ammessa.")
+        return False
+    if code != item.company_id:
+        clash = (
+            type(item)
+            .objects.filter(
+                vendor=item.vendor,
+                company_id=code,
+                **{type_field: getattr(item, type_field)},
+            )
+            .exclude(pk=item.pk)
+            .exists()
+        )
+        if clash:
+            messages.error(
+                request,
+                "Nella sezione scelta è già presente lo stesso elemento.",
+            )
+            return False
+    item.company_id = code
+    item.section_confirmed = True
+    return True
+
+
 # --- area BO (gestione documenti) -------------------------------------------
 
 
@@ -1378,7 +1463,12 @@ class BoDocumentListView(BackOfficeRequiredMixin, ListView):
     paginate_by = 25
 
     def get_queryset(self):
-        qs = Document.objects.select_related("vendor", "document_type")
+        qs = limit_to_reviewable(
+            Document.objects.select_related(
+                "vendor", "document_type", "company"
+            ),
+            self.request.user,
+        )
         status = self.request.GET.get("status", "UPLOADED")
         if status == "EXPIRED":
             # Data di scadenza superata, indipendentemente dallo stato
@@ -1418,9 +1508,15 @@ class BoDocumentDetailView(BackOfficeRequiredMixin, DetailView):
     context_object_name = "document"
     model = Document
 
+    def get_queryset(self):
+        return limit_to_reviewable(super().get_queryset(), self.request.user)
+
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx["form"] = VendorChangeReviewForm()
+        ctx["section_choices"] = section_choices(
+            self.object.vendor, self.request.user
+        )
         return ctx
 
 
@@ -1431,6 +1527,10 @@ class BoDocumentReviewView(BackOfficeRequiredMixin, View):
 
     def post(self, request, pk, *args, **kwargs):
         document = get_object_or_404(Document, pk=pk)
+        if not can_review_section(request.user, document.company_id):
+            raise PermissionDenied
+        if not assign_section(request, document, "document_type"):
+            return redirect("portal:bo-document-detail", pk=pk)
 
         form = VendorChangeReviewForm(request.POST)
         if not form.is_valid():

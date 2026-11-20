@@ -105,6 +105,7 @@ def test_scheda_admin_mostra_il_bollino(admin_client):
 
     risposta = admin_client.get(
         reverse("admin:vendors_vendor_change", args=[vendor.pk])
+        + "?sezione=COMUNE"
     )
 
     assert risposta.status_code == 200

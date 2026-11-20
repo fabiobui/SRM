@@ -105,6 +105,19 @@
     <div class="card-body">
         <form method="post" action="{% url 'portal:bo-requirement-review' pk=requirement.pk %}">
             {% csrf_token %}
+            {% if section_choices|length > 1 %}
+            <div class="mb-3">
+                <label for="id_company" class="form-label">Sezione del fornitore</label>
+                <select name="company" id="id_company" class="form-select">
+                    {% for company in section_choices %}
+                    <option value="{{ company.code }}" {% if company.code == requirement.company_id %}selected{% endif %}>{{ company.label }}</option>
+                    {% endfor %}
+                </select>
+                {% if not requirement.section_confirmed %}
+                <div class="form-text text-warning">Sezione da assegnare: il fornitore lavora con più società.</div>
+                {% endif %}
+            </div>
+            {% endif %}
             <div class="mb-3">
                 <label for="id_review_notes" class="form-label">Note (facoltative)</label>
                 <textarea name="review_notes" id="id_review_notes" rows="3" class="form-control"

@@ -78,6 +78,14 @@ def _stage(days_left, first_threshold):
     return None
 
 
+def _with_section(label, item):
+    """Etichetta con la società, per gli elementi della sezione di una
+    società (lo stesso documento può esserci per più società)."""
+    if item.company.is_common:
+        return label
+    return f"{label} ({item.company.label})"
+
+
 def _candidates(vendor, today):
     # Solo tipi/requisiti che richiedono rinnovo: gli altri non hanno
     # preavviso e restano fuori dai promemoria.
@@ -86,12 +94,12 @@ def _candidates(vendor, today):
         status="APPROVED",
         expiry_date__gte=today,
         document_type__requires_renewal=True,
-    ).select_related("document_type")
+    ).select_related("document_type", "company")
     for doc in documents:
         yield (
             ExpiryReminderLog.KIND_DOCUMENT,
             str(doc.pk),
-            doc.document_type.name,
+            _with_section(doc.document_type.name, doc),
             doc.expiry_date,
             first_threshold(doc.document_type),
         )
@@ -100,12 +108,12 @@ def _candidates(vendor, today):
         has_competence=True,
         expiry_date__gte=today,
         competence__requires_renewal=True,
-    ).select_related("competence")
+    ).select_related("competence", "company")
     for vc in competences:
         yield (
             ExpiryReminderLog.KIND_COMPETENCE,
             str(vc.pk),
-            vc.competence.name,
+            _with_section(vc.competence.name, vc),
             vc.expiry_date,
             first_threshold(vc.competence),
         )

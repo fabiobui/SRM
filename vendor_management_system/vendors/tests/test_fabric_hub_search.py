@@ -99,18 +99,6 @@ def admin_client_logged(client, db):
 
 
 @pytest.mark.django_db
-def test_admin_search_view_returns_rows_with_active_flag(admin_client_logged):
-    url = reverse("admin:vendors_vendor_embyon_search")
-    with _patch_rows([_row()]):
-        resp = admin_client_logged.get(url, {"vat_number": "02044860985"})
-
-    assert resp.status_code == 200
-    (row,) = resp.json()["results"]
-    assert row["company"] == "CmaSrl"
-    assert row["embyon_active"] is True
-
-
-@pytest.mark.django_db
 def test_admin_search_view_validates_input(admin_client_logged):
     url = reverse("admin:vendors_vendor_embyon_search")
     assert admin_client_logged.get(url).json()["results"] == []

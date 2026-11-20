@@ -56,6 +56,7 @@ def test_change_page_shows_portal_access_button(admin_client):
 
     response = admin_client.get(
         reverse("admin:vendors_vendor_change", args=[vendor.pk])
+        + "?sezione=COMUNE"
     )
 
     content = response.content.decode()
@@ -74,8 +75,10 @@ def test_create_portal_access_creates_user_and_sends_invite(
 
     response = admin_client.post(url, {"action": "create"})
 
-    assert response.url == reverse(
-        "admin:vendors_vendor_change", args=[vendor.pk]
+    assert (
+        response.url
+        == reverse("admin:vendors_vendor_change", args=[vendor.pk])
+        + "?sezione=COMUNE"
     )
     user = vendor.users.get()
     assert user.role == "vendor"

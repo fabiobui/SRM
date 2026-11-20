@@ -37,7 +37,7 @@
                         <strong>{{ d.vendor.name }}</strong><br>
                         <small class="text-muted">{{ d.vendor.vendor_code }}</small>
                     </td>
-                    <td>{{ d.document_type.name }}</td>
+                    <td>{{ d.document_type.name }}<br>{% if not d.section_confirmed %}<span class="badge bg-warning text-dark">Sezione da assegnare</span>{% else %}<small class="text-muted">{{ d.company.label }}</small>{% endif %}</td>
                     <td class="{% if d.is_expired %}text-danger{% endif %}">{{ d.expiry_date|date:"d/m/Y"|default:"—" }}</td>
                     <td>
                         {% if d.is_expired %}

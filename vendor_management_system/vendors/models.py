@@ -119,6 +119,146 @@ class Province(models.Model):
         return f"{self.name} ({self.code})"
 
 
+# ============================================================================
+# Società del gruppo e sezioni del fornitore
+# ============================================================================
+
+# Codice della sezione Comune: riga sentinella di Company, così i vincoli di
+# unicità (fornitore, sezione, tipo) non contengono mai NULL.
+COMMON_SECTION = "COMUNE"
+
+# Società del gruppo (codice FABRIC_HUB, etichetta, società Sage, valore
+# della vecchia "Società Embyon"). Seminate da migrazione e post_migrate.
+COMPANY_SEED = [
+    (COMMON_SECTION, "Comune", True, "", "", 0),
+    ("CMASRL", "CmaSrl", False, "CMASA", "CmaSrl", 10),
+    ("EMMETEK", "Emmetek", False, "EMMET", "", 20),
+    ("EVIMED", "Evimed", False, "EVIME", "Evimed", 30),
+    ("GSPROTEC", "GsProtec", False, "PROTE", "GsProtec", 40),
+    ("IGEAM", "Igeam", False, "IGEAM", "Igeam", 50),
+    ("SICURA", "Sicura", False, "SICUR", "Sicura", 60),
+]
+
+
+def _normalize_company_name(value):
+    """Solo lettere e cifre, minuscole: "Sicura S.p.A." -> "sicuraspa"."""
+    return "".join(ch for ch in (value or "").casefold() if ch.isalnum())
+
+
+class CompanyQuerySet(models.QuerySet):
+    def real(self):
+        """Le società vere, senza la sezione Comune."""
+        return self.filter(is_common=False)
+
+    def match_ldap(self, value):
+        """Società corrispondente all'attributo AD ``company`` dell'utente.
+
+        Confronta il valore normalizzato con codice, etichetta e alias; in
+        mancanza accetta un valore che inizia con il codice o l'etichetta
+        (es. "Sicura S.p.A."). None se non riconosciuta.
+        """
+        wanted = _normalize_company_name(value)
+        if not wanted:
+            return None
+        companies = list(self.real().filter(is_active=True))
+        for company in companies:
+            if wanted in company.normalized_names():
+                return company
+        for company in companies:
+            if any(
+                name and wanted.startswith(name)
+                for name in company.normalized_names()
+            ):
+                return company
+        return None
+
+
+class Company(models.Model):
+    """Società del gruppo con cui un fornitore può lavorare.
+
+    La riga ``COMUNE`` (is_common) è la sezione condivisa del fornitore:
+    documenti, requisiti, servizi e contratti la usano come sezione di
+    default."""
+
+    code = models.CharField(_("Codice"), max_length=20, primary_key=True)
+    label = models.CharField(_("Nome"), max_length=100)
+    is_common = models.BooleanField(_("Sezione Comune"), default=False)
+    sage_company = models.CharField(
+        _("Società Sage"), max_length=10, blank=True
+    )
+    embyon_company = models.CharField(
+        _("Società Embyon (legacy)"),
+        max_length=50,
+        blank=True,
+        help_text=_("Valore del vecchio campo 'Società Embyon' del fornitore"),
+    )
+    ldap_aliases = models.TextField(
+        _("Alias LDAP"),
+        blank=True,
+        help_text=_(
+            "Valori dell'attributo AD 'company' che identificano questa "
+            "società, separati da punto e virgola (oltre a codice e nome)"
+        ),
+    )
+    sort_order = models.PositiveIntegerField(_("Ordine"), default=100)
+    is_active = models.BooleanField(_("Attiva"), default=True)
+
+    objects = CompanyQuerySet.as_manager()
+
+    class Meta:
+        verbose_name = _("Società")
+        verbose_name_plural = _("Società")
+        ordering = ["sort_order", "label"]
+
+    def __str__(self):
+        return self.label
+
+    def normalized_names(self):
+        aliases = [a for a in (self.ldap_aliases or "").split(";") if a]
+        return {
+            _normalize_company_name(name)
+            for name in (self.code, self.label, *aliases)
+            if _normalize_company_name(name)
+        }
+
+
+def ensure_companies(**kwargs):
+    """Crea le società mancanti (idempotente). Agganciata a post_migrate, così
+    esistono anche nei DB di test creati senza migrazioni."""
+    for code, label, is_common, sage, embyon, order in COMPANY_SEED:
+        Company.objects.get_or_create(
+            code=code,
+            defaults={
+                "label": label,
+                "is_common": is_common,
+                "sage_company": sage,
+                "embyon_company": embyon,
+                "sort_order": order,
+            },
+        )
+
+
+def section_field(**kwargs):
+    """FK alla sezione (Comune o società) di un elemento del fornitore."""
+    return models.ForeignKey(
+        "vendors.Company",
+        verbose_name=_("Sezione"),
+        on_delete=models.PROTECT,
+        default=COMMON_SECTION,
+        related_name="+",
+        help_text=_("Sezione del fornitore: Comune o una società"),
+        **kwargs,
+    )
+
+
+SCOPE_COMMON = "COMMON"
+SCOPE_COMPANY = "COMPANY"
+SCOPE_CHOICES = [
+    (SCOPE_COMMON, _("Comune a tutte le società")),
+    (SCOPE_COMPANY, _("Specifico della società")),
+]
+
+
 # Nuovo Model per Category
 class Category(models.Model):
     """
@@ -461,6 +601,18 @@ class Competence(models.Model):
         ),
     )
 
+    scope = models.CharField(
+        _("Ambito"),
+        max_length=10,
+        choices=SCOPE_CHOICES,
+        default=SCOPE_COMPANY,
+        help_text=_(
+            "Comune: requisito dell'entità fornitore, valido per tutte le "
+            "società (va nella sezione Comune). Specifico: per singola "
+            "società."
+        ),
+    )
+
     is_active = models.BooleanField(
         _("È Attivo"),
         default=True,
@@ -535,6 +687,15 @@ class VendorCompetence(models.Model):
         verbose_name=_("Fornitore"),
         on_delete=models.CASCADE,
         related_name="vendor_competences",
+    )
+    company = section_field()
+    section_confirmed = models.BooleanField(
+        _("Sezione confermata"),
+        default=True,
+        help_text=_(
+            "Falso per i caricamenti dal portale la cui sezione deve "
+            "ancora essere assegnata dal back office"
+        ),
     )
 
     competence = models.ForeignKey(
@@ -689,7 +850,12 @@ class VendorCompetence(models.Model):
         verbose_name_plural = _(
             "Abilitazioni e Requisiti Professionali Assegnati"
         )
-        unique_together = [["vendor", "competence"]]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["vendor", "company", "competence"],
+                name="uniq_vendorcompetence_section",
+            )
+        ]
         ordering = ["-created_at"]
         indexes = [
             models.Index(fields=["vendor", "competence"]),
@@ -1179,6 +1345,7 @@ class VendorService(models.Model):
         on_delete=models.CASCADE,
         related_name="vendor_services",
     )
+    company = section_field()
 
     service_type = models.ForeignKey(
         ServiceType,
@@ -1242,7 +1409,12 @@ class VendorService(models.Model):
     class Meta:
         verbose_name = _("Servizio Erogato")
         verbose_name_plural = _("Servizi Erogati")
-        unique_together = [["vendor", "service_type"]]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["vendor", "company", "service_type"],
+                name="uniq_vendorservice_section",
+            )
+        ]
         ordering = ["-is_primary", "-created_at"]
         indexes = [
             models.Index(fields=["vendor", "service_type"]),
@@ -1344,6 +1516,7 @@ class Contract(models.Model):
         on_delete=models.CASCADE,
         related_name="contracts",
     )
+    company = section_field()
     contract_number = models.CharField(
         _("Numero Contratto"),
         max_length=50,
@@ -1617,7 +1790,20 @@ class Vendor(models.Model):
         unique=True,
         blank=True,
         null=True,
-        help_text=_("Codice Embyon (ex Vecchio codice fornitore)"),
+        help_text=_(
+            "Codice Embyon storico del record (i conti per società stanno "
+            "nelle sezioni del fornitore)"
+        ),
+    )
+    # Codice Terzo Sage: identifica il fornitore tra tutte le società del
+    # gruppo (vista FABRIC_HUB v_suppliers).
+    sage_code = models.CharField(
+        _("Codice SAGE"),
+        max_length=20,
+        unique=True,
+        blank=True,
+        null=True,
+        help_text=_("Codice Terzo Sage, univoco tra le società del gruppo"),
     )
 
     albo_excel_row = models.PositiveIntegerField(
@@ -2166,6 +2352,20 @@ class Vendor(models.Model):
         if self._state.adding and not self.qualification_status:
             self.qualification_status = "PENDING"
 
+        # Con le sezioni società la qualifica del Vendor è solo l'aggregato
+        # delle sezioni: lo ricalcola refresh_aggregate_qualification().
+        sectioned = not self._state.adding and self.has_company_sections
+        if not sectioned:
+            self._apply_legacy_qualification_rules(kwargs)
+
+        # Save the model
+        super().save(*args, **kwargs)
+        self._remember_qualification()
+        if sectioned:
+            self.refresh_aggregate_qualification()
+
+    def _apply_legacy_qualification_rules(self, kwargs):
+        """Regole di qualifica del fornitore senza sezioni società."""
         # Un fornitore esistente non può restare "Approvato" se la
         # documentazione obbligatoria non è in regola.
         if (
@@ -2201,10 +2401,6 @@ class Vendor(models.Model):
                 "qualification_date",
             }
 
-        # Save the model
-        super().save(*args, **kwargs)
-        self._remember_qualification()
-
     @staticmethod
     def final_evaluation_for(qualification_status, embyon_active):
         """Bollino della Valutazione Finale: verde se Approvato e attivo in
@@ -2220,22 +2416,80 @@ class Vendor(models.Model):
     def realign_final_evaluations(cls):
         """Riallinea il bollino di tutti i fornitori a stato di qualifica ed
         Embyon (copre le scritture che saltano save(), es. update() massivi).
+        Per i fornitori con sezioni riallinea le sezioni e poi l'aggregato.
         Restituisce il numero di fornitori corretti."""
         negative = Q(embyon_active=False) | Q(qualification_status="REJECTED")
         positive = Q(embyon_active=True, qualification_status="APPROVED")
         to_evaluate = ~negative & ~positive
+        legacy = cls.objects.filter(company_sections__isnull=True)
         changed = 0
+        touched_vendors = set()
         for value, condition in (
             ("NEGATIVO", negative),
             ("POSITIVO", positive),
             ("DA VALUTARE", to_evaluate),
         ):
             changed += (
-                cls.objects.filter(condition)
+                legacy.filter(condition)
                 .exclude(vendor_final_evaluation=value)
                 .update(vendor_final_evaluation=value)
             )
-        return changed
+            sections = VendorCompany.objects.filter(condition).exclude(
+                vendor_final_evaluation=value
+            )
+            touched_vendors.update(sections.values_list("vendor", flat=True))
+            sections.update(vendor_final_evaluation=value)
+        for vendor in cls.objects.filter(pk__in=touched_vendors):
+            vendor.refresh_aggregate_qualification()
+        return changed + len(touched_vendors)
+
+    @property
+    def has_company_sections(self):
+        if not self.pk:
+            return False
+        return self.company_sections.exists()
+
+    def qualification_holders(self):
+        """Chi porta la qualifica: le sezioni società se presenti, altrimenti
+        il fornitore stesso (fornitore senza società)."""
+        sections = list(self.company_sections.select_related("company"))
+        return sections or [self]
+
+    def refresh_aggregate_qualification(self):
+        """Riporta sul fornitore il riepilogo delle sezioni società, così
+        dashboard, API e filtri esistenti restano coerenti: stato e bollino
+        "migliori" tra le sezioni, data più recente, scadenza più lontana
+        tra le approvate, attivo in Embyon se attivo in almeno una."""
+        sections = list(self.company_sections.all())
+        if not sections:
+            return
+        status = min(
+            (s.qualification_status or "PENDING" for s in sections),
+            key=STATUS_PRIORITY.index,
+        )
+        final = min(
+            (s.vendor_final_evaluation or "DA VALUTARE" for s in sections),
+            key=FINAL_EVALUATION_PRIORITY.index,
+        )
+        dates = [
+            s.qualification_date for s in sections if s.qualification_date
+        ]
+        expiries = [
+            s.qualification_expiry
+            for s in sections
+            if s.qualification_expiry and s.qualification_status == "APPROVED"
+        ]
+        values = {
+            "qualification_status": status,
+            "vendor_final_evaluation": final,
+            "qualification_date": max(dates) if dates else None,
+            "qualification_expiry": max(expiries) if expiries else None,
+            "embyon_active": any(s.embyon_active for s in sections),
+        }
+        for field, value in values.items():
+            setattr(self, field, value)
+        Vendor.objects.filter(pk=self.pk).update(**values)
+        self._remember_qualification()
 
     @property
     def is_subappaltatore(self):
@@ -2260,21 +2514,28 @@ class Vendor(models.Model):
         dal gestore o scaduti. Lista vuota = fornitore approvabile."""
         return self._mandatory_gaps("satisfies_requirement")
 
-    def _mandatory_gaps(self, check):
-        """Obbligatori assegnati per cui la property `check` è falsa."""
+    def _mandatory_gaps(self, check, company=None):
+        """Obbligatori assegnati per cui la property `check` è falsa. Con
+        `company` solo quelli della sezione Comune e di quella società."""
         if self._state.adding:
             return []
+        documents = Document.objects.filter(
+            vendor=self, document_type__is_required=True
+        )
+        requirements = self.vendor_competences.filter(
+            competence__is_mandatory=True
+        )
+        if company:
+            sections = [COMMON_SECTION, company]
+            documents = documents.filter(company__in=sections)
+            requirements = requirements.filter(company__in=sections)
         gaps = []
         # L'obbligatorietà è definita a catalogo: Document.document_type
         # .is_required e Competence.is_mandatory.
-        for doc in Document.objects.filter(
-            vendor=self, document_type__is_required=True
-        ).select_related("document_type"):
+        for doc in documents.select_related("document_type"):
             if not getattr(doc, check):
                 gaps.append(f"Documento: {doc.document_type.name}")
-        for req in self.vendor_competences.filter(
-            competence__is_mandatory=True
-        ).select_related("competence"):
+        for req in requirements.select_related("competence"):
             if not getattr(req, check):
                 gaps.append(f"Requisito: {req.competence.name}")
         return gaps
@@ -2282,8 +2543,17 @@ class Vendor(models.Model):
     def sync_qualification_status(self):
         """Riallinea lo stato di qualifica dopo una modifica ai record
         assegnati: se è 'Approvato' ma non è più in regola passa a 'Da
-        Revisionare'. Non riapprova mai in automatico."""
-        if self.qualification_status == "APPROVED" and self.pk:
+        Revisionare'. Non riapprova mai in automatico. Con le sezioni
+        società lo fa per ciascuna sezione."""
+        if not self.pk:
+            return
+        holders = self.qualification_holders()
+        if holders != [self]:
+            for section in holders:
+                section.sync_qualification_status(refresh_vendor=False)
+            self.refresh_aggregate_qualification()
+            return
+        if self.qualification_status == "APPROVED":
             if self.qualification_blockers:
                 self._update_qualification_status("TO_REVIEW")
 
@@ -2291,7 +2561,13 @@ class Vendor(models.Model):
         """Dopo un upload del fornitore: se è 'In attesa' o 'Respinto' e ha
         consegnato tutti i documenti/requisiti obbligatori (caricati, non
         scaduti, non respinti) passa a 'Da Revisionare'. Chi è 'Approvato'
-        non viene mai toccato qui."""
+        non viene mai toccato qui. Con le sezioni vale per ogni sezione."""
+        holders = self.qualification_holders()
+        if holders != [self]:
+            for section in holders:
+                section.submit_for_review_if_complete(refresh_vendor=False)
+            self.refresh_aggregate_qualification()
+            return
         if self.qualification_status in ("PENDING", "REJECTED", "", None):
             if not self._mandatory_gaps("is_delivered"):
                 self._update_qualification_status("TO_REVIEW")
@@ -2315,7 +2591,11 @@ class Vendor(models.Model):
     @property
     def is_qualified(self):
         """Returns True if vendor is approved, documentation is in order and
-        qualification is not expired"""
+        qualification is not expired. Con le sezioni: qualificato in almeno
+        una società."""
+        holders = self.qualification_holders() if self.pk else [self]
+        if holders != [self]:
+            return any(section.is_qualified for section in holders)
         if self.qualification_status != "APPROVED":
             return False
         if self.qualification_blockers:
@@ -2462,6 +2742,223 @@ class Vendor(models.Model):
     @property
     def documents(self):
         return self.vendor_documents
+
+
+# Priorità per l'aggregato del fornitore: il primo elemento è il "migliore".
+STATUS_PRIORITY = ["APPROVED", "TO_REVIEW", "PENDING", "REJECTED"]
+FINAL_EVALUATION_PRIORITY = ["POSITIVO", "DA VALUTARE", "NEGATIVO"]
+
+
+def collapse_account_code(value):
+    """Conto Embyon con gli spazi collassati: "F  6546" -> "F 6546"."""
+    return " ".join((value or "").split())
+
+
+class VendorCompany(models.Model):
+    """Sezione di una società su un fornitore: porta la qualifica e la
+    Valutazione Finale per quella società. Documenti e requisiti valutati
+    sono quelli della sezione Comune più quelli della società."""
+
+    vendor = models.ForeignKey(
+        Vendor,
+        verbose_name=_("Fornitore"),
+        on_delete=models.CASCADE,
+        related_name="company_sections",
+    )
+    company = models.ForeignKey(
+        Company,
+        verbose_name=_("Società"),
+        on_delete=models.PROTECT,
+        related_name="vendor_sections",
+        limit_choices_to={"is_common": False},
+    )
+    qualification_status = models.CharField(
+        _("Stato di Qualifica"),
+        max_length=20,
+        choices=Vendor.QUALIFICATION_STATUS_CHOICES,
+        default="PENDING",
+    )
+    qualification_score = models.FloatField(
+        _("Punteggio di Qualifica"),
+        validators=[
+            validators.MinValueValidator(0),
+            validators.MaxValueValidator(100),
+        ],
+        null=True,
+        blank=True,
+    )
+    qualification_date = models.DateField(
+        _("Data di Qualifica"), null=True, blank=True
+    )
+    qualification_expiry = models.DateField(
+        _("Scadenza Qualifica"), null=True, blank=True
+    )
+    vendor_final_evaluation = models.CharField(
+        _("Valutazione Finale"),
+        max_length=20,
+        choices=Vendor.VENDOR_FINAL_EVALUATION_CHOICES,
+        default="DA VALUTARE",
+        editable=False,
+    )
+    embyon_active = models.BooleanField(
+        _("Attivo in Embyon"),
+        default=True,
+        help_text=_("Attivo in Embyon per questa società"),
+    )
+    last_audit_date = models.DateField(
+        _("Data Ultimo Audit"), null=True, blank=True
+    )
+    next_audit_due = models.DateField(
+        _("Prossimo Audit Previsto"), null=True, blank=True
+    )
+    review_notes = models.TextField(
+        _("Note di Revisione"), blank=True, default=""
+    )
+    created_at = models.DateTimeField(_("Creato il"), auto_now_add=True)
+    updated_at = models.DateTimeField(_("Aggiornato il"), auto_now=True)
+
+    class Meta:
+        verbose_name = _("Sezione società del fornitore")
+        verbose_name_plural = _("Sezioni società dei fornitori")
+        ordering = ["company__sort_order"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["vendor", "company"], name="uniq_vendor_company"
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.vendor.name} - {self.company.label}"
+
+    @classmethod
+    def from_db(cls, db, field_names, values):
+        instance = super().from_db(db, field_names, values)
+        instance._remember_qualification()
+        return instance
+
+    def _remember_qualification(self):
+        self._loaded_qualification = (
+            self.qualification_status,
+            self.qualification_date,
+        )
+
+    def save(self, *args, **kwargs):
+        if not self.qualification_status:
+            self.qualification_status = "PENDING"
+        # Stesse regole del fornitore senza sezioni, ristrette alla sezione;
+        # valgono anche alla creazione: il fornitore ha già i suoi elementi.
+        if (
+            self.qualification_status == "APPROVED"
+            and self.qualification_blockers
+        ):
+            self.qualification_status = "TO_REVIEW"
+        loaded = getattr(self, "_loaded_qualification", None)
+        if (
+            loaded
+            and loaded[0] != self.qualification_status
+            and loaded[1] == self.qualification_date
+        ):
+            self.qualification_date = oggi_locale()
+        self.vendor_final_evaluation = Vendor.final_evaluation_for(
+            self.qualification_status, self.embyon_active
+        )
+        super().save(*args, **kwargs)
+        self._remember_qualification()
+        self.vendor.refresh_aggregate_qualification()
+
+    @property
+    def qualification_blockers(self):
+        return self.vendor._mandatory_gaps(
+            "satisfies_requirement", company=self.company_id
+        )
+
+    def sync_qualification_status(self, refresh_vendor=True):
+        if self.qualification_status == "APPROVED" and self.pk:
+            if self.qualification_blockers:
+                self._update_qualification_status("TO_REVIEW", refresh_vendor)
+
+    def submit_for_review_if_complete(self, refresh_vendor=True):
+        if self.qualification_status in ("PENDING", "REJECTED", "", None):
+            gaps = self.vendor._mandatory_gaps(
+                "is_delivered", company=self.company_id
+            )
+            if not gaps:
+                self._update_qualification_status("TO_REVIEW", refresh_vendor)
+
+    def _update_qualification_status(self, status, refresh_vendor=True):
+        self.qualification_status = status
+        self.qualification_date = oggi_locale()
+        self.vendor_final_evaluation = Vendor.final_evaluation_for(
+            status, self.embyon_active
+        )
+        VendorCompany.objects.filter(pk=self.pk).update(
+            qualification_status=status,
+            qualification_date=self.qualification_date,
+            vendor_final_evaluation=self.vendor_final_evaluation,
+        )
+        self._remember_qualification()
+        if refresh_vendor:
+            self.vendor.refresh_aggregate_qualification()
+
+    @property
+    def is_qualified(self):
+        if self.qualification_status != "APPROVED":
+            return False
+        if self.qualification_blockers:
+            return False
+        if self.qualification_expiry:
+            return self.qualification_expiry > timezone.now().date()
+        return True
+
+    def account_codes(self):
+        return ", ".join(a.account_code for a in self.accounts.all())
+
+
+class VendorCompanyAccount(models.Model):
+    """Conto Embyon/Sage del fornitore presso una società (vista FABRIC_HUB
+    v_supplier_companies). Un fornitore può avere più conti nella stessa
+    società."""
+
+    section = models.ForeignKey(
+        VendorCompany,
+        verbose_name=_("Sezione"),
+        on_delete=models.CASCADE,
+        related_name="accounts",
+    )
+    company = models.ForeignKey(
+        Company,
+        verbose_name=_("Società"),
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
+    account_code = models.CharField(_("Codice conto Embyon"), max_length=20)
+    status = models.CharField(_("Stato Embyon"), max_length=60, blank=True)
+    embyon_active = models.BooleanField(_("Attivo"), default=True)
+    link_source = models.CharField(_("Origine"), max_length=10, blank=True)
+    link_conflict = models.BooleanField(_("Conflitto"), default=False)
+    in_embyon = models.BooleanField(_("Presente in Embyon"), default=True)
+    last_synced_at = models.DateTimeField(
+        _("Ultimo allineamento"), null=True, blank=True
+    )
+
+    class Meta:
+        verbose_name = _("Conto società del fornitore")
+        verbose_name_plural = _("Conti società dei fornitori")
+        ordering = ["company__sort_order", "account_code"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["company", "account_code"],
+                name="uniq_company_account_code",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.company_id}:{self.account_code}"
+
+    def save(self, *args, **kwargs):
+        self.account_code = collapse_account_code(self.account_code)
+        self.company_id = self.section.company_id
+        super().save(*args, **kwargs)
 
 
 def generate_operational_attributes_id():
@@ -2708,6 +3205,7 @@ class VendorEvaluation(models.Model):
         on_delete=models.CASCADE,
         related_name="evaluations",
     )
+    company = section_field()
     criterion = models.ForeignKey(
         EvaluationCriterion,
         verbose_name=_("Criterio di Valutazione"),
@@ -2753,7 +3251,12 @@ class VendorEvaluation(models.Model):
     class Meta:
         verbose_name = _("Valutazione")
         verbose_name_plural = _("Valutazioni")
-        unique_together = ("vendor", "criterion")
+        constraints = [
+            models.UniqueConstraint(
+                fields=["vendor", "company", "criterion"],
+                name="uniq_vendorevaluation_section",
+            )
+        ]
 
     def __str__(self):
         return (
@@ -2835,7 +3338,10 @@ def _sync_vendor_on_competence_change(sender, instance, **kwargs):
 
 
 def _sync_approved_vendors(vendors):
-    for vendor in vendors.filter(qualification_status="APPROVED"):
+    approved = Q(qualification_status="APPROVED") | Q(
+        company_sections__qualification_status="APPROVED"
+    )
+    for vendor in vendors.filter(approved).distinct():
         vendor.sync_qualification_status()
 
 

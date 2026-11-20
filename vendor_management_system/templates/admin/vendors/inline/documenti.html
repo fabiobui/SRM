@@ -2,7 +2,7 @@
 {% if original %}
 <div class="d-flex justify-content-end mb-2">
   <a class="btn btn-sm btn-outline-secondary" id="download-zip-documenti"
-     href="{% url 'admin:vendors_vendor_download_zip' original.pk|admin_urlquote 'documenti' %}">
+     href="{% url 'admin:vendors_vendor_download_zip' original.pk|admin_urlquote 'documenti' %}{% if current_section %}?sezione={{ current_section.code }}{% endif %}">
     <i class="fas fa-file-archive"></i> Scarica tutti (.zip)
   </a>
 </div>

@@ -70,6 +70,12 @@
                     </a>
                 </li>
                 <li class="nav-item">
+                    <a class="nav-link {% if 'subcontractor' in request.resolver_match.url_name %}active{% endif %}"
+                       href="{% url 'portal:bo-subcontractors' %}">
+                        <i class="fas fa-hard-hat"></i>Tecnici e mezzi
+                    </a>
+                </li>
+                <li class="nav-item">
                     <a class="nav-link nav-link-external" href="{% url 'vendor-dashboard' %}">
                         <i class="fas fa-building"></i>Fornitori - Analisi e Classificazione
                     </a>

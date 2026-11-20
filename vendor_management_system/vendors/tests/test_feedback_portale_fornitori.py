@@ -223,6 +223,7 @@ def test_la_scheda_fornitore_non_ha_salva_e_continua(client, gestore):
 
     html = client.get(
         reverse("admin:vendors_vendor_change", args=[vendor.pk])
+        + "?sezione=COMUNE"
     ).content.decode()
 
     assert 'name="_save"' in html

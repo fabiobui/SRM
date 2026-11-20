@@ -157,6 +157,7 @@ class CustomUserChangeForm(UserChangeForm):
             "role",
             "user_type",
             "vendor",
+            "company",
             "is_active",
             "is_staff",
             "is_superuser",
@@ -227,7 +228,7 @@ class UserAdmin(auth_admin.UserAdmin):
         (_("Informazioni Personali"), {"fields": ("name",)}),
         (
             _("Ruolo e Associazioni"),
-            {"fields": ("role", "vendor", "user_type")},
+            {"fields": ("role", "vendor", "company", "user_type")},
         ),
         (
             _("Permessi"),
@@ -302,6 +303,7 @@ class UserAdmin(auth_admin.UserAdmin):
         "email",
         "name",
         "role",
+        "company",
         "get_user_type",
         "vendor",
         "is_active",
@@ -310,7 +312,14 @@ class UserAdmin(auth_admin.UserAdmin):
     ]
     search_fields = ["name", "email", "vendor__name"]
     ordering = ["email"]
-    list_filter = ["role", "is_ldap_user", "is_active", "is_staff", "vendor"]
+    list_filter = [
+        "role",
+        "company",
+        "is_ldap_user",
+        "is_active",
+        "is_staff",
+        "vendor",
+    ]
 
     # Campi di sola lettura per utenti LDAP (alcune informazioni vengono
     # da LDAP)

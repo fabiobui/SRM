@@ -163,4 +163,4 @@ def test_dashboard_espone_codice_embyon_e_classificazioni(client):
     assert riga["old_code"] == "E777"
     assert riga["classifications"] == [principale.name, aggiuntiva.name]
     assert 'id="dropdown-filters-container"' in html
-    assert "Aggiungi fornitore prospetto" in html
+    assert "Fornitore potenziale" in html

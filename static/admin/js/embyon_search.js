@@ -1,19 +1,30 @@
 /*
- * Ricerca Codice Embyon
- * ---------------------
- * Aggiunge un'icona "cerca" accanto al campo "Codice Embyon" (old_code) nel
- * tab "Informazioni Base" del VendorAdmin. Cliccandola si apre un modal con i
- * campi di ricerca: Codice Embyon, Partita IVA, Codice Fiscale, Ragione sociale
- * e Provincia.
+ * Ricerca fornitore (lente)
+ * -------------------------
+ * Aggiunge un'icona "cerca" accanto al campo "Codice SAGE" nel tab
+ * "Informazioni Base" del VendorAdmin (sezione Comune e creazione). Il modal cerca nelle viste
+ * FABRIC_HUB dei fornitori condivisi tra società (v_suppliers e
+ * v_supplier_companies) per ragione sociale, codice Embyon, codice SAGE,
+ * partita IVA o codice fiscale.
  *
- * NB: la logica di ricerca vera e propria (chiamata al backend + popolamento
- * dei risultati) è agganciata alla funzione `runSearch()` più in basso, che al
- * momento è un placeholder da completare.
+ * Il codice SAGE identifica il fornitore tra tutte le società:
+ * - se il fornitore è già censito non se ne crea un altro: si apre il
+ *   fornitore esistente aggiungendo, se manca, la sezione della società;
+ * - altrimenti il risultato precompila il form del nuovo fornitore (codice
+ *   SAGE e conti compresi); al salvataggio nascono la sezione Comune e
+ *   quella della società scelta.
  */
 (function () {
     'use strict';
 
     var MODAL_ID = 'embyon-search-modal';
+    var FIELDS = [
+        ['embyon-f-name', 'name'],
+        ['embyon-f-code', 'account_code'],
+        ['embyon-f-sage', 'sage_code'],
+        ['embyon-f-vat', 'vat_number'],
+        ['embyon-f-fiscal', 'fiscal_code']
+    ];
 
     function ready(fn) {
         if (document.readyState !== 'loading') {
@@ -24,29 +35,46 @@
     }
 
     ready(function () {
-        var input = document.getElementById('id_old_code');
-        if (!input) return; // Solo nelle change/add form del Vendor.
+        // Solo nella sezione Comune o in creazione: nelle sezioni delle
+        // società il codice SAGE è solo informativo.
+        if (window.VENDOR_SECTION && window.VENDOR_SECTION !== 'COMUNE') return;
+        var target = sageTarget();
+        if (!target) return; // Solo nelle change/add form del Vendor.
 
-        injectSearchButton(input);
+        injectSearchButton(target);
         injectModal();
     });
+
+    // Il campo codice SAGE: input in creazione, testo in sola lettura sulla
+    // scheda di un fornitore già censito.
+    function sageTarget() {
+        var input = document.getElementById('id_sage_code');
+        if (input) return input;
+        var row = document.querySelector('.field-sage_code');
+        return row ? row.querySelector('.readonly') : null;
+    }
+
+    function currentSage() {
+        var target = sageTarget();
+        if (!target) return '';
+        var value = (target.value !== undefined ? target.value : target.textContent) || '';
+        value = value.trim();
+        return value === '-' ? '' : value;
+    }
 
     // ----------------------------------------------------------------------
 
     function injectSearchButton(input) {
-        // Evita doppie iniezioni.
         if (document.getElementById('embyon-search-btn')) return;
 
         var btn = document.createElement('button');
         btn.type = 'button';
         btn.id = 'embyon-search-btn';
         btn.className = 'btn btn-outline-secondary btn-sm';
-        btn.title = gettextSafe('Cerca fornitore su Embyon');
+        btn.title = gettextSafe('Cerca fornitore (Embyon / SAGE)');
         btn.style.cssText = 'flex:0 0 auto;';
         btn.innerHTML = '<i class="fas fa-search"></i>';
 
-        // Racchiude il campo e il bottone in una riga flex, così il bottone
-        // resta accanto al campo e il campo non occupa tutta la larghezza.
         var wrap = document.createElement('div');
         wrap.style.cssText = 'display:flex;align-items:center;gap:.5rem;';
         input.parentNode.insertBefore(wrap, input);
@@ -55,9 +83,14 @@
         wrap.appendChild(input);
         wrap.appendChild(btn);
 
-        btn.addEventListener('click', function () {
-            openModal();
-        });
+        btn.addEventListener('click', openModal);
+    }
+
+    function field(id, label, cols) {
+        return '<div class="form-group col-md-' + cols + '">' +
+            '<label for="' + id + '">' + gettextSafe(label) + '</label>' +
+            '<input type="text" class="form-control" id="' + id + '" autocomplete="off">' +
+            '</div>';
     }
 
     function injectModal() {
@@ -66,10 +99,10 @@
         var wrap = document.createElement('div');
         wrap.innerHTML = [
             '<div class="modal fade" id="' + MODAL_ID + '" tabindex="-1" role="dialog" aria-hidden="true">',
-            '  <div class="modal-dialog modal-lg" role="document">',
+            '  <div class="modal-dialog modal-xl" role="document">',
             '    <div class="modal-content">',
             '      <div class="modal-header">',
-            '        <h4 class="modal-title">' + gettextSafe('Ricerca fornitore Embyon') + '</h4>',
+            '        <h4 class="modal-title">' + gettextSafe('Ricerca fornitore') + '</h4>',
             '        <button type="button" class="close" data-dismiss="modal" aria-label="' + gettextSafe('Chiudi') + '">',
             '          <span aria-hidden="true">&times;</span>',
             '        </button>',
@@ -77,29 +110,13 @@
             '      <div class="modal-body">',
             '        <form id="embyon-search-form" onsubmit="return false;">',
             '          <div class="form-row">',
-            '            <div class="form-group col-md-4">',
-            '              <label for="embyon-f-code">' + gettextSafe('Codice Embyon') + '</label>',
-            '              <input type="text" class="form-control" id="embyon-f-code" name="old_code" autocomplete="off">',
-            '            </div>',
-            '            <div class="form-group col-md-4">',
-            '              <label for="embyon-f-vat">' + gettextSafe('Partita IVA') + '</label>',
-            '              <input type="text" class="form-control" id="embyon-f-vat" name="vat_number" autocomplete="off">',
-            '            </div>',
-            '            <div class="form-group col-md-4">',
-            '              <label for="embyon-f-fiscal">' + gettextSafe('Codice Fiscale') + '</label>',
-            '              <input type="text" class="form-control" id="embyon-f-fiscal" name="fiscal_code" autocomplete="off">',
-            '            </div>',
+            field('embyon-f-name', 'Ragione sociale', 6),
+            field('embyon-f-code', 'Codice Embyon', 3),
+            field('embyon-f-sage', 'Codice SAGE', 3),
             '          </div>',
             '          <div class="form-row">',
-            '            <div class="form-group col-md-8">',
-            '              <label for="embyon-f-name">' + gettextSafe('Ragione sociale') + '</label>',
-            '              <input type="text" class="form-control" id="embyon-f-name" name="name" autocomplete="off">',
-            '            </div>',
-            '            <div class="form-group col-md-4">',
-            '              <label for="embyon-f-province">' + gettextSafe('Provincia') + '</label>',
-            '              <input type="text" class="form-control" id="embyon-f-province" name="province" autocomplete="off" disabled placeholder="' + gettextSafe('non disponibile') + '">',
-            '              <small class="form-text text-muted">' + gettextSafe('Non disponibile per questa sorgente.') + '</small>',
-            '            </div>',
+            field('embyon-f-vat', 'Partita IVA', 4),
+            field('embyon-f-fiscal', 'Codice Fiscale', 4),
             '          </div>',
             '          <div class="form-row">',
             '            <div class="col-12 d-flex align-items-center">',
@@ -116,19 +133,16 @@
             '          <table class="table table-sm table-hover" id="embyon-results-table">',
             '            <thead>',
             '              <tr>',
-            '                <th>' + gettextSafe('Codice Embyon') + '</th>',
-            '                <th>' + gettextSafe('Società') + '</th>',
+            '                <th>' + gettextSafe('Codice SAGE') + '</th>',
             '                <th>' + gettextSafe('Ragione sociale') + '</th>',
             '                <th>' + gettextSafe('Partita IVA') + '</th>',
             '                <th>' + gettextSafe('Codice Fiscale') + '</th>',
             '                <th>' + gettextSafe('Provincia') + '</th>',
-            '                <th>' + gettextSafe('Stato') + '</th>',
+            '                <th>' + gettextSafe('Società e codici Embyon') + '</th>',
             '                <th></th>',
             '              </tr>',
             '            </thead>',
-            '            <tbody id="embyon-results-body">',
-            '              <tr><td colspan="8" class="text-muted text-center">' + gettextSafe('Nessun risultato. Imposta i filtri e premi Cerca.') + '</td></tr>',
-            '            </tbody>',
+            '            <tbody id="embyon-results-body"></tbody>',
             '          </table>',
             '        </div>',
             '      </div>',
@@ -141,37 +155,29 @@
         ].join('');
 
         document.body.appendChild(wrap.firstChild);
+        clearResults();
 
         var form = document.getElementById('embyon-search-form');
         form.addEventListener('submit', function (e) {
             e.preventDefault();
             runSearch();
         });
-
-        var reset = document.getElementById('embyon-search-reset');
-        reset.addEventListener('click', function () {
+        document.getElementById('embyon-search-reset').addEventListener('click', function () {
             form.reset();
             clearResults();
             setMessage('');
         });
-
         wireMutualExclusion();
     }
 
-    // Codice Embyon, Partita IVA, Codice Fiscale e Ragione sociale sono
-    // mutuamente esclusivi: digitando in uno si azzerano gli altri tre.
-    // La Provincia resta indipendente (filtro di restrizione).
+    // I criteri sono mutuamente esclusivi: digitando in uno si azzerano gli altri.
     function wireMutualExclusion() {
-        var ids = ['embyon-f-code', 'embyon-f-vat', 'embyon-f-fiscal', 'embyon-f-name'];
-        ids.forEach(function (id) {
-            var el = document.getElementById(id);
-            if (!el) return;
+        FIELDS.forEach(function (pair) {
+            var el = document.getElementById(pair[0]);
             el.addEventListener('input', function () {
                 if (!el.value) return;
-                ids.forEach(function (other) {
-                    if (other === id) return;
-                    var oe = document.getElementById(other);
-                    if (oe) oe.value = '';
+                FIELDS.forEach(function (other) {
+                    if (other[0] !== pair[0]) document.getElementById(other[0]).value = '';
                 });
             });
         });
@@ -180,12 +186,8 @@
     // ----------------------------------------------------------------------
 
     function openModal() {
-        // Precompila il Codice Embyon con il valore attuale del form, se presente.
-        var current = document.getElementById('id_old_code');
-        var field = document.getElementById('embyon-f-code');
-        if (current && field && !field.value) {
-            field.value = current.value || '';
-        }
+        var sage = document.getElementById('embyon-f-sage');
+        if (sage && !sage.value) sage.value = currentSage();
 
         var $ = window.jQuery || window.$;
         if ($ && typeof $.fn.modal === 'function') {
@@ -209,34 +211,23 @@
     }
 
     function getFilters() {
-        return {
-            old_code: valueOf('embyon-f-code'),
-            vat_number: valueOf('embyon-f-vat'),
-            fiscal_code: valueOf('embyon-f-fiscal'),
-            name: valueOf('embyon-f-name'),
-            province: valueOf('embyon-f-province')
-        };
+        var filters = {};
+        FIELDS.forEach(function (pair) { filters[pair[1]] = valueOf(pair[0]); });
+        return filters;
     }
 
-    // ----------------------------------------------------------------------
-    // Logica di ricerca: interroga l'endpoint embyon-search/ del VendorAdmin
-    // con i filtri correnti e popola la tabella dei risultati.
-    // ----------------------------------------------------------------------
     function runSearch() {
         var filters = getFilters();
-
-        // Serve un criterio primario (la provincia da sola non basta).
-        var primary = filters.old_code || filters.vat_number || filters.fiscal_code || filters.name;
+        var primary = FIELDS.some(function (pair) { return filters[pair[1]]; });
         if (!primary) {
-            setMessage(gettextSafe('Imposta un criterio: codice Embyon, partita IVA, codice fiscale o ragione sociale.'));
+            setMessage(gettextSafe('Imposta un criterio: ragione sociale, codice Embyon, codice SAGE, partita IVA o codice fiscale.'));
             return;
         }
         if (filters.name && filters.name.length < 3) {
             setMessage(gettextSafe('Inserisci almeno 3 caratteri per la ragione sociale.'));
             return;
         }
-
-        var endpoint = buildEndpoint();
+        var endpoint = window.EMBYON_SEARCH_URL;
         if (!endpoint) {
             setMessage(gettextSafe('Impossibile determinare l\'endpoint di ricerca.'));
             return;
@@ -244,7 +235,6 @@
 
         setMessage(gettextSafe('Ricerca in corso…'));
         clearResults();
-
         fetch(endpoint + '?' + toQuery(filters), {
             credentials: 'same-origin',
             headers: { 'X-Requested-With': 'XMLHttpRequest' }
@@ -253,40 +243,23 @@
                 return r.text().then(function (t) {
                     var data = null;
                     try { data = JSON.parse(t); } catch (e) { /* non-JSON */ }
-                    return { ok: r.ok, status: r.status, data: data };
+                    return { status: r.status, data: data };
                 });
             })
             .then(function (res) {
-                // Errore server senza corpo JSON (es. 500/404 HTML).
                 if (!res.data) {
                     setMessage(gettextSafe('Errore server') + ' (HTTP ' + res.status + ')');
-                    clearResults();
                     return;
                 }
-                // Errore applicativo restituito dalla view (mostra il messaggio reale).
                 if (res.data.error) {
                     setMessage(res.data.error);
-                    clearResults();
                     return;
                 }
-                renderResults(res.data.results || []);
+                renderResults(res.data.results || [], res.data.user_company || '');
             })
             .catch(function () {
                 setMessage(gettextSafe('Errore durante la ricerca.'));
             });
-    }
-
-    function buildEndpoint() {
-        // URL generato lato server (via reverse), che include l'eventuale prefisso
-        // di deployment (FORCE_SCRIPT_NAME, es. /fornitori in produzione).
-        if (window.EMBYON_SEARCH_URL) {
-            return window.EMBYON_SEARCH_URL;
-        }
-        // Fallback: ricava il path dalla change/add form corrente
-        // (.../vendors/vendor/<pk>/change/ oppure .../vendors/vendor/add/).
-        var m = window.location.pathname.match(/^(.*\/vendors\/vendor\/)/);
-        if (!m) return null;
-        return m[1] + 'embyon-search/';
     }
 
     function toQuery(obj) {
@@ -295,91 +268,142 @@
         }).join('&');
     }
 
-    // Popola la tabella dei risultati. `rows` è un array di oggetti con:
-    // { old_code, company, name, vat_number, fiscal_code, province }
-    function renderResults(rows) {
-        var body = document.getElementById('embyon-results-body');
-        if (!body) return;
-        body.innerHTML = '';
+    // Società per cui si sta censendo il fornitore: quella scelta nel form
+    // (solo in creazione) o, in mancanza, quella dell'utente.
+    function chosenCompany(userCompany) {
+        var select = document.getElementById('id_initial_company');
+        return (select && select.value) || userCompany || '';
+    }
 
-        if (!rows || !rows.length) {
-            body.innerHTML = '<tr><td colspan="8" class="text-muted text-center">' +
+    function companiesCell(row) {
+        var td = document.createElement('td');
+        (row.companies || []).forEach(function (c) {
+            var line = document.createElement('div');
+            line.className = 'small';
+            line.textContent = c.company + ': ' + c.account_code + (c.status ? ' (' + c.status + ')' : '');
+            td.appendChild(line);
+        });
+        if (!td.childNodes.length) td.textContent = '-';
+        return td;
+    }
+
+    function renderResults(rows, userCompany) {
+        var body = document.getElementById('embyon-results-body');
+        body.innerHTML = '';
+        if (!rows.length) {
+            body.innerHTML = '<tr><td colspan="7" class="text-muted text-center">' +
                 gettextSafe('Nessun risultato trovato.') + '</td></tr>';
             setMessage('');
             return;
         }
-
         rows.forEach(function (row) {
             var tr = document.createElement('tr');
-            tr.appendChild(cell(row.old_code));
-            tr.appendChild(cell(row.company));
+            tr.appendChild(cell(row.sage_code));
             tr.appendChild(cell(row.name));
             tr.appendChild(cell(row.vat_number));
             tr.appendChild(cell(row.fiscal_code));
             tr.appendChild(cell(row.province));
-            tr.appendChild(cell(row.status));
-
-            var actionTd = document.createElement('td');
-            var pick = document.createElement('button');
-            pick.type = 'button';
-            pick.className = 'btn btn-sm btn-success';
-            pick.textContent = gettextSafe('Seleziona');
-            pick.addEventListener('click', function () { selectResult(row); });
-            actionTd.appendChild(pick);
-            tr.appendChild(actionTd);
-
+            tr.appendChild(companiesCell(row));
+            tr.appendChild(actionCell(row, userCompany));
             body.appendChild(tr);
         });
         setMessage(interpolate(gettextSafe('%s risultati.'), [rows.length]));
     }
 
-    // Applica il risultato scelto ai rispettivi campi del form Vendor.
-    function selectResult(row) {
-        setFieldValue('id_old_code', row.old_code);
+    function button(label, css, onClick) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'btn btn-sm ' + css;
+        b.textContent = gettextSafe(label);
+        b.addEventListener('click', onClick);
+        return b;
+    }
+
+    function actionCell(row, userCompany) {
+        var td = document.createElement('td');
+        var current = window.VENDOR_CURRENT_PK || '';
+        var existing = row.existing_vendor;
+        var company = chosenCompany(userCompany);
+
+        if (existing && existing.pk === current) {
+            td.appendChild(badge(gettextSafe('Fornitore corrente'), 'info'));
+            return td;
+        }
+        if (existing) {
+            // Già censito: niente doppione, si apre l'esistente aggiungendo
+            // (se manca) la sezione della società.
+            td.appendChild(badge(gettextSafe('Già censito: ') + existing.name, 'warning'));
+            var missing = company && existing.sections.indexOf(company) === -1;
+            var label = missing ? 'Aggiungi sezione ' + company : 'Apri fornitore';
+            td.appendChild(document.createElement('br'));
+            td.appendChild(button(label, 'btn-warning mt-1', function () {
+                linkSage(existing.pk, row, missing ? company : '');
+            }));
+            return td;
+        }
+        if (current) {
+            // Scheda di un fornitore esistente senza codice SAGE: collega.
+            td.appendChild(button('Collega a questo fornitore', 'btn-success', function () {
+                linkSage(current, row, '');
+            }));
+            return td;
+        }
+        td.appendChild(button('Seleziona', 'btn-success', function () { selectResult(row, company); }));
+        return td;
+    }
+
+    function badge(text, kind) {
+        var span = document.createElement('span');
+        span.className = 'badge badge-' + kind;
+        span.textContent = text;
+        return span;
+    }
+
+    function csrfToken() {
+        var el = document.querySelector('input[name=csrfmiddlewaretoken]');
+        return el ? el.value : '';
+    }
+
+    function linkSage(vendorPk, row, company) {
+        var data = new FormData();
+        data.append('vendor', vendorPk);
+        data.append('sage_code', row.sage_code);
+        data.append('company', company || '');
+        data.append('accounts', JSON.stringify(row.companies || []));
+        fetch(window.VENDOR_LINK_SAGE_URL, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'X-CSRFToken': csrfToken() },
+            body: data
+        })
+            .then(function (r) { return r.json(); })
+            .then(function (res) {
+                if (res.url) {
+                    window.location.href = res.url;
+                } else {
+                    setMessage(res.error || gettextSafe('Collegamento non riuscito.'));
+                }
+            })
+            .catch(function () { setMessage(gettextSafe('Collegamento non riuscito.')); });
+    }
+
+    // Precompila il form del nuovo fornitore con il risultato scelto.
+    function selectResult(row, company) {
+        setFieldValue('id_sage_code', row.sage_code);
         setFieldValue('id_name', row.name);
         setFieldValue('id_vat_number', row.vat_number);
         setFieldValue('id_fiscal_code', row.fiscal_code);
         setFieldValue('id_email', row.email);
         setFieldValue('id_phone', row.phone);
-        setSelectValue('id_vendor_type', row.vendor_type);
-        // Società Embyon (DITTA): lo stesso fornitore ha un CODCONTO diverso per
-        // ogni Società, quindi il codice scelto va accompagnato dalla sua.
-        setSelectValue('id_embyon_company', row.company);
-        // Flag "Attivo su Embyon": spuntato solo se lo stato Embyon è "attivo".
-        setCheckbox('id_embyon_active', !!row.embyon_active);
+        var accounts = document.getElementById('id_sage_accounts');
+        if (accounts) accounts.value = JSON.stringify(row.companies || []);
         closeModal();
-    }
-
-    // Imposta lo stato di un checkbox del form.
-    function setCheckbox(id, checked) {
-        var el = document.getElementById(id);
-        if (!el || el.type !== 'checkbox') return;
-        el.checked = !!checked;
-        el.dispatchEvent(new Event('change', { bubbles: true }));
-    }
-
-    // Imposta il valore di una <select> solo se l'opzione esiste.
-    function setSelectValue(id, value) {
-        var el = document.getElementById(id);
-        if (!el || !value) return;
-        var found = false;
-        for (var i = 0; i < el.options.length; i++) {
-            if (el.options[i].value === value) { found = true; break; }
-        }
-        if (!found) return;
-        el.value = value;
-        var $ = window.jQuery || window.$;
-        if ($ && $.fn && $.fn.select2) {
-            $(el).trigger('change');
-        } else {
-            el.dispatchEvent(new Event('change', { bubbles: true }));
-        }
     }
 
     function clearResults() {
         var body = document.getElementById('embyon-results-body');
         if (body) {
-            body.innerHTML = '<tr><td colspan="8" class="text-muted text-center">' +
+            body.innerHTML = '<tr><td colspan="7" class="text-muted text-center">' +
                 gettextSafe('Nessun risultato. Imposta i filtri e premi Cerca.') + '</td></tr>';
         }
     }
@@ -400,9 +424,7 @@
 
     function setFieldValue(id, value) {
         var el = document.getElementById(id);
-        if (!el) return;
-        // Non sovrascrive i campi del form con valori vuoti provenienti da Embyon.
-        if (value == null || value === '') return;
+        if (!el || value == null || value === '') return;
         el.value = value;
         el.dispatchEvent(new Event('change', { bubbles: true }));
     }

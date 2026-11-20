@@ -119,6 +119,10 @@ sotto un prefisso `/fornitori` (anche static/media). Lascia questo a `False` per
   (`FABRICHUB_CACHE_SECONDS`, default 600). Richiede le variabili `FABRICHUB_*` (vedi
   `env_example/.env.fabrichub.example`, in locale `.envs/.fabrichub.env`). È tooling opzionale per il team BO:
   senza credenziali la ricerca restituisce un errore controllato, quindi **non** è richiesto per lo sviluppo locale.
+- **Fornitori condivisi tra società**: un fornitore è un solo record con sezione Comune + una sezione per
+  società, collegato alle viste FABRIC_HUB `v_suppliers` / `v_supplier_companies` tramite il codice SAGE. La lente ora
+  cerca su queste viste; qualifica e Valutazione Finale sono per società; comandi `sync_fabric_suppliers` e
+  `merge_shared_suppliers`. Vedi [FORNITORI_CONDIVISI.md](FORNITORI_CONDIVISI.md).
 
 ## 6. Job in background (Celery)
 

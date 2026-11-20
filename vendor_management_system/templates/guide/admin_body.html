@@ -3,7 +3,7 @@
     <p class="guide-lead">Sei l'unico ruolo che entra nell'area <strong>/admin/</strong>. Gestisci l'anagrafica dei fornitori, i cataloghi, l'accesso al portale e l'approvazione finale della qualifica.</p>
     <div class="g-grid">
         <div class="g-tile"><strong><i class="fas fa-building g-tile__ico"></i>Fornitori</strong>Anagrafica, documenti, servizi, requisiti, contratti.<a class="g-go" href="{% url 'admin:vendors_vendor_changelist' %}">Apri la lista &rarr;</a></div>
-        <div class="g-tile"><strong><i class="fas fa-chart-pie g-tile__ico"></i>Analisi e Classificazione</strong>Ricerca, filtri, export Excel e creazione rapida di un fornitore prospetto.<a class="g-go" href="{% url 'vendor-dashboard' %}">Apri la dashboard &rarr;</a></div>
+        <div class="g-tile"><strong><i class="fas fa-chart-pie g-tile__ico"></i>Analisi e Classificazione</strong>Ricerca, filtri, export Excel e creazione rapida di un fornitore potenziale.<a class="g-go" href="{% url 'vendor-dashboard' %}">Apri la dashboard &rarr;</a></div>
         <div class="g-tile"><strong><i class="fas fa-inbox g-tile__ico"></i>Dashboard Back Office</strong>Documenti, requisiti e richieste da revisionare.<a class="g-go" href="{% url 'portal:bo-dashboard' %}">Apri il back office &rarr;</a></div>
         <div class="g-tile"><strong><i class="fas fa-users-cog g-tile__ico"></i>Utenti</strong>Utenti interni e utenze portale dei fornitori.<a class="g-go" href="{% url 'admin:users_user_changelist' %}">Apri gli utenti &rarr;</a></div>
     </div>
@@ -19,15 +19,33 @@
 
 <section class="guide-section" id="ga-nuovo" data-title="Creare un fornitore" data-icon="fa-plus-circle">
     <h3><i class="fas fa-plus-circle"></i>Creare un fornitore</h3>
-    <p class="guide-lead">Un nuovo fornitore si crea sempre come <strong>fornitore prospetto</strong> dalla dashboard; poi lo completi nella scheda in /admin/.</p>
+    <p class="guide-lead">Un nuovo fornitore si crea di norma come <strong>fornitore potenziale</strong> dalla dashboard; poi lo completi nella scheda in /admin/.</p>
     <ol class="g-steps">
-        <li>Apri <a href="{% url 'vendor-dashboard' %}">Fornitori - Analisi e Classificazione</a> e premi <strong>Aggiungi fornitore prospetto</strong>.</li>
+        <li>Apri <a href="{% url 'vendor-dashboard' %}">Fornitori - Analisi e Classificazione</a> e premi <strong>Fornitore potenziale</strong>.</li>
         <li>Compila <strong>Ragione sociale</strong>, <strong>Email</strong> e almeno uno tra <strong>Partita IVA</strong> e <strong>Codice Fiscale</strong>.</li>
         <li>Il sistema crea il fornitore (stato qualifica <span class="g-badge g-b-grey">In attesa</span>), ti assegna come utente di gestione, crea l'utenza portale e invia l'invito via email.</li>
         <li>Apri la scheda dalla <a href="{% url 'admin:vendors_vendor_changelist' %}">lista Fornitori</a> e completa i dati (vedi sezioni successive).</li>
     </ol>
+    <p>Puoi anche creare il fornitore da <strong>Aggiungi Fornitore</strong> in /admin/ con la ricerca (lente): anche in questo caso, se non indichi un utente di gestione, diventi tu il primo utente di gestione.</p>
     <div class="g-callout g-warn"><i class="fas fa-exclamation-triangle"></i><div><p><strong>Controlli automatici.</strong> Un Codice Fiscale già presente o un'email già usata da un altro utente <strong>bloccano</strong> la creazione. Una Partita IVA già presente dà solo un avviso. Se l'invio dell'email fallisce il fornitore viene creato comunque: usa poi <em>Reinvia invito</em> dalla scheda.</p></div></div>
     <div class="g-callout g-tip"><i class="fas fa-lightbulb"></i><div><p>Scegli con cura l'email: riceve credenziali, invito e promemoria di scadenza. Evita indirizzi generici.</p></div></div>
+</section>
+
+<section class="guide-section" id="ga-sezioni" data-title="Fornitori condivisi e sezioni" data-icon="fa-sitemap">
+    <h3><i class="fas fa-sitemap"></i>Fornitori condivisi tra società: le sezioni</h3>
+    <p class="guide-lead">Un fornitore che lavora con più società del gruppo è <strong>un solo record</strong>, identificato dal <strong>codice SAGE</strong>. Il record è diviso in una sezione <strong>Comune</strong> e in una sezione per ogni società.</p>
+    <div class="g-grid">
+        <div class="g-tile"><strong><i class="fas fa-layer-group g-tile__ico"></i>Comune</strong>Anagrafica, contatti, zone di competenza, attributi operativi e i documenti/requisiti validi per tutte le società (es. DURC, visura, certificazioni). La modificano tutti gli Admin.</div>
+        <div class="g-tile"><strong><i class="fas fa-building g-tile__ico"></i>Sezione della società</strong>Qualifica e audit della società, conti Embyon, documenti contrattuali, requisiti, servizi, contratti e valutazioni di quella società. La modifica solo chi appartiene alla società.</div>
+    </div>
+    <ol class="g-steps">
+        <li>Dalla <a href="{% url 'admin:vendors_vendor_changelist' %}">lista Fornitori</a> il click sul fornitore apre la <strong>scelta della sezione</strong>: una card per la Comune e una per ogni società, con stato di qualifica, valutazione e conti Embyon.</li>
+        <li>Ogni card indica se la sezione è <span class="g-badge g-b-green">Modificabile</span> o in <span class="g-badge g-b-grey">Sola lettura</span>. La tua società arriva dal login aziendale (attributo <em>company</em> di Active Directory).</li>
+        <li>Nella scheda la barra in alto mostra la sezione aperta e permette di passare alle altre; <em>Tutte le sezioni</em> torna alla scelta.</li>
+        <li>Se il fornitore lavora anche con la tua società ma la sezione manca, usa <strong>Aggiungi sezione</strong> in fondo alla scelta.</li>
+    </ol>
+    <div class="g-callout g-warn"><i class="fas fa-exclamation-triangle"></i><div><p><strong>Documento già caricato da un'altra società.</strong> Quando scegli il tipo di un documento o requisito già presente in un'altra sezione dello stesso fornitore, una finestra ti avvisa (con società, stato e scadenza): puoi <em>Annullare</em> o <em>Procedere comunque</em>. Se il tipo è <em>comune</em> a tutte le società, la finestra ti suggerisce di caricarlo nella sezione Comune.</p></div></div>
+    <div class="g-callout g-info"><i class="fas fa-info-circle"></i><div><p>I fornitori senza società (es. vecchi import con codice provvisorio) hanno solo la sezione Comune, con la qualifica come prima.</p></div></div>
 </section>
 
 <section class="guide-section" id="ga-scheda" data-title="La scheda fornitore" data-icon="fa-id-card">
@@ -35,22 +53,22 @@
     <div class="g-table-wrap"><table class="g-table">
         <thead><tr><th>Tab</th><th>Cosa ci fai</th></tr></thead>
         <tbody>
-        <tr><td><strong>Informazioni Base</strong></td><td>Dati anagrafici, Codice Embyon e Società Embyon, classificazione principale e aggiuntive, zone di competenza, data prima fornitura, livello di rischio, <em>Attivo in Embyon</em>, utenti di gestione.</td></tr>
+        <tr><td><strong>Informazioni Base</strong></td><td>(Sezione Comune) Dati anagrafici, codice SAGE con la ricerca (lente), classificazione principale e aggiuntive, zone di competenza, data prima fornitura, livello di rischio, utenti di gestione. I conti Embyon sono nella tab Qualifica e Audit di ogni società.</td></tr>
         <tr><td><strong>Contatti</strong></td><td>Email, telefono, PEC, indirizzo, note operative (visibili ai colleghi) e il flag <em>Notifiche scadenze via email</em>.</td></tr>
         <tr><td><strong>Documenti Contrattuali</strong></td><td>Documenti richiesti al fornitore, con stato di validità e scadenze.</td></tr>
         <tr><td><strong>Contratti</strong></td><td>Dati dei contratti (numero, titolo, tipo, stato, date, importo). I file PDF vanno nei Documenti Contrattuali.</td></tr>
         <tr><td><strong>Servizi Erogati</strong></td><td>Servizi del fornitore, principale, prezzo orario, date, note.</td></tr>
         <tr><td><strong>Abilitazioni e Requisiti Professionali</strong></td><td>Competenze, qualifiche, iscrizioni, certificazioni con numero e scadenze.</td></tr>
-        <tr><td><strong>Qualifica e Audit</strong></td><td>Stato qualifica, valutazione finale, punteggio, date di qualifica e audit.</td></tr>
+        <tr><td><strong>Qualifica e Audit</strong></td><td>(Sezione della società) Stato qualifica, valutazione finale, elementi che bloccano la qualifica, conti Embyon, punteggio, date di qualifica e audit.</td></tr>
         <tr><td><strong>Valutazioni</strong></td><td>Valutazioni del fornitore.</td></tr>
-        <tr><td><strong>Attributi Operativi</strong></td><td>Solo per i subappaltatori: mezzi, costi, disponibilità, settori. Li compila il fornitore dal portale.</td></tr>
-        <tr><td><strong>Tecnici</strong></td><td>Solo per i subappaltatori: tecnici del fornitore con mansione e badge. Ogni tecnico ha i suoi documenti con scadenza, validati o respinti dal back office nella pagina del tecnico. Anche l'admin può inserirli.</td></tr>
-        <tr><td><strong>Mezzi/dotazioni</strong></td><td>Solo per i subappaltatori: mezzi e attrezzature con targa, matricola e strumento. Ogni mezzo ha i suoi documenti con scadenza (libretto, assicurazione, leasing, taratura), validati o respinti nella pagina del mezzo.</td></tr>
+        <tr><td><strong>Attributi Operativi</strong></td><td>Solo per i subappaltatori (classificazione Subappaltatore tra quelle del fornitore), nella sezione <strong>Sicura</strong> (nella Comune per i fornitori senza società): mezzi, costi, disponibilità, settori. Li compila il fornitore dal portale.</td></tr>
+        <tr><td><strong>Tecnici</strong></td><td>Solo per i subappaltatori (classificazione Subappaltatore tra quelle del fornitore), nella sezione <strong>Sicura</strong> (nella Comune per i fornitori senza società): tecnici del fornitore con mansione e badge. Ogni tecnico ha i suoi documenti con scadenza, validati o respinti dal back office nella pagina del tecnico. Anche l'admin può inserirli.</td></tr>
+        <tr><td><strong>Mezzi/dotazioni</strong></td><td>Solo per i subappaltatori (classificazione Subappaltatore tra quelle del fornitore), nella sezione <strong>Sicura</strong> (nella Comune per i fornitori senza società): mezzi e attrezzature con targa, matricola e strumento. Ogni mezzo ha i suoi documenti con scadenza (libretto, assicurazione, leasing, taratura), validati o respinti nella pagina del mezzo.</td></tr>
         </tbody></table></div>
     <h4>Informazioni Base: cosa sapere</h4>
     <ul>
-        <li><strong>Ricerca Embyon:</strong> il pulsante apre la ricerca per nome (min. 3 caratteri), codice Embyon, P.IVA o C.F. e precompila il form. Si usa un solo criterio per volta.</li>
-        <li><strong>Duplicati:</strong> Codice Embyon e Codice Fiscale già presenti bloccano il salvataggio (con link al fornitore esistente); la P.IVA duplicata è solo un avviso.</li>
+        <li><strong>Ricerca fornitore (lente):</strong> il pulsante è accanto al <em>Codice SAGE</em>, nella sezione Comune e nel form di creazione. Cerca per ragione sociale (min. 3 caratteri), codice Embyon, codice SAGE, P.IVA o C.F. (un criterio per volta) e mostra le società e i conti Embyon del fornitore. Se il fornitore è <strong>già censito</strong> non se ne crea un altro: il pulsante apre quello esistente aggiungendo, se manca, la sezione della tua società. Altrimenti <em>Seleziona</em> precompila il form: al salvataggio nascono la sezione Comune e quella della società scelta. Su un fornitore esistente senza codice SAGE, <em>Collega a questo fornitore</em> gli assegna il codice.</li>
+        <li><strong>Duplicati:</strong> codice SAGE, Codice Embyon e Codice Fiscale già presenti bloccano il salvataggio (con link al fornitore esistente); la P.IVA duplicata è solo un avviso. In creazione, inserendo P.IVA o C.F. di un fornitore già censito con un altro codice per un'altra società, un avviso ti porta al fornitore esistente per aggiungere la tua sezione.</li>
         <li><strong>Classificazione:</strong> una principale più eventuali aggiuntive (es. subappaltatore + centro di formazione). La principale non può essere anche aggiuntiva.</li>
         <li><strong>Utenti di gestione:</strong> un primario e dei secondari, con email del dominio aziendale. Sono i referenti che il fornitore vede e quelli per cui il back office mostra gli "aggiornamenti dei tuoi fornitori".</li>
         <li><strong>Data prima fornitura:</strong> campo facoltativo, manuale.</li>
@@ -114,6 +132,7 @@
         <span class="g-badge g-b-green">Approvato</span>
         <span class="g-arrow">&nbsp;&nbsp;oppure&nbsp;&nbsp;</span><span class="g-badge g-b-red">Respinto</span>
     </div>
+    <p><strong>La qualifica è per società:</strong> si gestisce nella tab <em>Qualifica e Audit</em> della sezione della società e considera i documenti e requisiti obbligatori della sezione Comune più quelli della società. Lo stesso fornitore può essere Approvato per una società e In attesa per un'altra.</p>
     <ul>
         <li>Ogni nuovo fornitore parte da <span class="g-badge g-b-grey">In attesa</span>.</li>
         <li>Quando il fornitore ha consegnato tutti i documenti e requisiti <strong>obbligatori</strong>, passa in automatico a <span class="g-badge g-b-yellow">Da revisionare</span>.</li>
@@ -130,18 +149,18 @@
         <tr><td>Approvato</td><td><span class="g-badge g-b-green">Positivo</span></td><td><span class="g-badge g-b-red">Negativo</span></td></tr>
         <tr><td>Respinto</td><td><span class="g-badge g-b-red">Negativo</span></td><td><span class="g-badge g-b-red">Negativo</span></td></tr>
         </tbody></table></div>
-    <p>In sintesi: Embyon non attivo o qualifica respinta &rarr; <strong>Negativo</strong>; approvato e attivo &rarr; <strong>Positivo</strong>; negli altri casi <strong>Da valutare</strong>. Solo un fornitore <em>Positivo</em> è utilizzabile per ordini.</p>
+    <p>In sintesi: Embyon non attivo o qualifica respinta &rarr; <strong>Negativo</strong>; approvato e attivo &rarr; <strong>Positivo</strong>; negli altri casi <strong>Da valutare</strong>. Solo un fornitore <em>Positivo</em> è utilizzabile per ordini. <em>Attivo in Embyon</em> è quello della società (dai suoi conti Embyon, aggiornati ogni mattina alle 6:00).</p>
 </section>
 
 <section class="guide-section" id="ga-azioni" data-title="Azioni massive e filtri" data-icon="fa-tasks">
     <h3><i class="fas fa-tasks"></i>Lista fornitori: filtri e azioni massive</h3>
     <p>Seleziona uno o più fornitori nella <a href="{% url 'admin:vendors_vendor_changelist' %}">lista</a> e scegli l'azione dal menu in alto.</p>
     <div class="g-grid">
-        <div class="g-tile"><strong>Approva fornitori selezionati</strong>Controlla i blocchi (obbligatori mancanti, non approvati o scaduti). Chi ne ha viene saltato con l'elenco di cosa manca; gli altri passano ad Approvato.</div>
-        <div class="g-tile"><strong>Respingi fornitori selezionati</strong>Imposta Respinto, data qualifica a oggi e valutazione Negativo.</div>
+        <div class="g-tile"><strong>Approva fornitori selezionati</strong>Agisce sulla sezione della tua società. Controlla i blocchi (obbligatori mancanti, non approvati o scaduti). Chi ne ha viene saltato con l'elenco di cosa manca; gli altri passano ad Approvato.</div>
+        <div class="g-tile"><strong>Respingi fornitori selezionati</strong>Sulla sezione della tua società: imposta Respinto, data qualifica a oggi e valutazione Negativo.</div>
         <div class="g-tile"><strong>Programma audit (30 giorni)</strong>Fissa il prossimo audit a 30 giorni da oggi.</div>
     </div>
-    <p><strong>Filtri disponibili:</strong> stato qualifica, attivo, classificazione, tipo, valutazione finale, società Embyon, attivo in Embyon, utenti di gestione, zone di competenza.</p>
+    <p><strong>Filtri disponibili:</strong> stato qualifica, attivo, classificazione, tipo, valutazione finale, società (sezioni del fornitore), attivo in Embyon, utenti di gestione, zone di competenza. La colonna <em>Sezioni società</em> mostra lo stato di qualifica per ogni società; la ricerca trova anche codice SAGE e conti Embyon.</p>
 </section>
 
 <section class="guide-section" id="ga-scadenze" data-title="Scadenze e promemoria" data-icon="fa-bell">
@@ -149,7 +168,7 @@
     <ul>
         <li>Ogni mattina (7:00) il sistema scrive ai fornitori <strong>attivi</strong>, con email e flag <em>Notifiche scadenze via email</em> acceso.</li>
         <li><strong>Primo promemoria</strong> quando mancano i giorni di preavviso del tipo (default 30); <strong>ultimo avviso</strong> a 7 giorni dalla scadenza.</li>
-        <li>Riguarda solo documenti approvati e requisiti con rinnovo; una sola email al giorno per fornitore, con tutti gli elementi.</li>
+        <li>Riguarda solo documenti approvati e requisiti con rinnovo; una sola email al giorno per fornitore, con tutti gli elementi. Gli elementi della sezione di una società riportano tra parentesi la società.</li>
         <li>In test e in locale le email possono essere dirottate su un indirizzo interno: l'oggetto riporta <em>[REDIRECT]</em>.</li>
     </ul>
 </section>
@@ -161,9 +180,10 @@
         <tbody>
         <tr><td><strong>Admin</strong></td><td>Tutto /admin/, dashboard e back office.</td></tr>
         <tr><td><strong>BO User</strong></td><td>Dashboard fornitori e back office: revisiona documenti, requisiti, richieste. Non accede a /admin/.</td></tr>
-        <tr><td><strong>Buyer</strong></td><td>Solo dashboard fornitori in sola lettura; può creare fornitori prospetto.</td></tr>
+        <tr><td><strong>Buyer</strong></td><td>Solo dashboard fornitori in sola lettura; può creare fornitori potenziali.</td></tr>
         <tr><td><strong>Fornitore</strong></td><td>Solo il proprio portale.</td></tr>
         </tbody></table></div>
+    <p>La <strong>società</strong> dell'utente arriva a ogni login dall'attributo <em>company</em> di Active Directory e decide quale sezione società dei fornitori può modificare (o rivedere, per il BO). Se il valore AD non è riconosciuto, aggiungilo agli <em>Alias LDAP</em> della società nella tabella <strong>Società</strong>; per gli utenti non LDAP si imposta a mano nella scheda utente.</p>
     <div class="g-callout g-info"><i class="fas fa-info-circle"></i><div><p>Il <strong>ruolo</strong> di un utente lo assegna o cambia solo un <em>superuser</em>: un Admin non lo vede nel form e non crea utenti da /admin/. L'utenza di un fornitore si crea dalla scheda con <em>Crea accesso portale</em>.</p></div></div>
 </section>
 
@@ -172,8 +192,9 @@
     <p>Dal menu laterale gestisci le tabelle che alimentano i menu a tendina e i set:</p>
     <ul>
         <li><strong>Classificazioni</strong> e <strong>Tipologie e Servizi</strong>: base dei set di servizi.</li>
-        <li><strong>Tipi di documento</strong> e <strong>set documentali</strong>: obbligatorietà, validità in giorni, preavviso di scadenza.</li>
-        <li><strong>Abilitazioni e requisiti</strong> e relativi set: obbligatorietà e rinnovo.</li>
+        <li><strong>Tipi di documento</strong> e <strong>set documentali</strong>: obbligatorietà, validità in giorni, preavviso di scadenza e <strong>ambito</strong> (<em>comune a tutte le società</em> o <em>specifico della società</em>).</li>
+        <li><strong>Abilitazioni e requisiti</strong> e relativi set: obbligatorietà, rinnovo e ambito.</li>
+        <li><strong>Società</strong>: società del gruppo e alias LDAP con cui riconoscere la società degli utenti.</li>
         <li><strong>Titoli di studio / tipi di qualifica</strong>, <strong>Nazioni, Regioni, Province</strong> (zone di competenza), <strong>Indirizzi</strong>.</li>
         <li><strong>Criteri e Frequenze di valutazione</strong>, <strong>Valutatori</strong>.</li>
         <li><strong>Promemoria scadenza inviati</strong>: registro in sola lettura di quanto spedito.</li>

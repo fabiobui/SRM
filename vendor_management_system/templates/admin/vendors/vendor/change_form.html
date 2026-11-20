@@ -1,6 +1,26 @@
 {% extends "admin/change_form.html" %}
 {% load admin_urls %}
 
+{# Barra delle sezioni del fornitore (Comune + società) sopra la scheda #}
+{% block content %}
+  {% if original and current_section %}
+    <div id="vendor-section-bar" class="col-12 d-flex flex-wrap align-items-center mb-2" style="gap:.4rem;">
+      <span class="text-muted small mr-1">Sezione:</span>
+      {% for company in vendor_sections %}
+        <a class="btn btn-sm {% if company.code == current_section.code %}btn-primary{% else %}btn-outline-primary{% endif %}"
+           href="?{{ section_param }}={{ company.code }}">{{ company.label }}</a>
+      {% endfor %}
+      <a class="btn btn-sm btn-link" href="{{ sections_url }}"><i class="fas fa-th-large"></i> Tutte le sezioni</a>
+      {% if section_editable %}
+        <span class="badge badge-success">Modificabile</span>
+      {% else %}
+        <span class="badge badge-secondary" id="section-readonly-badge">Sola lettura: sezione di un'altra società</span>
+      {% endif %}
+    </div>
+  {% endif %}
+  {{ block.super }}
+{% endblock %}
+
 {# Pulsante "Crea/Gestisci accesso portale" sulla scheda fornitore #}
 {% block extra_actions %}
   {{ block.super }}

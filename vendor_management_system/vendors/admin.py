@@ -2,6 +2,7 @@
 
 # Imports (aggiorna le imports esistenti)
 import io
+import json
 import os
 import re
 import zipfile
@@ -9,7 +10,8 @@ import zipfile
 from django import forms
 from django.conf import settings
 from django.contrib import admin, messages
-from django.contrib.admin.utils import quote, unquote
+from django.contrib.admin.options import IS_POPUP_VAR
+from django.contrib.admin.utils import unquote
 from django.core.exceptions import PermissionDenied
 from django.db.models import Q, TextField
 from django.forms import modelform_factory
@@ -23,7 +25,8 @@ from django.shortcuts import redirect
 from django.template.response import TemplateResponse
 from django.urls import path, reverse
 from django.utils import timezone
-from django.utils.html import format_html
+from django.utils.html import format_html, format_html_join
+from django.utils.safestring import mark_safe
 from django.utils.translation import gettext_lazy as _
 from import_export import resources
 from import_export.admin import ImportExportModelAdmin
@@ -55,13 +58,29 @@ from .admin_filters import (
     CompetenceProvinceFilter,
     CompetenceRegionFilter,
 )
+from .admin_sections import (
+    FINAL_EVALUATION_COLORS,
+    STATUS_COLORS,
+    SectionChangeList,
+    SectionEditableMixin,
+    SectionInlineMixin,
+    VendorCompanyInline,
+    current_section,
+    section_badges,
+    section_editable,
+    section_url,
+    sections_url,
+    user_can_add_section,
+)
 from .competence import (
     current_selection,
     set_vendor_competence,
 )
 from .models import (
+    COMMON_SECTION,
     Address,
     Category,
+    Company,
     Competence,
     CompetenceSet,
     Contract,
@@ -82,6 +101,16 @@ from .models import (
     VendorService,
     oggi_locale,
     vendor_category_scope_ids,
+)
+from .sections import (
+    SECTION_PARAM,
+    can_edit_section,
+    create_section_with_accounts,
+    duplicates_in_other_sections,
+    find_registered_vendor,
+    resolve_section,
+    subcontractor_section,
+    vendor_sections,
 )
 from .widgets import CompetenceAreaField
 
@@ -302,7 +331,7 @@ class CompetenceAdmin(ImportExportModelAdmin):
 
 
 # VendorCompetence Inline
-class VendorCompetenceInline(admin.TabularInline):
+class VendorCompetenceInline(SectionInlineMixin, admin.TabularInline):
     model = VendorCompetence
     extra = 1
     template = "admin/vendors/inline/abilitazioni.html"
@@ -357,7 +386,7 @@ class VendorCompetenceInline(admin.TabularInline):
 
 
 # VendorService Inline
-class VendorServiceInline(admin.TabularInline):
+class VendorServiceInline(SectionInlineMixin, admin.TabularInline):
     model = VendorService
     extra = 1
     fields = [
@@ -393,9 +422,16 @@ class VendorServiceInline(admin.TabularInline):
             if hasattr(request, "_obj_") and request._obj_:
                 vendor_id = request._obj_.vendor_code
             if vendor_id:
-                kwargs["queryset"] = Contract.objects.filter(
+                contracts = Contract.objects.filter(
                     vendor__vendor_code=vendor_id
                 )
+                # Contratti della sezione aperta o della Comune.
+                section = current_section(request)
+                if section is not None:
+                    contracts = contracts.filter(
+                        company_id__in=[COMMON_SECTION, section.code]
+                    )
+                kwargs["queryset"] = contracts
             else:
                 kwargs["queryset"] = Contract.objects.none()
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
@@ -552,7 +588,7 @@ class VendorCompetenceAdmin(admin.ModelAdmin):
 
 
 # Document Inline
-class DocumentInline(admin.TabularInline):
+class DocumentInline(SectionInlineMixin, admin.TabularInline):
     model = Document
     extra = 1
     template = "admin/vendors/inline/documenti.html"
@@ -745,7 +781,7 @@ class ExpiryReminderLogAdmin(admin.ModelAdmin):
 
 
 # VendorEvaluation Inline
-class VendorEvaluationInline(admin.TabularInline):
+class VendorEvaluationInline(SectionInlineMixin, admin.TabularInline):
     model = VendorEvaluation
     extra = 1
     fields = [
@@ -817,7 +853,7 @@ class VendorEvaluationAdmin(admin.ModelAdmin):
 
 
 # Contract Inline
-class ContractInline(admin.StackedInline):
+class ContractInline(SectionInlineMixin, admin.StackedInline):
     model = Contract
     extra = 0
     fields = [
@@ -964,7 +1000,9 @@ class VendorOperationalAttributesInlineForm(forms.ModelForm):
         }
 
 
-class VendorOperationalAttributesInline(admin.StackedInline):
+class VendorOperationalAttributesInline(
+    SectionEditableMixin, admin.StackedInline
+):
     model = VendorOperationalAttributes
     form = VendorOperationalAttributesInlineForm
     verbose_name = _("Attributi Operativi")
@@ -1059,6 +1097,19 @@ class VendorAdminForm(forms.ModelForm):
         ),
     )
 
+    # Solo in creazione: società della prima sezione (oltre alla Comune) e
+    # conti Embyon scelti dalla ricerca "lente" (JSON).
+    initial_company = forms.ModelChoiceField(
+        label=_("Società"),
+        queryset=Company.objects.real().filter(is_active=True),
+        required=False,
+        help_text=_(
+            "Società per cui si censisce il fornitore: oltre alla sezione "
+            "Comune viene creata la sezione di questa società."
+        ),
+    )
+    sage_accounts = forms.CharField(required=False, widget=forms.HiddenInput)
+
     class Meta:
         model = Vendor
         # I due M2M territoriali sono esclusi perche' li gestisce il campo
@@ -1077,6 +1128,10 @@ class VendorAdminForm(forms.ModelForm):
         # Hook corretto per l'admin: `save(commit=False)` + `save_model()`
         # + `save_related()` finiscono qui passando da `form.save_m2m()`.
         super()._save_m2m()
+        # Le zone si modificano solo nella sezione Comune: altrove il campo
+        # non è mostrato e azzererebbe la selezione.
+        if getattr(self, "section_code", COMMON_SECTION) != COMMON_SECTION:
+            return
         selezione = self.cleaned_data.get("competence_areas") or {}
         set_vendor_competence(
             self.instance,
@@ -1125,7 +1180,6 @@ class VendorAdminForm(forms.ModelForm):
         return cleaned
 
     def _duplicate_message(self, value, label, lookup):
-        from django.urls import reverse
 
         if not value:
             return None
@@ -1156,6 +1210,40 @@ class VendorAdminForm(forms.ModelForm):
         value = self.cleaned_data.get("old_code")
         return self._check_duplicate(value, _("Codice Embyon"), "old_code")
 
+    def clean_sage_code(self):
+        value = (self.cleaned_data.get("sage_code") or "").strip() or None
+        if not value:
+            return value
+        other = Vendor.objects.filter(sage_code=value)
+        if self.instance.pk:
+            other = other.exclude(pk=self.instance.pk)
+        other = other.first()
+        if other:
+            # Fornitore già censito: non si crea un doppione, si aggiunge
+            # la sezione della società dalla sua pagina sezioni.
+            raise forms.ValidationError(
+                format_html(
+                    "Fornitore già censito con codice SAGE {}: "
+                    "<strong>{}</strong>. "
+                    '<a href="{}">Apri il fornitore e aggiungi la sezione '
+                    "della tua società</a>.",
+                    value,
+                    other.name or other.vendor_code,
+                    sections_url(other.pk),
+                )
+            )
+        return value
+
+    def clean_sage_accounts(self):
+        raw = self.cleaned_data.get("sage_accounts") or ""
+        if not raw:
+            return []
+        try:
+            data = json.loads(raw)
+        except ValueError:
+            return []
+        return [row for row in data if isinstance(row, dict)]
+
     def clean_vat_number(self):
         value = self.cleaned_data.get("vat_number")
         if value:
@@ -1176,14 +1264,54 @@ class VendorAdminForm(forms.ModelForm):
         )
 
 
+@admin.register(Company)
+class CompanyAdmin(admin.ModelAdmin):
+    """Società del gruppo: alias LDAP per riconoscere la società degli
+    utenti. La riga "Comune" è la sezione condivisa dei fornitori."""
+
+    list_display = [
+        "code",
+        "label",
+        "sage_company",
+        "ldap_aliases",
+        "is_active",
+    ]
+    readonly_fields = ["code", "is_common"]
+    fields = [
+        "code",
+        "label",
+        "is_common",
+        "sage_company",
+        "embyon_company",
+        "ldap_aliases",
+        "sort_order",
+        "is_active",
+    ]
+
+    def has_add_permission(self, request):
+        return request.user.is_superuser
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+class SectionTechnicianInline(SectionEditableMixin, TechnicianInline):
+    pass
+
+
+class SectionEquipmentInline(SectionEditableMixin, EquipmentInline):
+    pass
+
+
 # Vendor Admin (Enhanced)
 @admin.register(Vendor)
 class VendorAdmin(admin.ModelAdmin):
     form = VendorAdminForm
     list_display = [
         "vendor_code",
+        "sage_code",
         "old_code",
-        "embyon_company",
+        "sections_display",
         "name",
         "category",
         "qualification_status",
@@ -1197,7 +1325,7 @@ class VendorAdmin(admin.ModelAdmin):
         "category",
         "vendor_type",
         "vendor_final_evaluation",
-        "embyon_company",
+        ("company_sections__company", admin.RelatedOnlyFieldListFilter),
         "embyon_active",
         "managed_by",
         "secondary_managers",
@@ -1213,12 +1341,19 @@ class VendorAdmin(admin.ModelAdmin):
     list_select_related = ("category", "managed_by")
 
     def get_queryset(self, request):
-        # Per la colonna "Portale attivato" (evita una query per riga).
-        return super().get_queryset(request).prefetch_related("users")
+        # Per le colonne "Portale attivato" e "Sezioni" (evita una query
+        # per riga).
+        return (
+            super()
+            .get_queryset(request)
+            .prefetch_related("users", "company_sections__company")
+        )
 
     search_fields = [
         "vendor_code",
+        "sage_code",
         "old_code",
+        "company_sections__accounts__account_code",
         "name",
         "vat_number",
         "fiscal_code",
@@ -1226,6 +1361,7 @@ class VendorAdmin(admin.ModelAdmin):
     ]
     readonly_fields = [
         "vendor_code",
+        "accounts_summary",
         "final_evaluation_badge",
         "is_qualified",
         "audit_overdue",
@@ -1250,14 +1386,15 @@ class VendorAdmin(admin.ModelAdmin):
         "secondary_managers",
     ]
     inlines = [
+        VendorCompanyInline,
         VendorServiceInline,
         VendorCompetenceInline,
         DocumentInline,
         ContractInline,
         VendorEvaluationInline,
         VendorOperationalAttributesInline,
-        TechnicianInline,
-        EquipmentInline,
+        SectionTechnicianInline,
+        SectionEquipmentInline,
     ]
     # Questa tupla definisce l'ordine dei tab
     jazzmin_section_order = (
@@ -1274,12 +1411,41 @@ class VendorAdmin(admin.ModelAdmin):
         _("Mezzi/dotazioni"),
     )
 
+    def get_changelist(self, request, **kwargs):
+        return SectionChangeList
+
+    def _initial_company(self, request, form):
+        """Società della prima sezione di un fornitore nuovo: per chi ha una
+        società è sempre la sua."""
+        user = getattr(request, "user", None)
+        user_company = getattr(user, "company", None)
+        if user_company and not user.is_superuser:
+            return user_company
+        chosen = form.cleaned_data.get("initial_company") if form else None
+        return chosen or user_company
+
     def save_model(self, request, obj, form, change):
         # Un fornitore nuovo parte sempre "In attesa", qualunque valore
         # sia stato scelto nel form.
+        company = None
         if not change:
             obj.qualification_status = "PENDING"
+            # Chi censisce il fornitore ne diventa il primo utente di
+            # gestione, se non ne è già stato indicato uno.
+            user = getattr(request, "user", None)
+            if not obj.managed_by_id and getattr(user, "role", None) in (
+                "admin",
+                "bo_user",
+                "buyer",
+            ):
+                obj.managed_by = user
+            company = self._initial_company(request, form)
+            if company is not None:
+                obj.embyon_company = company.embyon_company or None
         super().save_model(request, obj, form, change)
+        if company is not None:
+            accounts = form.cleaned_data.get("sage_accounts") if form else []
+            create_section_with_accounts(obj, company, accounts or [])
         warning = getattr(form, "vat_duplicate_warning", None)
         if warning:
             self.message_user(request, warning, messages.WARNING)
@@ -1301,23 +1467,99 @@ class VendorAdmin(admin.ModelAdmin):
     def get_form(self, request, obj=None, **kwargs):
         # Salva l'oggetto corrente per usarlo negli inline
         request._obj_ = obj
-        return super().get_form(request, obj, **kwargs)
+        form = super().get_form(request, obj, **kwargs)
+        section = current_section(request)
+        form.section_code = section.code if section else COMMON_SECTION
+        company = getattr(request.user, "company", None)
+        if obj is None and company and not request.user.is_superuser:
+            # Chi ha una società censisce i fornitori per la sua società.
+            base_init = form.__init__
+
+            def __init__(self, *args, **kw):
+                base_init(self, *args, **kw)
+                field = self.fields["initial_company"]
+                field.initial = company.pk
+                field.disabled = True
+
+            form = type(form.__name__, (form,), {"__init__": __init__})
+        return form
+
+    def _company_section_open(self, request):
+        section = current_section(request)
+        return section is not None and not section.is_common
+
+    def has_change_permission(self, request, obj=None):
+        # Sezione di un'altra società: tutta la scheda in sola lettura.
+        if obj is not None and not section_editable(request):
+            return False
+        return super().has_change_permission(request, obj)
+
+    def has_delete_permission(self, request, obj=None):
+        if obj is not None and not section_editable(request):
+            return False
+        return super().has_delete_permission(request, obj)
+
+    def get_fieldsets(self, request, obj=None):
+        if obj is None:
+            base, contacts = self.fieldsets[0], self.fieldsets[1]
+            fields = ("initial_company", "sage_accounts", *base[1]["fields"])
+            return ((base[0], {"fields": fields}), contacts)
+        if self._company_section_open(request):
+            return (
+                (
+                    _("Informazioni Base"),
+                    {
+                        "fields": (
+                            "vendor_code",
+                            "sage_code",
+                            "name",
+                            "vat_number",
+                            "fiscal_code",
+                        )
+                    },
+                ),
+            )
+        if obj.has_company_sections:
+            # La qualifica si gestisce nelle sezioni delle società.
+            return self.fieldsets[:2]
+        return self.fieldsets
+
+    def get_readonly_fields(self, request, obj=None):
+        fields = list(super().get_readonly_fields(request, obj))
+        if obj is not None and not request.user.is_superuser:
+            fields.append("sage_code")
+        if obj is not None and self._company_section_open(request):
+            fields += ["sage_code", "name", "vat_number", "fiscal_code"]
+        return fields
 
     def get_inline_instances(self, request, obj=None):
-        # Attributi operativi, tecnici e mezzi riguardano solo i subappaltatori
-        # (classificazione principale o aggiuntiva "SUBAPPALTATORE").
+        # In creazione niente inline: dopo il salvataggio si sceglie la
+        # sezione. Nella sezione di una società: qualifica della società più
+        # gli elementi della sezione; nella Comune gli elementi comuni.
+        # Attributi operativi, tecnici e mezzi solo per i subappaltatori e
+        # solo nella sezione Sicura (Comune per i fornitori senza società).
+        if obj is None:
+            return []
         instances = super().get_inline_instances(request, obj)
-        if obj is not None and obj.is_subappaltatore:
-            return instances
         subcontractor_inlines = (
             VendorOperationalAttributesInline,
-            TechnicianInline,
-            EquipmentInline,
+            SectionTechnicianInline,
+            SectionEquipmentInline,
         )
+        section = current_section(request)
+        code = section.code if section else COMMON_SECTION
+        show_subcontractor = (
+            obj.is_subappaltatore and subcontractor_section(obj) == code
+        )
+        excluded = (
+            ()
+            if self._company_section_open(request)
+            else (VendorCompanyInline,)
+        )
+        if not show_subcontractor:
+            excluded += subcontractor_inlines
         return [
-            inline
-            for inline in instances
-            if not isinstance(inline, subcontractor_inlines)
+            inline for inline in instances if not isinstance(inline, excluded)
         ]
 
     def get_urls(self):
@@ -1364,6 +1606,26 @@ class VendorAdmin(admin.ModelAdmin):
                 name="vendors_vendor_duplicate_check",
             ),
             path(
+                "link-sage/",
+                self.admin_site.admin_view(self.link_sage_view),
+                name="vendors_vendor_link_sage",
+            ),
+            path(
+                "<path:object_id>/sezioni/",
+                self.admin_site.admin_view(self.sections_view),
+                name="vendors_vendor_sections",
+            ),
+            path(
+                "<path:object_id>/sezioni/aggiungi/",
+                self.admin_site.admin_view(self.add_section_view),
+                name="vendors_vendor_add_section",
+            ),
+            path(
+                "<path:object_id>/duplicati-sezione/",
+                self.admin_site.admin_view(self.section_duplicates_view),
+                name="vendors_vendor_section_duplicates",
+            ),
+            path(
                 "<path:object_id>/salva-contratto/",
                 self.admin_site.admin_view(self.contract_quick_save_view),
                 name="vendors_vendor_contract_save",
@@ -1393,8 +1655,199 @@ class VendorAdmin(admin.ModelAdmin):
         extra_context["show_save_and_continue"] = False
         obj = self.get_object(request, unquote(object_id))
         if obj is not None:
-            extra_context["has_portal_users"] = portal_users(obj).exists()
+            code = request.GET.get(SECTION_PARAM, "")
+            if not code:
+                if request.method == "GET" and IS_POPUP_VAR not in request.GET:
+                    return redirect(sections_url(obj.pk))
+                code = COMMON_SECTION
+            section = resolve_section(obj, code)
+            if section is None:
+                raise Http404(_("Sezione non presente per questo fornitore"))
+            request._section_ = section
+            request._section_editable_ = can_edit_section(
+                request.user, section.code
+            )
+            extra_context.update(
+                {
+                    "has_portal_users": portal_users(obj).exists(),
+                    "current_section": section,
+                    "section_editable": request._section_editable_,
+                    "sections_url": sections_url(obj.pk),
+                    "vendor_sections": vendor_sections(obj),
+                    "section_param": SECTION_PARAM,
+                }
+            )
         return super().change_view(request, object_id, form_url, extra_context)
+
+    def sections_view(self, request, object_id):
+        """Pagina di scelta della sezione del fornitore: Comune e una card
+        per ogni società, con stato di qualifica e permessi dell'utente."""
+        vendor = self.get_object(request, unquote(object_id))
+        if vendor is None:
+            raise Http404
+        if not self.has_view_permission(request, vendor):
+            raise PermissionDenied
+        sections = list(
+            vendor.company_sections.select_related("company").prefetch_related(
+                "accounts"
+            )
+        )
+        user = request.user
+        cards = [
+            {
+                "code": COMMON_SECTION,
+                "label": _("Comune"),
+                "common": True,
+                "editable": can_edit_section(user, COMMON_SECTION),
+                "url": section_url(vendor.pk, COMMON_SECTION),
+            }
+        ]
+        for section in sections:
+            cards.append(
+                {
+                    "code": section.company_id,
+                    "label": section.company.label,
+                    "common": False,
+                    "editable": can_edit_section(user, section.company_id),
+                    "url": section_url(vendor.pk, section.company_id),
+                    "section": section,
+                    "accounts": section.account_codes(),
+                    "badge_class": STATUS_COLORS.get(
+                        section.qualification_status, "secondary"
+                    ),
+                    "final_color": FINAL_EVALUATION_COLORS.get(
+                        section.vendor_final_evaluation, "#6c757d"
+                    ),
+                }
+            )
+        present = {s.company_id for s in sections}
+        addable = [
+            company
+            for company in Company.objects.real().filter(is_active=True)
+            if company.code not in present
+            and can_edit_section(user, company.code)
+        ]
+        context = {
+            **self.admin_site.each_context(request),
+            "opts": self.model._meta,
+            "original": vendor,
+            "title": _("Scegli la sezione del fornitore"),
+            "cards": cards,
+            "addable": addable,
+            "user_company": getattr(user, "company", None),
+        }
+        return TemplateResponse(
+            request, "admin/vendors/vendor/section_select.html", context
+        )
+
+    def add_section_view(self, request, object_id):
+        """POST: aggiunge al fornitore la sezione di una società (di norma
+        quella dell'utente) e apre la nuova sezione."""
+        vendor = self.get_object(request, unquote(object_id))
+        if vendor is None:
+            raise Http404
+        if request.method != "POST":
+            return redirect(sections_url(vendor.pk))
+        code = (request.POST.get("company") or "").upper()
+        if not user_can_add_section(request.user, vendor, code):
+            raise PermissionDenied
+        company = Company.objects.get(pk=code)
+        create_section_with_accounts(vendor, company, [])
+        self.message_user(
+            request,
+            _("Sezione %(company)s aggiunta al fornitore.")
+            % {"company": company.label},
+            messages.SUCCESS,
+        )
+        return redirect(section_url(vendor.pk, code))
+
+    def section_duplicates_view(self, request, object_id):
+        """JSON: elementi dello stesso tipo già presenti in ALTRE sezioni del
+        fornitore (documento o requisito), per la modale di avviso prima del
+        caricamento. Non blocca nulla."""
+        vendor = self.get_object(request, unquote(object_id))
+        if vendor is None:
+            raise Http404
+        kind = request.GET.get("kind", "")
+        type_id = request.GET.get("type", "")
+        code = (request.GET.get(SECTION_PARAM) or COMMON_SECTION).upper()
+        if not type_id or kind not in ("document", "competence"):
+            return JsonResponse({"matches": [], "scope": None})
+        if kind == "document":
+            catalog = DocumentCatalog.objects.filter(pk=type_id).first()
+            qs = Document.objects.filter(vendor=vendor, document_type=catalog)
+        else:
+            catalog = Competence.objects.filter(pk=type_id).first()
+            qs = VendorCompetence.objects.filter(
+                vendor=vendor, competence=catalog
+            )
+        if catalog is None:
+            return JsonResponse({"matches": [], "scope": None})
+        matches = [
+            {
+                "company": item.company_id,
+                "label": item.company.label,
+                "status": item.get_status_display()
+                if kind == "document"
+                else VALIDITY_STATUS_META.get(
+                    item.validity_status, (item.validity_status,)
+                )[0],
+                "expiry": item.expiry_date.strftime("%d/%m/%Y")
+                if item.expiry_date
+                else "",
+            }
+            for item in duplicates_in_other_sections(qs, code)
+        ]
+        return JsonResponse(
+            {
+                "matches": matches,
+                "scope": catalog.scope,
+                "name": catalog.name,
+                "section": code,
+            }
+        )
+
+    def link_sage_view(self, request):
+        """POST dalla lente su un fornitore già censito: collega il codice
+        SAGE e aggiunge la sezione della società scelta (se l'utente può),
+        con i suoi conti. Non crea mai un fornitore nuovo."""
+        if request.method != "POST":
+            return JsonResponse({"error": "POST richiesto"}, status=405)
+        vendor = Vendor.objects.filter(
+            pk=request.POST.get("vendor", "")
+        ).first()
+        sage = (request.POST.get("sage_code") or "").strip()
+        code = (request.POST.get("company") or "").upper()
+        if vendor is None or not sage:
+            return JsonResponse({"error": "Dati mancanti"}, status=400)
+        if vendor.sage_code and vendor.sage_code != sage:
+            return JsonResponse(
+                {"error": "Il fornitore ha già un altro codice SAGE"},
+                status=409,
+            )
+        if not vendor.sage_code:
+            Vendor.objects.filter(pk=vendor.pk).update(sage_code=sage)
+        if code and user_can_add_section(request.user, vendor, code):
+            try:
+                accounts = json.loads(request.POST.get("accounts") or "[]")
+            except ValueError:
+                accounts = []
+            create_section_with_accounts(
+                vendor, Company.objects.get(pk=code), accounts
+            )
+            return JsonResponse({"url": section_url(vendor.pk, code)})
+        return JsonResponse({"url": sections_url(vendor.pk)})
+
+    def _keep_section_in_redirect(self, request, response):
+        section = current_section(request)
+        location = getattr(response, "url", None)
+        if section is None or not location or SECTION_PARAM in location:
+            return response
+        separator = "&" if "?" in location else "?"
+        response["Location"] = (
+            f"{location}{separator}{SECTION_PARAM}={section.code}"
+        )
+        return response
 
     def _salva_resta_sulla_scheda(self, request):
         # "Salva" si comporta come "Salva e continua": si resta sulla scheda
@@ -1406,16 +1859,24 @@ class VendorAdmin(admin.ModelAdmin):
 
     def response_add(self, request, obj, post_url_continue=None):
         self._salva_resta_sulla_scheda(request)
-        return super().response_add(request, obj, post_url_continue)
+        response = super().response_add(request, obj, post_url_continue)
+        if IS_POPUP_VAR in request.POST:
+            return response
+        # Fornitore creato: si sceglie la sezione su cui lavorare.
+        return redirect(sections_url(obj.pk))
 
     def response_change(self, request, obj):
         self._salva_resta_sulla_scheda(request)
-        return super().response_change(request, obj)
+        response = super().response_change(request, obj)
+        return self._keep_section_in_redirect(request, response)
 
-    def _zip_entries(self, vendor, section):
-        """File allegati alla sezione, come coppie (etichetta, FieldFile)."""
+    def _zip_entries(self, vendor, section, company=None):
+        """File allegati alla sezione, come coppie (etichetta, FieldFile).
+        Con `company` solo quelli di quella sezione del fornitore."""
         if section == "documenti":
             documents = vendor.documents.select_related("document_type")
+            if company:
+                documents = documents.filter(company_id=company)
             return [
                 (doc.document_type.name, doc.file)
                 for doc in documents.exclude(file="").exclude(
@@ -1426,6 +1887,8 @@ class VendorAdmin(admin.ModelAdmin):
             assignments = vendor.vendor_competences.select_related(
                 "competence"
             )
+            if company:
+                assignments = assignments.filter(company_id=company)
             return [
                 (assignment.competence.name, assignment.document_file)
                 for assignment in assignments.exclude(
@@ -1445,7 +1908,9 @@ class VendorAdmin(admin.ModelAdmin):
             raise Http404
         if not self.has_view_permission(request, vendor):
             raise PermissionDenied
-        entries = self._zip_entries(vendor, section)
+        entries = self._zip_entries(
+            vendor, section, request.GET.get(SECTION_PARAM, "").upper()
+        )
 
         buffer = io.BytesIO()
         unreadable = []
@@ -1469,9 +1934,8 @@ class VendorAdmin(admin.ModelAdmin):
                 + ", ".join(unreadable),
                 messages.ERROR,
             )
-            return redirect(
-                reverse("admin:vendors_vendor_change", args=[quote(vendor.pk)])
-            )
+            code = request.GET.get(SECTION_PARAM, "").upper()
+            return redirect(section_url(vendor.pk, code or COMMON_SECTION))
 
         response = HttpResponse(
             buffer.getvalue(), content_type="application/zip"
@@ -1496,9 +1960,8 @@ class VendorAdmin(admin.ModelAdmin):
         if not self.has_change_permission(request, vendor):
             raise PermissionDenied
         can_add_user = request.user.has_perm("users.add_user")
-        change_url = reverse(
-            "admin:vendors_vendor_change", args=[quote(vendor.pk)]
-        )
+        # L'accesso al portale riguarda l'anagrafica: si torna alla Comune.
+        change_url = section_url(vendor.pk, COMMON_SECTION)
 
         if request.method == "POST":
             action = request.POST.get("action")
@@ -1605,7 +2068,6 @@ class VendorAdmin(admin.ModelAdmin):
         fiscal_code), ``value`` e, in modifica, ``pk`` (Codice Fornitore
         corrente, escluso dal confronto).
         """
-        from django.urls import reverse
 
         field = request.GET.get("field", "").strip()
         value = request.GET.get("value", "").strip()
@@ -1613,6 +2075,7 @@ class VendorAdmin(admin.ModelAdmin):
 
         lookups = {
             "old_code": "old_code",
+            "sage_code": "sage_code",
             "vat_number": "vat_number__iexact",
             "fiscal_code": "fiscal_code__iexact",
         }
@@ -1623,37 +2086,68 @@ class VendorAdmin(admin.ModelAdmin):
         if current_pk:
             qs = qs.exclude(pk=current_pk)
         other = qs.first()
+        sage_code = ""
+        if (
+            not other
+            and not current_pk
+            and field in ("vat_number", "fiscal_code")
+        ):
+            other, sage_code = self._registered_by_sage(field, value)
         if not other:
             return JsonResponse({"duplicate": False})
 
         return JsonResponse(
             {
                 "duplicate": True,
+                "sage": bool(sage_code or field == "sage_code"),
+                "sage_code": sage_code or other.sage_code or "",
                 "vendor_code": other.pk,
                 "vendor_name": other.name or other.pk,
-                "change_url": reverse(
-                    "admin:vendors_vendor_change", args=[other.pk]
-                ),
+                "change_url": sections_url(other.pk),
             }
         )
 
+    def _registered_by_sage(self, field, value):
+        """Nuovo fornitore: P.IVA/C.F. -> codice SAGE (viste FABRIC_HUB) ->
+        fornitore già censito con quel codice o con un suo conto."""
+        criteria = {"vat": value} if field == "vat_number" else {}
+        if field == "fiscal_code":
+            criteria = {"fiscal_code": value}
+        try:
+            rows = fabric_hub.search_shared_suppliers(limit=5, **criteria)
+        except Exception:  # pragma: no cover - dipende dal servizio esterno
+            return None, ""
+        for row in rows:
+            vendor = find_registered_vendor(row)
+            if vendor:
+                return vendor, row["sage_code"]
+        return None, ""
+
     def embyon_search_view(self, request):
-        """Ricerca fornitori nell'anagrafica FABRIC_HUB (API ``Fornitori_CF``,
-        solo fornitori attivi; vedi ``fabric_hub.py``).
+        """Ricerca fornitori nelle viste FABRIC_HUB dei fornitori condivisi
+        (``v_suppliers`` / ``v_supplier_companies``, vedi ``fabric_hub.py``).
 
-        Usata dal modal "Ricerca fornitore Embyon" nel tab Informazioni Base.
-        Accetta come filtri (GET): old_code, vat_number, fiscal_code, name.
-        Restituisce le righe corrispondenti; ogni riga contiene sia i campi
-        mostrati in tabella sia quelli usati per popolare il form Vendor.
+        Usata dal modal "lente" nel tab Informazioni Base. Filtri (GET), uno
+        solo per volta: name, account_code (codice Embyon), sage_code,
+        vat_number, fiscal_code. Ogni risultato riporta i conti per società
+        e, se il fornitore è già censito (per codice SAGE o per conto), il
+        fornitore esistente: in quel caso non se ne crea un altro.
         """
-        old_code = request.GET.get("old_code", "").strip()
-        vat = request.GET.get("vat_number", "").strip()
-        cf = request.GET.get("fiscal_code", "").strip()
-        name = request.GET.get("name", "").strip()
-
-        # Criterio primario, mutuamente esclusivo. Priorità: ragione sociale,
-        # poi codice Embyon, partita IVA, codice fiscale.
-        if name and len(name) < 3:
+        params = {
+            key: request.GET.get(key, "").strip()
+            for key in (
+                "name",
+                "account_code",
+                "sage_code",
+                "vat_number",
+                "fiscal_code",
+            )
+        }
+        # Compatibilità con il vecchio parametro del codice Embyon.
+        params["account_code"] = params["account_code"] or (
+            request.GET.get("old_code", "").strip()
+        )
+        if params["name"] and len(params["name"]) < 3:
             return JsonResponse(
                 {
                     "results": [],
@@ -1665,38 +2159,60 @@ class VendorAdmin(admin.ModelAdmin):
                     ),
                 }
             )
-        if not (name or old_code or vat or cf):
+        if not any(params.values()):
             return JsonResponse(
                 {
                     "results": [],
                     "error": str(
                         _(
-                            "Imposta un criterio di ricerca: codice "
-                            "Embyon, partita IVA, "
-                            "codice fiscale o ragione sociale."
+                            "Imposta un criterio di ricerca: ragione sociale, "
+                            "codice Embyon, codice SAGE, partita IVA o codice "
+                            "fiscale."
                         )
                     ),
                 }
             )
 
         try:
-            results = fabric_hub.search_suppliers(
-                name=name, old_code=old_code, vat=vat, fiscal_code=cf
+            results = fabric_hub.search_shared_suppliers(
+                name=params["name"],
+                account_code=params["account_code"],
+                sage_code=params["sage_code"],
+                vat=params["vat_number"],
+                fiscal_code=params["fiscal_code"],
             )
         except Exception as exc:  # pragma: no cover - dipende dal DB esterno
             return JsonResponse(
                 {
                     "results": [],
-                    "error": str(_("Errore nella ricerca Embyon: %s")) % exc,
+                    "error": str(_("Errore nella ricerca fornitori: %s"))
+                    % exc,
                 },
                 status=500,
             )
 
-        # La vista contiene solo fornitori attivi; il flag segue lo stato.
         for row in results:
-            row["embyon_active"] = row["status"].lower() == "attivo"
-
-        return JsonResponse({"results": results})
+            vendor = find_registered_vendor(row)
+            row["existing_vendor"] = (
+                {
+                    "pk": vendor.pk,
+                    "name": vendor.name,
+                    "sections": list(
+                        vendor.company_sections.values_list(
+                            "company_id", flat=True
+                        )
+                    ),
+                }
+                if vendor
+                else None
+            )
+        return JsonResponse(
+            {
+                "results": results,
+                "user_company": getattr(request.user, "company_id", None)
+                or "",
+            }
+        )
 
     def extract_dates_view(self, request):
         """POST di un file → date di rilascio/scadenza lette con OCR, per
@@ -1715,9 +2231,12 @@ class VendorAdmin(admin.ModelAdmin):
         vendor = self.get_object(request, unquote(object_id))
         if vendor is None:
             return JsonResponse({"error": "Fornitore non trovato"}, status=404)
+        code = (request.GET.get(SECTION_PARAM) or COMMON_SECTION).upper()
         if not (
             self.has_change_permission(request, vendor)
             and request.user.has_perm("vendors.add_contract")
+            and resolve_section(vendor, code) is not None
+            and can_edit_section(request.user, code)
         ):
             return JsonResponse({"error": "Permesso negato"}, status=403)
         form = modelform_factory(Contract, fields=ContractInline.fields)(
@@ -1727,6 +2246,7 @@ class VendorAdmin(admin.ModelAdmin):
             return JsonResponse({"errors": form.errors}, status=400)
         contract = form.save(commit=False)
         contract.vendor = vendor
+        contract.company_id = code
         contract.save()
         return JsonResponse(
             {
@@ -1899,6 +2419,7 @@ class VendorAdmin(admin.ModelAdmin):
             "admin/js/ocr_dates_admin.js",
             "admin/js/embyon_search.js",
             "admin/js/vendor_duplicate_check.js",
+            "admin/js/section_duplicate_warning.js",
         )
         css = {
             "all": (
@@ -1914,9 +2435,7 @@ class VendorAdmin(admin.ModelAdmin):
             {
                 "fields": (
                     "vendor_code",
-                    "old_code",
-                    "embyon_company",
-                    "albo_excel_row",
+                    "sage_code",
                     ("managed_by", "secondary_managers"),
                     "name",
                     "vendor_type",
@@ -2006,6 +2525,24 @@ class VendorAdmin(admin.ModelAdmin):
     )
     final_evaluation_badge.admin_order_field = "vendor_final_evaluation"
 
+    @admin.display(description=_("Sezioni società"))
+    def sections_display(self, obj):
+        return section_badges(obj)
+
+    @admin.display(description=_("Conti Embyon per società"))
+    def accounts_summary(self, obj):
+        rows = [
+            (section.company.label, section.account_codes() or "-")
+            for section in obj.company_sections.select_related(
+                "company"
+            ).prefetch_related("accounts")
+        ]
+        if not rows:
+            return "-"
+        return format_html_join(
+            mark_safe("<br>"), "<strong>{}</strong>: {}", rows
+        )
+
     @admin.display(description=_("Portale attivato"), boolean=True)
     def portal_activated(self, obj):
         """Vero se un utente del portale ha già impostato le credenziali
@@ -2018,12 +2555,44 @@ class VendorAdmin(admin.ModelAdmin):
 
     actions = ["approve_vendors", "reject_vendors", "mark_for_audit"]
 
+    def _action_holders(self, request, queryset):
+        """Per le azioni di qualifica: la sezione della società dell'utente
+        (o quella filtrata nel changelist, per il superuser) oppure il
+        fornitore stesso se non ha sezioni. Restano fuori i fornitori senza
+        quella sezione."""
+        user = getattr(request, "user", None)
+        code = getattr(user, "company_id", None)
+        if getattr(user, "is_superuser", False):
+            code = (
+                request.GET.get("company_sections__company__code__exact")
+                or code
+            )
+        holders, skipped = [], []
+        for vendor in queryset:
+            if not vendor.has_company_sections:
+                holders.append(vendor)
+                continue
+            section = vendor.company_sections.filter(company_id=code).first()
+            if section is None:
+                skipped.append(vendor.name)
+            else:
+                holders.append(section)
+        if skipped:
+            self.message_user(
+                request,
+                _("Senza sezione della tua società, non modificati: %s")
+                % ", ".join(skipped),
+                "warning",
+            )
+        return holders
+
     def approve_vendors(self, request, queryset):
         # Approva solo i fornitori con documenti e requisiti obbligatori in
         # regola (caricati, verificati, non scaduti).
         approved = 0
-        for vendor in queryset:
-            blockers = vendor.qualification_blockers
+        for holder in self._action_holders(request, queryset):
+            vendor = getattr(holder, "vendor", holder)
+            blockers = holder.qualification_blockers
             if blockers:
                 self.message_user(
                     request,
@@ -2032,8 +2601,8 @@ class VendorAdmin(admin.ModelAdmin):
                     "warning",
                 )
                 continue
-            vendor.qualification_status = "APPROVED"
-            vendor.save()
+            holder.qualification_status = "APPROVED"
+            holder.save()
             approved += 1
         self.message_user(
             request, f"{approved} fornitori approvati.", "success"
@@ -2042,12 +2611,14 @@ class VendorAdmin(admin.ModelAdmin):
     approve_vendors.short_description = _("Approva fornitori selezionati")
 
     def reject_vendors(self, request, queryset):
-        # update() salta save(): il bollino va scritto insieme allo stato.
-        updated = queryset.exclude(qualification_status="REJECTED").update(
-            qualification_status="REJECTED",
-            qualification_date=oggi_locale(),
-            vendor_final_evaluation="NEGATIVO",
-        )
+        updated = 0
+        for holder in self._action_holders(request, queryset):
+            if holder.qualification_status == "REJECTED":
+                continue
+            holder.qualification_status = "REJECTED"
+            holder.qualification_date = oggi_locale()
+            holder.save()
+            updated += 1
         self.message_user(request, f"{updated} fornitori respinti.", "warning")
 
     reject_vendors.short_description = _("Respingi fornitori selezionati")

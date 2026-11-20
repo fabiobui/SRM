@@ -34,9 +34,10 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         dry_run = options["dry_run"]
         summary = sync_all(dry_run=dry_run)
-        for vendor, blockers in summary["downgraded"]:
+        for vendor, company, blockers in summary["downgraded"]:
+            where = f" [{company}]" if company else ""
             self.stdout.write(
-                f"{vendor.vendor_code} {vendor.name}: {len(blockers)} "
+                f"{vendor.vendor_code} {vendor.name}{where}: {len(blockers)} "
                 "elementi bloccanti"
             )
         verb_doc = "da segnare" if dry_run else "segnati"
