@@ -38,7 +38,7 @@ def test_vendor_code_is_first_in_list_display():
     # default la prima colonna. Deve essere "Codice Fornitore", non più
     # "Codice Embyon" (AIDEV-41).
     assert VendorAdmin.list_display[0] == "vendor_code"
-    assert VendorAdmin.list_display[1] == "old_code"
+    assert VendorAdmin.list_display[1] == "sage_code"
 
 
 def test_pec_fieldset_position():
@@ -148,7 +148,10 @@ def test_vendor_change_view_queries_do_not_scale_with_service_types(
     for _n in range(30):
         ServiceTypeFactory(parent=parent)
 
-    url = reverse("admin:vendors_vendor_change", args=[vendor.pk])
+    url = (
+        reverse("admin:vendors_vendor_change", args=[vendor.pk])
+        + "?sezione=COMUNE"
+    )
     with django_assert_max_num_queries(60):
         response = client.get(url)
 

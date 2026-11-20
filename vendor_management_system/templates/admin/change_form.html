@@ -41,7 +41,13 @@
       window.EMBYON_SEARCH_URL = "{% url 'admin:vendors_vendor_embyon_search' %}";
       window.VENDOR_DUPLICATE_CHECK_URL = "{% url 'admin:vendors_vendor_duplicate_check' %}";
       {% if original %}window.VENDOR_CURRENT_PK = "{{ original.pk }}";{% endif %}
-      {% if original %}window.CONTRACT_SAVE_URL = "{% url 'admin:vendors_vendor_contract_save' original.pk|admin_urlquote %}";{% endif %}
+      {% if original %}window.CONTRACT_SAVE_URL = "{% url 'admin:vendors_vendor_contract_save' original.pk|admin_urlquote %}{% if current_section %}?sezione={{ current_section.code }}{% endif %}";{% endif %}
+      {% if original and current_section %}
+        window.VENDOR_SECTION = "{{ current_section.code }}";
+        window.VENDOR_SECTION_LABEL = "{{ current_section.label|escapejs }}";
+        window.SECTION_DUPLICATES_URL = "{% url 'admin:vendors_vendor_section_duplicates' original.pk|admin_urlquote %}";
+      {% endif %}
+      window.VENDOR_LINK_SAGE_URL = "{% url 'admin:vendors_vendor_link_sage' %}";
     </script>
   {% endif %}
 {% endblock %}

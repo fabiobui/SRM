@@ -1515,6 +1515,18 @@ const FINAL_EVALUATION_BADGES = {
     'DA VALUTARE': { css: 'bg-secondary', label: 'Da Valutare' }
 };
 
+// Valutazione Finale: un badge per società se il fornitore ha sezioni.
+function formatFinalEvaluation(vendor, evaluation) {
+    const sections = vendor.sections || [];
+    if (!sections.length) {
+        return `<span class="badge ${evaluation.css}"><i class="fas fa-circle me-1"></i>${evaluation.label}</span>`;
+    }
+    return sections.map(s => {
+        const badge = FINAL_EVALUATION_BADGES[s.final] || FINAL_EVALUATION_BADGES['DA VALUTARE'];
+        return `<span class="badge ${badge.css} me-1 mb-1" title="${escapeAttr(badge.label)}">${escapeAttr(s.label)}: ${badge.label}</span>`;
+    }).join('');
+}
+
 // Indirizzo dell'anagrafica (sede). Regione/provincia non si mostrano qui:
 // i filtri dei grafici lavorano sulle zone di competenza, non sulla sede.
 function formatVendorAddress(address) {
@@ -1573,7 +1585,7 @@ function renderVendorsTable() {
             <td>${phone}</td>
             <td><small>${address}</small></td>
             <td>${formatOperationalNotes(vendor.operational_notes)}</td>
-            <td><span class="badge ${evaluation.css}"><i class="fas fa-circle me-1"></i>${evaluation.label}</span></td>
+            <td>${formatFinalEvaluation(vendor, evaluation)}</td>
             <td><button type="button" class="btn btn-sm btn-outline-primary btn-vendor-detail" data-vendor-code="${escapeAttr(vendor.vendor_code)}" data-vendor-name="${escapeAttr(vendor.name)}" title="Scheda fornitore"><i class="fas fa-eye"></i></button></td>
         </tr>`;
     }).join('');
@@ -1630,8 +1642,10 @@ const DROPDOWN_FILTERS = [
       values: v => v.classifications || [] },
     { key: 'vendor_types', param: 'dd_vendor_types', label: 'Tipo Fornitore',
       values: v => (v.vendor_type ? [v.vendor_type] : []) },
+    { key: 'companies', param: 'dd_companies', label: 'Società',
+      values: v => (v.sections || []).map(s => s.label) },
     { key: 'final_evaluations', param: 'dd_final_evaluations', label: 'Valutazione Finale',
-      values: v => [v.vendor_final_evaluation || 'DA VALUTARE'],
+      values: vendorFinalEvaluations,
       display: value => FINAL_EVALUATION_LABELS[value] || value },
     { key: 'services', param: 'dd_services', label: 'Servizi erogati',
       values: v => (v.services || []).map(s => s.name) },
@@ -1645,6 +1659,17 @@ const DROPDOWN_FILTERS = [
     { key: 'regions', param: 'dd_regions', label: 'Regione', geo: true },
     { key: 'provinces', param: 'dd_provinces', label: 'Provincia', geo: true }
 ];
+
+// Valutazioni finali del fornitore: quelle delle sue sezioni società (solo
+// delle società filtrate, se ce ne sono), altrimenti quella del fornitore.
+function vendorFinalEvaluations(vendor) {
+    const sections = vendor.sections || [];
+    if (!sections.length) return [vendor.vendor_final_evaluation || 'DA VALUTARE'];
+    const companies = dropdownSelection.companies;
+    return sections
+        .filter(s => !companies || companies.size === 0 || companies.has(s.label))
+        .map(s => s.final || 'DA VALUTARE');
+}
 
 let dropdownSelection = {};   // key -> Set di valori scelti
 let homeCountryCodes = [];    // nazioni con regioni a catalogo (Italia)
@@ -1707,7 +1732,8 @@ function matchesDropdownFilters(vendor) {
 function matchesSearch(vendor) {
     const term = document.getElementById('search-input').value.trim().toLowerCase();
     if (!term) return true;
-    return [vendor.old_code, vendor.vendor_code, vendor.name, vendor.vat_number, vendor.fiscal_code]
+    return [vendor.old_code, vendor.sage_code, vendor.vendor_code, vendor.name, vendor.vat_number,
+        vendor.fiscal_code, ...(vendor.account_codes || [])]
         .some(value => value && String(value).toLowerCase().includes(term));
 }
 
@@ -1837,14 +1863,16 @@ function scriptPrefix() {
     return typeof SCRIPT_PREFIX !== 'undefined' ? SCRIPT_PREFIX : '';
 }
 
-async function openVendorDetail(vendorCode, vendorName) {
+// Senza sezione il server restituisce la scelta tra Comune e società.
+async function openVendorDetail(vendorCode, vendorName, section = '') {
     const modalEl = document.getElementById('vendor-detail-modal');
     const body = document.getElementById('vendor-detail-body');
     document.getElementById('vendor-detail-title').textContent = vendorName || vendorCode;
     body.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-primary" role="status"></div></div>';
     bootstrap.Modal.getOrCreateInstance(modalEl).show();
+    const query = section ? `?sezione=${encodeURIComponent(section)}` : '';
     try {
-        const response = await fetch(`${scriptPrefix()}/vendors/dashboard/vendor/${encodeURIComponent(vendorCode)}/`, {
+        const response = await fetch(`${scriptPrefix()}/vendors/dashboard/vendor/${encodeURIComponent(vendorCode)}/${query}`, {
             headers: { 'X-Requested-With': 'XMLHttpRequest' },
             credentials: 'same-origin'
         });
@@ -1945,5 +1973,12 @@ document.addEventListener('DOMContentLoaded', function() {
     tbody.addEventListener('click', function(event) {
         const button = event.target.closest('.btn-vendor-detail');
         if (button) openVendorDetail(button.dataset.vendorCode, button.dataset.vendorName);
+    });
+    // Scelta/cambio della sezione (Comune o società) dentro la scheda.
+    document.getElementById('vendor-detail-body').addEventListener('click', function(event) {
+        const target = event.target.closest('[data-vendor-section]');
+        const detail = event.target.closest('.vendor-detail');
+        if (!target || !detail) return;
+        openVendorDetail(detail.dataset.vendorCode, detail.dataset.vendorName, target.dataset.vendorSection);
     });
 });

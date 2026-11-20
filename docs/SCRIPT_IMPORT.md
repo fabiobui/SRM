@@ -135,6 +135,11 @@ errori — se una riga fallisce, viene annullato **tutto**.
 
 ## Codice Embyon
 
+> Dal 2026-11 i conti Embyon per società stanno nelle **sezioni società** del fornitore e il collegamento
+> tra società passa dal **codice SAGE** delle viste FABRIC_HUB `v_suppliers` / `v_supplier_companies`. Per allineare
+> e accorpare i fornitori censiti usare i comandi `sync_fabric_suppliers` e `merge_shared_suppliers` descritti in
+> [FORNITORI_CONDIVISI.md](FORNITORI_CONDIVISI.md); gli script sotto restano per lo storico.
+
 ### `import_embyon_codes.py`
 
 Cerca i fornitori nell'anagrafica Embyon e scrive il `CODCONTO` trovato nel campo

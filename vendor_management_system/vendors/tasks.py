@@ -6,6 +6,7 @@ from vendor_management_system.vendors.expiry_reminders import (
     send_expiry_reminders,
 )
 from vendor_management_system.vendors.qualification_sync import sync_all
+from vendor_management_system.vendors.supplier_sync import sync_suppliers
 
 logger = logging.getLogger(__name__)
 
@@ -46,4 +47,25 @@ def sync_qualification_status_task():
         "downgraded": len(summary["downgraded"]),
         "approved": summary["approved"],
         "realigned": summary["realigned"],
+    }
+
+
+@shared_task(soft_time_limit=15 * 60, time_limit=20 * 60)
+def sync_fabric_suppliers_task():
+    """Job giornaliero (Celery beat): codice SAGE e conti Embyon dei
+    fornitori censiti dalle viste FABRIC_HUB, prima del sync qualifica."""
+    summary = sync_suppliers()
+    logger.info(
+        "Sync FABRIC_HUB: %d codici SAGE assegnati, %d conti aggiornati, "
+        "%d aggiunti, %d candidati all'accorpamento",
+        len(summary["sage_assigned"]),
+        summary["accounts_updated"],
+        summary["accounts_added"],
+        len(summary["merge_candidates"]),
+    )
+    return {
+        "sage_assigned": len(summary["sage_assigned"]),
+        "accounts_updated": summary["accounts_updated"],
+        "accounts_added": summary["accounts_added"],
+        "merge_candidates": len(summary["merge_candidates"]),
     }

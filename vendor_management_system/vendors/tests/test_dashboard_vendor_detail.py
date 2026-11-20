@@ -9,6 +9,7 @@ from vendor_management_system.portal.tests.factories import (
     VendorServiceFactory,
 )
 from vendor_management_system.users.models import User
+from vendor_management_system.vendors.models import VendorCompany
 from vendor_management_system.vendors.tests.factories import (
     VendorFactory,
     VendorOperationalAttributesFactory,
@@ -24,8 +25,8 @@ def operatore(db):
     )
 
 
-def _url(vendor):
-    return f"/vendors/dashboard/vendor/{vendor.pk}/"
+def _url(vendor, section="COMUNE"):
+    return f"/vendors/dashboard/vendor/{vendor.pk}/?sezione={section}"
 
 
 @pytest.mark.django_db
@@ -33,6 +34,8 @@ def test_scheda_mostra_le_sezioni_censite(client, operatore):
     vendor = VendorFactory(
         name="Verdi & Figli <Srl>",
         old_code="E55",
+        # Gli attributi operativi si vedono solo per i subappaltatori.
+        vendor_type="Subappaltatore",
         vat_number="01234567890",
         email="verdi@example.invalid",
     )
@@ -106,3 +109,69 @@ def test_scheda_anonimo_non_autorizzato(client):
     vendor = VendorFactory()
 
     assert client.get(_url(vendor)).status_code == 401
+
+
+@pytest.mark.django_db
+def test_senza_sezione_mostra_la_scelta(client, operatore):
+    vendor = VendorFactory()
+    VendorCompany.objects.create(vendor=vendor, company_id="SICURA")
+    client.force_login(operatore)
+
+    html = client.get(f"/vendors/dashboard/vendor/{vendor.pk}/").content
+    html = html.decode()
+
+    assert 'data-vendor-section="COMUNE"' in html
+    assert 'data-vendor-section="SICURA"' in html
+    assert "Informazioni base" not in html
+
+
+@pytest.mark.django_db
+def test_sezione_societa_mostra_qualifica_e_solo_i_suoi_elementi(
+    client, operatore
+):
+    vendor = VendorFactory()
+    VendorCompany.objects.create(
+        vendor=vendor, company_id="SICURA", qualification_status="TO_REVIEW"
+    )
+    VendorServiceFactory(
+        vendor=vendor,
+        company_id="SICURA",
+        service_type=ServiceTypeFactory(name="Servizio Sezione Sicura"),
+    )
+    VendorServiceFactory(
+        vendor=vendor,
+        service_type=ServiceTypeFactory(name="Servizio Sezione Comune"),
+    )
+    client.force_login(operatore)
+
+    html = client.get(_url(vendor, "SICURA")).content.decode()
+
+    assert "Qualifica e audit" in html
+    assert "Da Revisionare" in html
+    assert "Servizio Sezione Sicura" in html
+    assert "Servizio Sezione Comune" not in html
+    assert "Informazioni base" not in html
+
+
+@pytest.mark.django_db
+def test_sezione_non_presente_404(client, operatore):
+    vendor = VendorFactory()
+    client.force_login(operatore)
+    assert client.get(_url(vendor, "EVIMED")).status_code == 404
+
+
+@pytest.mark.django_db
+def test_attributi_operativi_solo_nella_sezione_sicura(client, operatore):
+    vendor = VendorFactory(vendor_type="Subappaltatore")
+    VendorCompany.objects.create(vendor=vendor, company_id="SICURA")
+    VendorCompany.objects.create(vendor=vendor, company_id="EVIMED")
+    VendorOperationalAttributesFactory(vendor=vendor)
+    client.force_login(operatore)
+
+    assert (
+        "Attributi operativi"
+        in client.get(_url(vendor, "SICURA")).content.decode()
+    )
+    for section in ("COMUNE", "EVIMED"):
+        html = client.get(_url(vendor, section)).content.decode()
+        assert "Attributi operativi" not in html

@@ -82,6 +82,16 @@ def test_admin_gestisce_admin_e_dashboard(client, admin):
 
 
 @pytest.mark.django_db
+def test_admin_gestisce_tecnici_e_mezzi_dal_gruppo_vendors(client, admin):
+    _login(client, admin)
+    for name in ("technician", "equipment"):
+        url = reverse(f"admin:subcontractors_{name}_changelist")
+        assert client.get(url).status_code == 200
+    menu = client.get(reverse("admin:index")).content.decode()
+    assert reverse("admin:subcontractors_equipment_changelist") in menu
+
+
+@pytest.mark.django_db
 def test_admin_crea_utenza_portale_senza_essere_superuser(client, admin):
     vendor = VendorFactory(email="nuovo@example.invalid")
     _login(client, admin)

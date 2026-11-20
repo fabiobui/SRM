@@ -97,6 +97,14 @@ FABRICHUB_SUPPLIERS_ENTITY = os.getenv(
     "FABRICHUB_SUPPLIERS_ENTITY", "Fornitori_CF"
 )
 FABRICHUB_CACHE_SECONDS = int(os.getenv("FABRICHUB_CACHE_SECONDS", "600"))
+# Viste dei fornitori condivisi tra società (codice SAGE univoco e conti per
+# società): ricerca "lente", sync e accorpamento dei fornitori.
+FABRICHUB_SHARED_SUPPLIERS_ENTITY = os.getenv(
+    "FABRICHUB_SHARED_SUPPLIERS_ENTITY", "v_suppliers"
+)
+FABRICHUB_SUPPLIER_COMPANIES_ENTITY = os.getenv(
+    "FABRICHUB_SUPPLIER_COMPANIES_ENTITY", "v_supplier_companies"
+)
 
 # DATABASES["default"]["ATOMIC_REQUESTS"] = True
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
@@ -443,6 +451,10 @@ JAZZMIN_SETTINGS = {
         # Sezione "Vendors - Analysis and Classification": stesso motivo,
         # solo il link "Dashboard" (sotto) - vedi AIDEV-46.
         "vendors_analysis.vendoranalysissection",
+        # Tecnici e mezzi/dotazioni compaiono nel gruppo "Vendors" (link
+        # sotto), non come sezione a parte.
+        "subcontractors.technician",
+        "subcontractors.equipment",
     ],
     "topmenu_links": [
         {
@@ -454,6 +466,20 @@ JAZZMIN_SETTINGS = {
         },
     ],
     "custom_links": {
+        "vendors": [
+            {
+                "name": "Tecnici",
+                "url": "admin:subcontractors_technician_changelist",
+                "icon": "fas fa-hard-hat",
+                "permissions": ["subcontractors.view_technician"],
+            },
+            {
+                "name": "Mezzi/dotazioni",
+                "url": "admin:subcontractors_equipment_changelist",
+                "icon": "fas fa-truck-pickup",
+                "permissions": ["subcontractors.view_equipment"],
+            },
+        ],
         "portal": [
             {
                 "name": "Dashboard",
@@ -632,6 +658,12 @@ CELERY_BEAT_SCHEDULE = {
     "record_historical_performance": {
         "task": "vendor_management_system.historical_performances.tasks.record_historical_performance",  # noqa: E501
         "schedule": crontab(hour="*/6"),  # Run every 6 hours
+    },
+    # Conti Embyon e stato attivo per società dalle viste FABRIC_HUB,
+    # prima del sync qualifica (che usa il flag "attivo in Embyon").
+    "sync_fabric_suppliers": {
+        "task": "vendor_management_system.vendors.tasks.sync_fabric_suppliers_task",  # noqa: E501
+        "schedule": crontab(hour=6, minute=0),  # Ogni giorno alle 6:00
     },
     # Prima dei promemoria: le scadenze del giorno declassano i fornitori.
     "sync_qualification_status": {

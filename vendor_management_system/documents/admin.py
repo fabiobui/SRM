@@ -69,13 +69,14 @@ class DocumentCatalogAdmin(admin.ModelAdmin):
 class DocumentAdmin(admin.ModelAdmin):
     list_display = [
         "vendor",
+        "company",
         "document_type",
         "validity_badge",
         "issue_date",
         "expiry_date",
         "uploaded_at",
     ]
-    list_filter = ["document_type", "uploaded_at"]
+    list_filter = ["company", "document_type", "uploaded_at"]
 
     @admin.display(description=_("Stato validità"))
     def validity_badge(self, obj):

@@ -296,3 +296,7 @@ docs/.obsidian/
 # fornitore (P.IVA, C.F., recapiti), non vanno committati.
 data_migration_scripts/input/
 data_migration_scripts/reports/igeam_*.csv
+# Esiti accorpamento fornitori condivisi: contengono dati fornitore.
+data_migration_scripts/reports/merge_*.csv
+data_migration_scripts/reports/embyon_codes_not_in_views.csv
+data_migration_scripts/reports/merge_backup/

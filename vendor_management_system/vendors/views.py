@@ -33,6 +33,7 @@ from vendor_management_system.vendors.serializers import (
     ProvinceSerializer,
     RegionSerializer,
     VendorAuditSerializer,
+    VendorCompanySectionSerializer,
     VendorCreateUpdateSerializer,
     VendorListSerializer,
     VendorPerformanceSerializer,
@@ -910,6 +911,9 @@ class VendorViewSet(viewsets.ViewSet):
             )
 
         elif request.method == "PATCH":
+            # Con le sezioni la qualifica è per società: va indicata quale.
+            if vendor.has_company_sections:
+                return self._update_section_qualification(request, vendor)
             serializer = VendorQualificationSerializer(
                 vendor, data=request.data, partial=True
             )
@@ -921,6 +925,38 @@ class VendorViewSet(viewsets.ViewSet):
             return response.Response(
                 serializer.errors, status=status.HTTP_400_BAD_REQUEST
             )
+
+    def _update_section_qualification(self, request, vendor):
+        code = (request.data.get("company") or "").upper()
+        section = vendor.company_sections.filter(company_id=code).first()
+        if section is None:
+            return response.Response(
+                {
+                    "company": [
+                        "Indicare la società della sezione da aggiornare: "
+                        + ", ".join(
+                            vendor.company_sections.values_list(
+                                "company_id", flat=True
+                            )
+                        )
+                    ]
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        data = {k: v for k, v in request.data.items() if k != "company"}
+        serializer = VendorCompanySectionSerializer(
+            section, data=data, partial=True
+        )
+        if not serializer.is_valid():
+            return response.Response(
+                serializer.errors, status=status.HTTP_400_BAD_REQUEST
+            )
+        serializer.save()
+        vendor.refresh_from_db()
+        return response.Response(
+            VendorQualificationSerializer(vendor).data,
+            status=status.HTTP_200_OK,
+        )
 
     # Custom action for audit management
     @swagger_auto_schema(

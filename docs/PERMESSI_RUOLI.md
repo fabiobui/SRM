@@ -44,13 +44,21 @@ Il campo `User.role` è la fonte di verità. Gli altri elementi si ricavano da l
 Il pannello `/admin/` mostra solo le sezioni per cui l'utente ha permessi: per il BO User non compare nulla,
 perché non è staff.
 
+### Sezioni dei fornitori per società
+
+Sopra il ruolo vale una regola per **società** (`User.company`, dall'attributo AD `company` a ogni login): sui fornitori
+condivisi tra società l'Admin modifica la sezione **Comune** e quella **della propria società**, le sezioni delle altre
+società sono in sola lettura; il BO User vede e rivede nel back office solo documenti e requisiti della Comune e della
+propria società; il superuser modifica tutto. Dettagli in [FORNITORI_CONDIVISI.md](FORNITORI_CONDIVISI.md).
+
 ## Permessi Django nei gruppi
 
 I permessi stanno nei gruppi, non nei singoli utenti: si gestiscono in un solo punto, in
 [vendor_management_system/users/roles.py](../vendor_management_system/users/roles.py).
 
 - **Admin**: tutti i permessi (add, change, delete, view) delle app `ADMIN_APP_LABELS`: users, vendors,
-  vendors_analysis, purchase_orders, historical_performances, services, competences, portal, documents.
+  vendors_analysis, purchase_orders, historical_performances, services, competences, portal, documents,
+  subcontractors (tecnici e mezzi/dotazioni).
   Restano fuori `auth` (gruppi e permessi), `admin`, `contenttypes`, `sessions`, `authtoken` e
   `django_celery_beat`: li gestisce solo un superuser.
 - **BO User**, **Buyer** e **Vendors**: nessun permesso Django. Il loro accesso passa dalle viste, che controllano il ruolo.

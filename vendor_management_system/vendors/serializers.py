@@ -9,6 +9,7 @@ from vendor_management_system.vendors.models import (
     Province,
     Region,
     Vendor,
+    VendorCompany,
 )
 
 # ============================================================================
@@ -428,8 +429,45 @@ class AddressManagementSerializer(ModelSerializer):
 
 
 # Serializer per Vendor AGGIORNATO (sostituisce quello esistente)
+class VendorCompanySectionSerializer(ModelSerializer):
+    """Sezione società del fornitore: qualifica e conti Embyon."""
+
+    company = serializers.CharField(source="company_id", read_only=True)
+    company_label = serializers.CharField(
+        source="company.label", read_only=True
+    )
+    accounts = serializers.SerializerMethodField()
+
+    class Meta:
+        model = VendorCompany
+        fields = [
+            "company",
+            "company_label",
+            "qualification_status",
+            "qualification_score",
+            "qualification_date",
+            "qualification_expiry",
+            "vendor_final_evaluation",
+            "embyon_active",
+            "accounts",
+        ]
+        read_only_fields = [
+            "company",
+            "company_label",
+            "vendor_final_evaluation",
+            "embyon_active",
+            "accounts",
+        ]
+
+    def get_accounts(self, obj):
+        return [a.account_code for a in obj.accounts.all()]
+
+
 class VendorSerializer(ModelSerializer):
     is_qualified = serializers.ReadOnlyField()
+    sections = VendorCompanySectionSerializer(
+        source="company_sections", many=True, read_only=True
+    )
     audit_overdue = serializers.ReadOnlyField()
     address = AddressSerializer(required=False, allow_null=True)
     category = CategoryCompactSerializer(read_only=True)
@@ -452,7 +490,9 @@ class VendorSerializer(ModelSerializer):
         fields = [
             # Core fields
             "vendor_code",
+            "sage_code",
             "old_code",
+            "sections",
             "name",
             "contact_details",
             "address",
@@ -792,6 +832,9 @@ class CategoryStatsSerializer(ModelSerializer):
 # Serializer per vendor qualification
 class VendorQualificationSerializer(ModelSerializer):
     category = CategoryCompactSerializer(read_only=True)
+    sections = VendorCompanySectionSerializer(
+        source="company_sections", many=True, read_only=True
+    )
     competence_provinces = serializers.SlugRelatedField(
         slug_field="code", many=True, read_only=True
     )
@@ -813,11 +856,13 @@ class VendorQualificationSerializer(ModelSerializer):
             "risk_level",
             "competence_provinces",
             "competence_countries",
+            "sections",
         ]
         read_only_fields = [
             "vendor_code",
             "name",
             "category",
+            "sections",
             "competence_provinces",
             "competence_countries",
         ]

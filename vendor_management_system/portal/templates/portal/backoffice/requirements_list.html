@@ -39,7 +39,7 @@
                         <strong>{{ r.vendor.name }}</strong><br>
                         <small class="text-muted">{{ r.vendor.vendor_code }}</small>
                     </td>
-                    <td>{{ r.competence.name }}</td>
+                    <td>{{ r.competence.name }}<br>{% if not r.section_confirmed %}<span class="badge bg-warning text-dark">Sezione da assegnare</span>{% else %}<small class="text-muted">{{ r.company.label }}</small>{% endif %}</td>
                     <td>{{ r.certification_number|default:"—" }}</td>
                     <td>{{ r.expiry_date|date:"d/m/Y"|default:"—" }}</td>
                     <td>

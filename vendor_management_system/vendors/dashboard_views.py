@@ -43,6 +43,8 @@ def vendor_dashboard_view(request):
                 "vendor_competences",
                 queryset=VendorCompetence.objects.select_related("competence"),
             ),
+            "company_sections__company",
+            "company_sections__accounts",
         )
         .all()
     )
@@ -353,9 +355,24 @@ def vendor_dashboard_view(request):
             (vs for vs in vendor_services if vs.is_primary), None
         )
 
+        sections = list(vendor.company_sections.all())
         vendor_dict = {
             "vendor_code": vendor.vendor_code,
             "old_code": vendor.old_code,
+            "sage_code": vendor.sage_code,
+            # Qualifica e Valutazione Finale per società (sezioni).
+            "sections": [
+                {
+                    "company": s.company_id,
+                    "label": s.company.label,
+                    "qualification_status": s.qualification_status,
+                    "final": s.vendor_final_evaluation,
+                }
+                for s in sections
+            ],
+            "account_codes": [
+                a.account_code for s in sections for a in s.accounts.all()
+            ],
             "name": vendor.name,
             "email": vendor.email,
             "phone": vendor.phone if hasattr(vendor, "phone") else None,

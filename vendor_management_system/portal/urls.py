@@ -7,7 +7,7 @@ Tutte le rotte qui sono inserite in `config/urls.py` sotto il prefisso
 
 from django.urls import path
 
-from . import subcontractor_views, views
+from . import bo_subcontractor_views, subcontractor_views, views
 
 app_name = "portal"
 
@@ -230,6 +230,17 @@ urlpatterns = [
         "backoffice/documenti/<str:pk>/review/",
         views.BoDocumentReviewView.as_view(),
         name="bo-document-review",
+    ),
+    # Area BO — tecnici e mezzi dei subappaltatori
+    path(
+        "backoffice/tecnici-mezzi/",
+        bo_subcontractor_views.BoSubcontractorListView.as_view(),
+        name="bo-subcontractors",
+    ),
+    path(
+        "backoffice/tecnici-mezzi/<str:kind>/<int:pk>/review/",
+        bo_subcontractor_views.BoSubcontractorReviewView.as_view(),
+        name="bo-subcontractor-review",
     ),
     # Area BO — dashboard consolidata
     path(

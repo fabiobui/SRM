@@ -107,6 +107,7 @@ def test_change_page_shows_zip_button_in_both_sections(admin_client):
 
     response = admin_client.get(
         reverse("admin:vendors_vendor_change", args=[vendor.pk])
+        + "?sezione=COMUNE"
     )
 
     content = response.content.decode()
@@ -125,5 +126,6 @@ def test_zip_is_not_produced_when_a_stored_file_is_missing(admin_client):
     assert response.redirect_chain
     assert response.redirect_chain[-1][0].endswith(
         reverse("admin:vendors_vendor_change", args=[vendor.pk])
+        + "?sezione=COMUNE"
     )
     assert "Download non riuscito" in response.content.decode()

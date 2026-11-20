@@ -143,8 +143,9 @@ def test_duplicate_check_view_returns_duplicate_true(admin_client_logged_in):
     data = response.json()
     assert data["duplicate"] is True
     assert data["vendor_code"] == existing.pk
+    # Il link apre la pagina di scelta della sezione del fornitore.
     assert data["change_url"] == reverse(
-        "admin:vendors_vendor_change", args=[existing.pk]
+        "admin:vendors_vendor_sections", args=[existing.pk]
     )
 
 

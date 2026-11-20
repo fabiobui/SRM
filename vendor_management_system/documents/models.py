@@ -108,6 +108,23 @@ class DocumentCatalog(models.Model):
         ),
     )
 
+    # Ambito: COMMON per i documenti dell'entità fornitore (uguali per tutte
+    # le società), COMPANY per quelli contrattuali della singola società.
+    scope = models.CharField(
+        _("Ambito"),
+        max_length=10,
+        choices=[
+            ("COMMON", _("Comune a tutte le società")),
+            ("COMPANY", _("Specifico della società")),
+        ],
+        default="COMPANY",
+        help_text=_(
+            "Comune: documento dell'entità fornitore, valido per tutte le "
+            "società (va nella sezione Comune). Specifico: per singola "
+            "società."
+        ),
+    )
+
     requires_renewal = models.BooleanField(
         _("Richiede Rinnovo"),
         default=True,
@@ -253,6 +270,23 @@ class Document(models.Model):
         help_text=_("Vendor who owns this document"),
         related_name="documents",
     )
+    # Sezione del fornitore: "COMUNE" (riga sentinella) o una società.
+    company = models.ForeignKey(
+        "vendors.Company",
+        verbose_name=_("Sezione"),
+        on_delete=models.PROTECT,
+        default="COMUNE",
+        related_name="+",
+        help_text=_("Sezione del fornitore: Comune o una società"),
+    )
+    section_confirmed = models.BooleanField(
+        _("Sezione confermata"),
+        default=True,
+        help_text=_(
+            "Falso per i caricamenti dal portale la cui sezione deve ancora "
+            "essere assegnata dal back office"
+        ),
+    )
     document_type = models.ForeignKey(
         DocumentCatalog,
         on_delete=models.CASCADE,
@@ -335,7 +369,12 @@ class Document(models.Model):
         verbose_name = _("Documento Contrattuale")
         verbose_name_plural = _("Registro Documenti Contrattuali")
         ordering = ["-uploaded_at"]
-        unique_together = ["vendor", "document_type"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["vendor", "company", "document_type"],
+                name="uniq_document_section_type",
+            )
+        ]
 
     def __str__(self):
         return f"{self.vendor.name} - {self.document_type.name}"

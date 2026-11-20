@@ -256,9 +256,17 @@ class VendorChangeRequest(models.Model):
             for field, payload in (self.changes or {}).items()
             if field in EDITABLE_VENDOR_SERVICE_FIELDS
         }
+        from vendor_management_system.vendors.sections import (
+            default_section_for,
+        )
+
+        # Servizio della società se il fornitore ne ha una sola, altrimenti
+        # nella Comune (il back office può spostarlo dall'admin).
+        section, _confirmed = default_section_for(self.vendor, "COMPANY")
         VendorService.objects.create(
             vendor=self.vendor,
             service_type=self.service_type,
+            company_id=section,
             **field_values,
         )
 

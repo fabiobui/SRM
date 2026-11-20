@@ -30,6 +30,9 @@ ADMIN_APP_LABELS = (
     "competences",
     "portal",
     "documents",
+    # Tecnici e mezzi/dotazioni dei subappaltatori (inline nella scheda e
+    # voci del gruppo "Vendors" nel menu admin).
+    "subcontractors",
 )
 
 

@@ -6,17 +6,20 @@ Accessibili anche al Buyer, che non entra in /admin/ (vedi
 """
 
 from django.core.exceptions import FieldDoesNotExist
-from django.http import JsonResponse
+from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from vendor_management_system.core.permissions import dashboard_api_required
 from vendor_management_system.vendors import competence
-from vendor_management_system.vendors.models import Vendor
+from vendor_management_system.vendors.models import COMMON_SECTION, Vendor
 from vendor_management_system.vendors.prospect import (
     ProspectVendorForm,
     create_prospect,
+)
+from vendor_management_system.vendors.sections import (
+    subcontractor_section,
 )
 
 EMPTY = "—"
@@ -143,21 +146,49 @@ def _base_rows(vendor):
     return rows
 
 
-def vendor_detail_sections(vendor):
-    """Sezioni della scheda fornitore, nello stesso ordine dell'admin."""
+def vendor_detail_sections(vendor, section=COMMON_SECTION):
+    """Tab della scheda fornitore per una sezione (Comune o società), nello
+    stesso ordine dell'admin. La Comune porta anagrafica e contatti, la
+    sezione di una società la sua qualifica e i suoi conti Embyon."""
     services = vendor.vendor_services.select_related(
         "service_type", "service_type__parent"
+    ).filter(company_id=section)
+    requirements = vendor.vendor_competences.select_related(
+        "competence"
+    ).filter(company_id=section)
+    documents = vendor.documents.select_related("document_type").filter(
+        company_id=section
     )
-    requirements = vendor.vendor_competences.select_related("competence")
-    documents = vendor.documents.select_related("document_type")
-    contracts = vendor.contracts.all()
+    contracts = vendor.contracts.filter(company_id=section)
     evaluations = vendor.evaluations.select_related(
         "criterion", "evaluator", "evaluation_frequency"
+    ).filter(company_id=section)
+    company_section = (
+        vendor.company_sections.filter(company_id=section)
+        .prefetch_related("accounts")
+        .first()
     )
 
-    return [
-        {"title": "Informazioni base", "rows": _base_rows(vendor)},
-        {"title": "Contatti", "rows": _rows(vendor, CONTACT_FIELDS)},
+    if section == COMMON_SECTION:
+        head = [
+            {"title": "Informazioni base", "rows": _base_rows(vendor)},
+            {"title": "Contatti", "rows": _rows(vendor, CONTACT_FIELDS)},
+        ]
+    else:
+        head = [
+            {
+                "title": "Qualifica e audit",
+                "rows": [
+                    *_rows(company_section, QUALIFICATION_FIELDS),
+                    ("Conti Embyon", company_section.account_codes() or EMPTY),
+                    (
+                        "Attivo in Embyon",
+                        _yes_no(company_section.embyon_active),
+                    ),
+                ],
+            }
+        ]
+    tabs = head + [
         {
             "title": "Servizi erogati",
             "table": _table(
@@ -248,10 +279,6 @@ def vendor_detail_sections(vendor):
             ),
         },
         {
-            "title": "Qualifica e audit",
-            "rows": _rows(vendor, QUALIFICATION_FIELDS),
-        },
-        {
             "title": "Valutazioni",
             "table": _table(
                 ["Criterio", "Punteggio", "Valutatore", "Note"],
@@ -266,11 +293,49 @@ def vendor_detail_sections(vendor):
                 ],
             ),
         },
-        {
-            "title": "Attributi operativi",
-            "rows": _operational_rows(vendor),
-        },
     ]
+    # Fornitore senza sezioni società: la qualifica è sulla Comune.
+    if section == COMMON_SECTION and not vendor.has_company_sections:
+        tabs.append(
+            {
+                "title": "Qualifica e audit",
+                "rows": _rows(vendor, QUALIFICATION_FIELDS),
+            }
+        )
+    # Attributi operativi dei subappaltatori: nella sezione Sicura.
+    if vendor.is_subappaltatore and section == subcontractor_section(vendor):
+        tabs.append(
+            {
+                "title": "Attributi operativi",
+                "rows": _operational_rows(vendor),
+            }
+        )
+    return tabs
+
+
+def section_cards(vendor):
+    """Card della scelta sezione nella scheda in sola lettura."""
+    cards = [
+        {
+            "code": COMMON_SECTION,
+            "label": "Comune",
+            "description": "Anagrafica, contatti, documenti e requisiti "
+            "comuni a tutte le società",
+        }
+    ]
+    for section in vendor.company_sections.select_related("company"):
+        cards.append(
+            {
+                "code": section.company_id,
+                "label": section.company.label,
+                "status": section.get_qualification_status_display(),
+                "status_code": section.qualification_status,
+                "final": section.get_vendor_final_evaluation_display(),
+                "final_code": section.vendor_final_evaluation,
+                "accounts": section.account_codes(),
+            }
+        )
+    return cards
 
 
 @dashboard_api_required
@@ -282,11 +347,14 @@ def vendor_detail_view(request, vendor_code):
         ).prefetch_related("secondary_managers", "additional_categories"),
         pk=vendor_code,
     )
-    return render(
-        request,
-        "vendors/_vendor_readonly_detail.html",
-        {"vendor": vendor, "sections": vendor_detail_sections(vendor)},
-    )
+    cards = section_cards(vendor)
+    code = (request.GET.get("sezione") or "").upper()
+    if code and code not in {card["code"] for card in cards}:
+        raise Http404
+    context = {"vendor": vendor, "cards": cards, "current": code}
+    if code:
+        context["sections"] = vendor_detail_sections(vendor, code)
+    return render(request, "vendors/_vendor_readonly_detail.html", context)
 
 
 @require_POST

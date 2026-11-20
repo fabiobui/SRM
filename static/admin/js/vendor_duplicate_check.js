@@ -1,5 +1,5 @@
 /*
- * Controllo duplicati Codice Embyon / Partita IVA / Codice Fiscale (AIDEV-21)
+ * Controllo duplicati Codice Embyon / SAGE / Partita IVA / Codice Fiscale
  * ----------------------------------------------------------------------------
  * Nel tab "Informazioni Base" del VendorAdmin, appena l'utente esce da uno dei
  * campi old_code, vat_number o fiscal_code, interroga in AJAX l'endpoint
@@ -15,6 +15,7 @@
 
     var FIELDS = [
         { id: 'id_old_code', name: 'old_code', label: null },
+        { id: 'id_sage_code', name: 'sage_code', label: null },
         { id: 'id_vat_number', name: 'vat_number', label: null },
         { id: 'id_fiscal_code', name: 'fiscal_code', label: null }
     ];
@@ -90,11 +91,23 @@
         link.rel = 'noopener';
         link.textContent = gettextSafe('Codice Fornitore') + ' ' + data.vendor_code;
 
-        banner.appendChild(document.createTextNode(
-            gettextSafe('Valore già usato dal fornitore') + ' "' + data.vendor_name + '" ('
-        ));
-        banner.appendChild(link);
-        banner.appendChild(document.createTextNode(').'));
+        if (data.sage) {
+            // Stesso fornitore già censito (codice SAGE): non si crea un
+            // doppione, si aggiunge la sezione della propria società.
+            banner.className = 'alert alert-warning';
+            link.textContent = gettextSafe('Apri il fornitore e aggiungi la sezione della tua società');
+            banner.appendChild(document.createTextNode(
+                gettextSafe('Fornitore già censito') + ' (SAGE ' + data.sage_code + '): "' +
+                data.vendor_name + '". '
+            ));
+            banner.appendChild(link);
+        } else {
+            banner.appendChild(document.createTextNode(
+                gettextSafe('Valore già usato dal fornitore') + ' "' + data.vendor_name + '" ('
+            ));
+            banner.appendChild(link);
+            banner.appendChild(document.createTextNode(').'));
+        }
 
         // Il campo old_code viene racchiuso da embyon_search.js in un
         // wrapper flex (input + bottone ricerca): il banner va appeso dopo
